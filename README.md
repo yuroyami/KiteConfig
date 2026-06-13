@@ -2,10 +2,16 @@
 
 A Gradle plugin that gives a Kotlin Multiplatform project **one `kmpSsot { }`
 block at the root** and propagates cross-platform identity (app name, version,
-bundle ID, locales, app logo) to Android and iOS automatically.
+bundle ID, locales, app logo) — plus the Android SDK levels — to Android and iOS
+automatically.
 
 One source of truth, per-concern opt-out toggles, every identity field
 optional.
+
+> **Requirements:** Gradle 8.5+, JDK 17+ (toolchain 21), AGP 8+/9.x. Tested
+> against AGP 9.1 and Kotlin 2.3. The root-applied, zero-per-module design means
+> cross-project configuration is **not** compatible with Gradle's Isolated
+> Projects feature; the configuration cache and normal builds are unaffected.
 
 ---
 
@@ -18,7 +24,7 @@ and declare once:
 ```kotlin
 // <root>/build.gradle.kts
 plugins {
-    id("io.github.yuroyami.kmpssot") version "1.3.0"
+    id("io.github.yuroyami.kmpssot") version "1.4.0"
     // ...your other plugins, typically with .apply(false)...
 }
 
@@ -26,11 +32,24 @@ kmpSsot {
     appName      = "Jetzy"
     versionName  = "0.3.0"
     bundleIdBase = "com.yuroyami.jetzy"   // null by default — omit to freeze existing bundle IDs
-    javaVersion  = 21
+    javaVersion  = 21                     // optional, NO default — set to control compileOptions
+
+    // versionCode is derived from versionName ("1" + 3-digit segments). For a
+    // non-numeric or 4+-segment version, set it explicitly:
+    // versionCodeOverride = 42
 
     // Module structure.
     sharedModule     = "shared"       // REQUIRED — KMP shared module directory name
     androidAppModule = "androidApp"   // optional, default "androidApp"
+    // oldSharedModuleName = "composeApp"  // optional — for the rename SSOT when auto-detect can't
+
+    // Android SDK levels — all optional, propagated to every Android module.
+    android {
+        compileSdk = 36
+        minSdk     = 26
+        targetSdk  = 36               // application modules only (libraries have none)
+        // ndkVersion = "27.0.12077973"
+    }
 
     // Bundle-ID suffixes — both null by default. When unset, applicationId
     // and iOS bundle ID share bundleIdBase verbatim. Set them when you need
@@ -57,8 +76,14 @@ kmpSsot {
     // propagateLocaleList    = true
     // propagateLogo          = true
     // propagateSharedModule  = true
+    // propagateAndroidSdk    = true
     // syncIos                = true
     // sanitizeIosProject     = true
+
+    // Safety. dryRun previews edits (writes nothing); backupBeforeRewrite (default
+    // true) copies a user-owned file to <file>.kmpssot.bak before its first edit.
+    // dryRun              = true
+    // backupBeforeRewrite = true
 
     // Migration aid (default false): removes orphan logo files from
     // pre-FG/BG plugin versions. See "Migrating older versions" below.
@@ -83,23 +108,26 @@ the already-registered Android `applicationId` and iOS
 
 ### Scope
 
-`kmpSsot { }` covers cross-platform identity and the shared toolchain only.
-`compileSdk`, `minSdk`, `targetSdk`, and `ndkVersion` are Android-only and
-belong in each Android module's own build file:
+`kmpSsot { }` covers cross-platform identity, the shared toolchain, and — via
+the optional `android { }` block — the Android SDK levels (`compileSdk`,
+`minSdk`, `targetSdk`, `ndkVersion`). When you set those in `kmpSsot { android
+{ } }` they are propagated to every Android module's `defaultConfig`, so you no
+longer copy-paste them across modules:
 
 ```kotlin
-// androidApp/build.gradle.kts
-android {
-    compileSdk = 36
-    defaultConfig { minSdk = 26; targetSdk = 36 }
-}
-
-// shared/build.gradle.kts  (KMP module)
-kotlin.android {
-    compileSdk { version = release(36) }
-    minSdk = 26
+kmpSsot {
+    android {
+        compileSdk = 36
+        minSdk     = 26
+        targetSdk  = 36   // application modules only
+    }
 }
 ```
+
+Each value is optional — leave one unset to keep whatever a module declares
+itself, or set `propagateAndroidSdk = false` to disable the block entirely.
+Per-flavor / per-variant SDK overrides still belong in the module's own build
+file (the block writes `defaultConfig` only).
 
 ### Two one-time consumer-side patches
 
@@ -175,8 +203,9 @@ the iOS framework link tasks.
 
 ### Migrating older versions
 
-Pre-1.1 plugin versions used `appLogoXml` + `appLogoPng` +
-`appLogoBackgroundColor` and generated different files. After upgrading,
+Pre-1.1 plugin versions used `appLogoXml` + `appLogoPng` and generated
+different files. (`appLogoBackgroundColor` is **not** legacy — it's a current,
+first-class background source; see [App logo](#app-logo).) After upgrading,
 clean the orphans once:
 
 ```bash
@@ -216,10 +245,16 @@ When you rename it (say from `shared` to `composeApp`):
 4. Run `./gradlew syncIosConfig`.
 
 The plugin detects the old name from the existing `iosApp/Podfile` line
-(`pod 'X', :path => '../X'`) and rewrites:
+(`pod 'X', :path => '../X'`, only when the pod name equals the path tail) and
+rewrites:
 
 - The Podfile `pod` name + `:path =>` references
-- Every `import X` (plain form) in `iosApp/**/*.swift`
+- Every exact `import X` (plain form) in `iosApp/**/*.swift` — submodule imports
+  (`import X.Sub`), same-prefix modules (`import XKit`), and `@testable import`
+  are left untouched
+
+If the pod name differs from the directory or uses a nested path, auto-detection
+can't safely guess — set `oldSharedModuleName = "..."` explicitly.
 
 Then `pod install` in `iosApp/` (or `./gradlew :${sharedModule}:podInstall`)
 refreshes the Pods workspace from the new podspec — `Pods.xcodeproj`, the
@@ -286,7 +321,9 @@ in the plist by hand, the DSL wins on the next sync.
 | `com.android.application` | `applicationId`, `versionCode`/`versionName`, `compileOptions`, `manifestPlaceholders["appName"]`, `resourceConfigurations` |
 | `com.android.library` | `compileOptions`, `resourceConfigurations` |
 | `org.jetbrains.kotlin.multiplatform` | `syncIosConfig` + `syncIosLogo` hooked into `linkPod*FrameworkIos*` + `embedAndSignAppleFrameworkForXcode` |
-| iOS `project.pbxproj` (idempotent) | `MARKETING_VERSION`, `CURRENT_PROJECT_VERSION`, `INFOPLIST_KEY_CFBundleDisplayName`, `INFOPLIST_KEY_CFBundleName`, `PRODUCT_BUNDLE_IDENTIFIER`, `knownRegions` |
+| `com.android.application` (SDK) | `compileSdk`, `defaultConfig.minSdk`/`targetSdk`, `ndkVersion` (from `android { }`) |
+| `com.android.library` (SDK) | `compileSdk`, `defaultConfig.minSdk`, `ndkVersion` (from `android { }`) |
+| iOS `project.pbxproj` (idempotent) | `MARKETING_VERSION`, `CURRENT_PROJECT_VERSION`, `INFOPLIST_KEY_CFBundleDisplayName`, `INFOPLIST_KEY_CFBundleName`, `PRODUCT_NAME`, `PRODUCT_BUNDLE_IDENTIFIER`, `knownRegions` |
 | iOS `Info.plist` (when `ios { }` flags set) | `ITSAppUsesNonExemptEncryption`, `CADisableMinimumFrameDurationOnPhone` |
 | iOS `Podfile` (when `sharedModule` differs) | `pod 'X', :path => '../X'` lines |
 | iOS `iosApp/**/*.swift` (when `sharedModule` differs) | plain `import X` statements |
@@ -298,20 +335,42 @@ in the plist by hand, the DSL wins on the next sync.
 
 ---
 
+## Safety: verify, dry-run, backups
+
+The plugin rewrites files you own (pbxproj, `Info.plist`, Podfile, Swift). Three
+safety nets:
+
+- **`./gradlew kmpSsotVerify`** prints the resolved SSOT values and which iOS
+  target files exist. It modifies nothing — run it to sanity-check config.
+- **`kmpSsot { dryRun = true }`** makes every rewriting task log the change it
+  *would* make and write nothing. Run a sync task to preview exact edits.
+- **`backupBeforeRewrite`** (default **true**) copies a user-owned file to
+  `<file>.kmpssot.bak` before its first real edit, so any unexpected rewrite is
+  recoverable. Generated launcher icons are plugin-owned and not backed up.
+
+Identity rewrites are idempotent — re-running with the same DSL is a no-op — and
+a `versionName` the plugin can't turn into a `versionCode` (non-numeric, 4+
+segments, a segment > 999) **fails fast at configuration** with guidance instead
+of crashing mid-build. Set `versionCodeOverride` for those.
+
 ## Edge cases
 
 ### iOS launcher name
 
-The iOS home screen shows `CFBundleDisplayName` on iOS 13+ and falls back to
-`CFBundleName` on older versions. Both are synthesized at build time by
-Xcode from the pbxproj `INFOPLIST_KEY_CFBundleDisplayName` /
-`INFOPLIST_KEY_CFBundleName` build settings. The plugin rewrites both keys
-**when they exist** in the pbxproj — it never inserts new ones (pbxproj
-has structured per-target build-config sections, and blind injection would
-land in the wrong section). If your Xcode template didn't emit
-`INFOPLIST_KEY_CFBundleName`, add the line once manually to the main
-target's build config (Debug + Release), and the plugin will keep it in
-sync from then on.
+The iOS home screen shows `CFBundleDisplayName` (falling back to
+`CFBundleName`). The plugin drives the app name through **`PRODUCT_NAME`**,
+which it rewrites in every build config — and `sanitizeIosProject` ensures the
+on-disk `Info.plist` has `CFBundleDisplayName` / `CFBundleName` pointing at
+`$(PRODUCT_NAME)`. So for the common on-disk-`Info.plist` setup the name
+propagates with no manual pbxproj editing.
+
+The plugin also rewrites `INFOPLIST_KEY_CFBundleDisplayName` /
+`INFOPLIST_KEY_CFBundleName` **when they exist** (the generated-plist path), but
+never inserts those — pbxproj has structured per-target build-config sections
+and blind injection would land in the wrong one. If you use a generated
+`Info.plist` and the template didn't emit `INFOPLIST_KEY_CFBundleName`, add that
+line once to the main target's build config; otherwise `PRODUCT_NAME` already
+covers you.
 
 ### Multi-target iOS projects
 
@@ -334,3 +393,20 @@ set `propagateBundleId = false` and manage those IDs manually.
 - Auto-rename — actually rename the shared module directory on disk +
   update `settings.gradle.kts`. Today the plugin assumes the rename has
   already happened.
+
+---
+
+## Contributing
+
+```bash
+./gradlew build           # compile + run the test suite
+./gradlew test            # unit + GradleRunner functional tests
+./gradlew validatePlugins # Gradle's plugin-correctness checks
+```
+
+CI runs all three on every push/PR. Releases are tag-driven: pushing a `v*` tag
+publishes to the Gradle Plugin Portal and GitHub Packages.
+
+## License
+
+Licensed under the [Apache License 2.0](LICENSE).

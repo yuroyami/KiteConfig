@@ -1,3 +1,5 @@
+import org.gradle.api.publish.maven.MavenPublication
+
 plugins {
     `kotlin-dsl`
     `java-gradle-plugin`
@@ -22,8 +24,16 @@ repositories {
 
 dependencies {
     // Consumers bring their own AGP; we only need types at compile time.
-    compileOnly("com.android.tools.build:gradle-api:9.1.1")
-    compileOnly("org.jetbrains.kotlin:kotlin-gradle-plugin-api:2.3.20")
+    compileOnly(libs.android.gradle.api)
+    compileOnly(libs.kotlin.gradle.plugin.api)
+
+    testImplementation(libs.junit.jupiter)
+    testImplementation(gradleTestKit())
+    testRuntimeOnly(libs.junit.platform.launcher)
+}
+
+tasks.named<Test>("test") {
+    useJUnitPlatform()
 }
 
 gradlePlugin {
@@ -34,15 +44,26 @@ gradlePlugin {
             id = "io.github.yuroyami.kmpssot"
             implementationClass = "io.github.yuroyami.kmpssot.KmpSsotPlugin"
             displayName = "KMP SSOT Plugin"
-            description = "Single source of truth for KMP app configuration (appName, version, bundleId) propagated to Android + iOS."
+            description = "Single source of truth for KMP app configuration (appName, version, bundleId, locales, app logo, Android SDK levels) propagated to Android + iOS."
             tags = listOf("kotlin", "kotlin-multiplatform", "kmp", "android", "ios", "configuration", "versioning")
         }
     }
 }
 
-// Keep GitHub Packages as a secondary channel (internal / pre-release builds).
-// Plugin Portal is the primary public distribution, set up by plugin-publish.
+// Apache-2.0 licence metadata on every published POM.
 publishing {
+    publications.withType<MavenPublication>().configureEach {
+        pom {
+            licenses {
+                license {
+                    name = "The Apache License, Version 2.0"
+                    url = "https://www.apache.org/licenses/LICENSE-2.0.txt"
+                }
+            }
+        }
+    }
+    // Keep GitHub Packages as a secondary channel (internal / pre-release builds).
+    // Plugin Portal is the primary public distribution, set up by plugin-publish.
     repositories {
         maven {
             name = "GitHubPackages"

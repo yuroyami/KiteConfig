@@ -11,6 +11,7 @@ import org.gradle.api.plugins.ExtensionAware
 import org.gradle.kotlin.dsl.create
 import org.gradle.kotlin.dsl.getByType
 import org.gradle.kotlin.dsl.register
+import org.gradle.util.GradleVersion
 
 class KmpSsotPlugin : Plugin<Project> {
 
@@ -19,12 +20,19 @@ class KmpSsotPlugin : Plugin<Project> {
             "io.github.yuroyami.kmpssot must be applied to the root project. " +
                     "Apply it in the root build.gradle.kts, not in a submodule."
         }
+        if (GradleVersion.current() < GradleVersion.version(MIN_GRADLE)) {
+            target.logger.warn(
+                "[kmpSsot] Gradle ${GradleVersion.current().version} is older than the supported " +
+                        "minimum ($MIN_GRADLE). The plugin may not behave correctly."
+            )
+        }
 
         val ext = target.extensions.create<KmpSsotExtension>("kmpSsot").apply {
-            javaVersion.convention(21)
             iosProjectPath.convention("iosApp/iosApp.xcodeproj/project.pbxproj")
             iosPodfilePath.convention("iosApp/Podfile")
             iosInfoPlistPath.convention("iosApp/iosApp/Info.plist")
+            iosAppDir.convention("iosApp")
+            iosAppiconsetPath.convention("iosApp/iosApp/Assets.xcassets/AppIcon.appiconset")
             androidAppModule.convention("androidApp")
             propagateAppName.convention(true)
             propagateBundleId.convention(true)
@@ -32,25 +40,31 @@ class KmpSsotPlugin : Plugin<Project> {
             propagateLocaleList.convention(true)
             propagateLogo.convention(true)
             propagateSharedModule.convention(true)
+            propagateAndroidSdk.convention(true)
             syncIos.convention(true)
             sanitizeIosProject.convention(true)
             cleanupLegacyLogoArtifacts.convention(false)
+            dryRun.convention(false)
+            backupBeforeRewrite.convention(true)
             appLogoAndroidSafeZoneRatio.convention(66.0 / 108.0)
 
             // Auto-detect locales from {sharedModule}/src/commonMain/composeResources/values-*.
             locales.convention(target.provider { autoDetectLocales(target, this) })
         }
 
-        // Register the nested `ios { }` extension. Gradle can't decorate an
-        // abstract property of a non-managed type on KmpSsotExtension, so we
-        // create it explicitly here and expose it via a getter on the parent.
-        (ext as ExtensionAware).extensions.create<KmpSsotIosExtension>("ios")
+        // Nested DSL blocks. Gradle can't decorate an abstract property of a
+        // non-managed type on KmpSsotExtension, so we create them explicitly and
+        // expose them via getters on the parent.
+        val extAware = ext as ExtensionAware
+        extAware.extensions.create<KmpSsotIosExtension>("ios")
+        extAware.extensions.create<KmpSsotAndroidExtension>("android")
 
         val sanitizeIosTask = registerSanitizeIosTask(target, ext)
         val syncIosTask = registerSyncIosTask(target, ext)
         val syncIosLogoTask = registerSyncIosLogoTask(target, ext)
         val syncAndroidLogoTask = registerSyncAndroidLogoTask(target, ext)
         val cleanupLegacyLogoTask = registerCleanupLegacyLogoTask(target, ext)
+        registerVerifyTask(target, ext)
 
         // syncIosConfig relies on the Info.plist having SSOT-pointing keys, so sanitize first.
         syncIosTask.configure { dependsOn(sanitizeIosTask) }
@@ -61,6 +75,20 @@ class KmpSsotPlugin : Plugin<Project> {
                     "kmpSsot { sharedModule = \"...\" } is required. Set it to the directory " +
                             "name of your KMP shared module (e.g. \"shared\" or \"composeApp\")."
                 )
+            }
+            // Fail fast on a versionName we can't turn into a versionCode (unless overridden).
+            if (ext.propagateVersion.get() && ext.versionName.isPresent && !ext.versionCodeOverride.isPresent) {
+                deriveVersionCode(ext.versionName.get()) // throws GradleException with guidance if invalid
+            }
+            // Safe-zone ratio sanity.
+            if (ext.appLogoAndroidSafeZoneRatio.isPresent) {
+                val r = ext.appLogoAndroidSafeZoneRatio.get()
+                if (r <= 0.0 || r > 2.0) {
+                    throw GradleException(
+                        "kmpSsot { appLogoAndroidSafeZoneRatio } must be in (0, 2] — got $r. " +
+                                "Typical values are 0.55–0.61."
+                    )
+                }
             }
             // Logo: FG must be paired with exactly one BG source (PNG or colour).
             val fgSet = ext.appLogoPngForeground.isPresent
@@ -134,6 +162,8 @@ class KmpSsotPlugin : Plugin<Project> {
             propagateVersion.set(ext.propagateVersion)
             usesNonExemptEncryption.set(ext.ios.usesNonExemptEncryption)
             proMotion120Hz.set(ext.ios.proMotion120Hz)
+            dryRun.set(ext.dryRun)
+            backup.set(ext.backupBeforeRewrite)
         }
 
     private fun registerSyncIosTask(
@@ -144,18 +174,21 @@ class KmpSsotPlugin : Plugin<Project> {
             onlyIf { ext.syncIos.get() }
             pbxprojFile.set(root.layout.projectDirectory.file(ext.iosProjectPath))
             podfile.set(root.layout.projectDirectory.file(ext.iosPodfilePath))
-            iosAppDir.set(root.layout.projectDirectory.dir("iosApp"))
+            iosAppDir.set(root.layout.projectDirectory.dir(ext.iosAppDir))
             versionName.set(ext.versionName)
             versionCode.set(ext.versionCode)
             appName.set(ext.appName)
             if (ext.bundleIdBase.isPresent) bundleId.set(ext.iosBundleId)
             locales.set(ext.locales)
             sharedModule.set(ext.sharedModule)
+            oldSharedModuleName.set(ext.oldSharedModuleName)
             propagateVersion.set(ext.propagateVersion)
             propagateAppName.set(ext.propagateAppName)
             propagateBundleId.set(ext.propagateBundleId)
             propagateLocaleList.set(ext.propagateLocaleList)
             propagateSharedModule.set(ext.propagateSharedModule)
+            dryRun.set(ext.dryRun)
+            backup.set(ext.backupBeforeRewrite)
         }
 
     private fun registerSyncIosLogoTask(
@@ -171,7 +204,10 @@ class KmpSsotPlugin : Plugin<Project> {
             foregroundPng.set(ext.appLogoPngForeground)
             backgroundPng.set(ext.appLogoPngBackground)
             backgroundColorHex.set(ext.appLogoBackgroundColor)
-            appiconsetDir.set(root.layout.projectDirectory.dir("iosApp/iosApp/Assets.xcassets/AppIcon.appiconset"))
+            val iconDir = root.layout.projectDirectory.dir(ext.iosAppiconsetPath)
+            appiconsetDir.set(iconDir)
+            outputFiles.from(iconDir.map { dir -> SyncIosLogoTask.OUTPUT_FILE_NAMES.map { dir.file(it) } })
+            dryRun.set(ext.dryRun)
         }
 
     private fun registerSyncAndroidLogoTask(
@@ -188,10 +224,11 @@ class KmpSsotPlugin : Plugin<Project> {
             backgroundPng.set(ext.appLogoPngBackground)
             backgroundColorHex.set(ext.appLogoBackgroundColor)
             safeZoneRatio.set(ext.appLogoAndroidSafeZoneRatio)
+            dryRun.set(ext.dryRun)
             // Resolve lazily — androidAppModule may not be set yet at register time.
-            androidResDir.set(root.layout.projectDirectory.dir(
-                ext.androidAppModule.map { "$it/src/main/res" }
-            ))
+            val resDir = root.layout.projectDirectory.dir(ext.androidAppModule.map { "$it/src/main/res" })
+            androidResDir.set(resDir)
+            outputFiles.from(resDir.map { dir -> SyncAndroidLogoTask.OUTPUT_RELATIVE_PATHS.map { dir.file(it) } })
         }
 
     private fun registerCleanupLegacyLogoTask(
@@ -199,9 +236,26 @@ class KmpSsotPlugin : Plugin<Project> {
         ext: KmpSsotExtension,
     ): TaskProvider<CleanupLegacyAppLogoArtifactsTask> =
         root.tasks.register<CleanupLegacyAppLogoArtifactsTask>("cleanupLegacyAppLogoArtifacts") {
+            dryRun.set(ext.dryRun)
             androidResDir.set(root.layout.projectDirectory.dir(
                 ext.androidAppModule.map { "$it/src/main/res" }
             ))
+        }
+
+    private fun registerVerifyTask(root: Project, ext: KmpSsotExtension): TaskProvider<KmpSsotVerifyTask> =
+        root.tasks.register<KmpSsotVerifyTask>("kmpSsotVerify") {
+            appName.set(ext.appName)
+            versionName.set(ext.versionName)
+            versionCode.set(ext.versionCode)
+            if (ext.bundleIdBase.isPresent) {
+                androidApplicationId.set(ext.androidApplicationId)
+                iosBundleId.set(ext.iosBundleId)
+            }
+            locales.set(ext.locales)
+            sharedModule.set(ext.sharedModule)
+            pbxprojFile.set(root.layout.projectDirectory.file(ext.iosProjectPath))
+            infoPlistFile.set(root.layout.projectDirectory.file(ext.iosInfoPlistPath))
+            podfile.set(root.layout.projectDirectory.file(ext.iosPodfilePath))
         }
 
     // --- Hooking new tasks --------------------------------------------------
@@ -258,9 +312,18 @@ class KmpSsotPlugin : Plugin<Project> {
             }
         }
 
-        val jv = JavaVersion.toVersion(ext.javaVersion.get())
-        android.compileOptions.sourceCompatibility = jv
-        android.compileOptions.targetCompatibility = jv
+        if (ext.propagateAndroidSdk.get()) {
+            val sdk = ext.android
+            if (sdk.compileSdk.isPresent) android.compileSdk = sdk.compileSdk.get()
+            if (sdk.ndkVersion.isPresent) android.ndkVersion = sdk.ndkVersion.get()
+            if (sdk.minSdk.isPresent) android.defaultConfig.minSdk = sdk.minSdk.get()
+            if (sdk.targetSdk.isPresent) android.defaultConfig.targetSdk = sdk.targetSdk.get()
+        }
+
+        applyJavaVersion(ext) { jv ->
+            android.compileOptions.sourceCompatibility = jv
+            android.compileOptions.targetCompatibility = jv
+        }
     }
 
     // --- Android library wiring ---------------------------------------------
@@ -273,8 +336,27 @@ class KmpSsotPlugin : Plugin<Project> {
             if (l.isNotEmpty()) android.defaultConfig.resourceConfigurations.addAll(l)
         }
 
-        val jv = JavaVersion.toVersion(ext.javaVersion.get())
-        android.compileOptions.sourceCompatibility = jv
-        android.compileOptions.targetCompatibility = jv
+        if (ext.propagateAndroidSdk.get()) {
+            val sdk = ext.android
+            if (sdk.compileSdk.isPresent) android.compileSdk = sdk.compileSdk.get()
+            if (sdk.ndkVersion.isPresent) android.ndkVersion = sdk.ndkVersion.get()
+            if (sdk.minSdk.isPresent) android.defaultConfig.minSdk = sdk.minSdk.get()
+            // Library modules have no targetSdk (removed by AGP).
+        }
+
+        applyJavaVersion(ext) { jv ->
+            android.compileOptions.sourceCompatibility = jv
+            android.compileOptions.targetCompatibility = jv
+        }
+    }
+
+    /** Apply javaVersion only when the user set it — no silent default override. */
+    private inline fun applyJavaVersion(ext: KmpSsotExtension, set: (JavaVersion) -> Unit) {
+        if (!ext.javaVersion.isPresent) return
+        set(JavaVersion.toVersion(ext.javaVersion.get()))
+    }
+
+    companion object {
+        private const val MIN_GRADLE = "8.5"
     }
 }

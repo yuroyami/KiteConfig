@@ -14,18 +14,17 @@ import org.gradle.work.DisableCachingByDefault
  *
  * pbxproj keys (gated per `propagate*` toggle + value presence):
  *  - propagateVersion     → MARKETING_VERSION, CURRENT_PROJECT_VERSION
- *  - propagateAppName     → INFOPLIST_KEY_CFBundleDisplayName, INFOPLIST_KEY_CFBundleName,
- *                           PRODUCT_NAME (so custom Info.plist files that reference
- *                           $(PRODUCT_NAME) also pick up the app name)
+ *  - propagateAppName     → INFOPLIST_KEY_CFBundleDisplayName / CFBundleName, PRODUCT_NAME
  *  - propagateBundleId    → PRODUCT_BUNDLE_IDENTIFIER (every occurrence)
  *  - propagateLocaleList  → knownRegions
  *
  * Shared module rename (gated on `propagateSharedModule`):
- *  - Podfile lines `pod 'X', :path => '../X'` rewritten if X != sharedModule
- *  - Every `import X` in `iosApp/**/*.swift` rewritten to `import sharedModule`
+ *  - Podfile `pod 'X', :path => '../X'` rewritten if X != sharedModule
+ *  - Every plain `import X` in `{iosAppDir}/**/*.swift` rewritten to `import sharedModule`
  *
- * All rewrites are idempotent — no file is touched if its content already
- * matches the desired state.
+ * The actual rewrites live in pure functions ([rewritePbxproj],
+ * [rewriteSwiftImport], …) so they can be unit tested. All writes go through
+ * [writeTextSafely], honouring `dryRun` and `backupBeforeRewrite`.
  */
 @DisableCachingByDefault(because = "Trivial text rewrite; caching adds overhead without payoff.")
 abstract class SyncIosConfigTask : DefaultTask() {
@@ -46,12 +45,16 @@ abstract class SyncIosConfigTask : DefaultTask() {
     @get:Internal abstract val bundleId: Property<String>
     @get:Internal abstract val locales: ListProperty<String>
     @get:Internal abstract val sharedModule: Property<String>
+    @get:Internal abstract val oldSharedModuleName: Property<String>
 
     @get:Internal abstract val propagateVersion: Property<Boolean>
     @get:Internal abstract val propagateAppName: Property<Boolean>
     @get:Internal abstract val propagateBundleId: Property<Boolean>
     @get:Internal abstract val propagateLocaleList: Property<Boolean>
     @get:Internal abstract val propagateSharedModule: Property<Boolean>
+
+    @get:Internal abstract val dryRun: Property<Boolean>
+    @get:Internal abstract val backup: Property<Boolean>
 
     @TaskAction
     fun sync() {
@@ -68,69 +71,18 @@ abstract class SyncIosConfigTask : DefaultTask() {
             return
         }
 
-        val original = file.readText()
-        var updated = original
+        val result = rewritePbxproj(
+            original = file.readText(),
+            versionName = if (propagateVersion.get() && versionName.isPresent) versionName.get() else null,
+            versionCode = if (propagateVersion.get() && versionName.isPresent) versionCode.get() else null,
+            appName = if (propagateAppName.get() && appName.isPresent) appName.get() else null,
+            bundleId = if (propagateBundleId.get() && bundleId.isPresent) bundleId.get() else null,
+            locales = if (propagateLocaleList.get()) locales.get() else null,
+        )
+        result.warnings.forEach { logger.warn("[kmpSsot] $it") }
 
-        if (propagateVersion.get() && versionName.isPresent) {
-            updated = updated.replace(
-                Regex("""MARKETING_VERSION = [^;]+;"""),
-                "MARKETING_VERSION = ${versionName.get()};"
-            )
-            updated = updated.replace(
-                Regex("""CURRENT_PROJECT_VERSION = [^;]+;"""),
-                "CURRENT_PROJECT_VERSION = ${versionCode.get()};"
-            )
-        }
-
-        if (propagateAppName.get() && appName.isPresent) {
-            val n = appName.get()
-            // Quoted form keeps pbxproj valid for names that contain spaces or symbols.
-            val quoted = "\"${n.replace("\"", "\\\"")}\""
-            updated = updated.replace(
-                Regex("""INFOPLIST_KEY_CFBundleDisplayName = [^;]+;"""),
-                "INFOPLIST_KEY_CFBundleDisplayName = $quoted;"
-            )
-            updated = updated.replace(
-                Regex("""INFOPLIST_KEY_CFBundleName = [^;]+;"""),
-                "INFOPLIST_KEY_CFBundleName = $quoted;"
-            )
-            // INFOPLIST_KEY_* is only honored with generated Info.plist; PRODUCT_NAME is
-            // the universal knob — a custom Info.plist referencing $(PRODUCT_NAME) also
-            // resolves correctly once this is set.
-            updated = updated.replace(
-                Regex("""PRODUCT_NAME = [^;]+;"""),
-                "PRODUCT_NAME = $quoted;"
-            )
-        }
-
-        if (propagateBundleId.get() && bundleId.isPresent) {
-            updated = updated.replace(
-                Regex("""PRODUCT_BUNDLE_IDENTIFIER = [^;]+;"""),
-                "PRODUCT_BUNDLE_IDENTIFIER = ${bundleId.get()};"
-            )
-        }
-
-        if (propagateLocaleList.get()) {
-            val requested = locales.get()
-            if (requested.isNotEmpty()) {
-                val regions = buildList {
-                    add("Base")
-                    requested.filter { it != "Base" }.forEach { add(it) }
-                }
-                val replacement = regions.joinToString(
-                    separator = ",\n\t\t\t\t",
-                    prefix = "knownRegions = (\n\t\t\t\t",
-                    postfix = ",\n\t\t\t);"
-                )
-                updated = updated.replace(
-                    Regex("""knownRegions = \(\s*[^)]*\);""", RegexOption.DOT_MATCHES_ALL),
-                    replacement
-                )
-            }
-        }
-
-        if (updated != original) {
-            file.writeText(updated)
+        val wrote = writeTextSafely(file, result.text, backup.get(), dryRun.get(), logger, "iOS pbxproj")
+        if (wrote) {
             logger.lifecycle(
                 "[kmpSsot] iOS pbxproj synced: " +
                         "name=${appName.orNull ?: "[unchanged]"}, " +
@@ -138,7 +90,7 @@ abstract class SyncIosConfigTask : DefaultTask() {
                         "id=${bundleId.orNull ?: "[unchanged]"}, " +
                         "locales=${locales.orNull?.takeIf { it.isNotEmpty() } ?: "[unchanged]"}"
             )
-        } else {
+        } else if (!dryRun.get()) {
             logger.info("[kmpSsot] iOS pbxproj already in sync.")
         }
     }
@@ -150,7 +102,9 @@ abstract class SyncIosConfigTask : DefaultTask() {
         if (!sharedModule.isPresent) return
 
         val newName = sharedModule.get()
-        val oldName = detectOldSharedModuleName() ?: return
+        val oldName = oldSharedModuleName.orNull
+            ?: podfile.asFile.orNull?.takeIf { it.exists() }?.let { detectPodSharedModule(it.readText()) }
+            ?: return
 
         if (oldName == newName) {
             logger.info("[kmpSsot] Shared module name already \"$newName\"; nothing to rewrite.")
@@ -159,43 +113,23 @@ abstract class SyncIosConfigTask : DefaultTask() {
 
         rewritePodfile(oldName, newName)
         rewriteSwiftImports(oldName, newName)
-        logger.lifecycle("[kmpSsot] Shared module references migrated: \"$oldName\" → \"$newName\". Run `pod install` in iosApp/ to refresh the Pods workspace.")
-    }
-
-    /** Read the current Podfile to extract the existing `pod 'X', :path => '../X'` name. */
-    private fun detectOldSharedModuleName(): String? {
-        val file = podfile.asFile.orNull?.takeIf { it.exists() } ?: return null
-        val match = Regex("""pod\s+['"]([^'"]+)['"],\s*:path\s*=>\s*['"]\.\.\/([^'"]+)['"]""")
-            .find(file.readText()) ?: return null
-        val podName = match.groupValues[1]
-        val pathName = match.groupValues[2]
-        // Only treat as a shared-module pod if pod name == path tail (the common case).
-        return if (podName == pathName) podName else null
+        logger.lifecycle("[kmpSsot] Shared module references migrated: \"$oldName\" → \"$newName\". Run `pod install` in the iOS app dir to refresh the Pods workspace.")
     }
 
     private fun rewritePodfile(oldName: String, newName: String) {
         val file = podfile.asFile.orNull?.takeIf { it.exists() } ?: return
-        val original = file.readText()
-        val updated = original.replace(
-            Regex("""pod\s+['"]${Regex.escape(oldName)}['"],\s*:path\s*=>\s*['"]\.\.\/${Regex.escape(oldName)}['"]"""),
-            "pod '$newName', :path => '../$newName'"
-        )
-        if (updated != original) file.writeText(updated)
+        val updated = rewritePodfileContent(file.readText(), oldName, newName)
+        writeTextSafely(file, updated, backup.get(), dryRun.get(), logger, "iOS Podfile")
     }
 
     private fun rewriteSwiftImports(oldName: String, newName: String) {
         val dir = iosAppDir.asFile.orNull?.takeIf { it.isDirectory } ?: return
-        val pattern = Regex("""(^|\n)\s*import\s+${Regex.escape(oldName)}\b""")
         var rewritten = 0
         dir.walkTopDown()
             .filter { it.isFile && it.extension == "swift" }
             .forEach { swift ->
-                val original = swift.readText()
-                val updated = pattern.replace(original) { m ->
-                    m.value.replaceFirst("import $oldName", "import $newName")
-                }
-                if (updated != original) {
-                    swift.writeText(updated)
+                val updated = rewriteSwiftImport(swift.readText(), oldName, newName)
+                if (writeTextSafely(swift, updated, backup.get(), dryRun.get(), logger, "Swift import in ${swift.name}")) {
                     rewritten++
                 }
             }
