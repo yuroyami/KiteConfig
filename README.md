@@ -129,6 +129,13 @@ itself, or set `propagateAndroidSdk = false` to disable the block entirely.
 Per-flavor / per-variant SDK overrides still belong in the module's own build
 file (the block writes `defaultConfig` only).
 
+This works across all three Android module shapes: `com.android.application`,
+the classic `com.android.library`, and — since 1.5.0 — AGP's KMP-native
+`com.android.kotlin.multiplatform.library` (the `kotlin { androidLibrary { } }`
+target that is the standard shared module under AGP 9). For the KMP library only
+`compileSdk`/`minSdk` apply — that DSL has no `targetSdk` or `ndkVersion` — and
+the value is injected via `finalizeDsl`, so it wins over one set in the module.
+
 ### Two one-time consumer-side patches
 
 **AndroidManifest.xml** — replace the hardcoded label with the placeholder:
@@ -323,6 +330,7 @@ in the plist by hand, the DSL wins on the next sync.
 | `org.jetbrains.kotlin.multiplatform` | `syncIosConfig` + `syncIosLogo` hooked into `linkPod*FrameworkIos*` + `embedAndSignAppleFrameworkForXcode` |
 | `com.android.application` (SDK) | `compileSdk`, `defaultConfig.minSdk`/`targetSdk`, `ndkVersion` (from `android { }`) |
 | `com.android.library` (SDK) | `compileSdk`, `defaultConfig.minSdk`, `ndkVersion` (from `android { }`) |
+| `com.android.kotlin.multiplatform.library` (SDK) | `compileSdk`, `minSdk` via `finalizeDsl` (from `android { }`; no `targetSdk`/`ndkVersion`) |
 | iOS `project.pbxproj` (idempotent) | `MARKETING_VERSION`, `CURRENT_PROJECT_VERSION`, `INFOPLIST_KEY_CFBundleDisplayName`, `INFOPLIST_KEY_CFBundleName`, `PRODUCT_NAME`, `PRODUCT_BUNDLE_IDENTIFIER`, `knownRegions` |
 | iOS `Info.plist` (when `ios { }` flags set) | `ITSAppUsesNonExemptEncryption`, `CADisableMinimumFrameDurationOnPhone` |
 | iOS `Podfile` (when `sharedModule` differs) | `pod 'X', :path => '../X'` lines |

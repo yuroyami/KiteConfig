@@ -128,6 +128,10 @@ class KmpSsotPlugin : Plugin<Project> {
                 hookAndroidLogoTask(sub, syncAndroidLogoTask, ext)
             }
             plugins.withId("com.android.library") { wireAndroidLibrary(sub, ext) }
+            // AGP's KMP-native Android library plugin (com.android.kotlin.multiplatform.library)
+            // exposes a different extension type than the classic com.android.library, so it needs
+            // its own wiring. Common for the shared module in modern KMP setups (composeApp/shared).
+            plugins.withId("com.android.kotlin.multiplatform.library") { KmpAndroidLibraryWiring.apply(sub, ext) }
             plugins.withId("org.jetbrains.kotlin.multiplatform") {
                 hookIosFrameworkTasks(sub, syncIosTask, syncIosLogoTask, ext)
             }

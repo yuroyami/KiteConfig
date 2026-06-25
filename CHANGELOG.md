@@ -4,6 +4,27 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions track the
 Gradle Plugin Portal releases.
 
+## [1.5.0]
+
+### Added
+- **KMP-native Android library support** — the `kmpSsot { android { … } }` SDK
+  block now also propagates `compileSdk`/`minSdk` to modules using AGP's
+  `com.android.kotlin.multiplatform.library` plugin (the Android target of a
+  Kotlin Multiplatform module: `kotlin { androidLibrary { } }`), not just the
+  classic `com.android.library`. This is the standard shared-module shape under
+  AGP 9, where `com.android.library` + `org.jetbrains.kotlin.multiplatform` is no
+  longer allowed. Previously such modules were silently skipped.
+
+### Notes
+- The KMP library DSL exposes no `targetSdk` (libraries never had one) nor
+  `ndkVersion`, so those are skipped for these modules even when set (logged at
+  `info`); `targetSdk`/`ndkVersion` still apply to application and classic
+  library modules. Locale propagation is unchanged — the application module owns
+  the locale list.
+- Wiring goes through the components extension's `finalizeDsl` hook, so a value
+  set in `kmpSsot { android { } }` wins over a `compileSdk` declared in the
+  module itself.
+
 ## [1.4.0]
 
 ### Added
