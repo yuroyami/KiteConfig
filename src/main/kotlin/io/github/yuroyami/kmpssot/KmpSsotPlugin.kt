@@ -1,9 +1,6 @@
 package io.github.yuroyami.kmpssot
 
-import com.android.build.api.dsl.ApplicationExtension
-import com.android.build.api.dsl.LibraryExtension
 import org.gradle.api.GradleException
-import org.gradle.api.JavaVersion
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.tasks.TaskProvider
@@ -132,10 +129,10 @@ class KmpSsotPlugin : Plugin<Project> {
         target.subprojects {
             val sub = this
             plugins.withId("com.android.application") {
-                wireAndroidApp(sub, ext)
+                ClassicAndroidWiring.wireApplication(sub, ext)
                 hookAndroidLogoTask(sub, syncAndroidLogoTask, ext)
             }
-            plugins.withId("com.android.library") { wireAndroidLibrary(sub, ext) }
+            plugins.withId("com.android.library") { ClassicAndroidWiring.wireLibrary(sub, ext) }
             // AGP's KMP-native Android library plugin (com.android.kotlin.multiplatform.library)
             // exposes a different extension type than the classic com.android.library, so it needs
             // its own wiring. Common for the shared module in modern KMP setups (composeApp/shared).
@@ -393,74 +390,6 @@ class KmpSsotPlugin : Plugin<Project> {
         }
     }
 
-    // --- Android application wiring -----------------------------------------
-
-    private fun wireAndroidApp(project: Project, ext: KmpSsotExtension) {
-        val android = project.extensions.getByType(ApplicationExtension::class.java)
-
-        android.defaultConfig.apply {
-            if (ext.propagateBundleId.get() && ext.bundleIdBase.isPresent) {
-                applicationId = ext.androidApplicationId.get()
-            }
-            if (ext.propagateVersion.get()) {
-                // versionName and versionCode are independent: a lone
-                // versionCodeOverride (no versionName) still bumps the build number.
-                if (ext.versionName.isPresent) versionName = ext.versionName.get()
-                ext.versionCode.orNull?.let { versionCode = it }
-            }
-            if (ext.propagateAppName.get() && ext.appName.isPresent) {
-                manifestPlaceholders["appName"] = ext.appName.get()
-            }
-            if (ext.propagateLocaleList.get()) {
-                val l = ext.locales.get()
-                if (l.isNotEmpty()) resourceConfigurations.addAll(l)
-            }
-        }
-
-        if (ext.propagateAndroidSdk.get()) {
-            val sdk = ext.android
-            if (sdk.compileSdk.isPresent) android.compileSdk = sdk.compileSdk.get()
-            if (sdk.ndkVersion.isPresent) android.ndkVersion = sdk.ndkVersion.get()
-            if (sdk.minSdk.isPresent) android.defaultConfig.minSdk = sdk.minSdk.get()
-            if (sdk.targetSdk.isPresent) android.defaultConfig.targetSdk = sdk.targetSdk.get()
-        }
-
-        applyJavaVersion(ext) { jv ->
-            android.compileOptions.sourceCompatibility = jv
-            android.compileOptions.targetCompatibility = jv
-        }
-    }
-
-    // --- Android library wiring ---------------------------------------------
-
-    private fun wireAndroidLibrary(project: Project, ext: KmpSsotExtension) {
-        val android = project.extensions.getByType(LibraryExtension::class.java)
-
-        if (ext.propagateLocaleList.get()) {
-            val l = ext.locales.get()
-            if (l.isNotEmpty()) android.defaultConfig.resourceConfigurations.addAll(l)
-        }
-
-        if (ext.propagateAndroidSdk.get()) {
-            val sdk = ext.android
-            if (sdk.compileSdk.isPresent) android.compileSdk = sdk.compileSdk.get()
-            if (sdk.ndkVersion.isPresent) android.ndkVersion = sdk.ndkVersion.get()
-            if (sdk.minSdk.isPresent) android.defaultConfig.minSdk = sdk.minSdk.get()
-            // Library modules have no targetSdk (removed by AGP).
-        }
-
-        applyJavaVersion(ext) { jv ->
-            android.compileOptions.sourceCompatibility = jv
-            android.compileOptions.targetCompatibility = jv
-        }
-    }
-
-    /** Apply javaVersion only when the user set it — no silent default override. */
-    private inline fun applyJavaVersion(ext: KmpSsotExtension, set: (JavaVersion) -> Unit) {
-        if (!ext.javaVersion.isPresent) return
-        set(JavaVersion.toVersion(ext.javaVersion.get()))
-    }
-
     companion object {
         private const val MIN_GRADLE = "8.5"
 
@@ -474,7 +403,7 @@ class KmpSsotPlugin : Plugin<Project> {
          * classloader — calling into KGP-typed methods would then throw
          * NoClassDefFoundError, so those features are guarded on this.
          */
-        private val KGP_ON_CLASSPATH: Boolean = try {
+        internal val KGP_ON_CLASSPATH: Boolean = try {
             Class.forName(
                 "org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension",
                 false,
