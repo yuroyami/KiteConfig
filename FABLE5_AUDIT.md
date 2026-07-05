@@ -1,5 +1,14 @@
 # FABLE5_AUDIT.md — Repair Guide for Opus 4.8
 
+> **Execution status (2026-07-05): COMPLETE.** T01–T17 and P3.1 were carried out
+> and committed to `main`; the plugin is at **1.7.0**, build + `validatePlugins`
+> green, config-cache clean, **50 → 81 tests**. Remaining P3 rigor (Gradle-version
+> matrix, golden image tests, Dokka / binary-compatibility-validator / ktlint) and
+> all of **§P3.5** (xcconfig strategy, settings-plugin/Isolated-Projects,
+> generated-res dir for Android icons, per-target iOS rules) are intentionally
+> **not** done — they need explicit user sign-off per §0/§P3.5. The rest of this
+> document is the original plan, retained as the record.
+
 *Written by Claude Fable 5 after a full fresh-eyes audit of kmp-ssot (every source, test,
 build, CI and doc file read; test suite executed; several findings proven by live runs).
 This file is the **work order**: follow it top to bottom and the plugin goes from ~66% to
