@@ -276,6 +276,34 @@ class KmpSsotPluginFunctionalTest {
     }
 
     @Test
+    fun `doctor reports pass and fail lines`() {
+        write("settings.gradle.kts", "rootProject.name = \"fixture\"")
+        write(
+            "build.gradle.kts",
+            """
+            plugins { id("io.github.yuroyami.kmpssot") }
+            kmpSsot { sharedModule = "shared"; appName = "Demo"; versionName = "1.0.0"; propagateLogo = false }
+            """.trimIndent(),
+        )
+        // Info.plist WITH the SSOT references → a PASS line; no pbxproj → a FAIL line.
+        write(
+            "iosApp/iosApp/Info.plist",
+            """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <plist version="1.0"><dict>
+            <key>CFBundleName</key><string>${'$'}(PRODUCT_NAME)</string>
+            <key>CFBundleShortVersionString</key><string>${'$'}(MARKETING_VERSION)</string>
+            </dict></plist>
+            """.trimIndent(),
+        )
+
+        val result = run("kmpSsotDoctor")
+        assertTrue(result.output.contains("Doctor report"), result.output)
+        assertTrue(result.output.contains("[PASS]"), result.output)
+        assertTrue(result.output.contains("[FAIL]"), result.output)
+    }
+
+    @Test
     fun `verify task prints resolved values`() {
         write("settings.gradle.kts", "rootProject.name = \"fixture\"")
         write(

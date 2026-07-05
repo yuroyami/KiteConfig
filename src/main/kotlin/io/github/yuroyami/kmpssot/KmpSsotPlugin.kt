@@ -76,9 +76,27 @@ class KmpSsotPlugin : Plugin<Project> {
         val syncAndroidLogoTask = registerSyncAndroidLogoTask(target, ext)
         val cleanupLegacyLogoTask = registerCleanupLegacyLogoTask(target, ext)
         registerVerifyTask(target, ext)
+        registerDoctorTask(target, ext)
 
         // syncIosConfig relies on the Info.plist having SSOT-pointing keys, so sanitize first.
         syncIosTask.configure { dependsOn(sanitizeIosTask) }
+
+        // Aggregate lifecycle tasks so users don't have to know each task name.
+        target.tasks.register("kmpSsotSyncIos") {
+            group = "kmp-ssot"
+            description = "Run all iOS sync tasks (Info.plist sanitize, pbxproj/Podfile/Swift, app icon)."
+            dependsOn(sanitizeIosTask, syncIosTask, syncIosLogoTask)
+        }
+        target.tasks.register("kmpSsotSyncAndroid") {
+            group = "kmp-ssot"
+            description = "Run the Android launcher-icon sync."
+            dependsOn(syncAndroidLogoTask)
+        }
+        target.tasks.register("kmpSsotSync") {
+            group = "kmp-ssot"
+            description = "Run every kmp-ssot sync task (iOS + Android)."
+            dependsOn(sanitizeIosTask, syncIosTask, syncIosLogoTask, syncAndroidLogoTask)
+        }
 
         target.afterEvaluate {
             if (!ext.sharedModule.isPresent) {
@@ -426,6 +444,24 @@ class KmpSsotPlugin : Plugin<Project> {
             logoForeground.set(ext.appLogoPngForeground.map { true }.orElse(false))
             logoBackground.set(ext.appLogoPngBackground.map { true }.orElse(false))
             logoBackgroundColor.set(ext.appLogoBackgroundColor)
+        }
+
+    private fun registerDoctorTask(root: Project, ext: KmpSsotExtension): TaskProvider<KmpSsotDoctorTask> =
+        root.tasks.register<KmpSsotDoctorTask>("kmpSsotDoctor") {
+            propagateAppName.set(ext.propagateAppName)
+            appName.set(ext.appName)
+            propagateVersion.set(ext.propagateVersion)
+            versionName.set(ext.versionName)
+            hasVersionCodeOverride.set(ext.versionCodeOverride.map { true }.orElse(false))
+            propagateLocaleList.set(ext.propagateLocaleList)
+            locales.set(ext.locales)
+            syncIos.set(ext.syncIos)
+            manifestFile.set(root.layout.projectDirectory.file(ext.androidAppModule.map { "$it/src/main/AndroidManifest.xml" }))
+            infoPlistFile.set(root.layout.projectDirectory.file(ext.iosInfoPlistPath))
+            pbxprojFile.set(root.layout.projectDirectory.file(ext.iosProjectPath))
+            appiconsetDir.set(root.layout.projectDirectory.dir(ext.iosAppiconsetPath))
+            androidResDir.set(root.layout.projectDirectory.dir(ext.androidAppModule.map { "$it/src/main/res" }))
+            kgpOnClasspath.set(KGP_ON_CLASSPATH)
         }
 
     // --- Hooking new tasks --------------------------------------------------
