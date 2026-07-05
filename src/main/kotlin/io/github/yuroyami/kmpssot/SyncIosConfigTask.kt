@@ -104,28 +104,59 @@ abstract class SyncIosConfigTask : DefaultTask() {
         if (!sharedModule.isPresent) return
 
         val newName = sharedModule.get()
-        val oldName = oldSharedModuleName.orNull
-            ?: podfile.asFile.orNull?.takeIf { it.exists() }?.let { detectPodSharedModule(it.readText()) }
-            ?: return
+        val oldName = resolveOldName() ?: return
 
         if (oldName == newName) {
             logger.info("[kmpSsot] Shared module name already \"$newName\"; nothing to rewrite.")
             return
         }
 
-        rewritePodfile(oldName, newName)
-        rewriteSwiftImports(oldName, newName)
-        logger.lifecycle("[kmpSsot] Shared module references migrated: \"$oldName\" → \"$newName\". Run `pod install` in the iOS app dir to refresh the Pods workspace.")
+        val podChanged = rewritePodfile(oldName, newName)
+        val swiftCount = rewriteSwiftImports(oldName, newName)
+        if (podChanged || swiftCount > 0) {
+            logger.lifecycle(
+                "[kmpSsot] Shared module references migrated: \"$oldName\" → \"$newName\"" +
+                        (if (swiftCount > 0) " ($swiftCount Swift file(s))" else "") +
+                        ". Run `pod install` in the iOS app dir to refresh the Pods workspace."
+            )
+        } else {
+            logger.info("[kmpSsot] Shared module rename \"$oldName\" → \"$newName\": no references found to rewrite.")
+        }
     }
 
-    private fun rewritePodfile(oldName: String, newName: String) {
-        val file = podfile.asFile.orNull?.takeIf { it.exists() } ?: return
+    /**
+     * The old shared-module name: an explicit [oldSharedModuleName] wins; otherwise
+     * auto-detect from the Podfile — but refuse to guess when more than one local
+     * dev-pod is present (renaming the wrong pod would rewrite an unrelated
+     * dependency's Podfile line and Swift imports).
+     */
+    private fun resolveOldName(): String? {
+        oldSharedModuleName.orNull?.let { return it }
+        val podText = podfile.asFile.orNull?.takeIf { it.exists() }?.readText() ?: return null
+        val candidates = detectPodSharedModuleCandidates(podText)
+        return when {
+            candidates.isEmpty() -> null
+            candidates.size > 1 -> {
+                logger.warn(
+                    "[kmpSsot] Podfile has multiple local dev-pods (${candidates.joinToString(", ")}) — " +
+                            "cannot safely auto-detect the old shared-module name. Set " +
+                            "kmpSsot { oldSharedModuleName = \"...\" } to enable the rename, or " +
+                            "propagateSharedModule = false to disable it."
+                )
+                null
+            }
+            else -> candidates.single()
+        }
+    }
+
+    private fun rewritePodfile(oldName: String, newName: String): Boolean {
+        val file = podfile.asFile.orNull?.takeIf { it.exists() } ?: return false
         val updated = rewritePodfileContent(file.readText(), oldName, newName)
-        writeTextSafely(file, updated, backup.get(), dryRun.get(), logger, "iOS Podfile")
+        return writeTextSafely(file, updated, backup.get(), dryRun.get(), logger, "iOS Podfile")
     }
 
-    private fun rewriteSwiftImports(oldName: String, newName: String) {
-        val dir = iosAppDir.asFile.orNull?.takeIf { it.isDirectory } ?: return
+    private fun rewriteSwiftImports(oldName: String, newName: String): Int {
+        val dir = iosAppDir.asFile.orNull?.takeIf { it.isDirectory } ?: return 0
         var rewritten = 0
         dir.walkTopDown()
             // Never descend into vendored pods, build output, or Xcode derived/user
@@ -138,9 +169,7 @@ abstract class SyncIosConfigTask : DefaultTask() {
                     rewritten++
                 }
             }
-        if (rewritten > 0) {
-            logger.lifecycle("[kmpSsot] Rewrote `import $oldName` → `import $newName` in $rewritten Swift file(s).")
-        }
+        return rewritten
     }
 
     private companion object {

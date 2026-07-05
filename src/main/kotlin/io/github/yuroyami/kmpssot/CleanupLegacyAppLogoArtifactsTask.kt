@@ -8,15 +8,17 @@ import org.gradle.api.tasks.TaskAction
 import org.gradle.work.DisableCachingByDefault
 
 /**
- * One-shot migration helper: removes app-logo files that older plugin versions
- * generated under the Android res tree, but the current FG+BG pipeline no longer
- * produces. These would otherwise sit as orphan resources after upgrade.
+ * One-shot migration helper: removes app-logo files that would otherwise sit as
+ * orphans or actively break the resource merge after adopting the FG+BG pipeline.
  *
  * Files removed (only when present):
- *  - `${androidResDir}/drawable/ic_launcher.xml`
- *  - `${androidResDir}/values/ic_launcher_background.xml`
+ *  - `${androidResDir}/drawable/ic_launcher.xml` — pre-FG/BG generated artefact.
+ *  - `${androidResDir}/values/ic_launcher_background.xml` — pre-FG/BG artefact.
+ *  - template launcher icons under each `mipmap-<density>` dir (typically
+ *    `ic_launcher.webp` from the Android Studio wizard) that collide with the
+ *    generated `.png` of the same stem and fail AAPT2's merge.
  *
- * Both were 100% plugin-owned in older versions, so deletion is safe. Honors
+ * All are launcher assets the plugin replaces, so deletion is safe. Honors
  * `dryRun` (lists what it would delete, removes nothing).
  */
 @DisableCachingByDefault(because = "Trivial conditional file deletion.")
@@ -35,20 +37,25 @@ abstract class CleanupLegacyAppLogoArtifactsTask : DefaultTask() {
     fun cleanup() {
         val dry = dryRun.getOrElse(false)
         val resDir = androidResDir.asFile.get()
-        listOf(
+
+        val legacy = listOf(
             "drawable/ic_launcher.xml",
             "values/ic_launcher_background.xml",
-        ).forEach { rel ->
-            val file = resDir.resolve(rel)
+        ).map { resDir.resolve(it) }
+
+        val targets = legacy + SyncAndroidLogoTask.collidingTemplateIcons(resDir)
+
+        targets.forEach { file ->
             if (!file.exists()) return@forEach
+            val rel = file.relativeToOrSelf(resDir)
             if (dry) {
-                logger.lifecycle("[kmpSsot][dry-run] would remove legacy logo artefact: $rel")
+                logger.lifecycle("[kmpSsot][dry-run] would remove legacy/colliding logo artefact: $rel")
                 return@forEach
             }
             if (file.delete()) {
-                logger.lifecycle("[kmpSsot] Removed legacy logo artefact: $rel")
+                logger.lifecycle("[kmpSsot] Removed legacy/colliding logo artefact: $rel")
             } else {
-                logger.warn("[kmpSsot] Failed to remove legacy logo artefact: ${file.path}")
+                logger.warn("[kmpSsot] Failed to remove logo artefact: ${file.path}")
             }
         }
     }

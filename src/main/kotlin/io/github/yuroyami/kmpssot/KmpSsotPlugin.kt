@@ -314,6 +314,7 @@ class KmpSsotPlugin : Plugin<Project> {
             appiconsetDir.set(iconDir)
             outputFiles.from(iconDir.map { dir -> SyncIosLogoTask.OUTPUT_FILE_NAMES.map { dir.file(it) } })
             dryRun.set(ext.dryRun)
+            backup.set(ext.backupBeforeRewrite)
         }
 
     private fun registerSyncAndroidLogoTask(

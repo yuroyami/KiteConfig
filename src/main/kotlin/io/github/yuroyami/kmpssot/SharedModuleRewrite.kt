@@ -14,17 +14,28 @@ private val POD_LINE =
     Regex("""pod\s+['"]([^'"]+)['"]\s*,\s*(?::path\s*=>|path:)\s*['"]\.\./((?:[^'"]*/)?)([^'"/]+)['"]""")
 
 /**
- * Detect the current shared-module name from a Podfile's
- * `pod 'X', :path => '../X'` line (either path syntax, nested paths included).
- * Only returns a name when the pod name equals the path **tail** — so
- * `'../modules/shared'` still detects `shared` — i.e. the common, unambiguous
- * case; returns null otherwise so the caller falls back to an explicit
- * `oldSharedModuleName`.
+ * Every local dev-pod whose pod name equals its path **tail** (so
+ * `'../modules/shared'` yields `shared`), in Podfile order, de-duplicated. These
+ * are the candidate "old shared module" names. More than one means the Podfile
+ * has several local pods and auto-detection can't safely pick — the caller must
+ * then require an explicit `oldSharedModuleName` rather than guess and risk
+ * renaming an unrelated pod.
  */
-internal fun detectPodSharedModule(podfileText: String): String? {
-    val m = POD_LINE.find(podfileText) ?: return null
-    return if (m.groupValues[1] == m.groupValues[3]) m.groupValues[1] else null
-}
+internal fun detectPodSharedModuleCandidates(podfileText: String): List<String> =
+    POD_LINE.findAll(podfileText)
+        .filter { it.groupValues[1] == it.groupValues[3] }
+        .map { it.groupValues[1] }
+        .distinct()
+        .toList()
+
+/**
+ * The single unambiguous shared-module name from a Podfile, or null when there
+ * is none — or, deliberately, when there is **more than one** local dev-pod (the
+ * caller warns and asks for an explicit `oldSharedModuleName` instead of picking
+ * the first and corrupting a sibling pod's references).
+ */
+internal fun detectPodSharedModule(podfileText: String): String? =
+    detectPodSharedModuleCandidates(podfileText).singleOrNull()
 
 /**
  * Rewrite the pod line that points at [oldName] (pod name AND path tail both

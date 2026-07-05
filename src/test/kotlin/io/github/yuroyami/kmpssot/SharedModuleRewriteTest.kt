@@ -69,4 +69,18 @@ class SharedModuleRewriteTest {
             rewritePodfileContent("pod 'shared', path: '../shared'", "shared", "core"),
         )
     }
+
+    // --- T05: several local dev-pods → ambiguous → refuse to auto-detect. ------
+    @Test
+    fun `multiple local pods yield multiple candidates and no single detection`() {
+        val podfile = "pod 'Utils', :path => '../Utils'\npod 'shared', :path => '../shared'"
+        assertEquals(listOf("Utils", "shared"), detectPodSharedModuleCandidates(podfile))
+        assertNull(detectPodSharedModule(podfile)) // ambiguous → caller must set oldSharedModuleName
+    }
+
+    @Test
+    fun `a single local pod is detected unambiguously`() {
+        assertEquals(listOf("shared"), detectPodSharedModuleCandidates("pod 'shared', :path => '../shared'"))
+        assertEquals("shared", detectPodSharedModule("pod 'shared', :path => '../shared'"))
+    }
 }

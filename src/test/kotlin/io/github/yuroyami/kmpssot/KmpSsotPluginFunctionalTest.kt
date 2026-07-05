@@ -22,6 +22,13 @@ class KmpSsotPluginFunctionalTest {
         f.writeText(content)
     }
 
+    private fun writePng(path: String, size: Int) {
+        val f = File(projectDir, path)
+        f.parentFile.mkdirs()
+        val img = java.awt.image.BufferedImage(size, size, java.awt.image.BufferedImage.TYPE_INT_ARGB)
+        javax.imageio.ImageIO.write(img, "PNG", f)
+    }
+
     private fun run(vararg args: String) = GradleRunner.create()
         .withProjectDir(projectDir)
         .withPluginClasspath()
@@ -175,6 +182,55 @@ class KmpSsotPluginFunctionalTest {
         val pbx = File(projectDir, "iosApp/iosApp.xcodeproj/project.pbxproj").readText()
         assertTrue(pbx.contains("CURRENT_PROJECT_VERSION = 42;"), pbx)
         assertTrue(pbx.contains("MARKETING_VERSION = 0.0.1;"), pbx) // no versionName → untouched
+    }
+
+    @Test
+    fun `multiple local pods block the auto-rename instead of corrupting a sibling`() {
+        write("settings.gradle.kts", "rootProject.name = \"fixture\"")
+        write(
+            "build.gradle.kts",
+            """
+            plugins { id("io.github.yuroyami.kmpssot") }
+            kmpSsot { sharedModule = "composeApp"; propagateLogo = false }
+            """.trimIndent(),
+        )
+        write("iosApp/Podfile", "pod 'Utils', :path => '../Utils'\npod 'shared', :path => '../shared'\n")
+        write("iosApp/iosApp/ContentView.swift", "import Utils\nimport shared\n")
+
+        val result = run("syncIosConfig")
+
+        val swift = File(projectDir, "iosApp/iosApp/ContentView.swift").readText()
+        assertTrue(swift.contains("import Utils"), swift)  // sibling pod untouched
+        assertTrue(swift.contains("import shared"), swift)
+        assertTrue(result.output.contains("multiple local dev-pods"), result.output)
+    }
+
+    @Test
+    fun `iOS logo backs up an existing Contents_json and warns about orphan icons`() {
+        write("settings.gradle.kts", "rootProject.name = \"fixture\"")
+        write(
+            "build.gradle.kts",
+            """
+            plugins { id("io.github.yuroyami.kmpssot") }
+            kmpSsot {
+                sharedModule = "shared"
+                appLogoPngForeground = file("art/fg.png")
+                appLogoBackgroundColor = "#FF5500"
+            }
+            """.trimIndent(),
+        )
+        writePng("art/fg.png", 64)
+        // A pre-existing, user-owned catalog plus a stale icon it references.
+        val appiconset = "iosApp/iosApp/Assets.xcassets/AppIcon.appiconset"
+        write("$appiconset/Contents.json", "{ \"user-authored\" : true }")
+        writePng("$appiconset/AppIcon-40.png", 40)
+
+        val result = run("syncIosLogo")
+
+        val bak = File(projectDir, "$appiconset/Contents.json.kmpssot.bak")
+        assertTrue(bak.exists(), "Contents.json was not backed up before overwrite")
+        assertTrue(bak.readText().contains("user-authored"), bak.readText())
+        assertTrue(result.output.contains("no longer referenced"), result.output)
     }
 
     @Test

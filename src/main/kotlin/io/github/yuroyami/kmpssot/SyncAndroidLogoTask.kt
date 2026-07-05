@@ -111,6 +111,8 @@ abstract class SyncAndroidLogoTask : DefaultTask() {
         val ratio = safeZoneRatio.get()
         val resDir = androidResDir.asFile.get()
 
+        warnOnTemplateCollisions(resDir)
+
         DENSITIES.forEach { (qualifier, scale) ->
             val mipmap = resDir.resolve("mipmap-$qualifier")
             val adaptiveSize = (108 * scale).toInt()
@@ -167,6 +169,24 @@ abstract class SyncAndroidLogoTask : DefaultTask() {
         writeTextSafely(target, content, backup = false, dryRun = dry, logger = logger, label = "Android ${target.name}")
     }
 
+    /**
+     * Warn about template launcher icons that share a generated PNG's stem but a
+     * different extension (typically `ic_launcher.webp` from the Android Studio
+     * wizard). Two `ic_launcher.*` in one `mipmap-*` bucket is a duplicate
+     * resource → AAPT2 fails the merge, so the first logo sync would otherwise
+     * break the consumer's Android build with a cryptic error.
+     */
+    private fun warnOnTemplateCollisions(resDir: File) {
+        val collisions = collidingTemplateIcons(resDir)
+        if (collisions.isEmpty()) return
+        logger.warn(
+            "[kmpSsot] Found ${collisions.size} template launcher icon(s) that collide with the " +
+                    "generated PNGs (same name, different extension) and will fail the Android resource merge:\n" +
+                    collisions.joinToString("\n") { "    ${it.relativeToOrSelf(resDir)}" } +
+                    "\n  Delete them, or set kmpSsot { cleanupLegacyLogoArtifacts = true } to have kmp-ssot remove them."
+        )
+    }
+
     companion object {
         // Density qualifier → scale factor. Adaptive canvas 108dp; legacy 48dp.
         internal val DENSITIES = listOf(
@@ -176,6 +196,24 @@ abstract class SyncAndroidLogoTask : DefaultTask() {
             "xxhdpi" to 3.0,
             "xxxhdpi" to 4.0,
         )
+
+        /** Stems of every launcher icon the plugin generates (as PNG). */
+        internal val LAUNCHER_STEMS = setOf(
+            "ic_launcher", "ic_launcher_round", "ic_launcher_foreground", "ic_launcher_background",
+        )
+
+        /**
+         * Files under `mipmap-*` that share a launcher stem with a generated PNG but
+         * carry a different extension (e.g. template `.webp`), so they'd collide in
+         * the resource merge. Pure/shared so both the sync warning and the cleanup
+         * task see the same set.
+         */
+        internal fun collidingTemplateIcons(resDir: File): List<File> =
+            DENSITIES.flatMap { (q, _) ->
+                (resDir.resolve("mipmap-$q").listFiles()?.asList() ?: emptyList()).filter {
+                    it.isFile && it.nameWithoutExtension in LAUNCHER_STEMS && it.extension.lowercase() != "png"
+                }
+            }
 
         /** Relative paths (under the Android res dir) of every file this task writes. */
         internal val OUTPUT_RELATIVE_PATHS: List<String> = buildList {

@@ -17,6 +17,7 @@ import org.gradle.api.tasks.TaskAction
 import java.awt.Color
 import java.awt.image.BufferedImage
 import java.io.ByteArrayOutputStream
+import java.io.File
 import javax.imageio.ImageIO
 
 /**
@@ -45,6 +46,7 @@ abstract class SyncIosLogoTask : DefaultTask() {
 
     @get:[Input Optional] abstract val backgroundColorHex: Property<String>
     @get:Input abstract val dryRun: Property<Boolean>
+    @get:Input abstract val backup: Property<Boolean>
 
     @get:Internal abstract val appiconsetDir: DirectoryProperty
 
@@ -92,9 +94,31 @@ abstract class SyncIosLogoTask : DefaultTask() {
         val outDir = appiconsetDir.asFile.get()
         val pngBytes = ByteArrayOutputStream().apply { ImageIO.write(composite, "PNG", this) }.toByteArray()
         writeBytesSafely(outDir.resolve("AppIcon-1024.png"), pngBytes, dry, logger, "iOS AppIcon-1024.png")
-        writeTextSafely(outDir.resolve("Contents.json"), CONTENTS_JSON, backup = false, dryRun = dry, logger = logger, label = "iOS Contents.json")
+        // Contents.json is user-owned on first contact (often a full multi-size
+        // catalog) — honour backupBeforeRewrite so the original is recoverable.
+        writeTextSafely(outDir.resolve("Contents.json"), CONTENTS_JSON, backup = backup.get(), dryRun = dry, logger = logger, label = "iOS Contents.json")
+
+        warnOnOrphanIcons(outDir)
 
         if (!dry) logger.lifecycle("[kmpSsot] iOS AppIcon synced from ${fgFile.name} + $bgDescription (1024×1024 opaque).")
+    }
+
+    /**
+     * Warn about `.png` files left in the appiconset that the new single-universal
+     * `Contents.json` no longer references — otherwise Xcode shows "unassigned
+     * children" warnings and the stale icons ship dead weight.
+     */
+    private fun warnOnOrphanIcons(outDir: File) {
+        val orphans = (outDir.listFiles()?.asList() ?: emptyList()).filter {
+            it.isFile && it.extension.equals("png", ignoreCase = true) && it.name !in OUTPUT_FILE_NAMES
+        }
+        if (orphans.isEmpty()) return
+        logger.warn(
+            "[kmpSsot] ${orphans.size} icon file(s) in the appiconset are no longer referenced by the " +
+                    "generated Contents.json:\n" +
+                    orphans.joinToString("\n") { "    ${it.name}" } +
+                    "\n  Delete them to silence Xcode's \"unassigned children\" warning."
+        )
     }
 
     companion object {
