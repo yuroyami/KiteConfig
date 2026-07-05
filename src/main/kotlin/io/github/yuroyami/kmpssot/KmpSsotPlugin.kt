@@ -405,9 +405,11 @@ class KmpSsotPlugin : Plugin<Project> {
             if (ext.propagateBundleId.get() && ext.bundleIdBase.isPresent) {
                 applicationId = ext.androidApplicationId.get()
             }
-            if (ext.propagateVersion.get() && ext.versionName.isPresent) {
-                versionCode = ext.versionCode.get()
-                versionName = ext.versionName.get()
+            if (ext.propagateVersion.get()) {
+                // versionName and versionCode are independent: a lone
+                // versionCodeOverride (no versionName) still bumps the build number.
+                if (ext.versionName.isPresent) versionName = ext.versionName.get()
+                ext.versionCode.orNull?.let { versionCode = it }
             }
             if (ext.propagateAppName.get() && ext.appName.isPresent) {
                 manifestPlaceholders["appName"] = ext.appName.get()

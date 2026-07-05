@@ -149,6 +149,35 @@ class KmpSsotPluginFunctionalTest {
     }
 
     @Test
+    fun `versionCodeOverride without versionName still writes the iOS build number`() {
+        write("settings.gradle.kts", "rootProject.name = \"fixture\"")
+        write(
+            "build.gradle.kts",
+            """
+            plugins { id("io.github.yuroyami.kmpssot") }
+            kmpSsot {
+                sharedModule = "shared"
+                versionCodeOverride = 42
+                propagateLogo = false
+            }
+            """.trimIndent(),
+        )
+        write(
+            "iosApp/iosApp.xcodeproj/project.pbxproj",
+            """
+            MARKETING_VERSION = 0.0.1;
+            CURRENT_PROJECT_VERSION = 1;
+            """.trimIndent(),
+        )
+
+        run("syncIosConfig")
+
+        val pbx = File(projectDir, "iosApp/iosApp.xcodeproj/project.pbxproj").readText()
+        assertTrue(pbx.contains("CURRENT_PROJECT_VERSION = 42;"), pbx)
+        assertTrue(pbx.contains("MARKETING_VERSION = 0.0.1;"), pbx) // no versionName → untouched
+    }
+
+    @Test
     fun `verify task prints resolved values`() {
         write("settings.gradle.kts", "rootProject.name = \"fixture\"")
         write(

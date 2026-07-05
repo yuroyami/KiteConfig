@@ -74,7 +74,9 @@ abstract class SyncIosConfigTask : DefaultTask() {
         val result = rewritePbxproj(
             original = file.readText(),
             versionName = if (propagateVersion.get() && versionName.isPresent) versionName.get() else null,
-            versionCode = if (propagateVersion.get() && versionName.isPresent) versionCode.get() else null,
+            // Gate on versionCode itself (not versionName) so a lone versionCodeOverride
+            // still writes CURRENT_PROJECT_VERSION.
+            versionCode = if (propagateVersion.get() && versionCode.isPresent) versionCode.get() else null,
             appName = if (propagateAppName.get() && appName.isPresent) appName.get() else null,
             bundleId = if (propagateBundleId.get() && bundleId.isPresent) bundleId.get() else null,
             locales = if (propagateLocaleList.get()) locales.get() else null,
