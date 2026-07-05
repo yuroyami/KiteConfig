@@ -15,9 +15,11 @@ import org.jetbrains.kotlin.gradle.plugin.KotlinPlatformType
 class KmpSsotPlugin : Plugin<Project> {
 
     override fun apply(target: Project) {
-        check(target == target.rootProject) {
-            "io.github.yuroyami.kmpssot must be applied to the root project. " +
-                    "Apply it in the root build.gradle.kts, not in a submodule."
+        if (target != target.rootProject) {
+            throw GradleException(
+                "io.github.yuroyami.kmpssot must be applied to the root project. " +
+                        "Apply it in the root build.gradle.kts, not in a submodule."
+            )
         }
         if (GradleVersion.current() < GradleVersion.version(MIN_GRADLE)) {
             target.logger.warn(
@@ -96,28 +98,32 @@ class KmpSsotPlugin : Plugin<Project> {
                 }
             }
             // Logo: FG must be paired with exactly one BG source (PNG or colour).
-            val fgSet = ext.appLogoPngForeground.isPresent
-            val bgSet = ext.appLogoPngBackground.isPresent
-            val bgColorSet = ext.appLogoBackgroundColor.isPresent
-            if (bgSet && bgColorSet) {
-                throw GradleException(
-                    "kmpSsot { appLogoPngBackground } and { appLogoBackgroundColor } are mutually " +
-                            "exclusive — set exactly one."
-                )
+            // Only validate when logo propagation is on — otherwise a stray FG with
+            // propagateLogo = false shouldn't fail the build.
+            if (ext.propagateLogo.get()) {
+                val fgSet = ext.appLogoPngForeground.isPresent
+                val bgSet = ext.appLogoPngBackground.isPresent
+                val bgColorSet = ext.appLogoBackgroundColor.isPresent
+                if (bgSet && bgColorSet) {
+                    throw GradleException(
+                        "kmpSsot { appLogoPngBackground } and { appLogoBackgroundColor } are mutually " +
+                                "exclusive — set exactly one."
+                    )
+                }
+                if (fgSet && !bgSet && !bgColorSet) {
+                    throw GradleException(
+                        "kmpSsot { appLogoPngForeground } is set but no background — set either " +
+                                "appLogoPngBackground or appLogoBackgroundColor."
+                    )
+                }
+                if (!fgSet && (bgSet || bgColorSet)) {
+                    throw GradleException(
+                        "kmpSsot background is set without a foreground — set appLogoPngForeground, " +
+                                "or remove the background."
+                    )
+                }
+                if (bgColorSet) validateLogoBackgroundColorHex(ext.appLogoBackgroundColor.get())
             }
-            if (fgSet && !bgSet && !bgColorSet) {
-                throw GradleException(
-                    "kmpSsot { appLogoPngForeground } is set but no background — set either " +
-                            "appLogoPngBackground or appLogoBackgroundColor."
-                )
-            }
-            if (!fgSet && (bgSet || bgColorSet)) {
-                throw GradleException(
-                    "kmpSsot background is set without a foreground — set appLogoPngForeground, " +
-                            "or remove the background."
-                )
-            }
-            if (bgColorSet) validateLogoBackgroundColorHex(ext.appLogoBackgroundColor.get())
 
             // Auto-cleanup of legacy logo artefacts is opt-in. When enabled, run
             // it before the regular Android sync so the new tree lands clean.
@@ -126,9 +132,19 @@ class KmpSsotPlugin : Plugin<Project> {
             }
         }
 
+        val appModules = mutableListOf<String>()
         target.subprojects {
             val sub = this
             plugins.withId("com.android.application") {
+                appModules += sub.path
+                if (appModules.size == 2) {
+                    sub.logger.warn(
+                        "[kmpSsot] More than one com.android.application module is present — each " +
+                                "receives the same applicationId/version from kmpSsot { }. Per-module " +
+                                "identity overlays are not yet supported; set propagateBundleId = false " +
+                                "and manage divergent ids per module (e.g. phone vs Wear/TV)."
+                    )
+                }
                 ClassicAndroidWiring.wireApplication(sub, ext)
                 hookAndroidLogoTask(sub, syncAndroidLogoTask, ext)
             }
@@ -209,11 +225,8 @@ class KmpSsotPlugin : Plugin<Project> {
         // Validate the destination package up front — a malformed value would
         // otherwise surface as a confusing compile error inside the generated file.
         val pkg = ext.web.ioWorkerPackage.get()
-        if (!PACKAGE_NAME_RE.matches(pkg)) {
-            throw GradleException(
-                "kmpSsot { web { ioWorkerPackage } } is not a valid Kotlin package name: \"$pkg\". " +
-                        "Use dot-separated identifiers, e.g. \"com.acme.app.generated\"."
-            )
+        invalidWorkerPackageReason(pkg)?.let {
+            throw GradleException("kmpSsot { web { ioWorkerPackage } } \"$pkg\" $it")
         }
 
         // Derive the source set + compile task from each js target's ACTUAL name,
@@ -361,6 +374,17 @@ class KmpSsotPlugin : Plugin<Project> {
             pbxprojFile.set(root.layout.projectDirectory.file(ext.iosProjectPath))
             infoPlistFile.set(root.layout.projectDirectory.file(ext.iosInfoPlistPath))
             podfile.set(root.layout.projectDirectory.file(ext.iosPodfilePath))
+            androidAppModule.set(ext.androidAppModule)
+            compileSdk.set(ext.android.compileSdk)
+            minSdk.set(ext.android.minSdk)
+            targetSdk.set(ext.android.targetSdk)
+            ndkVersion.set(ext.android.ndkVersion)
+            javaVersion.set(ext.javaVersion)
+            propagateInteropOptIns.set(ext.propagateInteropOptIns)
+            generateIoWorker.set(ext.web.generateIoWorker)
+            logoForeground.set(ext.appLogoPngForeground.map { true }.orElse(false))
+            logoBackground.set(ext.appLogoPngBackground.map { true }.orElse(false))
+            logoBackgroundColor.set(ext.appLogoBackgroundColor)
         }
 
     // --- Hooking new tasks --------------------------------------------------
@@ -392,9 +416,6 @@ class KmpSsotPlugin : Plugin<Project> {
 
     companion object {
         private const val MIN_GRADLE = "8.5"
-
-        /** Dot-separated Kotlin identifiers — used to validate `web { ioWorkerPackage }`. */
-        private val PACKAGE_NAME_RE = Regex("""[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*""")
 
         /**
          * Whether the (compileOnly) Kotlin Gradle plugin classes are loadable from

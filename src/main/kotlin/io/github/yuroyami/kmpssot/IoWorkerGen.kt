@@ -43,7 +43,7 @@ package $packageName
 import kotlinx.coroutines.CompletableDeferred
 
 private fun makeBlobWorker(script: String): dynamic =
-    js("new Worker(URL.createObjectURL(new Blob([script], { type: 'application/javascript' })))")
+    js("(function(){ var u = URL.createObjectURL(new Blob([script], { type: 'application/javascript' })); var w = new Worker(u); URL.revokeObjectURL(u); return w; })()")
 
 private fun workerBootstrap(jobJs: String): String =
     "self.onmessage = async function(e) {" +

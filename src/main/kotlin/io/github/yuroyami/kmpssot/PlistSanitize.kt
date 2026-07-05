@@ -200,6 +200,13 @@ private fun detectIndentUnit(dict: Element): String {
 /** Append `<key>name</key><value/>` to the end of the dict, each on its own indented line. */
 private fun appendKeyValue(dict: Element, name: String, value: Element, indent: String) {
     val doc = dict.ownerDocument
+    // Consume the trailing whitespace-only text node before </dict> (the original
+    // one, or the "\n" a previous insert added) so back-to-back inserts don't stack
+    // two newlines into a blank line.
+    val last = dict.lastChild
+    if (last != null && last.nodeType == Node.TEXT_NODE && last.textContent.isBlank()) {
+        dict.removeChild(last)
+    }
     val key = doc.createElement("key").apply { textContent = name }
     dict.appendChild(doc.createTextNode("\n$indent"))
     dict.appendChild(key)

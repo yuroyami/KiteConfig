@@ -34,6 +34,18 @@ abstract class KmpSsotVerifyTask : DefaultTask() {
     @get:Internal abstract val infoPlistFile: RegularFileProperty
     @get:Internal abstract val podfile: RegularFileProperty
 
+    @get:Internal abstract val androidAppModule: Property<String>
+    @get:Internal abstract val compileSdk: Property<Int>
+    @get:Internal abstract val minSdk: Property<Int>
+    @get:Internal abstract val targetSdk: Property<Int>
+    @get:Internal abstract val ndkVersion: Property<String>
+    @get:Internal abstract val javaVersion: Property<Int>
+    @get:Internal abstract val propagateInteropOptIns: Property<Boolean>
+    @get:Internal abstract val generateIoWorker: Property<Boolean>
+    @get:Internal abstract val logoForeground: Property<Boolean>
+    @get:Internal abstract val logoBackground: Property<Boolean>
+    @get:Internal abstract val logoBackgroundColor: Property<String>
+
     @TaskAction
     fun report() {
         fun show(p: Property<*>) = if (p.isPresent) p.get().toString() else "[unset]"
@@ -50,6 +62,19 @@ abstract class KmpSsotVerifyTask : DefaultTask() {
                 appendLine("  iosBundleId          = ${show(iosBundleId)}")
                 appendLine("  locales              = ${locales.orNull?.takeIf { it.isNotEmpty() }?.joinToString(", ") ?: "[none]"}")
                 appendLine("  sharedModule         = ${show(sharedModule)}")
+                appendLine("  Android:")
+                appendLine("    androidAppModule   = ${show(androidAppModule)}")
+                appendLine("    compileSdk         = ${show(compileSdk)}")
+                appendLine("    minSdk             = ${show(minSdk)}")
+                appendLine("    targetSdk          = ${show(targetSdk)}")
+                appendLine("    ndkVersion         = ${show(ndkVersion)}")
+                appendLine("    javaVersion        = ${show(javaVersion)}")
+                appendLine("  Toolchain toggles:")
+                appendLine("    propagateInteropOptIns = ${show(propagateInteropOptIns)}")
+                appendLine("    web.generateIoWorker   = ${show(generateIoWorker)}")
+                appendLine("  App logo:")
+                appendLine("    foreground = ${if (logoForeground.getOrElse(false)) "set" else "[unset]"}")
+                appendLine("    background = ${logoBackgroundDescription()}")
                 appendLine("  iOS target files:")
                 appendLine("    pbxproj    ${presence(pbxprojFile)}")
                 appendLine("    Info.plist ${presence(infoPlistFile)}")
@@ -62,5 +87,11 @@ abstract class KmpSsotVerifyTask : DefaultTask() {
     private fun presence(p: RegularFileProperty): String {
         val f = p.asFile.orNull ?: return "[path unset]"
         return if (f.exists()) "found   (${f.path})" else "MISSING (${f.path})"
+    }
+
+    private fun logoBackgroundDescription(): String = when {
+        logoBackgroundColor.isPresent -> "colour ${logoBackgroundColor.get()}"
+        logoBackground.getOrElse(false) -> "PNG"
+        else -> "[unset]"
     }
 }

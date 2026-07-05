@@ -92,6 +92,21 @@ class PlistSanitizeTest {
         assertTrue(r.warnings.any { it.contains("no following value", ignoreCase = true) }, r.warnings.toString())
     }
 
+    // --- T14: back-to-back inserts don't stack a blank line between entries. ---
+    @Test
+    fun `back-to-back inserts do not leave a blank line between entries`() {
+        val r = sanitizeInfoPlist(
+            plist("\t<key>CFBundleExecutable</key>\n\t<string>App</string>"),
+            listOf(
+                PlistStringEntry("CFBundleName", "\$(PRODUCT_NAME)"),
+                PlistStringEntry("CFBundleDisplayName", "\$(PRODUCT_NAME)"),
+            ),
+            emptyList(),
+        )
+        assertNotNull(r.text)
+        assertFalse(r.text!!.contains("\n\n"), r.text!!)
+    }
+
     // --- F6: a key insert does not mangle the XML prolog. ---------------------
     @Test
     fun `insert keeps a faithful prolog (no standalone, DOCTYPE on its own line)`() {

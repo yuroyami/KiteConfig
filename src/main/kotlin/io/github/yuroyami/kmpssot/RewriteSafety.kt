@@ -72,14 +72,20 @@ private fun backupOnce(file: File) {
 
 /**
  * Write [bytes] to [target] atomically: stage to a sibling temp file, then move
- * it into place. A crash/OOM/power-loss mid-write leaves the temp file (cleaned
- * up next run via overwrite) but never a truncated [target]. Falls back to a
- * plain replace-move if the filesystem rejects [StandardCopyOption.ATOMIC_MOVE].
+ * it into place. A crash/OOM/power-loss mid-write can leave the temp file behind
+ * (its name is random, so it is NOT overwritten next run) — so we sweep any stale
+ * `<name>.*.kmpssot.bak.tmp` siblings up front. [target] itself is never left
+ * truncated. Falls back to a plain replace-move if the filesystem rejects
+ * [StandardCopyOption.ATOMIC_MOVE].
  */
 private fun writeAtomically(target: File, bytes: ByteArray) {
     val dir = target.absoluteFile.parentFile
     dir?.mkdirs()
-    val tmp = File.createTempFile(target.name + ".", BACKUP_SUFFIX + ".tmp", dir)
+    // Remove leftovers from an earlier interrupted write (random-named temps).
+    val tmpSuffix = BACKUP_SUFFIX + ".tmp"
+    dir?.listFiles { f -> f.name.startsWith(target.name + ".") && f.name.endsWith(tmpSuffix) }
+        ?.forEach { runCatching { it.delete() } }
+    val tmp = File.createTempFile(target.name + ".", tmpSuffix, dir)
     try {
         tmp.writeBytes(bytes)
         try {
