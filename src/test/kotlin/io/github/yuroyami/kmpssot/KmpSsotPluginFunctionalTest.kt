@@ -234,6 +234,48 @@ class KmpSsotPluginFunctionalTest {
     }
 
     @Test
+    fun `buildInfo generates the runtime object into commonMain`() {
+        write(
+            "settings.gradle.kts",
+            """
+            pluginManagement { repositories { mavenCentral(); gradlePluginPortal(); google() } }
+            dependencyResolutionManagement { repositories { mavenCentral(); google() } }
+            rootProject.name = "fixture"
+            include(":shared")
+            """.trimIndent(),
+        )
+        write(
+            "build.gradle.kts",
+            """
+            plugins { id("io.github.yuroyami.kmpssot") }
+            kmpSsot {
+                sharedModule = "shared"
+                appName = "Demo"
+                versionName = "1.2.3"
+                bundleIdBase = "com.acme.app"
+                buildInfo { enabled = true; packageName = "com.acme.gen" }
+            }
+            """.trimIndent(),
+        )
+        write(
+            "shared/build.gradle.kts",
+            """
+            plugins { id("org.jetbrains.kotlin.multiplatform") }
+            kotlin { js { nodejs() } }
+            """.trimIndent(),
+        )
+
+        run(":shared:generateKmpSsotBuildInfo")
+
+        val generated = File(projectDir, "shared/build/generated/kmpssot/commonMain/kotlin/com/acme/gen/KmpSsotBuildInfo.kt")
+        assertTrue(generated.exists(), "generated build-info missing: ${generated.path}")
+        val src = generated.readText()
+        assertTrue(src.contains("public const val versionName: String = \"1.2.3\""), src)
+        assertTrue(src.contains("public const val versionCode: Int = 1001002003"), src)
+        assertTrue(src.contains("public const val androidApplicationId: String = \"com.acme.app\""), src)
+    }
+
+    @Test
     fun `verify task prints resolved values`() {
         write("settings.gradle.kts", "rootProject.name = \"fixture\"")
         write(

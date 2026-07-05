@@ -65,6 +65,10 @@ class KmpSsotPlugin : Plugin<Project> {
             generateIoWorker.convention(false)
             ioWorkerPackage.convention("kmpssot.generated")
         }
+        extAware.extensions.create<KmpSsotBuildInfoExtension>("buildInfo").apply {
+            enabled.convention(false)
+            packageName.convention("kmpssot.generated")
+        }
 
         val sanitizeIosTask = registerSanitizeIosTask(target, ext)
         val syncIosTask = registerSyncIosTask(target, ext)
@@ -166,7 +170,10 @@ class KmpSsotPlugin : Plugin<Project> {
                     // `kotlin { js() … }` body runs — the targets container is still empty
                     // there. wireWebIoWorker snapshots targets (unlike the lazy matching{}
                     // hooks above), so defer it to afterEvaluate.
-                    sub.afterEvaluate { wireWebIoWorker(sub, ext) }
+                    sub.afterEvaluate {
+                        wireWebIoWorker(sub, ext)
+                        wireBuildInfo(sub, ext)
+                    }
                 } else {
                     sub.logger.warn(
                         "[kmpSsot] Kotlin Multiplatform plugin is applied to ${sub.path} but its classes " +
@@ -247,6 +254,40 @@ class KmpSsotPlugin : Plugin<Project> {
             kmp.sourceSets.matching { it.name == "${name}Main" }.configureEach {
                 kotlin.srcDir(genTask.flatMap { it.outputDir })
             }
+        }
+    }
+
+    // --- Runtime build-info generation --------------------------------------
+
+    /**
+     * Generate the runtime [generateBuildInfoSource] object into the shared
+     * module's `commonMain`. Scoped to the shared module only (by name), KGP-guarded
+     * by the caller, deferred to `afterEvaluate` so the source sets exist.
+     */
+    private fun wireBuildInfo(project: Project, ext: KmpSsotExtension) {
+        if (!ext.buildInfo.enabled.get()) return
+        if (!ext.sharedModule.isPresent || project.name != ext.sharedModule.get()) return
+        val kmp = project.extensions.findByType(KotlinMultiplatformExtension::class.java) ?: return
+
+        val pkg = ext.buildInfo.packageName.get()
+        invalidWorkerPackageReason(pkg)?.let {
+            throw GradleException("kmpSsot { buildInfo { packageName } } \"$pkg\" $it")
+        }
+
+        val genDir = project.layout.buildDirectory.dir("generated/kmpssot/commonMain/kotlin")
+        val genTask = project.tasks.register<GenerateBuildInfoTask>("generateKmpSsotBuildInfo") {
+            packageName.set(ext.buildInfo.packageName)
+            appName.set(ext.appName.orElse(""))
+            versionName.set(ext.versionName.orElse(""))
+            versionCode.set(ext.versionCode.orElse(0))
+            androidApplicationId.set(ext.androidApplicationId.orElse(""))
+            iosBundleId.set(ext.iosBundleId.orElse(""))
+            locales.set(ext.locales)
+            outputDir.set(genDir)
+            dryRun.set(ext.dryRun)
+        }
+        kmp.sourceSets.matching { it.name == "commonMain" }.configureEach {
+            kotlin.srcDir(genTask.flatMap { it.outputDir })
         }
     }
 

@@ -242,6 +242,18 @@ abstract class KmpSsotExtension {
         action.execute(web)
     }
 
+    /**
+     * Runtime build-info codegen. See [KmpSsotBuildInfoExtension]. Accessed as
+     * `kmpSsot { buildInfo { enabled = true } }`. Created as a child extension by
+     * `KmpSsotPlugin.apply` for the same reason as [ios] / [android] / [web].
+     */
+    val buildInfo: KmpSsotBuildInfoExtension
+        get() = (this as ExtensionAware).extensions.getByType(KmpSsotBuildInfoExtension::class.java)
+
+    fun buildInfo(action: Action<in KmpSsotBuildInfoExtension>) {
+        action.execute(buildInfo)
+    }
+
     // --- Derived values (read-only) ------------------------------------------
 
     /**
