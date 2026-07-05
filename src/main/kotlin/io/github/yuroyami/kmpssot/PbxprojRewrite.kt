@@ -93,9 +93,11 @@ internal fun rewritePbxproj(
     }
 
     if (locales != null && locales.isNotEmpty()) {
+        // This is the iOS boundary: map Android qualifier tags (pt-rBR, b+sr+Latn)
+        // to the Apple knownRegions form (pt-BR, sr-Latn).
         val regions = buildList {
             add("Base")
-            locales.filter { it != "Base" }.forEach { add(it) }
+            locales.filter { it != "Base" }.forEach { add(androidTagToAppleTag(it)) }
         }
         // Reuse the indentation of the existing block so the diff stays clean;
         // fall back to 4 tabs (Xcode's default nesting) when it can't be sniffed.

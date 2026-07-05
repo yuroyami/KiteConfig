@@ -1,4 +1,6 @@
 import org.gradle.api.publish.maven.MavenPublication
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
     `kotlin-dsl`
@@ -14,6 +16,14 @@ java {
     toolchain {
         languageVersion.set(JavaLanguageVersion.of(21))
     }
+}
+
+// Compile on JDK 21 (the toolchain) but emit Java-17 bytecode so a consumer whose
+// Gradle daemon runs on JDK 17 — still the most common Android setup — can load
+// the plugin without UnsupportedClassVersionError. Nothing here uses a 21-only API.
+tasks.withType<JavaCompile>().configureEach { options.release.set(17) }
+tasks.withType<KotlinCompile>().configureEach {
+    compilerOptions.jvmTarget.set(JvmTarget.JVM_17)
 }
 
 repositories {

@@ -250,6 +250,7 @@ class KmpSsotPlugin : Plugin<Project> {
         return composeRes
             .listFiles { f -> f.isDirectory && f.name.startsWith("values-") }
             ?.map { it.name.removePrefix("values-") }
+            ?.filter { looksLikeLocaleQualifier(it) }
             ?.distinct()
             ?.sorted()
             ?: emptyList()
@@ -374,12 +375,7 @@ class KmpSsotPlugin : Plugin<Project> {
         ext: KmpSsotExtension,
     ) {
         if (!ext.syncIos.get()) return
-        val iosTaskFilter: (org.gradle.api.Task) -> Boolean = {
-            it.name.startsWith("linkPodReleaseFrameworkIos") ||
-                    it.name.startsWith("linkPodDebugFrameworkIos") ||
-                    it.name == "embedAndSignAppleFrameworkForXcode"
-        }
-        project.tasks.matching(iosTaskFilter).configureEach {
+        project.tasks.matching { isIosFrameworkLinkTaskName(it.name) }.configureEach {
             dependsOn(syncIosTask)
             dependsOn(syncIosLogoTask)
         }
