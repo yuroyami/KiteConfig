@@ -12,6 +12,8 @@ import org.gradle.kotlin.dsl.create
 import org.gradle.kotlin.dsl.getByType
 import org.gradle.kotlin.dsl.register
 import org.gradle.util.GradleVersion
+import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
+import org.jetbrains.kotlin.gradle.plugin.KotlinPlatformType
 
 class KmpSsotPlugin : Plugin<Project> {
 
@@ -41,6 +43,8 @@ class KmpSsotPlugin : Plugin<Project> {
             propagateLogo.convention(true)
             propagateSharedModule.convention(true)
             propagateAndroidSdk.convention(true)
+            propagateInteropOptIns.convention(true)
+            extraOptIns.convention(emptyList())
             syncIos.convention(true)
             sanitizeIosProject.convention(true)
             cleanupLegacyLogoArtifacts.convention(false)
@@ -58,6 +62,10 @@ class KmpSsotPlugin : Plugin<Project> {
         val extAware = ext as ExtensionAware
         extAware.extensions.create<KmpSsotIosExtension>("ios")
         extAware.extensions.create<KmpSsotAndroidExtension>("android")
+        extAware.extensions.create<KmpSsotWebExtension>("web").apply {
+            generateIoWorker.convention(false)
+            ioWorkerPackage.convention("kmpssot.generated")
+        }
 
         val sanitizeIosTask = registerSanitizeIosTask(target, ext)
         val syncIosTask = registerSyncIosTask(target, ext)
@@ -134,6 +142,100 @@ class KmpSsotPlugin : Plugin<Project> {
             plugins.withId("com.android.kotlin.multiplatform.library") { KmpAndroidLibraryWiring.apply(sub, ext) }
             plugins.withId("org.jetbrains.kotlin.multiplatform") {
                 hookIosFrameworkTasks(sub, syncIosTask, syncIosLogoTask, ext)
+                // KGP is compileOnly: when the consumer declares kotlin("multiplatform")
+                // only in a subproject's plugins block, KGP lands in a sibling
+                // classloader kmp-ssot can't see, and merely CALLING a method whose
+                // body references KGP types throws NoClassDefFoundError. Guard here
+                // (outside any KGP-typed method) and degrade with guidance.
+                if (KGP_ON_CLASSPATH) {
+                    propagateInteropOptIns(sub, ext)
+                    // withId fires during the subproject's `plugins {}` block, BEFORE its
+                    // `kotlin { js() … }` body runs — the targets container is still empty
+                    // there. wireWebIoWorker snapshots targets (unlike the lazy matching{}
+                    // hooks above), so defer it to afterEvaluate.
+                    sub.afterEvaluate { wireWebIoWorker(sub, ext) }
+                } else {
+                    sub.logger.warn(
+                        "[kmpSsot] Kotlin Multiplatform plugin is applied to ${sub.path} but its classes " +
+                                "are not visible to kmp-ssot's classloader — interop opt-in propagation and " +
+                                "web.generateIoWorker are skipped. Declare kotlin(\"multiplatform\") " +
+                                "(apply false) in the ROOT project's plugins block so both plugins share " +
+                                "a classloader."
+                    )
+                }
+            }
+        }
+    }
+
+    // --- Native interop opt-in propagation ----------------------------------
+
+    /**
+     * Add the interop opt-in markers to every Kotlin/Native compilation, so
+     * cinterop / Obj-C call sites don't each need an `@OptIn`. Scoped to native
+     * targets, where the markers resolve — harmless and absent elsewhere.
+     */
+    private fun propagateInteropOptIns(project: Project, ext: KmpSsotExtension) {
+        if (!ext.propagateInteropOptIns.get()) return
+        val kmp = project.extensions.findByType(KotlinMultiplatformExtension::class.java) ?: return
+        val markers = interopOptIns(ext.extraOptIns.getOrElse(emptyList()))
+        if (markers.isEmpty()) return
+        kmp.targets.matching { it.platformType == KotlinPlatformType.native }.configureEach {
+            compilations.configureEach {
+                compileTaskProvider.configure {
+                    compilerOptions.optIn.addAll(markers)
+                }
+            }
+        }
+    }
+
+    // --- Web IO worker generation -------------------------------------------
+
+    /**
+     * Generate the inline Web Worker offload helper into the module's `jsMain`
+     * source set when `kmpSsot { web { generateIoWorker = true } }`. JS target
+     * only — a wasmJs-only module is logged and skipped.
+     */
+    private fun wireWebIoWorker(project: Project, ext: KmpSsotExtension) {
+        if (!ext.web.generateIoWorker.get()) return
+        val kmp = project.extensions.findByType(KotlinMultiplatformExtension::class.java) ?: return
+        val jsTargets = kmp.targets.filter { it.platformType == KotlinPlatformType.js }
+        if (jsTargets.isEmpty()) {
+            if (kmp.targets.any { it.platformType == KotlinPlatformType.wasm }) {
+                project.logger.warn(
+                    "[kmpSsot] web.generateIoWorker currently supports the js() target only; " +
+                            "wasmJs worker generation is not yet implemented — skipping ${project.path}."
+                )
+            }
+            return
+        }
+
+        // Validate the destination package up front — a malformed value would
+        // otherwise surface as a confusing compile error inside the generated file.
+        val pkg = ext.web.ioWorkerPackage.get()
+        if (!PACKAGE_NAME_RE.matches(pkg)) {
+            throw GradleException(
+                "kmpSsot { web { ioWorkerPackage } } is not a valid Kotlin package name: \"$pkg\". " +
+                        "Use dot-separated identifiers, e.g. \"com.acme.app.generated\"."
+            )
+        }
+
+        // Derive the source set + compile task from each js target's ACTUAL name,
+        // so a custom-named target (`js("web")` → webMain / compileKotlinWeb) is
+        // wired too, instead of silently no-op'ing on a hardcoded `js()` name.
+        jsTargets.forEach { target ->
+            val name = target.targetName
+            val capital = name.replaceFirstChar { it.uppercase() }
+            val genDir = project.layout.buildDirectory.dir("generated/kmpssot/${name}Main/kotlin")
+            val genTask = project.tasks.register<GenerateIoWorkerTask>("generateKmpSsotIoWorker$capital") {
+                workerPackage.set(ext.web.ioWorkerPackage)
+                outputDir.set(genDir)
+                dryRun.set(ext.dryRun)
+            }
+            // srcDir(taskProvider.flatMap { output }) carries the task dependency to
+            // EVERY consumer of the source set — compile, sourcesJar, dokka, IDE
+            // import — not just a name-matched compile task.
+            kmp.sourceSets.matching { it.name == "${name}Main" }.configureEach {
+                kotlin.srcDir(genTask.flatMap { it.outputDir })
             }
         }
     }
@@ -362,5 +464,26 @@ class KmpSsotPlugin : Plugin<Project> {
 
     companion object {
         private const val MIN_GRADLE = "8.5"
+
+        /** Dot-separated Kotlin identifiers — used to validate `web { ioWorkerPackage }`. */
+        private val PACKAGE_NAME_RE = Regex("""[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*""")
+
+        /**
+         * Whether the (compileOnly) Kotlin Gradle plugin classes are loadable from
+         * kmp-ssot's own classloader. False when the consumer declares
+         * kotlin("multiplatform") only in a subproject, which puts KGP in a sibling
+         * classloader — calling into KGP-typed methods would then throw
+         * NoClassDefFoundError, so those features are guarded on this.
+         */
+        private val KGP_ON_CLASSPATH: Boolean = try {
+            Class.forName(
+                "org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension",
+                false,
+                KmpSsotPlugin::class.java.classLoader,
+            )
+            true
+        } catch (_: ClassNotFoundException) {
+            false
+        }
     }
 }

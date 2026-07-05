@@ -23,9 +23,12 @@ repositories {
 }
 
 dependencies {
-    // Consumers bring their own AGP; we only need types at compile time.
+    // Consumers bring their own AGP / Kotlin Gradle plugin; we only need types
+    // at compile time. The full KGP (not just -api) is needed for the concrete
+    // KotlinMultiplatformExtension used by interop opt-in + web worker wiring.
     compileOnly(libs.android.gradle.api)
     compileOnly(libs.kotlin.gradle.plugin.api)
+    compileOnly(libs.kotlin.gradle.plugin)
 
     testImplementation(libs.junit.jupiter)
     testImplementation(gradleTestKit())
@@ -34,6 +37,19 @@ dependencies {
 
 tasks.named<Test>("test") {
     useJUnitPlatform()
+}
+
+// KGP is compileOnly, so TestKit's injected plugin classpath (built from
+// runtimeClasspath) wouldn't include it — functional tests that apply
+// kotlin("multiplatform") in fixtures need it added explicitly. This also puts
+// KGP in the SAME classloader as the plugin under test, matching the documented
+// consumer setup (kotlin declared in the root plugins block).
+val testKitPluginClasspath: Configuration by configurations.creating
+dependencies {
+    testKitPluginClasspath(libs.kotlin.gradle.plugin)
+}
+tasks.named<org.gradle.plugin.devel.tasks.PluginUnderTestMetadata>("pluginUnderTestMetadata") {
+    pluginClasspath.from(testKitPluginClasspath)
 }
 
 gradlePlugin {

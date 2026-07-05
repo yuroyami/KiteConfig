@@ -82,4 +82,25 @@ class PlistSanitizeTest {
         )
         assertNull(r.text)
     }
+
+    // --- F8: a trailing <key> with no value element is not duplicated. --------
+    @Test
+    fun `a dangling trailing key is warned about, not duplicated`() {
+        val r = sanitizeInfoPlist(plist("\t<key>CFBundleName</key>"), listOf(nameEntry), emptyList())
+        assertNull(r.text)
+        assertTrue("CFBundleName" !in r.inserted)
+        assertTrue(r.warnings.any { it.contains("no following value", ignoreCase = true) }, r.warnings.toString())
+    }
+
+    // --- F6: a key insert does not mangle the XML prolog. ---------------------
+    @Test
+    fun `insert keeps a faithful prolog (no standalone, DOCTYPE on its own line)`() {
+        val r = sanitizeInfoPlist(
+            plist("\t<key>CFBundleExecutable</key>\n\t<string>App</string>"),
+            listOf(nameEntry), emptyList(),
+        )
+        assertNotNull(r.text)
+        assertFalse(r.text!!.contains("standalone"), r.text!!.take(120))
+        assertTrue(r.text!!.contains("?>\n<!DOCTYPE"), r.text!!.take(120))
+    }
 }

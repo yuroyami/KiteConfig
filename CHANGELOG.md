@@ -4,6 +4,43 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions track the
 Gradle Plugin Portal releases.
 
+## [1.6.0]
+
+### Added
+- **Interop opt-in propagation** — `kmpSsot { propagateInteropOptIns = true }`
+  (default on) adds the cinterop / Obj-C opt-in markers
+  (`kotlinx.cinterop.ExperimentalForeignApi`,
+  `kotlin.experimental.ExperimentalObjCName`,
+  `kotlin.experimental.ExperimentalNativeApi`) to **every Kotlin/Native
+  compilation**, so call sites no longer each need an `@OptIn`. Scoped to native
+  targets, where the markers resolve. Add your own with
+  `kmpSsot { extraOptIns.add("…") }`.
+- **Web Worker IO generation** — `kmpSsot { web { generateIoWorker = true } }`
+  (default off) generates an inline Blob-Worker offload helper
+  (`suspend fun kmpSsotOffload(jobJs, payload): String`) into a plugin-owned
+  generated `jsMain` source dir (`build/generated/kmpssot/jsMain/kotlin`, wired
+  onto the `jsMain` source set — never your hand-authored tree). Closes the "no
+  `Dispatchers.IO` on the web target" gap by packaging the runtime-worker pattern.
+  Generated code depends only on `kotlinx-coroutines-core`. Configure the package
+  with `web { ioWorkerPackage = "…" }` (default `kmpssot.generated`). **JS target
+  only** in this release — a wasmJs-only module is logged and skipped. Pairs with
+  the `io.github.yuroyami:kitecore` runtime library (`KiteWorker`, `ioDispatcher()`).
+
+### Notes
+- The plugin now compiles against the full `kotlin-gradle-plugin` (`compileOnly`)
+  in addition to `-api`, for the concrete `KotlinMultiplatformExtension` used by
+  both new injectors. No change to what consumers ship.
+- Both KGP-touching features are guarded on KGP being visible to kmp-ssot's own
+  classloader. If `kotlin("multiplatform")` is declared only inside a subproject,
+  KGP lands in a sibling classloader and the features degrade to a warning with
+  guidance (declare it `apply false` in the ROOT plugins block) instead of
+  crashing the build with `NoClassDefFoundError`.
+- Worker generation is wired at `afterEvaluate` (targets don't exist yet when
+  the KMP plugin applies), and the generated dir is attached via the task's
+  declared output, so compile, sourcesJar, dokka and IDE import all depend on
+  generation automatically. Covered by a GradleRunner functional test that
+  applies real KGP with a `js()` target end-to-end.
+
 ## [1.5.0]
 
 ### Added

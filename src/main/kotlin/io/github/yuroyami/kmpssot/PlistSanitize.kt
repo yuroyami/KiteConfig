@@ -86,12 +86,15 @@ internal fun sanitizeInfoPlist(
     val warnings = mutableListOf<String>()
 
     for (entry in stringEntries) {
+        val present = pairs.containsKey(entry.name)
         val value = pairs[entry.name]
         when {
-            value == null -> {
+            !present -> {
                 appendKeyValue(rootDict, entry.name, doc.createElement("string").apply { textContent = entry.value }, indent)
                 inserted += entry.name
             }
+            value == null -> warnings += "Info.plist has a <key>${entry.name}</key> with no following value " +
+                "element (malformed plist) — leaving it untouched rather than inserting a duplicate."
             value.tagName == "string" && value.textContent == entry.value -> { /* already correct */ }
             value.tagName == "string" -> warnings += "Info.plist <${entry.name}> is hardcoded to " +
                 "\"${value.textContent}\" — kmpSsot propagation will NOT reach it. Change it to " +
@@ -102,13 +105,16 @@ internal fun sanitizeInfoPlist(
     }
 
     for (entry in boolEntries) {
+        val present = pairs.containsKey(entry.name)
         val value = pairs[entry.name]
         val desiredTag = if (entry.value) "true" else "false"
         when {
-            value == null -> {
+            !present -> {
                 appendKeyValue(rootDict, entry.name, doc.createElement(desiredTag), indent)
                 inserted += entry.name
             }
+            value == null -> warnings += "Info.plist has a <key>${entry.name}</key> with no following value " +
+                "element (malformed plist) — leaving it untouched."
             value.tagName == "true" || value.tagName == "false" -> {
                 if (value.tagName != desiredTag) {
                     rootDict.replaceChild(doc.createElement(desiredTag), value)
@@ -132,7 +138,8 @@ internal fun sanitizeInfoPlist(
             warnings + "Info.plist could not be re-serialized (${e.message}) — left untouched.",
         )
     }
-    val normalized = if (xml.endsWith("\n") && !serialized.endsWith("\n")) serialized + "\n" else serialized
+    val reheadered = normalizePlistProlog(serialized, xml)
+    val normalized = if (xml.endsWith("\n") && !reheadered.endsWith("\n")) reheadered + "\n" else reheadered
     if (normalized == xml) return PlistSanitizeResult(null, emptyList(), emptyList(), warnings)
     return PlistSanitizeResult(normalized, inserted, overwritten, warnings)
 }
@@ -144,16 +151,27 @@ private fun childElements(node: Node): List<Element> {
     return out
 }
 
-/** Map each top-level `<key>` to its following value element, in document order. */
-private fun rootDictPairs(dict: Element): LinkedHashMap<String, Element> {
+/**
+ * Map each top-level `<key>` to its following value element, in document order.
+ * A trailing `<key>` with no following element (malformed plist) is recorded
+ * with a **null** value so callers can tell "key present but unpaired" apart from
+ * "key absent" — and warn instead of inserting a duplicate key.
+ */
+private fun rootDictPairs(dict: Element): LinkedHashMap<String, Element?> {
     val els = childElements(dict)
-    val map = LinkedHashMap<String, Element>()
+    val map = LinkedHashMap<String, Element?>()
     var i = 0
     while (i < els.size) {
         val el = els[i]
-        if (el.tagName == "key" && i + 1 < els.size) {
-            map[el.textContent.trim()] = els[i + 1]
-            i += 2
+        if (el.tagName == "key") {
+            val name = el.textContent.trim()
+            if (i + 1 < els.size) {
+                map[name] = els[i + 1]
+                i += 2
+            } else {
+                map[name] = null // dangling trailing <key>
+                i++
+            }
         } else {
             i++
         }
@@ -189,6 +207,27 @@ private fun appendKeyValue(dict: Element, name: String, value: Element, indent: 
     dict.appendChild(value)
     // Re-establish the newline that precedes </dict>.
     dict.appendChild(doc.createTextNode("\n"))
+}
+
+/**
+ * Undo the JDK Transformer's prolog mangling so a one-key insert produces a
+ * faithful, minimal diff on a user-owned `Info.plist`:
+ *  - it injects `standalone="no"` that wasn't there, and
+ *  - it collapses the newlines between the `<?xml?>` declaration, the `<!DOCTYPE>`
+ *    and `<plist>` onto a single line.
+ * Apple's tooling emits neither, so restore the canonical multi-line prolog.
+ */
+private fun normalizePlistProlog(serialized: String, original: String): String {
+    var s = serialized
+    // Drop standalone="no" unless the original genuinely declared standalone.
+    if (!Regex("""<\?xml[^>]*\bstandalone\b""").containsMatchIn(original)) {
+        s = s.replace(Regex(""" standalone=["']no["']"""), "")
+    }
+    // Re-expand the prolog onto separate lines (declaration / DOCTYPE / <plist>).
+    s = s.replace(Regex("""\?>\s*<!DOCTYPE"""), "?>\n<!DOCTYPE")
+    s = s.replace(Regex("""\?>\s*<plist"""), "?>\n<plist")
+    s = s.replace(Regex("""(<!DOCTYPE[^>]*>)\s*<plist"""), "$1\n<plist")
+    return s
 }
 
 private fun serializePlist(doc: org.w3c.dom.Document): String {

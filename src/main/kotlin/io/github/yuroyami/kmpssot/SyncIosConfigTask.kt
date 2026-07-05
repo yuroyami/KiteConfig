@@ -126,6 +126,9 @@ abstract class SyncIosConfigTask : DefaultTask() {
         val dir = iosAppDir.asFile.orNull?.takeIf { it.isDirectory } ?: return
         var rewritten = 0
         dir.walkTopDown()
+            // Never descend into vendored pods, build output, or Xcode derived/user
+            // data — rewriting `import` in third-party or generated Swift is wrong.
+            .onEnter { it.name !in PRUNED_DIRS }
             .filter { it.isFile && it.extension == "swift" }
             .forEach { swift ->
                 val updated = rewriteSwiftImport(swift.readText(), oldName, newName)
@@ -136,5 +139,10 @@ abstract class SyncIosConfigTask : DefaultTask() {
         if (rewritten > 0) {
             logger.lifecycle("[kmpSsot] Rewrote `import $oldName` → `import $newName` in $rewritten Swift file(s).")
         }
+    }
+
+    private companion object {
+        /** Directory names never walked for Swift rewrites (vendored / generated / IDE state). */
+        val PRUNED_DIRS = setOf("Pods", "build", ".build", "DerivedData", "xcuserdata", ".git")
     }
 }

@@ -33,25 +33,35 @@ internal fun rewritePbxproj(
         updated = regex.replace(updated) { literal }
     }
 
+    // A build setting `KEY = <value>;` where:
+    //  - KEY is not preceded by an identifier char, so `PRODUCT_NAME` never
+    //    matches inside `FOO_PRODUCT_NAME` (and likewise for every key below); and
+    //  - <value> is either a double-quoted string (which may legally contain ';')
+    //    or a run of bare chars that stops at ';', '"' or a newline — so a value
+    //    missing its terminating ';' can't swallow later lines, and a quoted ';'
+    //    can't split the value mid-string.
+    fun settingRegex(key: String): Regex =
+        Regex("""(?<![A-Za-z0-9_])$key = (?:"(?:[^"\\]|\\.)*"|[^;"\n]+);""")
+
     if (versionName != null) {
-        replaceLiteral(Regex("""MARKETING_VERSION = [^;]+;"""), "MARKETING_VERSION = $versionName;")
+        replaceLiteral(settingRegex("MARKETING_VERSION"), "MARKETING_VERSION = $versionName;")
         if (versionCode != null) {
-            replaceLiteral(Regex("""CURRENT_PROJECT_VERSION = [^;]+;"""), "CURRENT_PROJECT_VERSION = $versionCode;")
+            replaceLiteral(settingRegex("CURRENT_PROJECT_VERSION"), "CURRENT_PROJECT_VERSION = $versionCode;")
         }
     }
 
     if (appName != null) {
         // Quote + escape so the pbxproj stays valid for names with spaces, quotes, backslashes.
         val quoted = "\"" + appName.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
-        replaceLiteral(Regex("""INFOPLIST_KEY_CFBundleDisplayName = [^;]+;"""), "INFOPLIST_KEY_CFBundleDisplayName = $quoted;")
-        replaceLiteral(Regex("""INFOPLIST_KEY_CFBundleName = [^;]+;"""), "INFOPLIST_KEY_CFBundleName = $quoted;")
+        replaceLiteral(settingRegex("INFOPLIST_KEY_CFBundleDisplayName"), "INFOPLIST_KEY_CFBundleDisplayName = $quoted;")
+        replaceLiteral(settingRegex("INFOPLIST_KEY_CFBundleName"), "INFOPLIST_KEY_CFBundleName = $quoted;")
         // PRODUCT_NAME is the universal knob — a custom Info.plist referencing
         // $(PRODUCT_NAME) resolves correctly once this is set.
-        replaceLiteral(Regex("""PRODUCT_NAME = [^;]+;"""), "PRODUCT_NAME = $quoted;")
+        replaceLiteral(settingRegex("PRODUCT_NAME"), "PRODUCT_NAME = $quoted;")
     }
 
     if (bundleId != null) {
-        replaceLiteral(Regex("""PRODUCT_BUNDLE_IDENTIFIER = [^;]+;"""), "PRODUCT_BUNDLE_IDENTIFIER = $bundleId;")
+        replaceLiteral(settingRegex("PRODUCT_BUNDLE_IDENTIFIER"), "PRODUCT_BUNDLE_IDENTIFIER = $bundleId;")
     }
 
     if (locales != null && locales.isNotEmpty()) {
@@ -64,7 +74,11 @@ internal fun rewritePbxproj(
             prefix = "knownRegions = (\n\t\t\t\t",
             postfix = ",\n\t\t\t);",
         )
-        val re = Regex("""knownRegions = \(\s*[^)]*\);""", RegexOption.DOT_MATCHES_ALL)
+        // Region tokens only (bare/quoted identifiers, commas, dots, hyphens,
+        // whitespace incl. newlines). A stray ')' — e.g. inside an injected
+        // comment — makes the whole match fail, so we emit the not-found warning
+        // instead of truncating the block at the first ')' and corrupting it.
+        val re = Regex("""knownRegions = \([\sA-Za-z0-9_,"'.\-]*\);""")
         if (re.containsMatchIn(updated)) {
             updated = re.replace(updated) { replacement }
         } else {

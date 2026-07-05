@@ -39,4 +39,34 @@ class SharedModuleRewriteTest {
             rewritePodfileContent("pod 'shared', :path => '../shared'", "shared", "composeApp"),
         )
     }
+
+    // --- F9: nested pod path is detected via the path tail. -------------------
+    @Test
+    fun `detects via path tail for a nested pod path`() {
+        assertEquals("shared", detectPodSharedModule("pod 'shared', :path => '../modules/shared'"))
+    }
+
+    // --- F10: modern Ruby `path:` hash syntax is detected. --------------------
+    @Test
+    fun `detects the modern path-colon syntax`() {
+        assertEquals("shared", detectPodSharedModule("pod 'shared', path: '../shared'"))
+    }
+
+    // --- F9: rewrite preserves the directory prefix of a nested path. ---------
+    @Test
+    fun `rewrite preserves a nested directory prefix`() {
+        assertEquals(
+            "pod 'core', :path => '../modules/core'",
+            rewritePodfileContent("pod 'shared', :path => '../modules/shared'", "shared", "core"),
+        )
+    }
+
+    // --- F10: rewrite preserves the original `path:` syntax. ------------------
+    @Test
+    fun `rewrite preserves the path-colon syntax`() {
+        assertEquals(
+            "pod 'core', path: '../core'",
+            rewritePodfileContent("pod 'shared', path: '../shared'", "shared", "core"),
+        )
+    }
 }

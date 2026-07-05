@@ -81,6 +81,55 @@ class KmpSsotPluginFunctionalTest {
     }
 
     @Test
+    fun `web generateIoWorker wires and generates in a real KMP js module`() {
+        // Regression for the plugins.withId-vs-kotlin{} ordering bug: the worker
+        // wiring must see targets declared AFTER the plugins block, i.e. it must
+        // run at afterEvaluate, not at KMP-plugin-apply time.
+        write(
+            "settings.gradle.kts",
+            """
+            pluginManagement {
+                repositories { mavenCentral(); gradlePluginPortal(); google() }
+            }
+            dependencyResolutionManagement {
+                repositories { mavenCentral(); google() }
+            }
+            rootProject.name = "fixture"
+            include(":shared")
+            """.trimIndent(),
+        )
+        write(
+            "build.gradle.kts",
+            """
+            plugins { id("io.github.yuroyami.kmpssot") }
+            kmpSsot {
+                sharedModule = "shared"
+                web { generateIoWorker = true; ioWorkerPackage = "com.acme.gen" }
+            }
+            """.trimIndent(),
+        )
+        write(
+            "shared/build.gradle.kts",
+            """
+            // No version: KGP resolves from TestKit's injected plugin classpath, the
+            // same classloader as the plugin under test (see pluginUnderTestMetadata).
+            plugins { id("org.jetbrains.kotlin.multiplatform") }
+            kotlin {
+                js { nodejs() }
+            }
+            """.trimIndent(),
+        )
+
+        run(":shared:generateKmpSsotIoWorkerJs")
+
+        val generated = File(projectDir, "shared/build/generated/kmpssot/jsMain/kotlin/com/acme/gen/KmpSsotIoWorker.kt")
+        assertTrue(generated.exists(), "generated worker file missing: ${generated.path}")
+        val src = generated.readText()
+        assertTrue(src.contains("package com.acme.gen"), src)
+        assertTrue(src.contains("suspend fun kmpSsotOffload"), src)
+    }
+
+    @Test
     fun `verify task prints resolved values`() {
         write("settings.gradle.kts", "rootProject.name = \"fixture\"")
         write(

@@ -154,6 +154,22 @@ abstract class KmpSsotExtension {
     /** Propagate the `android { }` SDK knobs (compileSdk/minSdk/targetSdk/ndkVersion). Default true. */
     abstract val propagateAndroidSdk: Property<Boolean>
 
+    /**
+     * Propagate the interop opt-in markers (`ExperimentalForeignApi`,
+     * `ExperimentalObjCName`, `ExperimentalNativeApi`) to every Kotlin/Native
+     * compilation, so cinterop / Obj-C call sites don't each need an `@OptIn`.
+     * Default true. Applied only to native compilations, where the markers
+     * resolve. Add your own via [extraOptIns].
+     */
+    abstract val propagateInteropOptIns: Property<Boolean>
+
+    /**
+     * Extra opt-in marker FQNs appended to the interop defaults and propagated to
+     * every Kotlin/Native compilation, e.g.
+     * `extraOptIns.add("kotlin.experimental.ExperimentalObjCRefinement")`.
+     */
+    abstract val extraOptIns: ListProperty<String>
+
     /** Master switch for the iOS pbxproj rewrite task. If false, no iOS sync happens at all. */
     abstract val syncIos: Property<Boolean>
 
@@ -212,6 +228,18 @@ abstract class KmpSsotExtension {
 
     fun android(action: Action<in KmpSsotAndroidExtension>) {
         action.execute(android)
+    }
+
+    /**
+     * Web-target (js / wasmJs) options. See [KmpSsotWebExtension]. Accessed as
+     * `kmpSsot { web { generateIoWorker = true } }`. Created as a child extension
+     * by `KmpSsotPlugin.apply` for the same reason as [ios] / [android].
+     */
+    val web: KmpSsotWebExtension
+        get() = (this as ExtensionAware).extensions.getByType(KmpSsotWebExtension::class.java)
+
+    fun web(action: Action<in KmpSsotWebExtension>) {
+        action.execute(web)
     }
 
     // --- Derived values (read-only) ------------------------------------------

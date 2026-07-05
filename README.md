@@ -9,7 +9,7 @@ One source of truth, per-concern opt-out toggles, every identity field
 optional.
 
 > **Requirements:** Gradle 8.5+, JDK 17+ (toolchain 21), AGP 8+/9.x. Tested
-> against AGP 9.1 and Kotlin 2.3. The root-applied, zero-per-module design means
+> against AGP 9.2 and Kotlin 2.4. The root-applied, zero-per-module design means
 > cross-project configuration is **not** compatible with Gradle's Isolated
 > Projects feature; the configuration cache and normal builds are unaffected.
 
@@ -24,7 +24,7 @@ and declare once:
 ```kotlin
 // <root>/build.gradle.kts
 plugins {
-    id("io.github.yuroyami.kmpssot") version "1.4.0"
+    id("io.github.yuroyami.kmpssot") version "1.6.0"
     // ...your other plugins, typically with .apply(false)...
 }
 
@@ -77,6 +77,7 @@ kmpSsot {
     // propagateLogo          = true
     // propagateSharedModule  = true
     // propagateAndroidSdk    = true
+    // propagateInteropOptIns = true   // add cinterop/Obj-C @OptIn markers to every native compilation
     // syncIos                = true
     // sanitizeIosProject     = true
 
@@ -95,6 +96,16 @@ kmpSsot {
     // ios {
     //     usesNonExemptEncryption = false   // kills the App Store "Missing Compliance" prompt
     //     proMotion120Hz          = true    // unlocks >60 Hz on ProMotion iPhones
+    // }
+
+    // Native interop opt-ins (default on): drop the per-call-site @OptIn noise.
+    // extraOptIns.add("kotlin.experimental.ExperimentalObjCRefinement")
+
+    // Web target gap-closer (default off): generate an inline Web Worker offload
+    // helper (kmpSsotOffload) into the JS source set. JS target only for now.
+    // web {
+    //     generateIoWorker = true
+    //     ioWorkerPackage  = "kmpssot.generated"   // default
     // }
 }
 ```
@@ -135,6 +146,54 @@ the classic `com.android.library`, and — since 1.5.0 — AGP's KMP-native
 target that is the standard shared module under AGP 9). For the KMP library only
 `compileSdk`/`minSdk` apply — that DSL has no `targetSdk` or `ndkVersion` — and
 the value is injected via `finalizeDsl`, so it wins over one set in the module.
+
+### Native interop & web toolchain (1.6.0)
+
+Two gap-closers that are **not** identity propagation — they remove KMP
+toolchain boilerplate. Both are scoped to platform-specific trees only (native
+compilations / a plugin-owned generated `jsMain` dir); neither touches shared
+code.
+
+**Native interop opt-ins** (`propagateInteropOptIns`, default on). Adds the
+cinterop / Obj-C opt-in markers — `kotlinx.cinterop.ExperimentalForeignApi`,
+`kotlin.experimental.ExperimentalObjCName`,
+`kotlin.experimental.ExperimentalNativeApi` — to **every Kotlin/Native
+compilation**, so cinterop and Obj-C call sites no longer each need an
+`@OptIn`. Applied only to native targets, where the markers resolve. Add your
+own:
+
+```kotlin
+kmpSsot {
+    extraOptIns.add("kotlin.experimental.ExperimentalObjCRefinement")
+    // propagateInteropOptIns = false   // opt out entirely
+}
+```
+
+**Web Worker IO** (`web { generateIoWorker = true }`, default off). KMP has no
+`Dispatchers.IO` on the web target — you can't block the single JS main thread.
+This generates the proven inline Blob-Worker offload helper
+(`suspend fun kmpSsotOffload(jobJs, payload): String`) into a plugin-owned
+generated source dir wired onto the JS source set (never your hand-authored
+tree). The generated code depends only on `kotlinx-coroutines-core`.
+
+```kotlin
+kmpSsot {
+    web {
+        generateIoWorker = true
+        ioWorkerPackage  = "com.acme.app.generated"   // default: kmpssot.generated
+    }
+}
+```
+
+```kotlin
+// in jsMain:
+val sum = kmpSsotOffload("(n) => { let s=0; for(let i=0;i<+n;i++) s+=i; return ''+s }", "100000000")
+```
+
+**JS target only** in this release — a wasmJs-only module is logged and
+skipped. For a richer typed worker (`KiteWorker`) plus a unified
+`ioDispatcher()` across every target, see the runtime sibling
+[`KiteCore`](https://github.com/yuroyami/KiteCore).
 
 ### Two one-time consumer-side patches
 

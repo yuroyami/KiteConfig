@@ -56,4 +56,32 @@ class PbxprojRewriteTest {
         assertEquals(sample, r.text)
         assertTrue(r.warnings.isEmpty())
     }
+
+    // --- F2: keys are anchored on the left, so a sibling key that *ends with*
+    // the target name is never corrupted. --------------------------------------
+    @Test
+    fun `does not corrupt a sibling key that ends with the target name`() {
+        val src = "MY_PRODUCT_NAME = KeepMe;\nPRODUCT_NAME = Old;"
+        val r = rewritePbxproj(src, null, null, "New", null, null)
+        assertTrue(r.text.contains("MY_PRODUCT_NAME = KeepMe;"), r.text)
+        assertTrue(r.text.contains("PRODUCT_NAME = \"New\";"), r.text)
+    }
+
+    // --- F3: a quoted value containing ';' is not split mid-string. ------------
+    @Test
+    fun `rewrites a quoted value that contains a semicolon without splitting it`() {
+        val src = "PRODUCT_NAME = \"App; Inc\";"
+        val r = rewritePbxproj(src, null, null, "New", null, null)
+        assertEquals("PRODUCT_NAME = \"New\";", r.text)
+    }
+
+    // --- F3: a value missing its terminating ';' can't swallow later lines. ----
+    @Test
+    fun `a setting missing its semicolon does not eat the following line`() {
+        val src = "PRODUCT_NAME = brokenNoSemicolon\nPRODUCT_BUNDLE_IDENTIFIER = com.keep.me;"
+        val r = rewritePbxproj(src, null, null, "New", "com.new.id", null)
+        // PRODUCT_NAME line has no ';' before the newline → left untouched, not merged.
+        assertTrue(r.text.contains("PRODUCT_NAME = brokenNoSemicolon"), r.text)
+        assertTrue(r.text.contains("PRODUCT_BUNDLE_IDENTIFIER = com.new.id;"), r.text)
+    }
 }
