@@ -127,6 +127,25 @@ class KmpSsotPluginFunctionalTest {
         val src = generated.readText()
         assertTrue(src.contains("package com.acme.gen"), src)
         assertTrue(src.contains("suspend fun kmpSsotOffload"), src)
+
+        // Changing ioWorkerPackage must not leave the old file behind — two
+        // top-level kmpSsotOffload declarations in jsMain would be a compile
+        // error. The task wipes its output dir before regenerating.
+        write(
+            "build.gradle.kts",
+            """
+            plugins { id("io.github.yuroyami.kmpssot") }
+            kmpSsot {
+                sharedModule = "shared"
+                web { generateIoWorker = true; ioWorkerPackage = "com.acme.other" }
+            }
+            """.trimIndent(),
+        )
+        run(":shared:generateKmpSsotIoWorkerJs")
+
+        val moved = File(projectDir, "shared/build/generated/kmpssot/jsMain/kotlin/com/acme/other/KmpSsotIoWorker.kt")
+        assertTrue(moved.exists(), "worker not regenerated at new package: ${moved.path}")
+        assertTrue(!generated.exists(), "stale worker at old package survived a package change: ${generated.path}")
     }
 
     @Test

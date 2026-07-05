@@ -3,6 +3,7 @@ package io.github.yuroyami.kmpssot
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.provider.Property
+import org.gradle.api.tasks.CacheableTask
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.OutputDirectory
 import org.gradle.api.tasks.TaskAction
@@ -16,7 +17,12 @@ import org.gradle.api.tasks.TaskAction
  * dir, never the user's hand-authored source tree — keeping the plugin's
  * platform-tree-only contract intact. Regenerated each build (cheap, idempotent
  * via [writeTextSafely]).
+ *
+ * Cacheable — pure codegen with declared `@Input` package/dryRun and an
+ * `@OutputDirectory`, so Gradle skips it when nothing changed and restores the
+ * output from the build cache otherwise.
  */
+@CacheableTask
 abstract class GenerateIoWorkerTask : DefaultTask() {
 
     init {
@@ -41,7 +47,16 @@ abstract class GenerateIoWorkerTask : DefaultTask() {
     @TaskAction
     fun generate() {
         val pkg = workerPackage.get()
-        val dir = outputDir.get().asFile.resolve(pkg.replace('.', '/'))
+        val root = outputDir.get().asFile
+        if (!dryRun.get()) {
+            // Wipe the plugin-owned output before regenerating. Gradle does not
+            // clear an @OutputDirectory on re-run, so a changed ioWorkerPackage
+            // would leave the old KmpSsotIoWorker.kt behind — two top-level
+            // kmpSsotOffload declarations in one source set → "conflicting
+            // overloads". Owned build/ dir, so deletion is safe.
+            root.deleteRecursively()
+        }
+        val dir = root.resolve(pkg.replace('.', '/'))
         val file = dir.resolve("KmpSsotIoWorker.kt")
         // Plugin-owned generated file — no backup (mirrors generated launcher icons).
         writeTextSafely(
