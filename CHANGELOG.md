@@ -4,6 +4,69 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions track the
 Gradle Plugin Portal releases.
 
+## [1.7.0]
+
+### Fixed
+- **pbxproj rewrites are now target-scoped** — identity keys (`PRODUCT_NAME`,
+  `PRODUCT_BUNDLE_IDENTIFIER`, `MARKETING_VERSION`, `CURRENT_PROJECT_VERSION`,
+  `INFOPLIST_KEY_*`) are rewritten only inside the **application target's** build
+  configurations, so unit-test targets and app extensions keep their own names and
+  distinct bundle ids. Previously every target was overwritten with the app's
+  values — breaking test-bundle linkage and producing App-Store-rejectable
+  extension bundle ids. Falls back to a global rewrite (with a warning) when no
+  application target is found.
+- **`GenerateIoWorkerTask` is now cacheable** — the plugin previously failed its
+  own `validatePlugins` (the task carried no cacheability annotation).
+- **Java-17 bytecode** — the plugin is compiled on JDK 21 but emits Java-17
+  bytecode, so a consumer whose Gradle daemon runs on JDK 17 can load it (it was
+  shipping Java-21 bytecode against a documented "JDK 17+").
+- **`versionCodeOverride` without `versionName`** now writes the Android
+  `versionCode` and iOS `CURRENT_PROJECT_VERSION` — it was a silent no-op on both
+  platforms.
+- **Shared-module auto-detect refuses to guess** when a Podfile has more than one
+  local dev-pod, instead of renaming the first (possibly wrong) pod and rewriting
+  its Swift imports. Set `oldSharedModuleName` to proceed.
+- **Android launcher-icon template collisions** — the sync warns about template
+  `ic_launcher.webp` (and friends) that collide with the generated `.png` and fail
+  the AAPT2 merge; `cleanupLegacyAppLogoArtifacts` now removes them.
+- **iOS `Contents.json` is backed up** before the app-icon sync overwrites it, and
+  orphaned icon PNGs the new catalog no longer references are flagged.
+- **Region-qualified locales map to the Apple form** for `knownRegions`
+  (`pt-rBR` → `pt-BR`, `b+sr+Latn` → `sr-Latn`), and non-locale `values-*` dirs
+  (`night`, `v26`, `land`) are excluded from auto-detection.
+- **Non-CocoaPods iOS projects sync from Gradle** — the iOS sync now hooks plain
+  `linkReleaseFrameworkIos*` / `assemble*XCFramework` tasks, not just `linkPod*`.
+- Changing `web { ioWorkerPackage }` no longer leaves a stale generated file
+  (duplicate `kmpSsotOffload`); the generated Blob worker revokes its object URL;
+  `ioWorkerPackage` rejects Kotlin hard-keyword segments; plist inserts no longer
+  leave a blank line; `writeAtomically` sweeps stale temp files; root-only
+  enforcement throws a `GradleException`; logo validation is gated on
+  `propagateLogo`.
+
+### Added
+- **Runtime `KmpSsotBuildInfo`** — `kmpSsot { buildInfo { enabled = true } }`
+  generates a `KmpSsotBuildInfo` object (appName, versionName, versionCode,
+  androidApplicationId, iosBundleId, locales) into the shared module's
+  `commonMain`, closing the SSOT loop to runtime. Default off.
+- **`kmpSsotDoctor`** — a read-only end-to-end setup diagnostic (manifest
+  placeholder, Info.plist SSOT refs, pbxproj application target, appiconset, icon
+  collisions, locale sanity, versionCode derivability, KGP visibility).
+- **Aggregate tasks** — `kmpSsotSync`, `kmpSsotSyncIos`, `kmpSsotSyncAndroid`.
+- **Kotlin `jvmTarget`** is set alongside `javaVersion`, eliminating the
+  "Inconsistent JVM-target compatibility" error.
+- `kmpSsotVerify` now also reports the Android SDK levels, `javaVersion`, the
+  interop/web toggles, and the logo configuration.
+
+### Changed (behaviour)
+- **Classic Android modules are now SSOT-authoritative.** `com.android.application`
+  and `com.android.library` wiring moved to AGP's `finalizeDsl`, so a value in
+  `kmpSsot { }` overrides a module-local `applicationId` / `versionName` /
+  `compileSdk` — matching the KMP-native library path. Leave a field unset in
+  `kmpSsot { }` to keep the module's own value. (Previously module-local values
+  won for these two plugins.)
+- **Application locale propagation uses AGP 9 `androidResources.localeFilters`**
+  with a runtime fallback to the deprecated `resourceConfigurations` for AGP 8.
+
 ## [1.6.0]
 
 ### Added

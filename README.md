@@ -24,7 +24,7 @@ and declare once:
 ```kotlin
 // <root>/build.gradle.kts
 plugins {
-    id("io.github.yuroyami.kmpssot") version "1.6.0"
+    id("io.github.yuroyami.kmpssot") version "1.7.0"
     // ...your other plugins, typically with .apply(false)...
 }
 
@@ -107,6 +107,13 @@ kmpSsot {
     //     generateIoWorker = true
     //     ioWorkerPackage  = "kmpssot.generated"   // default
     // }
+
+    // Runtime build info (default off): generate a KmpSsotBuildInfo object into the
+    // shared module's commonMain, so the app reads the same identity at runtime.
+    // buildInfo {
+    //     enabled     = true
+    //     packageName = "com.acme.app"   // default: kmpssot.generated
+    // }
 }
 ```
 
@@ -116,6 +123,14 @@ plugin onto a live production app and centralize only the parts you want —
 e.g. `versionName` + `locales` + `appName`, leaving `bundleIdBase` unset so
 the already-registered Android `applicationId` and iOS
 `PRODUCT_BUNDLE_IDENTIFIER` are never touched.
+
+**Authority.** When a field *is* set in `kmpSsot { }`, the SSOT value is
+authoritative: it overrides a module-local `applicationId` / `versionName` /
+`compileSdk` for **every** Android module shape (`com.android.application`,
+`com.android.library`, and the KMP-native `com.android.kotlin.multiplatform.library`),
+via AGP's `finalizeDsl`. Leave a field unset to keep whatever the module declares
+itself. (Before 1.7.0, module-local values won for the two classic plugins — this
+is now consistent.)
 
 ### Scope
 
@@ -194,6 +209,48 @@ val sum = kmpSsotOffload("(n) => { let s=0; for(let i=0;i<+n;i++) s+=i; return '
 skipped. For a richer typed worker (`KiteWorker`) plus a unified
 `ioDispatcher()` across every target, see the runtime sibling
 [`KiteCore`](https://github.com/yuroyami/KiteCore).
+
+### Runtime build info (1.7.0)
+
+Close the SSOT loop to *runtime*. The plugin already computes the identity for the
+build config, so it can also emit it as a Kotlin object the app reads at runtime —
+About screens, crash-reporter tags, analytics — with no `expect/actual BuildConfig`
+boilerplate:
+
+```kotlin
+kmpSsot {
+    buildInfo {
+        enabled     = true
+        packageName = "com.acme.app"   // default: kmpssot.generated
+    }
+}
+```
+
+`generateKmpSsotBuildInfo` writes a `KmpSsotBuildInfo` object into the shared
+module's `commonMain` (a plugin-owned `build/generated/kmpssot/commonMain/kotlin`
+dir wired onto the source set — never your hand-authored tree):
+
+```kotlin
+public object KmpSsotBuildInfo {
+    public const val appName: String = "…"
+    public const val versionName: String = "…"
+    public const val versionCode: Int = …
+    public const val androidApplicationId: String = "…"
+    public const val iosBundleId: String = "…"
+    public val locales: List<String> = listOf(…)
+}
+```
+
+### Scope & boundaries
+
+kmp-ssot's core job is **configuration propagation**: one identity, propagated to
+Android and iOS. Three features are deliberately-scoped **toolchain gap-closers**
+rather than identity propagation — they remove KMP boilerplate but touch only
+platform-specific trees: `propagateInteropOptIns` (native compilations),
+`web { generateIoWorker }` (a plugin-owned `jsMain` dir), and
+`buildInfo` (a plugin-owned `commonMain` dir). None edits your shared code. The
+web worker overlaps with the [`KiteCore`](https://github.com/yuroyami/KiteCore)
+runtime library by design — use KiteCore if you want the richer typed variant.
 
 ### Two one-time consumer-side patches
 
@@ -289,6 +346,13 @@ If you upgraded from 1.1 to 1.2 and your icon now looks small on Android:
 1.2 expects the FG to fill the canvas naturally and auto-pads it. Re-export
 your FG to fill the source PNG.
 
+**Template icon collisions.** A fresh Android Studio / KMP wizard app ships
+`mipmap-*/ic_launcher.webp` (and friends). The plugin generates `.png` launcher
+icons with the same names, and two `ic_launcher.*` in one `mipmap-*` bucket is a
+duplicate resource that fails the AAPT2 merge. The first Android logo sync warns
+with the exact colliding files; run `./gradlew cleanupLegacyAppLogoArtifacts` (or
+set `cleanupLegacyLogoArtifacts = true`) to remove them.
+
 ---
 
 ## Shared-module rename SSOT
@@ -342,8 +406,15 @@ If `locales` is not set explicitly, the plugin scans
 
 The list propagates to:
 
-- Android `defaultConfig.resourceConfigurations` (app + library modules)
+- Android application modules via `androidResources.localeFilters` (AGP 9), with a
+  runtime fallback to the deprecated `resourceConfigurations` on AGP 8; library
+  modules use `resourceConfigurations` (they have no `localeFilters`)
 - iOS `project.pbxproj` `knownRegions` (preserves `Base`)
+
+Android region qualifiers are mapped to the Apple form for `knownRegions`
+(`pt-rBR` → `pt-BR`, `b+sr+Latn` → `sr-Latn`); Android keeps its own tags.
+Non-locale `values-*` directories (`values-night`, `values-v26`, `values-land`)
+are ignored by auto-detection.
 
 ---
 
@@ -384,13 +455,13 @@ in the plist by hand, the DSL wins on the next sync.
 
 | Where | Values |
 |---|---|
-| `com.android.application` | `applicationId`, `versionCode`/`versionName`, `compileOptions`, `manifestPlaceholders["appName"]`, `resourceConfigurations` |
-| `com.android.library` | `compileOptions`, `resourceConfigurations` |
+| `com.android.application` | `applicationId`, `versionCode`/`versionName`, `compileOptions` + Kotlin `jvmTarget`, `manifestPlaceholders["appName"]`, `androidResources.localeFilters` (via `finalizeDsl`, SSOT-authoritative) |
+| `com.android.library` | `compileOptions` + Kotlin `jvmTarget`, `resourceConfigurations` (via `finalizeDsl`, SSOT-authoritative) |
 | `org.jetbrains.kotlin.multiplatform` | `syncIosConfig` + `syncIosLogo` hooked into `linkPod*FrameworkIos*` + `embedAndSignAppleFrameworkForXcode` |
 | `com.android.application` (SDK) | `compileSdk`, `defaultConfig.minSdk`/`targetSdk`, `ndkVersion` (from `android { }`) |
 | `com.android.library` (SDK) | `compileSdk`, `defaultConfig.minSdk`, `ndkVersion` (from `android { }`) |
 | `com.android.kotlin.multiplatform.library` (SDK) | `compileSdk`, `minSdk` via `finalizeDsl` (from `android { }`; no `targetSdk`/`ndkVersion`) |
-| iOS `project.pbxproj` (idempotent) | `MARKETING_VERSION`, `CURRENT_PROJECT_VERSION`, `INFOPLIST_KEY_CFBundleDisplayName`, `INFOPLIST_KEY_CFBundleName`, `PRODUCT_NAME`, `PRODUCT_BUNDLE_IDENTIFIER`, `knownRegions` |
+| iOS `project.pbxproj` (idempotent, **application target only**) | `MARKETING_VERSION`, `CURRENT_PROJECT_VERSION`, `INFOPLIST_KEY_CFBundleDisplayName`, `INFOPLIST_KEY_CFBundleName`, `PRODUCT_NAME`, `PRODUCT_BUNDLE_IDENTIFIER`; `knownRegions` (project-level) |
 | iOS `Info.plist` (when `ios { }` flags set) | `ITSAppUsesNonExemptEncryption`, `CADisableMinimumFrameDurationOnPhone` |
 | iOS `Podfile` (when `sharedModule` differs) | `pod 'X', :path => '../X'` lines |
 | iOS `iosApp/**/*.swift` (when `sharedModule` differs) | plain `import X` statements |
@@ -407,8 +478,17 @@ in the plist by hand, the DSL wins on the next sync.
 The plugin rewrites files you own (pbxproj, `Info.plist`, Podfile, Swift). Three
 safety nets:
 
-- **`./gradlew kmpSsotVerify`** prints the resolved SSOT values and which iOS
-  target files exist. It modifies nothing — run it to sanity-check config.
+- **`./gradlew kmpSsotVerify`** prints the resolved SSOT values (identity, Android
+  SDK levels, `javaVersion`, toolchain toggles, logo config) and which iOS target
+  files exist. It modifies nothing — run it to sanity-check config.
+- **`./gradlew kmpSsotDoctor`** runs an end-to-end diagnostic with a PASS/WARN/FAIL
+  line and a fix per check: the Android manifest `${appName}` placeholder, the
+  Info.plist SSOT references, the pbxproj application target, the appiconset,
+  Android launcher-icon collisions, locale sanity, `versionCode` derivability, and
+  Kotlin-plugin visibility. Modifies nothing.
+- **Aggregate tasks** — `kmpSsotSync` runs every sync; `kmpSsotSyncIos` and
+  `kmpSsotSyncAndroid` scope to one platform, so you don't need to know each
+  individual task name.
 - **`kmpSsot { dryRun = true }`** makes every rewriting task log the change it
   *would* make and write nothing. Run a sync task to preview exact edits.
 - **`backupBeforeRewrite`** (default **true**) copies a user-owned file to
@@ -441,17 +521,24 @@ covers you.
 
 ### Multi-target iOS projects
 
-`PRODUCT_BUNDLE_IDENTIFIER` is rewritten for **every** occurrence in pbxproj
-— main app, tests, and extensions all get the same value. If a project
-genuinely needs distinct bundle IDs per target (e.g. widget extension),
-set `propagateBundleId = false` and manage those IDs manually.
+pbxproj build settings (`PRODUCT_NAME`, `PRODUCT_BUNDLE_IDENTIFIER`,
+`MARKETING_VERSION`, `CURRENT_PROJECT_VERSION`, `INFOPLIST_KEY_*`) are rewritten
+**only inside the application target's build configurations**. Test targets and
+app extensions keep their own `PRODUCT_NAME` and their distinct, dot-suffixed
+bundle IDs (`com.app.tests`, `com.app.widget`) — so test-bundle linkage and App
+Store validation stay intact.
+
+The plugin resolves the application target by walking the pbxproj object graph
+(`PBXNativeTarget` with `productType = com.apple.product-type.application` →
+its `buildConfigurationList` → those `XCBuildConfiguration` objects). If it can't
+find an application target (an unusual or framework-only project) it falls back to
+a global rewrite and logs a warning so you can verify your other targets.
+`knownRegions` is a single project-level block and is always rewritten globally.
 
 ---
 
 ## Roadmap
 
-- `localeFilters` migration — switch from the deprecated
-  `resourceConfigurations` to `androidResources.localeFilters` for AGP 9+.
 - xcconfig-driven iOS propagation — write a single `kmpssot.xcconfig` the
   pbxproj includes, instead of regex-rewriting the pbxproj per-key.
 - Themed-icon support (`<monochrome>`) for Android 13+ adaptive icons.
