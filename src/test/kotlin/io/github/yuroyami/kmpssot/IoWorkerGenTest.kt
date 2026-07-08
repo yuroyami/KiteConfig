@@ -46,4 +46,42 @@ class IoWorkerGenTest {
         val src = generateIoWorkerSource("kmpssot.generated")
         assertFalse(src.contains("\${"))
     }
+
+    // --- Protocol v2 (kept in sync with KiteCore's KiteWorker) ---
+
+    @Test
+    fun `uses the protocol v2 request envelope`() {
+        val src = generateIoWorkerSource("kmpssot.generated")
+        // The job reads its argument out of the envelope, not the raw message...
+        assertTrue(src.contains("await job(e.data.payload)"))
+        // ...and the Kotlin side posts { id, payload }, not a bare string.
+        assertTrue(src.contains("message.id = KMP_SSOT_REQUEST_ID"))
+        assertTrue(src.contains("message.payload = payload"))
+        assertFalse(src.contains("worker.postMessage(payload)"))
+    }
+
+    @Test
+    fun `reply echoes the correlation id and the handler matches it`() {
+        val src = generateIoWorkerSource("kmpssot.generated")
+        assertTrue(src.contains("id: id, ok: true"))
+        assertTrue(src.contains("data.id == KMP_SSOT_REQUEST_ID"))
+    }
+
+    @Test
+    fun `normalizes the worker result so an undefined job result does not hang`() {
+        val src = generateIoWorkerSource("kmpssot.generated")
+        // Worker normalizes with '' + result...
+        assertTrue(src.contains("result: '' + result"))
+        // ...so the Kotlin side never calls .toString() on a maybe-undefined dynamic.
+        assertFalse(src.contains("data.result.toString()"))
+        assertFalse(src.contains("data.error.toString()"))
+    }
+
+    @Test
+    fun `surfaces a useful worker error message instead of the bare event`() {
+        val src = generateIoWorkerSource("kmpssot.generated")
+        // The old form stringified the ErrorEvent to "[object ErrorEvent]".
+        assertTrue(src.contains("e.message"))
+        assertTrue(src.contains("worker script failed to load or crashed"))
+    }
 }

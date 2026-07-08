@@ -15,8 +15,19 @@ package io.github.yuroyami.kmpssot
  * `ioDispatcher()` that this can install into.
  *
  * NOTE: the emitted Blob-worker bootstrap is an intentional duplicate of
- * KiteCore's `KiteWorker.bootstrap` (zero-dep codegen vs typed runtime lib) —
- * fix any worker-protocol bug in BOTH.
+ * KiteCore's `KiteWorker` bootstrap and speaks the same **protocol v2**:
+ * request `{ id, payload }`, reply `{ id, ok, result | error }`, result
+ * normalized with `'' + result` so `undefined` round-trips as `"undefined"`.
+ * This is the zero-dep single-shot codegen; KiteCore ships the reusable typed
+ * `KiteWorker` (js + wasmJs) on the same wire protocol. Fix any worker-protocol
+ * bug in ALL copies (here + KiteCore's js and wasmJs). See KiteCore's
+ * FABLE5_AUDIT.md §1 and §9.
+ *
+ * This helper is single-shot (one request, one reply, then `terminate()`), so
+ * protocol v2's reusable-instance concerns — concurrent-call serialization and
+ * `close()` failing an in-flight call — do not apply here; they live in
+ * KiteCore's `KiteWorker`. The id envelope and result normalization still do,
+ * and are mirrored below.
  *
  * Kept pure (String in → String out) for unit testing, mirroring the plugin's
  * other rewriters (`rewritePbxproj`, `sanitizeInfoPlist`, ...).
@@ -42,17 +53,27 @@ package $packageName
 
 import kotlinx.coroutines.CompletableDeferred
 
+// This helper is single-shot: one worker per call, terminated on reply. The id
+// is constant because there is only ever one request in flight per worker; it
+// keeps the wire protocol identical to KiteCore's reusable KiteWorker.
+private const val KMP_SSOT_REQUEST_ID = 1
+
 private fun makeBlobWorker(script: String): dynamic =
     js("(function(){ var u = URL.createObjectURL(new Blob([script], { type: 'application/javascript' })); var w = new Worker(u); URL.revokeObjectURL(u); return w; })()")
 
+// Protocol v2: request { id, payload } -> reply { id, ok, result | error }.
+// The job reads its argument from e.data.payload, and the result is normalized
+// with '' + so an undefined job result round-trips as the string "undefined"
+// instead of throwing on the Kotlin side.
 private fun workerBootstrap(jobJs: String): String =
     "self.onmessage = async function(e) {" +
+    "  var id = e.data.id;" +
     "  try {" +
     "    var job = (" + jobJs + ");" +
-    "    var result = await job(e.data);" +
-    "    self.postMessage({ ok: true, result: result });" +
+    "    var result = await job(e.data.payload);" +
+    "    self.postMessage({ id: id, ok: true, result: '' + result });" +
     "  } catch (err) {" +
-    "    self.postMessage({ ok: false, error: String((err && err.stack) || err) });" +
+    "    self.postMessage({ id: id, ok: false, error: String((err && err.stack) || err) });" +
     "  }" +
     "};"
 
@@ -60,26 +81,39 @@ private fun workerBootstrap(jobJs: String): String =
  * Run [jobJs] (a JS function expression) on a Web Worker with [payload] as its
  * single argument, suspending until it returns. The worker is single-shot and
  * terminated once the result (or error) is delivered.
+ *
+ * Safe to cancel: the caller's coroutine can be cancelled while the job runs;
+ * the worker is discarded and its late reply ignored. A worker script that
+ * fails to load (e.g. a syntax error in [jobJs]) rejects via onerror instead
+ * of hanging, because the handlers are installed before the first postMessage.
  */
 suspend fun kmpSsotOffload(jobJs: String, payload: String): String {
     val worker = makeBlobWorker(workerBootstrap(jobJs))
     val deferred = CompletableDeferred<String>()
     worker.onmessage = { event: dynamic ->
         val data = event.data
-        if (data.ok == true) {
-            deferred.complete(data.result.toString())
-        } else {
-            deferred.completeExceptionally(RuntimeException(data.error.toString()))
+        if (data.id == KMP_SSOT_REQUEST_ID) {
+            if (data.ok == true) {
+                deferred.complete("" + data.result)
+            } else {
+                deferred.completeExceptionally(RuntimeException("" + data.error))
+            }
+            worker.terminate()
         }
-        worker.terminate()
         Unit
     }
     worker.onerror = { e: dynamic ->
-        deferred.completeExceptionally(RuntimeException("kmpSsotOffload worker error: " + e))
+        val detail: String =
+            if (e != null && e.message != null) "" + e.message
+            else "worker script failed to load or crashed"
+        deferred.completeExceptionally(RuntimeException("kmpSsotOffload worker error: " + detail))
         worker.terminate()
         Unit
     }
-    worker.postMessage(payload)
+    val message: dynamic = js("({})")
+    message.id = KMP_SSOT_REQUEST_ID
+    message.payload = payload
+    worker.postMessage(message)
     return deferred.await()
 }
 """.trimStart()
