@@ -4,6 +4,22 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions track the
 Gradle Plugin Portal releases.
 
+## [Unreleased]
+
+### Fixed
+- **Generated Web Worker upgraded to protocol v2** — the `kmpSsotOffload` helper
+  emitted by `web { generateIoWorker = true }` now speaks the same wire protocol
+  as KiteCore's `KiteWorker`: request `{ id, payload }`, reply
+  `{ id, ok, result | error }`. The job reads its argument from `e.data.payload`,
+  and the worker normalizes the result with `'' + result` so a job returning
+  `undefined` round-trips as the string `"undefined"` instead of throwing on the
+  Kotlin side (the old `data.result.toString()` hung the caller). The onerror
+  path now surfaces `e.message` rather than stringifying the `ErrorEvent` to
+  `"[object ErrorEvent]"`. Remains a single-shot helper — the reusable-instance
+  concerns (concurrent-call serialization, `close()`) live in KiteCore's typed
+  `KiteWorker`. Keeps the "fix worker-protocol bugs in every copy" contract with
+  KiteCore's js and wasmJs `KiteWorker`.
+
 ## [1.7.0]
 
 ### Fixed
@@ -44,10 +60,17 @@ Gradle Plugin Portal releases.
   `propagateLogo`.
 
 ### Added
-- **Runtime `KmpSsotBuildInfo`** — `kmpSsot { buildInfo { enabled = true } }`
-  generates a `KmpSsotBuildInfo` object (appName, versionName, versionCode,
-  androidApplicationId, iosBundleId, locales) into the shared module's
-  `commonMain`, closing the SSOT loop to runtime. Default off.
+- **Runtime `buildConfig` codegen** — `kmpSsot { buildConfig { enabled = true } }`
+  generates a typed constants object into the shared module's `commonMain`,
+  readable from every KMP source set with no `expect/actual` — a single-plugin
+  **buildKonfig replacement** for the common case. The object carries the identity
+  SSOT (appName, versionName, versionCode, androidApplicationId, iosBundleId,
+  locales) plus your own `stringField` / `intField` / `longField` / `booleanField`
+  / `doubleField` declarations (each also accepts a `Provider<String>` so secrets
+  come from `gradle.properties` / env, not the build file). The object name is
+  configurable via `className` (default `BuildConfig`), the package via
+  `packageName`, and identity inclusion via `includeIdentity`. Default off.
+  Deliberately flat — no per-flavor / per-target value overlays.
 - **`kmpSsotDoctor`** — a read-only end-to-end setup diagnostic (manifest
   placeholder, Info.plist SSOT refs, pbxproj application target, appiconset, icon
   collisions, locale sanity, versionCode derivability, KGP visibility).

@@ -120,7 +120,7 @@ abstract class KmpSsotDoctorTask : DefaultTask() {
         }
 
         // KGP visibility.
-        if (kgpOnClasspath.getOrElse(false)) check(Status.PASS, "Kotlin plugin", "visible to kmp-ssot (interop/web/buildInfo enabled)")
+        if (kgpOnClasspath.getOrElse(false)) check(Status.PASS, "Kotlin plugin", "visible to kmp-ssot (interop/web/buildConfig enabled)")
         else check(Status.WARN, "Kotlin plugin", "not visible to kmp-ssot's classloader — declare kotlin(\"multiplatform\") apply false in the ROOT plugins block")
 
         val fails = lines.count { it.contains("[FAIL]") }

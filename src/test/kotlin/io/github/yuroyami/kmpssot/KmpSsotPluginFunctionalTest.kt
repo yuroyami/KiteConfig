@@ -234,7 +234,7 @@ class KmpSsotPluginFunctionalTest {
     }
 
     @Test
-    fun `buildInfo generates the runtime object into commonMain`() {
+    fun `buildConfig generates a named object with identity and custom fields`() {
         write(
             "settings.gradle.kts",
             """
@@ -253,7 +253,14 @@ class KmpSsotPluginFunctionalTest {
                 appName = "Demo"
                 versionName = "1.2.3"
                 bundleIdBase = "com.acme.app"
-                buildInfo { enabled = true; packageName = "com.acme.gen" }
+                buildConfig {
+                    enabled = true
+                    packageName = "com.acme.gen"
+                    className = "AppConfig"
+                    stringField("BASE_URL", "https://api.acme.com")
+                    intField("API_TIMEOUT_MS", 30000)
+                    booleanField("ANALYTICS_ENABLED", true)
+                }
             }
             """.trimIndent(),
         )
@@ -265,14 +272,17 @@ class KmpSsotPluginFunctionalTest {
             """.trimIndent(),
         )
 
-        run(":shared:generateKmpSsotBuildInfo")
+        run(":shared:generateKmpSsotBuildConfig")
 
-        val generated = File(projectDir, "shared/build/generated/kmpssot/commonMain/kotlin/com/acme/gen/KmpSsotBuildInfo.kt")
-        assertTrue(generated.exists(), "generated build-info missing: ${generated.path}")
+        val generated = File(projectDir, "shared/build/generated/kmpssot/commonMain/kotlin/com/acme/gen/AppConfig.kt")
+        assertTrue(generated.exists(), "generated build config missing: ${generated.path}")
         val src = generated.readText()
+        assertTrue(src.contains("public object AppConfig {"), src)
         assertTrue(src.contains("public const val versionName: String = \"1.2.3\""), src)
-        assertTrue(src.contains("public const val versionCode: Int = 1001002003"), src)
         assertTrue(src.contains("public const val androidApplicationId: String = \"com.acme.app\""), src)
+        assertTrue(src.contains("public const val BASE_URL: String = \"https://api.acme.com\""), src)
+        assertTrue(src.contains("public const val API_TIMEOUT_MS: Int = 30000"), src)
+        assertTrue(src.contains("public const val ANALYTICS_ENABLED: Boolean = true"), src)
     }
 
     @Test

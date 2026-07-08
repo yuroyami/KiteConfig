@@ -108,11 +108,15 @@ kmpSsot {
     //     ioWorkerPackage  = "kmpssot.generated"   // default
     // }
 
-    // Runtime build info (default off): generate a KmpSsotBuildInfo object into the
-    // shared module's commonMain, so the app reads the same identity at runtime.
-    // buildInfo {
+    // Build config (default off): generate a typed constants object into the shared
+    // module's commonMain — identity SSOT plus your own fields (a buildKonfig-style
+    // replacement, no expect/actual). See "Build config" below.
+    // buildConfig {
     //     enabled     = true
+    //     className   = "BuildConfig"    // default; the generated object's name
     //     packageName = "com.acme.app"   // default: kmpssot.generated
+    //     stringField("BASE_URL", "https://api.acme.com")
+    //     booleanField("ANALYTICS_ENABLED", true)
     // }
 }
 ```
@@ -210,36 +214,60 @@ skipped. For a richer typed worker (`KiteWorker`) plus a unified
 `ioDispatcher()` across every target, see the runtime sibling
 [`KiteCore`](https://github.com/yuroyami/KiteCore).
 
-### Runtime build info (1.7.0)
+### Build config (1.7.0)
 
-Close the SSOT loop to *runtime*. The plugin already computes the identity for the
-build config, so it can also emit it as a Kotlin object the app reads at runtime —
-About screens, crash-reporter tags, analytics — with no `expect/actual BuildConfig`
-boilerplate:
+A single-plugin **buildKonfig replacement** for the common case, and the runtime
+end of the SSOT. Generate a typed constants object into the shared module's
+`commonMain` — read from every KMP source set with no `expect/actual`:
 
 ```kotlin
 kmpSsot {
-    buildInfo {
+    buildConfig {
         enabled     = true
-        packageName = "com.acme.app"   // default: kmpssot.generated
+        className   = "BuildConfig"      // default; name the generated object
+        packageName = "com.acme.app"     // default: kmpssot.generated
+
+        // Your own fields — typed:
+        stringField("BASE_URL", "https://api.acme.com")
+        intField("API_TIMEOUT_MS", 30_000)
+        booleanField("ANALYTICS_ENABLED", true)
+        longField("CACHE_BYTES", 5_000_000L)
+        doubleField("SAMPLE_RATE", 0.25)
+
+        // Sourced lazily — keeps secrets out of the build file / VCS:
+        stringField("SENTRY_DSN", providers.gradleProperty("sentryDsn"))
     }
 }
 ```
 
-`generateKmpSsotBuildInfo` writes a `KmpSsotBuildInfo` object into the shared
-module's `commonMain` (a plugin-owned `build/generated/kmpssot/commonMain/kotlin`
-dir wired onto the source set — never your hand-authored tree):
+`generateKmpSsotBuildConfig` writes the object into a plugin-owned
+`build/generated/kmpssot/commonMain/kotlin` dir wired onto the source set (never
+your hand-authored tree). The identity SSOT is included by default
+(`includeIdentity = false` for a fields-only object):
 
 ```kotlin
-public object KmpSsotBuildInfo {
+public object BuildConfig {
+    // identity (includeIdentity = true, the default)
     public const val appName: String = "…"
     public const val versionName: String = "…"
     public const val versionCode: Int = …
     public const val androidApplicationId: String = "…"
     public const val iosBundleId: String = "…"
     public val locales: List<String> = listOf(…)
+    // your fields
+    public const val BASE_URL: String = "https://api.acme.com"
+    public const val API_TIMEOUT_MS: Int = 30000
+    public const val ANALYTICS_ENABLED: Boolean = true
 }
 ```
+
+Deliberately **flat** — no per-flavor / per-target value overlays (that's AGP
+variants + full buildKonfig territory). Not a secret store: use
+`providers.gradleProperty(...)` / env for anything sensitive rather than inline
+literals. With the default package (`kmpssot.generated`) the object never clashes
+with Android's own `BuildConfig`; if you set `packageName` to your app package,
+keep it distinct from the Android `applicationId` package (or disable Android's
+`buildConfig`) so the two `BuildConfig` classes don't collide on the Android target.
 
 ### Scope & boundaries
 
@@ -248,7 +276,7 @@ Android and iOS. Three features are deliberately-scoped **toolchain gap-closers*
 rather than identity propagation — they remove KMP boilerplate but touch only
 platform-specific trees: `propagateInteropOptIns` (native compilations),
 `web { generateIoWorker }` (a plugin-owned `jsMain` dir), and
-`buildInfo` (a plugin-owned `commonMain` dir). None edits your shared code. The
+`buildConfig` (a plugin-owned `commonMain` dir). None edits your shared code. The
 web worker overlaps with the [`KiteCore`](https://github.com/yuroyami/KiteCore)
 runtime library by design — use KiteCore if you want the richer typed variant.
 

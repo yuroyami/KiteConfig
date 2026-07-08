@@ -65,9 +65,11 @@ class KmpSsotPlugin : Plugin<Project> {
             generateIoWorker.convention(false)
             ioWorkerPackage.convention("kmpssot.generated")
         }
-        extAware.extensions.create<KmpSsotBuildInfoExtension>("buildInfo").apply {
+        extAware.extensions.create<KmpSsotBuildConfigExtension>("buildConfig").apply {
             enabled.convention(false)
             packageName.convention("kmpssot.generated")
+            className.convention("BuildConfig")
+            includeIdentity.convention(true)
         }
 
         val sanitizeIosTask = registerSanitizeIosTask(target, ext)
@@ -190,7 +192,7 @@ class KmpSsotPlugin : Plugin<Project> {
                     // hooks above), so defer it to afterEvaluate.
                     sub.afterEvaluate {
                         wireWebIoWorker(sub, ext)
-                        wireBuildInfo(sub, ext)
+                        wireBuildConfig(sub, ext)
                     }
                 } else {
                     sub.logger.warn(
@@ -275,32 +277,42 @@ class KmpSsotPlugin : Plugin<Project> {
         }
     }
 
-    // --- Runtime build-info generation --------------------------------------
+    // --- Runtime build-config generation ------------------------------------
 
     /**
-     * Generate the runtime [generateBuildInfoSource] object into the shared
+     * Generate the runtime [generateBuildConfigSource] object into the shared
      * module's `commonMain`. Scoped to the shared module only (by name), KGP-guarded
      * by the caller, deferred to `afterEvaluate` so the source sets exist.
      */
-    private fun wireBuildInfo(project: Project, ext: KmpSsotExtension) {
-        if (!ext.buildInfo.enabled.get()) return
+    private fun wireBuildConfig(project: Project, ext: KmpSsotExtension) {
+        val cfg = ext.buildConfig
+        if (!cfg.enabled.get()) return
         if (!ext.sharedModule.isPresent || project.name != ext.sharedModule.get()) return
         val kmp = project.extensions.findByType(KotlinMultiplatformExtension::class.java) ?: return
 
-        val pkg = ext.buildInfo.packageName.get()
+        val pkg = cfg.packageName.get()
         invalidWorkerPackageReason(pkg)?.let {
-            throw GradleException("kmpSsot { buildInfo { packageName } } \"$pkg\" $it")
+            throw GradleException("kmpSsot { buildConfig { packageName } } \"$pkg\" $it")
+        }
+        val cls = cfg.className.get()
+        if (!isValidKotlinIdentifier(cls)) {
+            throw GradleException(
+                "kmpSsot { buildConfig { className } } \"$cls\" is not a valid Kotlin identifier."
+            )
         }
 
         val genDir = project.layout.buildDirectory.dir("generated/kmpssot/commonMain/kotlin")
-        val genTask = project.tasks.register<GenerateBuildInfoTask>("generateKmpSsotBuildInfo") {
-            packageName.set(ext.buildInfo.packageName)
+        val genTask = project.tasks.register<GenerateBuildConfigTask>("generateKmpSsotBuildConfig") {
+            packageName.set(cfg.packageName)
+            className.set(cfg.className)
+            includeIdentity.set(cfg.includeIdentity)
             appName.set(ext.appName.orElse(""))
             versionName.set(ext.versionName.orElse(""))
             versionCode.set(ext.versionCode.orElse(0))
             androidApplicationId.set(ext.androidApplicationId.orElse(""))
             iosBundleId.set(ext.iosBundleId.orElse(""))
             locales.set(ext.locales)
+            customFields.set(cfg.fields)
             outputDir.set(genDir)
             dryRun.set(ext.dryRun)
         }

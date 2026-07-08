@@ -243,15 +243,15 @@ abstract class KmpSsotExtension {
     }
 
     /**
-     * Runtime build-info codegen. See [KmpSsotBuildInfoExtension]. Accessed as
-     * `kmpSsot { buildInfo { enabled = true } }`. Created as a child extension by
+     * Runtime build-config codegen. See [KmpSsotBuildConfigExtension]. Accessed as
+     * `kmpSsot { buildConfig { enabled = true } }`. Created as a child extension by
      * `KmpSsotPlugin.apply` for the same reason as [ios] / [android] / [web].
      */
-    val buildInfo: KmpSsotBuildInfoExtension
-        get() = (this as ExtensionAware).extensions.getByType(KmpSsotBuildInfoExtension::class.java)
+    val buildConfig: KmpSsotBuildConfigExtension
+        get() = (this as ExtensionAware).extensions.getByType(KmpSsotBuildConfigExtension::class.java)
 
-    fun buildInfo(action: Action<in KmpSsotBuildInfoExtension>) {
-        action.execute(buildInfo)
+    fun buildConfig(action: Action<in KmpSsotBuildConfigExtension>) {
+        action.execute(buildConfig)
     }
 
     // --- Derived values (read-only) ------------------------------------------
