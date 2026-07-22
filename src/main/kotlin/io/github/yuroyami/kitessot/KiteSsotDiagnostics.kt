@@ -1213,6 +1213,23 @@ internal fun diagnosticExceptionSummary(failure: Throwable): String {
     }
 }
 
+/**
+ * Render a file location for reports and error messages. Locations under the
+ * project root are shown project-relative with '/' separators on every OS so
+ * plugin output stays stable across platforms; anything outside the root (or a
+ * path the filesystem cannot relativize, e.g. another Windows drive) falls back
+ * to the native path.
+ */
+internal fun displayProjectPath(root: java.io.File, file: java.io.File): String = runCatching {
+    val rootPath = root.toPath().toAbsolutePath().normalize()
+    val target = file.toPath().toAbsolutePath().normalize()
+    if (target.startsWith(rootPath)) {
+        rootPath.relativize(target).joinToString("/").ifEmpty { "." }
+    } else {
+        target.toString()
+    }
+}.getOrElse { file.path }
+
 /** Bound and escape uncontrolled source/provider text before console or report use. */
 internal fun diagnosticSafeText(value: String, maximumChars: Int = 2_048): String {
     val abbreviated = if (value.length > maximumChars) value.take(maximumChars) + "…" else value

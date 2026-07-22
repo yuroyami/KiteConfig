@@ -338,5 +338,9 @@ private fun serializePlist(doc: Document): String {
     }
     val writer = StringWriter()
     transformer.transform(DOMSource(doc), StreamResult(writer))
-    return writer.toString()
+    // The serializer expands '\n' to the platform line separator (CRLF on
+    // Windows). XML parsing already normalized the source's line ends to '\n'
+    // before the DOM existed, so any raw CR here is serializer-introduced;
+    // normalize it away to keep the round-trip comparison platform-invariant.
+    return writer.toString().replace("\r\n", "\n")
 }

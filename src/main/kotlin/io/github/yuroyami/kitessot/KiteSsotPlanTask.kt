@@ -95,7 +95,13 @@ abstract class KiteSsotPlanTask : DefaultTask() {
         val raw = (if (configuredPath.isAbsolute) configuredPath else root.resolve(configuredPath))
             .toAbsolutePath()
             .normalize()
-        val location = if (raw.startsWith(root)) root.relativize(raw).toString().ifEmpty { "." } else "$raw [OUTSIDE PROJECT]"
+        // Project-relative plan paths render with '/' on every OS so the report
+        // is stable across platforms; Path.toString() would use '\' on Windows.
+        val location = if (raw.startsWith(root)) {
+            root.relativize(raw).joinToString("/").ifEmpty { "." }
+        } else {
+            "$raw [OUTSIDE PROJECT]"
+        }
         val state = when {
             Files.isSymbolicLink(raw) -> "symlink"
             Files.isDirectory(raw, NOFOLLOW_LINKS) -> "directory"

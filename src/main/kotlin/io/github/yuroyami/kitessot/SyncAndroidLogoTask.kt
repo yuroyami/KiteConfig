@@ -78,7 +78,8 @@ abstract class SyncAndroidLogoTask : DefaultTask() {
         }
         if (!fgFile.exists()) {
             throw GradleException(
-                "[kiteSsot] appLogoPngForeground points to a missing file: ${fgFile.path}. " +
+                "[kiteSsot] appLogoPngForeground points to a missing file: " +
+                    "${displayProjectPath(projectRootDir.asFile.get(), fgFile)}. " +
                     "Fix the path or disable logo propagation.",
             )
         }
@@ -113,7 +114,8 @@ abstract class SyncAndroidLogoTask : DefaultTask() {
             }
             if (!bgFile.exists()) {
                 throw GradleException(
-                    "[kiteSsot] appLogoPngBackground points to a missing file: ${bgFile.path}. " +
+                    "[kiteSsot] appLogoPngBackground points to a missing file: " +
+                        "${displayProjectPath(projectRootDir.asFile.get(), bgFile)}. " +
                         "Fix the path or configure appLogoBackgroundColor.",
                 )
             }
