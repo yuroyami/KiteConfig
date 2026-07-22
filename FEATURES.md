@@ -1,309 +1,323 @@
-# kmp-ssot — Feature List & Idea Bank
+# kmp-ssot feature reference
 
-Two parts:
-- **Part A — What it does today** (derived from the code on `main`, v1.6.x working tree — not the README).
-- **Part B — Idea bank** (~105 features), tiered by value and flagged where they'd tip into
-  overkill for a "single source of truth" plugin.
+This file describes the current implementation. It is a capability inventory,
+not a roadmap or idea bank. The [README](README.md) is the guided setup and
+migration document.
 
----
+## Product architecture
 
-## Part A — Current features (source of truth: the code)
+| Surface | Current capability |
+|---|---|
+| Central model | One provider-backed `kmpSsot {}` extension applied at the root; optional identity, toolchain, locale, selector, and migration values |
+| Android adapter | Authoritative AGP `finalizeDsl` configuration for selected applications, classic libraries, and KMP-native Android libraries |
+| KMP adapter | Selected native compiler opt-ins, global compatible Kotlin/JVM alignment, generated `commonMain`, and explicitly selected browser-target source |
+| Apple migration | Target-scoped pbxproj rewrite, hardened source-plist sanitation, explicit Podfile/Swift module-reference migration |
+| Branding installers | Owned Android adaptive/legacy icon tree and owned Apple universal AppIcon output |
+| Diagnostics | Resolved-model report, resilient doctor, strict JSON/SARIF check, stable IDs, read-only mutation plan |
+| Release guardrails | Fixed-width Android version derivation, explicit Play baseline, independent Apple marketing/build numbers |
 
-### Identity propagation
-- `appName` → Android `manifestPlaceholders["appName"]`; iOS `PRODUCT_NAME` +
-  `INFOPLIST_KEY_CFBundleDisplayName`/`CFBundleName` (when present) with pbxproj-safe
-  quoting/escaping; plist `$(PRODUCT_NAME)` references ensured by the sanitizer.
-- `versionName` → Android `versionName`, iOS `MARKETING_VERSION`.
-- Derived `versionCode` (`"1"` + 3-digit-padded dot segments, fail-fast on non-derivable
-  names) → Android `versionCode`, iOS `CURRENT_PROJECT_VERSION`; explicit
-  `versionCodeOverride` bypass. *(Known gap: override without `versionName` currently no-ops
-  on both platforms — see AUDIT §3.4.)*
-- `bundleIdBase` + `iosBundleSuffix` / `androidApplicationIdSuffix` → Android
-  `applicationId`, iOS `PRODUCT_BUNDLE_IDENTIFIER`.
-- Every identity field optional; propagation requires toggle ON **and** value set.
+The model is configured only in the root project and frozen after root evaluation.
+The deprecated `Project.kmpSsot` cross-project accessor remains compatibility-only
+and is not Isolated-Projects safe.
 
-### Localization
-- Locale auto-detection from `${sharedModule}/src/commonMain/composeResources/values-*`
-  (config-cache-tracked), explicit `locales` override.
-- → Android `resourceConfigurations` (app + classic library), iOS `knownRegions`
-  (preserves `Base`; warns instead of corrupting when the block is missing).
+## Compatibility evidence
 
-### Android toolchain (`android { }`)
-- `compileSdk` / `minSdk` / `targetSdk` / `ndkVersion` → application + classic library
-  modules (eager wiring).
-- `compileSdk` / `minSdk` → KMP-native `com.android.kotlin.multiplatform.library` via
-  `finalizeDsl` (SSOT-authoritative; AGP types isolated in their own class so the plugin
-  loads without AGP).
-- `javaVersion` (no default) → Android `compileOptions` source/target compatibility.
+- The standalone plugin floor is Gradle 8.5.
+- A real published-plugin consumer applies KGP 2.4.0 on Gradle 8.5, wires a
+  fields-only BuildConfig into `commonMain`, and compiles a source that imports it.
+- The same KGP integration proves strict configuration-cache reuse on the current
+  Gradle wrapper. KGP's stable numeric `-release-N` runtime metadata is accepted;
+  RC, Beta, dev, and arbitrary suffixes are rejected.
+- AGP 8.5.2 classic adapters and AGP 9.1.1 classic/KMP-native adapters run in
+  separate real-consumer fixtures.
 
-### iOS project sync
-- pbxproj rewrite (idempotent, literal-safe for `$`/`\`, left-anchored keys, quote-aware
-  values): `MARKETING_VERSION`, `CURRENT_PROJECT_VERSION`, `PRODUCT_NAME`,
-  `INFOPLIST_KEY_CFBundleDisplayName/Name`, `PRODUCT_BUNDLE_IDENTIFIER`, `knownRegions`.
-  *(Known limitation: target-blind — every build configuration gets the value; AUDIT §2.1.)*
-- `Info.plist` sanitizer on a real XML DOM (XXE-hardened, never corrupts on parse failure):
-  SSOT-pointing string keys append-only with divergence warnings; `ios { }` boolean flags
-  DSL-wins (`ITSAppUsesNonExemptEncryption`, `CADisableMinimumFrameDurationOnPhone`);
-  faithful-prolog re-serialization; indent sniffing.
-- Auto-hooked into `linkPod*FrameworkIos*` + `embedAndSignAppleFrameworkForXcode`
-  *(CocoaPods-shaped names only; plain `binaries.framework()` link tasks not yet hooked)*.
+## Root model API
 
-### Shared-module rename SSOT
-- Podfile `pod 'X', :path => '../X'` rewrite — classic `:path =>` and modern `path:`
-  syntaxes, nested `../modules/X` paths, prefix preserved.
-- Swift `import X` rewrite — exact whole-module only; submodule (`X.Foo`), same-prefix
-  (`XKit`), `@testable`, `@_implementationOnly` untouched; vendored/generated dirs pruned
-  (`Pods`, `build`, `.build`, `DerivedData`, `xcuserdata`, `.git`).
-- Old name auto-detected from the Podfile (name == path tail) or explicit
-  `oldSharedModuleName`. *(Known gap: first-match detection can pick the wrong local pod in
-  multi-dev-pod Podfiles; AUDIT §3.1.)*
+### Identity and release
 
-### App logo pipeline
-- Inputs: FG PNG + exactly one of BG PNG / `appLogoBackgroundColor` (`#RRGGBB` /
-  `#AARRGGBB`, alpha-first); config-time validation of pairing and hex format.
-- Android: full launcher tree — adaptive FG (safe-zone padded, tunable
-  `appLogoAndroidSafeZoneRatio`, validated in `(0,2]`) + BG at 5 densities, legacy square +
-  circle-masked round at 48dp scale, `mipmap-anydpi-v26` wrappers; aspect-fit (contain) /
-  cover semantics, never stretched; bicubic quality hints; non-square and low-res warnings;
-  hooked to every app module's `preBuild`.
-- iOS: 1024² FG-over-BG composite, flattened opaque (App Store rejects alpha), single-image
-  universal `AppIcon-1024.png` + `Contents.json`; hooked to iOS framework link tasks.
-- Translucent BG colour flattened over white **identically on both platforms** (with
-  warning) so icons match.
-- Both icon tasks are `@CacheableTask` with fully declared outputs.
-- Opt-in `cleanupLegacyAppLogoArtifacts` migration task (pre-FG/BG artefacts).
+| Property | Meaning |
+|---|---|
+| `appName` | Optional display name; Android receives a manifest placeholder and Apple migration receives product/display-name settings. |
+| `versionName` | Optional Android display version and default provider for `iosMarketingVersion`; when consumed, non-blank, control-free, and at most 255 characters. |
+| `versionCodeOverride` | Optional Android store build number in `1..2_100_000_000`. |
+| `android.publishedVersionCode` | Optional offline lower bound enforced while Android version propagation is active for a detected app. |
+| `iosMarketingVersion` | Apple `MARKETING_VERSION` during explicit iOS sync, validated as three non-negative integer components. |
+| `iosBuildNumber` | Apple `CURRENT_PROJECT_VERSION` during explicit iOS sync, independent from Android and validated as one to three integer components. |
+| `ios.deploymentTarget` | Compatibility assertion required by the Apple universal-icon installer; it does not write `IPHONEOS_DEPLOYMENT_TARGET`. |
+| `bundleIdBase` | Optional reverse-DNS base for Android and Apple identifiers. |
+| `androidApplicationIdSuffix` | Optional Android-only suffix. |
+| `iosBundleSuffix` | Optional Apple-only suffix. |
 
-### Native & web toolchain gap-closers
-- `propagateInteropOptIns` (default ON) — `ExperimentalForeignApi`, `ExperimentalObjCName`,
-  `ExperimentalNativeApi` opt-ins added to every Kotlin/Native compilation; `extraOptIns`
-  for user markers; de-duplicated, order-stable.
-- `web { generateIoWorker }` (default OFF) — generates a zero-dependency inline Blob-Worker
-  offload helper (`suspend fun kmpSsotOffload(jobJs, payload): String`) into
-  `build/generated/kmpssot/<jsTarget>Main/kotlin`, wired via `srcDir(task.flatMap{…})` so
-  compile/sourcesJar/IDE all see it; custom-named `js("web")` targets supported; wasmJs
-  detected and skipped with guidance; package name validated.
-- Both features guarded by a classloader probe: if KGP isn't visible to the plugin's
-  classloader (subproject-only `kotlin("multiplatform")`), they degrade to a warning with
-  the exact fix instead of `NoClassDefFoundError`.
+When an enabled consumer needs a derived Android version code, it uses an
+order-preserving fixed width: `x.y.z -> 1xxxyyyzzz`. Exactly three segments in
+`0..999` are required, with no leading zeroes. Use `versionCodeOverride` for any
+other scheme.
 
-### Safety & DX
-- `dryRun` (log-only preview), `backupBeforeRewrite` (write-once `<file>.kmpssot.bak`,
-  earliest pristine copy survives), atomic temp-file+move writes (truncation-proof),
-  idempotent no-op on identical content.
-- `kmpSsotVerify` read-only report (identity values + iOS file presence).
-- Root-only application enforced; Gradle minimum warned; `Project.kmpSsot` accessor for
-  subproject build scripts.
-- Config-cache compatible (verified end-to-end, including locale-dir invalidation).
-- CI (build + test + validatePlugins), tag-driven publishing to Gradle Plugin Portal +
-  GitHub Packages, Apache-2.0, version catalog.
+### Project and target selection
 
-### Honest current-limitations line (from AUDIT)
-Target-blind pbxproj; HEAD `validatePlugins` red (`GenerateIoWorkerTask` annotation);
-Java-21 bytecode vs README's JDK-17 claim; eager (module-wins) precedence on classic
-Android; webp-template collision on first Android logo sync; `Contents.json` overwritten
-without backup; region-qualified locale tags unmapped for iOS; JS-only worker.
+| Property | Selection rule |
+|---|---|
+| `androidApplicationProjects` | Exact absolute Gradle paths for app-scoped identity and locale operations. Empty selects a sole detected app; multiple apps require an explicit selector when an app-scoped operation is enabled. The single logo sink accepts at most one app (or an explicit/legacy directory when no app plugin is present); SDK/JVM policy remains global. |
+| `sharedProjectPath` | Exact KMP project that owns `commonMain` generated source and the default KMP scope. |
+| `interopProjectPaths` | Exact KMP projects eligible for native compiler policy; empty may use the selected shared project. |
+| `web.projectPaths` | Exact KMP projects eligible for worker generation; empty may use the selected shared project. |
+| `web.browserTargetNames` | Exact Kotlin/JS target names known by the consumer to use a browser runtime; always required when generation is enabled. |
+| `ios.targetNames` | Exact Xcode application target names. Empty is accepted only for a sole application target. |
 
----
+Active selectors are validated and de-duplicated. Missing, wrong-plugin, multi-app,
+multi-target bundle-ID, and classloader-visibility ambiguity is an error.
 
-## Part B — Idea bank
+### Typed filesystem selection
 
-Legend: **[P0–P3]** priority · ⭐ high-value · ⚠️ overkill risk · 🧪 experimental.
-"Overkill" = bloats the plugin's identity or duplicates a tool that owns the concern.
+Preferred properties are:
 
-### B1. Identity & versioning
-1. ⭐ **Runtime `KmpSsotBuildInfo` object** generated into `commonMain` (appName, versionName,
-   versionCode, bundleId, locales) — closes SSOT to runtime; kills per-platform BuildConfig
-   boilerplate. **[P1]**
-2. ⭐ **Git-derived versioning** — versionName/code from tag / `git describe` / commit count,
-   as a pure testable deriver. **[P2]**
-3. **Pluggable versionCode schemes** — `dotPadded` (current), `monotonic`, `dateBased
-   (yyMMddNN)`, custom lambda. **[P2]**
-4. **Per-flavor / per-variant identity overlays** — `flavors { "pro" { appName = … } }`. **[P2]**
-5. **Per-module identity overlays** — phone vs Wear vs TV application modules with distinct
-   `applicationIdSuffix`/names (fixes the multi-app collision, AUDIT §3.12). **[P1]** ⭐
-6. **`buildType`-aware suffixing** — `.debug`/`.staging` applicationId + iOS bundle suffix +
-   icon badge in one knob. **[P2]** ⭐
-7. **CI build-number env override** — `KMPSSOT_VERSION_CODE` / `--PkmpSsot.versionCode`
-   honored above the derivation, for store pipelines. **[P2]** ⭐
-8. **Marketing vs build version decoupling** — explicit `iosBuildNumber`. **[P2]**
-9. **Semver validation opt-in** for `versionName`. **[P3]**
-10. ⚠️ **Auto-increment versionCode with write-back** — mutating the build file each release is
-    footgun-prone; prefer #2/#3/#7. **[P3]**
+- `sharedProjectPath`
+- `iosSharedModuleName`
+- `iosPreviousSharedModuleName`
+- `composeResourcesDirectory`
+- `androidAppDirectory`
+- `iosPbxprojFile`
+- `iosPodfileFile`
+- `iosInfoPlistFile`
+- `iosAppDirectory`
+- `iosAppIconDirectory`
 
-### B2. iOS (the biggest surface)
-11. ⭐ **xcconfig strategy** — emit `kmpssot.xcconfig`, consumer includes it in the app
-    target's base config; retires pbxproj regex & target-blindness permanently. Ship as
-    `iosStrategy = XCCONFIG | PBXPROJ`. **[P0-arch]**
-12. ⭐ **Primary-target scoping** for the pbxproj path (target → configList → config spans)
-    with graceful global fallback — the interim fix for AUDIT §2.1. **[P0]**
-13. ⭐ **Per-target iOS rules** — `iosTargets { "Widget" { bundleIdSuffix = ".widget" } }` so
-    tests/extensions get *correct* values instead of being skipped. **[P1]**
-14. **Non-Pod link-task hooking** — `link{Release,Debug}FrameworkIos*`,
-    `assemble*XCFramework`. **[P0]**
-15. **SPM / XCFramework rename support** — Package.swift + project refs for the
-    no-CocoaPods world. **[P1]**
-16. **Region-tag mapping** — `pt-rBR`→`pt-BR`, `b+sr+Latn`→`sr-Latn` for `knownRegions`
-    (AUDIT §3.6), plus qualifier filtering. **[P0]**
-17. **`developmentRegion` SSOT** — set pbxproj `developmentRegion` from the default locale. **[P2]**
-18. ⭐ **iOS 18+ dark & tinted icon variants** — accept optional dark/tinted FGs, emit the
-    multi-appearance asset catalog. **[P2]** 🧪
-19. **`LaunchScreen.storyboard` logo injection** (roadmap item). **[P2]**
-20. **More `ios { }` flags** — `UIRequiresFullScreen`, orientations,
-    `ITSEncryptionExportComplianceCode`, `UIBackgroundModes`, ATS presets. **[P2]**
-21. **Privacy manifest (`PrivacyInfo.xcprivacy`) scaffolding** — App-Store-required and pure
-    boilerplate. **[P2]** 🧪
-22. **`CFBundleURLTypes` / deep-link scheme SSOT** — one scheme declaration → iOS URL types +
-    Android `intent-filter` doc/snippet. **[P2]**
-23. **Associated Domains / entitlements SSOT** — applinks + Android asset-links from one
-    list. **[P2]** ⚠️ (security-adjacent; opt-in only)
-24. **`IPHONEOS_DEPLOYMENT_TARGET` SSOT** — `ios { deploymentTarget = "15.0" }`. **[P2]**
-25. **Appiconset orphan pruning** — after writing the universal icon, list/optionally remove
-    unreferenced legacy icon PNGs (fixes the Xcode "unassigned children" noise, AUDIT §3.3). **[P1]**
-26. **Bridging-header / `@_implementationOnly` rename** (currently excluded by design). **[P3]** ⚠️
-27. ⚠️ **`pod install` auto-exec** after rename — shelling out is fragile; keep manual. **[P3]**
+Legacy/conflated inputs (`sharedModule`, `oldSharedModuleName`,
+`androidAppModule`, `iosProjectPath`, `iosPodfilePath`, `iosInfoPlistPath`,
+`iosAppDir`, `iosAppiconsetPath`) remain as compatibility inputs. Mutation tasks
+constrain all resolved paths to the root or selected iOS tree and reject
+symlinks/special files.
 
-### B3. Android
-28. ⭐ **`localeFilters` migration** (AGP 9) with version-gated fallback to
-    `resourceConfigurations` (AGP 8). **[P0/P1]**
-29. ⭐ **Kotlin `jvmTarget` wired with `javaVersion`** (+ optional full JVM-toolchain mode). **[P1]**
-30. **Authoritative classic-module wiring via `androidComponents.finalizeDsl`** (SSOT wins
-    everywhere, matching the KMP-library path; AGP types kept in an isolated class). **[P1]**
-31. **Template-asset takeover** — detect & (with `cleanupLegacyLogoArtifacts` or a new
-    `adoptTemplateIcons = true`) remove colliding `ic_launcher*.webp` / stray launcher XMLs
-    that break the resource merge (AUDIT §3.2). **[P0]**
-32. **Themed / monochrome adaptive icon** (`<monochrome>`, Android 13+). **[P1]** ⭐
-33. **Per-app language `localeConfig`** — generate `locales_config.xml` + manifest wiring for
-    Android 13 per-app language settings, from the same locale list. **[P2]** ⭐
-34. **`resValue` / `buildConfigField` injection** of SSOT values for legacy Android code. **[P2]**
-35. **`namespace` SSOT** across Android modules. **[P2]**
-36. **NDK ABI filter SSOT.** **[P3]**
-37. **Round-icon-less mode** — optionally skip legacy/round outputs for minSdk ≥ 26. **[P3]**
-38. ⚠️ **Signing-config SSOT** — secrets adjacent; at most a pointer to env vars, never storage. **[P3]**
-39. ⚠️ **Play Store metadata / fastlane scaffolding** — different product. **[P3]**
+### Platform-resource locale model
 
-### B4. Assets & branding
-40. **SVG/vector FG input** rasterized per density (needs a rasterizer dep — weigh cost). **[P2]** 🧪
-41. **Notification / status-bar monochrome icon** generation from the FG. **[P2]**
-42. **Splash-screen SSOT** — Android 12 `SplashScreen` attrs + iOS launch storyboard colour/logo
-    from the same FG/BG. **[P2]** ⭐
-43. **Store marketing icon export** (Play 512², App Store 1024²) to a chosen dir. **[P3]**
-44. **Web favicon + PWA `manifest.json` icons** for js/wasm targets. **[P2]**
-45. ⭐ **Debug/staging icon badging** — corner ribbon ("DEBUG", "β") per build type; devs love
-    it and it's pure compositing the pipeline already does. **[P2]**
-46. **Gradient/vector BG source** (linear gradient spec in DSL) beyond flat colour. **[P3]**
-47. **Safe-zone content linter** — warn when FG pixels exceed the safe circle. **[P3]** 🧪
-48. ⚠️ **Full brand-kit generation** (palettes→themes→typography) — a design-system tool, not
-    this plugin. **[out]**
+- Internal form: the canonical BCP-47 subset that maps consistently to Android
+  resource qualifiers and Xcode regions (language plus optional script, region,
+  and variants), order-stable and de-duplicated. Extensions/private-use are rejected;
+  input is bounded to 1,000 entries and 255 characters per raw tag.
+- Accepted boundary compatibility: Android `language-rREGION` and
+  `b+language+Script+REGION` qualifiers.
+- Discovery: exact locale-only resource forms (`values-en`, `values-pt-rBR`, or
+  `values-b+sr+Latn`) below an explicit Compose resources directory or the
+  selected shared project's conventional directory; direct hyphenated BCP-47 and
+  mixed qualifier directory names are ignored. The no-follow shallow scan is
+  bounded to 10,000 immediate entries.
+- Apple renderer: additive canonical tags for `knownRegions`, preserving `Base`
+  and unrelated existing regions because `.lproj` ownership is outside this task.
+- Android renderer: AGP 9 locale filters with an AGP 8-compatible qualifier
+  fallback, exact-set application-only locale replacement that preserves AGP 8
+  density/ABI/other resource configurations (including the ambiguous `car`
+  UI-mode token), non-empty when enabled, and behind
+  `filterAndroidResources=false` by default.
 
-### B5. Web & desktop targets
-49. **wasmJs IO worker** — finish the story (same Blob pattern compiled for wasm). **[P2]**
-50. ⭐ **Compose Desktop identity** — `nativeDistributions` packageName/version/vendor/
-    copyright from the SSOT (identical copy-paste pain, zero risk). **[P1]**
-51. **Desktop app icons** — `.icns` / `.ico` / linux PNG from the same FG/BG. **[P2]**
-52. **Web `manifest.json` + `<meta>` identity** (name, theme colour) from the SSOT. **[P2]**
-53. **Blob-URL hygiene in the generated worker** — `URL.revokeObjectURL` after spawn + optional
-    timeout param (AUDIT §3.13). **[P1]**
-54. ⚠️ **Broader web runtime helpers** — belongs in KiteCore. **[out]**
+## Android adapter matrix
 
-### B6. Diagnostics, safety & DX
-55. ⭐ **`kmpSsotSync` aggregate task** (+ `kmpSsotSyncIos` / `kmpSsotSyncAndroid`) — one entry
-    point instead of six task names. **[P1]**
-56. ⭐ **`kmpSsotDoctor`** — full-setup validation with pass/fail table and exact fixes:
-    manifest placeholder present, plist keys point at `$(…)`, pbxproj/appiconset found, webp
-    collisions, multiple app modules, KGP visibility, region tags mappable, versionCode
-    derivable. **[P1]**
-57. ⭐ **`kmpSsotCheck` drift gate** — fails when on-disk files diverge from SSOT (CI/pre-commit
-    guard; verify-but-strict). **[P2]**
-58. **Unified-diff dry-run** — print the exact patch, not just "would update". **[P2]** ⭐
-59. **`kmpSsotUndo`** — restore all `.kmpssot.bak` files. **[P2]**
-60. **Gradle Problems API** for every rewriter warning (build scans, IDE). **[P2]**
-61. **JSON `--report` output** from verify/doctor for CI consumption. **[P2]**
-62. **Backup hygiene** — `.gitignore` hint for `*.kmpssot.bak`, stale-tmp sweep on task entry. **[P3]**
-63. **Task-name coherence** — `kmpSsot*` prefix everywhere, old names as deprecated aliases. **[P2]**
-64. **Structured log levels** — `quiet`/`verbose` toggle; demote per-file lifecycle chatter. **[P3]**
-65. **Warning-as-error toggle** — `strictWarnings = true` turns rewriter warnings into failures. **[P3]**
+| Value | Application | Classic library | KMP-native Android library |
+|---|:---:|:---:|:---:|
+| app name placeholder | yes | no | no |
+| application ID | yes | no | no |
+| version name/code | yes | no | no |
+| application locale filter | opt-in | no | no |
+| compile SDK | yes | yes | yes |
+| minimum SDK | yes | yes | yes |
+| target SDK | yes | no | no |
+| NDK version | yes | yes | unavailable |
+| Java source/target | yes | yes | unavailable |
+| Kotlin JVM target | when KGP is visible | when KGP is visible | compatible Kotlin targets |
 
-### B7. Architecture & compatibility
-66. ⭐ **Settings-plugin + BuildService** → Isolated-Projects compatibility; per-project
-    companion plugin pulls values locally. **[P2]**
-67. ⭐ **Generated-source model for Android icons** — emit into `build/generated/kmpssot/res`
-    registered as a res source dir; source tree stays clean; template collisions vanish. **[P1]**
-68. **`ValueSource` for locale detection** — explicit CC input (today works via
-    instrumentation; stylistic hardening only). **[P3]**
-69. **Gradle-version TestKit matrix** — 8.5 floor … current, parameterized functional tests. **[P2]**
-70. **`binary-compatibility-validator`** on the public DSL. **[P2]**
-71. **Dokka API docs** published per release. **[P2]**
-72. **ktlint/detekt + `.editorconfig`.** **[P2]**
-73. **Java-17 bytecode target** (compile on 21, target 17) so JDK-17 daemons can load the
-    plugin (AUDIT §2.4). **[P0]**
-74. **CI: `--configuration-cache` on the build job** — lock in the verified-good CC state. **[P1]**
-75. **Convention-plugin companion id** (`io.github.yuroyami.kmpssot.module`) for the IP-clean
-    per-module model. **[P3]**
+SSOT values run in AGP's finalization phase and win over module-local values.
+Unset values leave the module unchanged. SDK relationships, IDs, NDK syntax,
+Java levels, and supported runtime tool versions are validated before use.
 
-### B8. Reading/writing the SSOT from elsewhere
-76. ⭐ **`kmpssot.toml` / version-catalog as the source** — CI, fastlane, Danger, scripts read
-    the same file the DSL reads. **[P2]**
-77. **Export `kmpssot.env` / JSON** (`APP_VERSION`, `BUNDLE_ID`, …) for pipeline tooling. **[P2]** ⭐
-78. **Read identity from `libs.versions.toml` keys** (`appVersion = "1.2.3"`) as an opt-in
-    convention. **[P3]**
-79. ⚠️ **Two-way sync** (edit pbxproj → update DSL) — destroys unidirectional truth; never. **[out]**
+## KMP generators
 
-### B9. Store / release
-80. **Release-tag helper task** aligned with the version scheme. **[P3]**
-81. **Changelog-driven release-notes plumbing** (Play `whatsnew/`, ASC). **[P3]** ⚠️
-82. **Store version pre-check** (is versionCode free?) via store APIs. **[P3]** 🧪 ⚠️ (network+secrets)
+### Runtime BuildConfig
 
-### B10. Testing & quality (of the plugin itself)
-83. ⭐ **Multi-target pbxproj fixture** asserting non-primary targets untouched — the §2.1
-    regression lock. **[P0]**
-84. ⭐ **AGP-applied functional tests** (applicationId/version/SDK/javaVersion/locale wiring,
-    KMP-library `finalizeDsl` path). **[P1]**
-85. **CC assertions in functional tests** (`--configuration-cache`, assert reuse). **[P1]**
-86. **Golden-image icon tests** — dimensions, adaptive XML, opaque flatten, circle mask,
-    safe-zone geometry. **[P2]**
-87. **End-to-end rename test** through the task (Podfile+Swift+PRUNED_DIRS+multi-pod
-    ambiguity). **[P0 with the §3.1 fix]**
-88. **Property-based tests** for `deriveVersionCode` / hex / region mapping. **[P3]**
-89. **Mutation testing** on the pure rewriters. **[P3]** 🧪
-90. **Worker-package change test** — stale-file cleanup regression (AUDIT §3.10). **[P0 with fix]**
+- Disabled by default and scoped to `sharedProjectPath`.
+- Generates one Kotlin object below
+  `build/generated/kmpssot/commonMain/kotlin` and wires it to `commonMain`.
+- Optional identity fields: app name, version name/code, Android ID, Apple ID,
+  locales.
+- Typed custom fields: String, Int, Long, Boolean, Double.
+- Rejects invalid/reserved identifiers, duplicates, identity collisions,
+  arbitrary source fragments, malformed literals, and non-finite doubles.
+- Bounded to 512 custom fields, 10,000 characters per String, 65,536 characters
+  per legacy transport entry, and 1,048,576 transport characters total;
+  `Int.MIN_VALUE` and `Long.MIN_VALUE` receive canonical compilable literals.
+- Checksum ownership prevents deletion/replacement of unknown or modified files.
+- Build-cache storage defaults off because generated values become cache payload.
+- Not a credential store; generated values are public binary inputs.
 
-### B11. Ecosystem niceties
-91. ⭐ **Sample/starter repo** (real KMP app) CI-built against the plugin — living integration
-    test + adoption showcase. **[P2]**
-92. **Migration guide + `kmpSsotMigrate`** from hand-rolled version-sync scripts. **[P3]**
-93. **GitHub Action** running `kmpSsotCheck` on PRs. **[P3]**
-94. **Gradle init template / `gradle init` integration snippet.** **[P3]**
-95. **IDE (KTS) sample completions** — rich KDoc on every DSL property (mostly done; keep the
-    bar). **[P3]**
+### Browser Web Worker
 
-### B12. Moonshots 🧪
-96. **Typed pbxproj mini-parser** — ~200-line OpenStep tokenizer producing an id→object graph
-    with span-preserving surgical edits; middle ground between regex and a full xcodeproj
-    port; unlocks per-target everything. **[P2]**
-97. **`kmpSsotDoctor --fix`** — doctor findings with safe auto-remediation (insert manifest
-    placeholder, add xcconfig include, delete webp collisions) behind per-fix prompts. **[P2]**
-98. **Baseline `Info.plist`/manifest templating** — generate both from one declarative
-    identity block for brand-new projects (greenfield mode). **[P3]** ⚠️
-99. **Multi-app monorepos** — N application "profiles" each with its own identity block,
-    sharing the toolchain SSOT. **[P3]**
-100. **Watch/TV/Auto companion identity** — extension-target identity blocks (pairs with #13). **[P3]**
-101. **Crash-reporter/analytics tag emission** — optional generated constants file for
-     Sentry/Crashlytics release tagging (rides #1). **[P3]**
-102. **Screenshot-test identity stubs** — inject app name/icon into Paparazzi/preview configs. **[P3]** ⚠️
-103. **License/about screen data** — generated `KmpSsotBuildInfo.licenses` from Gradle dependency
-     metadata. **[P3]** ⚠️ (aboutlibraries owns this)
-104. **Remote SSOT** — fetch identity from a URL at config time. **[out]** ⚠️ (non-hermetic builds)
-105. **AI icon generation hook** — out; the plugin propagates truth, it doesn't invent it. **[out]**
+- Disabled by default and requires exact KMP project and Kotlin/JS browser target
+  selection.
+- Generates a single-shot `kmpSsotOffload` helper below the target's owned
+  `build/generated/kmpssot/<target>Main/kotlin` directory.
+- Custom target names and package names are supported.
+- Protocol envelopes carry request IDs and explicit success/error state.
+- Browser API checks, object-URL revocation, a 30-second default timeout,
+  cancellation termination, error normalization, and post-message failure
+  handling are generated.
+- Requires consumer `kotlinx-coroutines-core`, Blob-worker CSP permission, and
+  trusted JavaScript source.
+- Node.js-only and wasm targets are unsupported and never inferred.
 
----
+Build-owned generators remain active when global `dryRun` is true because their
+outputs are compilation inputs, not source migrations.
 
-### Deliberately out of scope (overkill)
-- Design-system/theming generation (#48), broad runtime helpers (#54) — different products.
-- Secrets/signing/keystore storage (#38), store-API calls by default (#82) — security- and
-  network-bound; never default, never stored.
-- Two-way pbxproj↔DSL sync (#79) — breaks the single unidirectional truth invariant.
-- Non-hermetic remote config (#104).
+## Native compiler policy
 
-**Guiding rule:** every feature must either (a) propagate one truth to more places, or
-(b) make that propagation safer or more observable. Anything else is scope creep — no matter
-how cool.
+`propagateInteropOptIns` is disabled by default. When enabled, only selected KMP
+projects and native compilations receive the three built-in cinterop/Obj-C/native
+experimental markers plus validated, de-duplicated `extraOptIns`. It does not
+annotate or rewrite source. `interopProjectPaths` scopes only this Native policy;
+it does not restrict `javaVersion`, whose Java compatibility and Kotlin/JVM
+target alignment is root-global across compatible detected projects.
+
+## Explicit Apple migration
+
+### pbxproj
+
+- Resolves `PBXNativeTarget` application nodes through configuration-list IDs to
+  exact `XCBuildConfiguration` spans.
+- Never falls back to a global build-settings rewrite.
+- Supports explicit one-or-more target selection; assigning one bundle ID to
+  multiple app targets is refused.
+- Can update product/display name, bundle ID, marketing version, build number,
+  and project-level locale regions.
+- Missing targets, malformed graph links, missing expected settings, duplicate
+  objects, and parser uncertainty abort the complete plan.
+- Literal replacement handles special characters without regex replacement
+  injection.
+
+### Source Info.plist
+
+- Supports XML property lists only; binary/OpenStep and generated plists are not
+  converted.
+- Enables secure XML processing and disables external entities/DTDs.
+- Rejects unsafe declarations, duplicate or malformed root dictionary entries,
+  input over 4 MiB of UTF-8, and any baseline it cannot round-trip losslessly.
+- Inserts configured SSOT build-setting references and optional
+  `ITSAppUsesNonExemptEncryption` / `CADisableMinimumFrameDurationOnPhone` flags.
+- Conflict policy is explicit: `FAIL` (default), `KEEP`, or `REPLACE`.
+- A failure returns no partial rewrite.
+
+### Shared-module references
+
+- Requires explicit `iosPreviousSharedModuleName` and new
+  `iosSharedModuleName`; no Podfile inference. The old conflated names remain a
+  compatibility fallback only.
+- Rewrites at most one exact local-pod declaration.
+- Rewrites only plain, exact Swift module imports.
+- Masks comments, strings, raw strings, and extended regex literals; unterminated
+  lexical regions fail closed before any source write.
+- Prunes dependency, vendor, build, checkout, user-data, and symlink trees.
+- Does not rename a directory, update `settings.gradle`, run CocoaPods, or alter
+  qualified/testable/implementation-only/bridging-header imports.
+
+## Branding installers
+
+The branding installers and consumers are checked as one contract. The plugin
+does not rewrite the user-owned Android manifest, so consumers must keep it
+pointed at `@mipmap/ic_launcher` (and
+`@mipmap/ic_launcher_round` when `android:roundIcon` is used), and the selected
+Xcode application target must declare `ASSETCATALOG_COMPILER_APPICON_NAME` for the
+configured catalog (`AppIcon` by default). The explicit iOS config transaction
+aligns an existing assignment and refuses a missing one; diagnostics validate the
+Android references and Xcode selection. A successful file installation alone is
+therefore not reported as an aligned application.
+
+### Android
+
+- Foreground PNG plus exactly one background PNG or Android-form hex color.
+- Strict PNG decoding capped at 32 MiB, 4,096 pixels per dimension, and
+  16,777,216 decoded pixels, with no input-under-output or unsafe-path aliasing.
+- Aspect-preserving foreground contain/background cover behavior.
+- Adaptive foreground/background, legacy square/round images at five densities,
+  API 26 wrappers, and API 33 monochrome wrappers when the SSOT
+  `android.compileSdk >= 33`.
+- First contact refuses unowned output paths and same-stem template collisions.
+- Subsequent replacement/removal requires ownership-manifest checksum agreement.
+
+### Apple
+
+- Requires both `syncIos=true` and `propagateLogo=true`; the deployment-target
+  property validates compatibility but does not configure the Xcode setting.
+- Opaque 1024×1024 foreground-over-background composite plus universal
+  `Contents.json`.
+- Explicit compatibility contract: Xcode 14+ and `ios.deploymentTarget >= 12.0`.
+- Generates the default universal appearance only; Dark/Tinted appearances and
+  Icon Composer files remain deliberately outside this raster installer.
+- Bounded input decoding and output containment checks.
+- With backups enabled (the default), durable first-contact recovery lives below
+  `.kmpssot/recovery`; checksum ownership tracking is always enforced, and
+  `clean` cannot erase recovery copies.
+- Reports unreferenced PNGs without deleting unknown assets.
+
+### Legacy Android takeover
+
+- Explicit one-shot task only.
+- Finds known pre-pipeline artifacts and same-stem Android Studio template icons;
+  before the first ownership manifest, it also includes unowned paths the current
+  installer will claim.
+- Backs up all candidates with SHA-256 provenance before deleting the first.
+- Shares the installer ownership lock and preserves current manifest-owned icons.
+- Rolls back removed files if the batch cannot complete.
+- Dry-run lists the exact candidates without writing or deleting.
+
+## Diagnostics
+
+| Task | Contract |
+|---|---|
+| `kmpSsotVerify` | Best-effort resolved model/path report |
+| `kmpSsotDoctor` | Resilient aggregate diagnostic; never gates on findings |
+| `kmpSsotCheck` | Same diagnostic engine, deterministic JSON or SARIF, fails after report creation on errors or optional warnings |
+| `kmpSsotPlan` | Read-only selected operation/path/target/policy report |
+
+Stable diagnostic families cover Android manifest placeholders and launcher-icon
+references (`KMPS001`–`KMPS003`), plist and bundle-name compatibility
+(`KMPS010`–`KMPS012`), Xcode target/icon/deployment scope (`KMPS020`–`KMPS024`), Android resources
+(`KMPS030`–`KMPS031`), locales
+(`KMPS040`), version derivation (`KMPS050`), KGP visibility and active AGP/KGP
+compatibility (`KMPS060`–`KMPS062`), exact Android/iOS selector validity
+(`KMPS070`–`KMPS071`), provider and fingerprint resolution (`KMPS901`–`KMPS940`),
+and unexpected engine failure (`KMPS999`).
+Plist finding `KMPS011` follows the configured conflict policy: `FAIL` is an
+error, `KEEP` is a warning for intentionally preserved drift, and `REPLACE`
+remains an error until the explicit migration applies the replacement.
+
+## Source-mutation safety invariants
+
+- Every migration/install capability is disabled by default and absent from
+  ordinary build task dependencies.
+- Every operation resolves a complete plan before the first source write.
+- User-owned text changes use strict UTF-8 reads, path containment, no-follow
+  checks, sibling staging, atomic replacement where supported, directory
+  durability attempts, and—when backups are enabled—write-once `.kmpssot.bak`
+  recovery.
+- Multi-file iOS plans lock and stage the batch, re-check source snapshots before
+  commit, and roll back already committed files on failure. Swift discovery is
+  bounded to depth 32 and 10,000 entries; text files are capped at 64 MiB and the
+  combined iOS snapshot/render budget is 256 MiB.
+- Generated and installed assets use owner IDs, normalized relative paths,
+  checksums, lock files, and atomic manifests.
+- Unknown, manually modified, escaping, duplicated, special, or symlinked output
+  is never silently overwritten or deleted.
+- Source installers are intentionally non-cacheable and always re-run safety
+  validation. Build-owned generators alone use Gradle outputs/cache semantics.
+
+## Explicit limitations
+
+Current code does not implement:
+
+- Gradle Isolated Projects;
+- per-flavor, per-build-type, or per-Xcode-target identity overlays;
+- xcconfig generation or automatic Xcode include wiring;
+- generated/binary Info.plist conversion;
+- automatic project-directory/settings renames;
+- Node.js or wasm workers;
+- SVG/vector icon input, dark/tinted Apple icon variants, or launch-screen edits;
+- store API access, signing, secret management, `pod install`, release upload, or
+  automatic version increments.
+
+These are boundaries, not implied features.

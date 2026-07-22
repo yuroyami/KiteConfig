@@ -1,125 +1,235 @@
 package io.github.yuroyami.kmpssot
 
-/** Result of an in-memory pbxproj rewrite: the new text plus any non-fatal warnings. */
-internal data class PbxprojResult(val text: String, val warnings: List<String>)
+/** Result of an in-memory pbxproj rewrite. Errors mean [text] is the original byte-for-byte. */
+internal data class PbxprojResult(
+    val text: String,
+    val warnings: List<String>,
+    val errors: List<String> = emptyList(),
+    val selectedTargets: List<String> = emptyList(),
+    val changedSettings: Set<String> = emptySet(),
+)
 
-/** A single build-setting rewrite: the left-anchored key matcher and its literal replacement. */
-private data class SettingRewrite(val regex: Regex, val literal: String)
+private data class SettingRewrite(val key: String, val literal: String, val required: Boolean = true)
+private data class TextReplacement(val range: IntRange, val text: String)
+
+private fun pbxQuoted(value: String): String {
+    require(value.none { it.code < 0x20 || it == '\u007f' }) { "control characters are not valid in pbxproj strings" }
+    return buildString(value.length + 2) {
+        append('"')
+        value.forEach { c ->
+            when (c) {
+                '\\' -> append("\\\\")
+                '"' -> append("\\\"")
+                else -> append(c)
+            }
+        }
+        append('"')
+    }
+}
+
+private val PBX_SAFE_BARE_NAME = Regex("^[A-Za-z_][A-Za-z0-9_.-]*$")
+
+private fun pbxNameLiteral(value: String): String =
+    if (PBX_SAFE_BARE_NAME.matches(value)) value else pbxQuoted(value)
+
+private fun validateIosAppIconName(value: String): String {
+    require(value.length in 1..128) {
+        "iosAppIconDirectory must name a 1..128 character .appiconset catalog"
+    }
+    require(value.none { it.isISOControl() || it == '/' || it == '\\' }) {
+        "iosAppIconDirectory catalog name must not contain controls or path separators"
+    }
+    return value
+}
+
+/** Derive the Xcode asset-catalog build-setting value from one directory name. */
+internal fun iosAppIconCatalogName(directoryName: String): String {
+    require(directoryName.endsWith(".appiconset") && directoryName != ".appiconset") {
+        "iosAppIconDirectory must point to a named .appiconset directory"
+    }
+    return validateIosAppIconName(directoryName.removeSuffix(".appiconset"))
+}
+
+private fun validatePbxInputs(
+    marketingVersion: String?,
+    buildNumber: String?,
+    appName: String?,
+    bundleId: String?,
+    appIconName: String?,
+): List<String> = buildList {
+    fun validate(value: String?, check: (String) -> String) {
+        if (value == null) return
+        runCatching { check(value) }.exceptionOrNull()?.let { failure ->
+            add(failure.message?.let { diagnosticSafeText(it) } ?: "invalid pbxproj migration input")
+        }
+    }
+
+    validate(marketingVersion, ::validateAppleMarketingVersion)
+    validate(buildNumber, ::validateAppleBuildNumber)
+    validate(appName, ::validateAppName)
+    validate(bundleId, ::validateAppleBundleId)
+    validate(appIconName, ::validateIosAppIconName)
+}
 
 /**
- * A build setting `KEY = <value>;` where:
- *  - KEY is not preceded by an identifier char, so `PRODUCT_NAME` never matches
- *    inside `FOO_PRODUCT_NAME` (and likewise for every key); and
- *  - <value> is either a double-quoted string (which may legally contain ';') or
- *    a run of bare chars that stops at ';', '"' or a newline — so a value missing
- *    its terminating ';' can't swallow later lines, and a quoted ';' can't split
- *    the value mid-string.
- */
-private fun settingRegex(key: String): Regex =
-    Regex("""(?<![A-Za-z0-9_])$key = (?:"(?:[^"\\]|\\.)*"|[^;"\n]+);""")
-
-/**
- * Pure, side-effect-free pbxproj rewrite — extracted so it can be unit tested
- * without a Gradle project. Each argument is null when its `propagate*` toggle
- * is off or the value is unset, in which case that key is left untouched.
+ * Pure fail-closed pbxproj migration.
  *
- * Replacement uses the lambda overload of [Regex.replace], whose return value is
- * treated as a *literal* — so app names / versions / bundle ids containing `$` or
- * `\` don't crash with "Illegal group reference".
+ * Build settings are changed only inside configurations belonging to an explicitly
+ * selected application target, or the sole application target when [targetNames] is
+ * empty. Missing, duplicate, malformed, or ambiguous structure produces errors and
+ * returns [original] unchanged. When [appIconName] is present, its existing
+ * `ASSETCATALOG_COMPILER_APPICON_NAME` assignment is required in every selected
+ * configuration and aligned with the installed catalog. There is no production
+ * global fallback and no speculative setting insertion.
  *
- * **Target scoping:** build-setting keys (`PRODUCT_NAME`, `PRODUCT_BUNDLE_IDENTIFIER`,
- * `MARKETING_VERSION`, `CURRENT_PROJECT_VERSION`, `INFOPLIST_KEY_*`) are rewritten
- * only inside the **application target's** `XCBuildConfiguration` objects (see
- * [applicationBuildConfigSpans]), so test / extension / widget targets keep their
- * own names and distinct bundle ids. When no application target is found the
- * rewrite falls back to global replacement; if the input looked like a real
- * pbxproj (it contains `isa =`) a warning is emitted so multi-target users verify
- * their other targets. `knownRegions` is a single project-level block and is
- * always rewritten globally.
+ * [allowUnscopedFragment] exists only for focused tests of serialization. Callers
+ * handling a real project file must leave it false.
  */
 internal fun rewritePbxproj(
     original: String,
-    versionName: String?,
-    versionCode: Int?,
+    marketingVersion: String?,
+    buildNumber: String?,
     appName: String?,
     bundleId: String?,
     locales: List<String>?,
+    targetNames: Set<String> = emptySet(),
+    allowUnscopedFragment: Boolean = false,
+    appIconName: String? = null,
+    analysisFactory: (String) -> PbxprojAnalysis = ::analyzePbxproj,
 ): PbxprojResult {
-    var updated = original
     val warnings = mutableListOf<String>()
+    val errors = validatePbxInputs(marketingVersion, buildNumber, appName, bundleId, appIconName).toMutableList()
+    val changedKeys = linkedSetOf<String>()
+    val replacements = mutableListOf<TextReplacement>()
+    val analysis by lazy(LazyThreadSafetyMode.NONE) { analysisFactory(original) }
+    if (!allowUnscopedFragment && errors.isEmpty()) {
+        // Diagnostics must validate the project graph even when no setting is
+        // currently configured for mutation. Keeping this on the same opaque
+        // analysis still guarantees exactly one parse per rewrite invocation.
+        errors += analysis.structuralErrors()
+    }
 
-    val rewrites = buildList {
-        if (versionName != null) {
-            add(SettingRewrite(settingRegex("MARKETING_VERSION"), "MARKETING_VERSION = $versionName;"))
-        }
-        // Independent of versionName: a lone versionCodeOverride still writes here.
-        if (versionCode != null) {
-            add(SettingRewrite(settingRegex("CURRENT_PROJECT_VERSION"), "CURRENT_PROJECT_VERSION = $versionCode;"))
-        }
+    // Do not derive literals from values that already failed centralized
+    // validation. Besides avoiding duplicate diagnostics, this keeps malformed
+    // or oversized input out of quoting/serialization paths entirely.
+    val rewrites = if (errors.isNotEmpty()) emptyList() else buildList {
+        if (marketingVersion != null) add(SettingRewrite("MARKETING_VERSION", "MARKETING_VERSION = $marketingVersion;"))
+        if (buildNumber != null) add(SettingRewrite("CURRENT_PROJECT_VERSION", "CURRENT_PROJECT_VERSION = $buildNumber;"))
         if (appName != null) {
-            // Quote + escape so the pbxproj stays valid for names with spaces, quotes, backslashes.
-            val quoted = "\"" + appName.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
-            add(SettingRewrite(settingRegex("INFOPLIST_KEY_CFBundleDisplayName"), "INFOPLIST_KEY_CFBundleDisplayName = $quoted;"))
-            add(SettingRewrite(settingRegex("INFOPLIST_KEY_CFBundleName"), "INFOPLIST_KEY_CFBundleName = $quoted;"))
-            // PRODUCT_NAME is the universal knob — a custom Info.plist referencing
-            // $(PRODUCT_NAME) resolves correctly once this is set.
-            add(SettingRewrite(settingRegex("PRODUCT_NAME"), "PRODUCT_NAME = $quoted;"))
+            val quoted = runCatching { pbxQuoted(appName) }.getOrElse {
+                errors += "iOS appName cannot be encoded safely: ${it.message}"
+                "\"INVALID\""
+            }
+            add(SettingRewrite("PRODUCT_NAME", "PRODUCT_NAME = $quoted;"))
+            // These keys are absent in projects that use a source Info.plist. They
+            // are updated when present but their absence is not structural failure.
+            add(SettingRewrite("INFOPLIST_KEY_CFBundleDisplayName", "INFOPLIST_KEY_CFBundleDisplayName = $quoted;", required = false))
+            add(SettingRewrite("INFOPLIST_KEY_CFBundleName", "INFOPLIST_KEY_CFBundleName = $quoted;", required = false))
         }
-        if (bundleId != null) {
-            add(SettingRewrite(settingRegex("PRODUCT_BUNDLE_IDENTIFIER"), "PRODUCT_BUNDLE_IDENTIFIER = $bundleId;"))
+        if (bundleId != null) add(SettingRewrite("PRODUCT_BUNDLE_IDENTIFIER", "PRODUCT_BUNDLE_IDENTIFIER = $bundleId;"))
+        if (appIconName != null) {
+            add(
+                SettingRewrite(
+                    "ASSETCATALOG_COMPILER_APPICON_NAME",
+                    "ASSETCATALOG_COMPILER_APPICON_NAME = ${pbxNameLiteral(appIconName)};",
+                ),
+            )
         }
     }
 
-    if (rewrites.isNotEmpty()) {
-        val spans = applicationBuildConfigSpans(updated)
-        if (spans.isNotEmpty()) {
-            // Splice each app-target build-config span back-to-front so earlier
-            // spans' offsets stay valid as later ones change length.
-            for (span in spans.sortedByDescending { it.first }) {
-                var segment = updated.substring(span)
-                for (rw in rewrites) segment = rw.regex.replace(segment) { rw.literal }
-                updated = updated.substring(0, span.first) + segment + updated.substring(span.last + 1)
+    var selectedTargets = emptyList<String>()
+    if (rewrites.isNotEmpty() && errors.isEmpty()) {
+        if (allowUnscopedFragment) {
+            rewrites.forEach { rewrite ->
+                val matches = unscopedSettingRegex(rewrite.key).findAll(original).toList()
+                when {
+                    matches.size == 1 -> {
+                        replacements += TextReplacement(matches.single().range, rewrite.literal)
+                        changedKeys += rewrite.key
+                    }
+                    matches.isEmpty() && rewrite.required -> errors += "settings fragment is missing required ${rewrite.key} assignment"
+                    matches.isEmpty() -> warnings += "settings fragment has no ${rewrite.key} assignment; it was not inserted"
+                    else -> errors += "settings fragment has ${matches.size} ${rewrite.key} assignments; refusing an ambiguous rewrite"
+                }
             }
         } else {
-            for (rw in rewrites) updated = rw.regex.replace(updated) { rw.literal }
-            // A bare settings fragment (no object graph) is the test/simple case —
-            // silent. A real pbxproj with no application target is worth flagging.
-            if (updated.contains("isa =")) {
-                warnings += "pbxproj: no application target (com.apple.product-type.application) " +
-                    "found — build settings were applied globally. Verify any test/extension " +
-                    "targets did not inherit the app's PRODUCT_NAME / bundle id."
+            val scope = analysis.resolveApplicationBuildConfigSpans(targetNames)
+            errors += scope.errors
+            selectedTargets = scope.targetNames
+            if (errors.isEmpty()) {
+                val located = analysis.locateBuildSettings(scope.spans, rewrites.mapTo(linkedSetOf()) { it.key })
+                errors += located.errors
+                if (errors.isEmpty()) {
+                    for ((configSpan, keys) in located.byConfig) {
+                        for (rewrite in rewrites) {
+                            val matches = keys[rewrite.key].orEmpty()
+                            when {
+                                matches.size == 1 -> {
+                                    replacements += TextReplacement(matches.single().assignmentRange, rewrite.literal)
+                                    changedKeys += rewrite.key
+                                }
+                                matches.isEmpty() && rewrite.required -> errors +=
+                                    "selected XCBuildConfiguration at ${configSpan.first} is missing required ${rewrite.key}; no changes were made"
+                                matches.isEmpty() -> warnings +=
+                                    "selected XCBuildConfiguration at ${configSpan.first} has no ${rewrite.key}; the optional setting was not inserted"
+                                else -> errors +=
+                                    "selected XCBuildConfiguration at ${configSpan.first} has ${matches.size} ${rewrite.key} assignments"
+                            }
+                        }
+                    }
+                }
             }
         }
     }
 
-    if (locales != null && locales.isNotEmpty()) {
-        // This is the iOS boundary: map Android qualifier tags (pt-rBR, b+sr+Latn)
-        // to the Apple knownRegions form (pt-BR, sr-Latn).
-        val regions = buildList {
-            add("Base")
-            locales.filter { it != "Base" }.forEach { add(androidTagToAppleTag(it)) }
+    if (locales != null && errors.isEmpty()) {
+        val desired = runCatching { canonicalizeLocales(locales) }.getOrElse {
+            errors += (it.message ?: "invalid iOS locale list")
+            emptyList()
         }
-        // Reuse the indentation of the existing block so the diff stays clean;
-        // fall back to 4 tabs (Xcode's default nesting) when it can't be sniffed.
-        val existing = Regex("""knownRegions = \(\s*\n(\s*)""").find(updated)?.groupValues?.get(1) ?: "\t\t\t\t"
-        val closeIndent = existing.dropLast(1).ifEmpty { "\t\t\t" }
-        val replacement = regions.joinToString(
-            separator = ",\n$existing",
-            prefix = "knownRegions = (\n$existing",
-            postfix = ",\n$closeIndent);",
-        )
-        // Region tokens only (bare/quoted identifiers, commas, dots, hyphens,
-        // whitespace incl. newlines). A stray ')' — e.g. inside an injected
-        // comment — makes the whole match fail, so we emit the not-found warning
-        // instead of truncating the block at the first ')' and corrupting it.
-        val re = Regex("""knownRegions = \([\sA-Za-z0-9_,"'.\-]*\);""")
-        if (re.containsMatchIn(updated)) {
-            updated = re.replace(updated) { replacement }
-        } else {
-            warnings += "knownRegions block not found in pbxproj — locale list was not written. " +
-                "Add a knownRegions = (...) entry to the project once, or set propagateLocaleList = false."
+        if (errors.isEmpty() && desired.isNotEmpty()) {
+            val (lists, parseErrors) = analysis.locatePbxLists("knownRegions")
+            errors += parseErrors
+            when (lists.size) {
+                0 -> errors += "pbxproj has no structurally valid knownRegions list; locale metadata was not changed"
+                1 -> {
+                    val location = lists.single()
+                    val merged = linkedSetOf<String>().apply {
+                        add("Base")
+                        addAll(location.values.filterNot { it == "Base" })
+                        addAll(desired)
+                    }.toList()
+                    val lineStart = original.lastIndexOf('\n', location.assignmentRange.first - 1).let { if (it < 0) 0 else it + 1 }
+                    val baseIndent = original.substring(lineStart, location.assignmentRange.first).takeWhile { it == ' ' || it == '\t' }
+                    val entryIndent = baseIndent + "\t"
+                    val replacement = merged.joinToString(
+                        separator = ",\n$entryIndent",
+                        prefix = "knownRegions = (\n$entryIndent",
+                        postfix = ",\n$baseIndent);",
+                    ) { region -> if (Regex("[A-Za-z0-9_.-]+").matches(region)) region else pbxQuoted(region) }
+                    replacements += TextReplacement(location.assignmentRange, replacement)
+                    changedKeys += "knownRegions"
+                }
+                else -> errors += "pbxproj has ${lists.size} knownRegions lists; refusing an ambiguous project-level rewrite"
+            }
         }
     }
 
-    return PbxprojResult(updated, warnings)
+    if (errors.isNotEmpty()) {
+        return PbxprojResult(original, warnings, errors.distinct(), selectedTargets, emptySet())
+    }
+
+    val overlaps = replacements.sortedBy { it.range.first }.zipWithNext().filter { (a, b) -> a.range.last >= b.range.first }
+    if (overlaps.isNotEmpty()) {
+        return PbxprojResult(original, warnings, listOf("internal rewrite plan contained overlapping pbxproj edits"), selectedTargets)
+    }
+    var updated = original
+    replacements.sortedByDescending { it.range.first }.forEach { replacement ->
+        updated = updated.replaceRange(replacement.range, replacement.text)
+    }
+    return PbxprojResult(updated, warnings.distinct(), emptyList(), selectedTargets, changedKeys)
 }
+
+/** Strict helper for the explicitly opted-in synthetic fragment mode only. */
+private fun unscopedSettingRegex(key: String): Regex =
+    Regex("(?m)^[ \\t]*${Regex.escape(key)}[ \\t]*=[ \\t]*(?:\"(?:[^\"\\\\]|\\\\.)*\"|[^;\"\\r\\n]+);")

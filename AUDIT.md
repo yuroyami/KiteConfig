@@ -1,5 +1,12 @@
 # kmp-ssot — Deep Audit (v2, consolidated)
 
+> **Historical snapshot — not current authority.** This document audits the
+> 1.6-era tree and intentionally remains unchanged as evidence of that review.
+> Several findings and line references were superseded by later implementation.
+> For current behavior, read the code; for current audit status, use the top
+> implementation overlay in [SOL_AUDIT.md](SOL_AUDIT.md), with
+> [README.md](README.md) and [FEATURES.md](FEATURES.md) as code-aligned guides.
+
 *Fresh-eyes review of the working tree on `main` (1.6.0 + uncommitted 1.6.x WIP). Code is the
 only source of truth; README/CHANGELOG treated as claims to be verified. Findings are tagged:*
 

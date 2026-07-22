@@ -1,0 +1,32 @@
+name: Bug report
+description: Report a reproducible kmp-ssot defect or unsafe behavior.
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Observed behavior
+      description: Include the exact task, diagnostic IDs, and the smallest safe reproduction.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: versions
+    attributes:
+      label: Versions and environment
+      description: kmp-ssot, Gradle, AGP, KGP, JDK, OS, and Xcode versions as relevant.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction or logs
+      description: Remove credentials, signing material, tokens, and proprietary source before posting.
+    validations:
+      required: true

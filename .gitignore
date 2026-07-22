@@ -1,4 +1,5 @@
 .gradle/
+.kotlin/
 build/
 !gradle/wrapper/gradle-wrapper.jar
 !**/src/main/**/build/
@@ -9,3 +10,7 @@ build/
 local.properties
 gradle.properties.local
 .claude
+*.kmpssot.bak
+*.kmpssot-journal.json
+.kmpssot-owned-files-v1.lock
+**/.kmpssot/**/*.lock

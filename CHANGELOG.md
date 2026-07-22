@@ -6,21 +6,155 @@ Gradle Plugin Portal releases.
 
 ## [Unreleased]
 
+### Breaking changes
+- **Source mutation is explicit-only.** Ordinary Android/KMP/iOS build and link
+  tasks no longer depend on launcher-icon, Xcode, plist, Podfile, or Swift
+  migration tasks. `syncIos`, `sanitizeIosProject`, `propagateLogo`,
+  `propagateSharedModule`, `propagateInteropOptIns`, and Android locale filtering
+  now default off. The individual migration tasks are consistently prefixed:
+  `kmpSsotSanitizeIosProject`, `kmpSsotSyncIosConfig`, `kmpSsotSyncIosLogo`,
+  `kmpSsotSyncAndroidLogo`, and `kmpSsotCleanupLegacyAppLogoArtifacts`.
+  The former broad `kmpSsotSync*` aggregate tasks are removed so each reviewed
+  text or asset transaction is invoked within its own ownership/rollback domain.
+- **Ambiguity now fails closed.** Android applications use exact
+  `androidApplicationProjects`; KMP generators/compiler policy use
+  `sharedProjectPath`, `interopProjectPaths`, and `web.projectPaths`; browser
+  generation also requires exact `web.browserTargetNames`; iOS rewrites use
+  `ios.targetNames` or auto-select only a sole application target. pbxproj
+  rewriting no longer falls back to every build configuration.
+- **Release numbers are platform-correct and independent.** Derived Android
+  codes now require exactly `x.y.z` with `0..999` segments and no leading zeroes,
+  preserving fixed-width monotonic ordering. Explicit codes are range-checked.
+  Apple now uses independent `iosMarketingVersion` and `iosBuildNumber` instead
+  of reusing Android's version code.
+- **Shared-module reference migration is never inferred.** Set both
+  `iosPreviousSharedModuleName` and `iosSharedModuleName`; the plugin no longer
+  guesses the old CocoaPod from a Podfile. The previous
+  `oldSharedModuleName`/`sharedModule` pair remains a compatibility fallback.
+- **Locales have one canonical model.** Inputs are canonicalized and
+  de-duplicated as BCP-47 before platform rendering. Android resource filtering
+  is a separate `filterAndroidResources=false` opt-in and no longer prunes
+  library resources.
+- **BuildConfig cache storage defaults off.** Set
+  `buildConfig.allowBuildCache=true` only for public client configuration and
+  trusted caches.
+- **Cross-project mutable access is deprecated.** Configure the root `kmpSsot {}`
+  model during root evaluation; the compatibility `Project.kmpSsot` accessor is
+  frozen afterward and remains unavailable to Isolated Projects.
+
+### Added
+- **Typed scope and path APIs:** `sharedProjectPath`,
+  `iosSharedModuleName`, `iosPreviousSharedModuleName`,
+  `androidApplicationProjects`, `interopProjectPaths`, `web.projectPaths`,
+  `web.browserTargetNames`, `ios.targetNames`, `ios.deploymentTarget`,
+  `composeResourcesDirectory`, `androidAppDirectory`, and typed Apple
+  file/directory properties. The deployment target is a compatibility assertion,
+  not an Xcode-setting writer.
+- **Release guardrails:** `android.publishedVersionCode` verifies the next
+  resolved Android code is greater than an explicit offline store baseline;
+  runtime compatibility guards enforce Gradle 8.5+, KGP 2.4.x, and AGP
+  8.5.2–9.1.x when their typed integrations are requested. Untested AGP/KGP
+  prereleases are rejected rather than treated as their eventual stable release.
+- **Signed, attestable publication staging:** release CI creates and verifies the
+  complete PGP-signed Maven publication (implementation, marker, POMs, Gradle
+  metadata, and signatures) before remote publishing. Checksums and GitHub
+  provenance cover that staged repository plus both CycloneDX SBOM formats.
+- **Strict diagnostics:** `kmpSsotCheck` shares the resilient doctor engine,
+  writes deterministic JSON or SARIF, and fails after report creation on errors
+  (or warnings when configured). Findings have stable `KMPSnnn` IDs, retain
+  duplicate/invalid Android and iOS selectors, and report unsupported active
+  AGP/KGP versions when an enabled integration requires them.
+- **Read-only mutation planning:** `kmpSsotPlan` reports enabled operations,
+  selectors, source paths, policies, and available change summaries without
+  executing an installer.
+- **Output provenance:** generated source, Android icons, and Apple AppIcon files
+  use checksum ownership manifests and locks. Unknown or modified content is
+  never deleted or overwritten.
+- **Reversible logo takeover:** legacy/colliding Android icons and unowned
+  first-contact installer targets are fully backed up with SHA-256 provenance
+  before removal and restored if the batch fails.
+- Android 13 adaptive-icon wrappers include a monochrome layer when
+  `compileSdk >= 33`.
+- **Release engineering hardening:** CI covers Gradle 8.5 and the current wrapper
+  on JDK 17/21 across Linux, macOS, and Windows with configuration-cache reuse
+  and a no-source-mutation assertion. Publishing derives the artifact version
+  from an exact matching tag, validates changelog metadata, runs the real AGP
+  matrix, and uploads an immutable unsigned candidate from an unprivileged job.
+  The protected job restages and signs it, verifies byte-identical Maven
+  payloads plus one detached signature per payload, then publishes and attests
+  the complete repository. CycloneDX SBOMs describe the published runtime
+  surface instead of the build/test toolchain. Checked-in dependency locks,
+  SHA-256 dependency verification metadata, API validation, wrapper checksum
+  verification, complete POM metadata, and snapshot-safe local versions are on.
+  Configuration-cache reuse is verified before secret-bearing signing and
+  publication steps, which run explicitly uncached in single-use daemons.
+
 ### Fixed
-- **Generated Web Worker upgraded to protocol v2** — the `kmpSsotOffload` helper
-  emitted by `web { generateIoWorker = true }` now speaks the same wire protocol
-  as KiteCore's `KiteWorker`: request `{ id, payload }`, reply
-  `{ id, ok, result | error }`. The job reads its argument from `e.data.payload`,
-  and the worker normalizes the result with `'' + result` so a job returning
-  `undefined` round-trips as the string `"undefined"` instead of throwing on the
-  Kotlin side (the old `data.result.toString()` hung the caller). The onerror
-  path now surfaces `e.message` rather than stringifying the `ErrorEvent` to
-  `"[object ErrorEvent]"`. Remains a single-shot helper — the reusable-instance
-  concerns (concurrent-call serialization, `close()`) live in KiteCore's typed
-  `KiteWorker`. Keeps the "fix worker-protocol bugs in every copy" contract with
-  KiteCore's js and wasmJs `KiteWorker`.
+- **Generated browser worker hardening.** The protocol uses `{id, payload}` and
+  `{id, ok, result|error}` envelopes; results/errors normalize safely; browser
+  APIs are checked; object URLs are revoked; creation/posting errors surface;
+  and success, failure, timeout, or coroutine cancellation terminates the
+  single-shot worker. Node.js and wasm targets are rejected rather than receiving
+  browser-only source.
+- **BuildConfig source injection is closed.** The public typed field methods and
+  legacy transport are parsed through a restricted literal grammar; invalid or
+  duplicate identifiers, identity collisions, arbitrary Kotlin fragments, and
+  non-finite numbers fail before generation. Field count/string/transport sizes
+  are bounded, integer extrema receive compilable canonical literals, and
+  identity inputs disappear when `includeIdentity=false`.
+- **Apple rewrites are transactional and target-scoped.** Malformed/ambiguous
+  pbxproj graphs, missing expected settings, unsafe paths, symlinks, concurrent
+  changes, duplicate plist keys, unsafe XML, and non-lossless plist baselines
+  abort without partial writes. The plist budget is measured as 4 MiB of UTF-8,
+  and Swift import migration masks extended multiline regex literals as well as
+  comments/strings. Multi-file commit failures trigger rollback.
+- **Concurrent edits fail closed.** Text and owned-output commits verify the
+  exact bytes and ownership snapshots used to create their plans immediately
+  before mutation; rollback touches only paths the current transaction changed.
+- **pbxproj parsing validates the project graph.** The root dictionary,
+  `objects`, `rootObject`, `PBXProject`, target configuration lists, and
+  `knownRegions` must be structurally unique and syntactically complete. Garbage
+  tokens and malformed duplicate entries are rejected instead of filtered.
+- **Logo installers no longer pretend source-tree outputs are cache artifacts.**
+  They are non-cacheable installers that validate current ownership, paths, PNG
+  bounds, collisions, backup state, and orphan state on every invocation.
+- **Installer namespaces and diagnostics are ownership-aware.** Apple AppIcon
+  manifests/backups are keyed by the catalog's project-relative identity, so
+  same-named catalogs cannot collide; Android and Apple checks verify the exact
+  expected manifest, file set, and checksums for every selected application.
+- **Classic AGP compatibility is tested against published consumers.** A
+  floor-compiled package-private adapter preserves AGP 8 binary compatibility,
+  while the AGP 9 implementation uses current typed APIs. Application selectors
+  gate only app-scoped values; compatible SDK/JVM policy still reaches other
+  applications and libraries. AGP 8 locale replacement preserves unrelated
+  density, ABI, and other legacy resource configurations, including the
+  locale-shaped `car` UI-mode token; the `car` locale is emitted as `b+car`.
+- **Root-project and classloader coverage.** Root modules participate in project
+  discovery; missing AGP/KGP visibility now fails requested features with the
+  exact root `plugins { ... apply false }` remedy instead of warning and
+  continuing.
+- **Validation is comprehensive:** application/bundle IDs, Apple versions,
+  project/relative paths, SDK relationships, NDK syntax, Java levels, opt-in
+  markers, bounded locale tags/lists, selector duplicates, and logo configuration
+  fail with actionable messages.
+- **Locale discovery is qualifier-safe.** Only exact locale-only Compose resource
+  directories are auto-detected; direct BCP-47 and mixed/non-locale qualifier
+  names can no longer be misread as a script or variant.
+- **Integration contracts are explicit in the public docs.** Native opt-in
+  selectors are distinguished from the root-global Kotlin/JVM alignment applied
+  by `javaVersion`; branding docs now state the Android manifest and Xcode
+  app-icon catalog selections required to consume installed assets; and plist
+  task KDoc describes its conditional, independently gated entries.
+- **Branding consumption is now release-checkable.** Diagnostics verify that the
+  selected Android manifest consumes `ic_launcher`/`ic_launcher_round`; the iOS
+  source transaction aligns an existing `ASSETCATALOG_COMPILER_APPICON_NAME`
+  assignment with `iosAppIconDirectory` and fails closed instead of guessing when
+  that setting is absent.
 
 ## [1.7.0]
+
+The entries below describe the behavior shipped by that historical release.
+The Unreleased section above intentionally supersedes several of these contracts.
 
 ### Fixed
 - **pbxproj rewrites are now target-scoped** — identity keys (`PRODUCT_NAME`,
@@ -66,8 +200,9 @@ Gradle Plugin Portal releases.
   **buildKonfig replacement** for the common case. The object carries the identity
   SSOT (appName, versionName, versionCode, androidApplicationId, iosBundleId,
   locales) plus your own `stringField` / `intField` / `longField` / `booleanField`
-  / `doubleField` declarations (each also accepts a `Provider<String>` so secrets
-  come from `gradle.properties` / env, not the build file). The object name is
+  / `doubleField` declarations (each also accepts a `Provider<String>` for lazy
+  non-secret configuration). Generated constants are compiled into consumer
+  artifacts and therefore must never contain secrets. The object name is
   configurable via `className` (default `BuildConfig`), the package via
   `packageName`, and identity inclusion via `includeIdentity`. Default off.
   Deliberately flat — no per-flavor / per-target value overlays.

@@ -1,5 +1,12 @@
 # FABLE5_AUDIT.md — Repair Guide for Opus 4.8
 
+> **Historical 1.7 repair record — not current authority.** The work order below
+> is preserved for provenance, but later code and remediation supersede it. Its
+> later claim that this file “wins” over README is historical and false for the
+> current tree. Read the code as source of truth and the top implementation overlay
+> in [SOL_AUDIT.md](SOL_AUDIT.md) for current audit status; use
+> [README.md](README.md) and [FEATURES.md](FEATURES.md) as code-aligned guides.
+
 > **Execution status (2026-07-05): COMPLETE.** T01–T17 and P3.1 were carried out
 > and committed to `main`; the plugin is at **1.7.0**, build + `validatePlugins`
 > green, config-cache clean, **50 → 81 tests**. Remaining P3 rigor (Gradle-version

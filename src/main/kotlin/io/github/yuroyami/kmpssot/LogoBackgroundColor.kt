@@ -8,7 +8,8 @@ private val HEX_RE = Regex("""#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{8}""")
 /** Throws if [hex] is not `#RRGGBB` or `#AARRGGBB`. */
 internal fun validateLogoBackgroundColorHex(hex: String) {
     require(HEX_RE.matches(hex)) {
-        "appLogoBackgroundColor must be #RRGGBB or #AARRGGBB (Android convention, alpha first), got: $hex"
+        "appLogoBackgroundColor must be #RRGGBB or #AARRGGBB (Android convention, alpha first), got: " +
+            diagnosticSafeText(hex, 32)
     }
 }
 

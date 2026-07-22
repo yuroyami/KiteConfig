@@ -2,35 +2,117 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 permissions:
   contents: read
 
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
-      - name: Set up JDK 21
-        uses: actions/setup-java@v4
+jobs:
+  compatibility:
+    name: ${{ matrix.os }} / JDK ${{ matrix.java }} / wrapper
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            java: 17
+          - os: ubuntu-24.04
+            java: 21
+          - os: macos-15
+            java: 21
+          - os: windows-2025
+            java: 21
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    steps:
+      - name: Check out source
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Validate Gradle wrapper
+        uses: gradle/actions/wrapper-validation@0b6dd653ba04f4f93bf581ec31e66cbd7dcb644d # v4
+
+      - name: Set up JDK 21 build toolchain
+        uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
         with:
           distribution: temurin
           java-version: '21'
 
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
+      - name: Remember JDK 21 toolchain location
+        if: matrix.java == 17
+        shell: bash
+        run: printf 'JDK21_HOME=%s\n' "$JAVA_HOME" >> "$GITHUB_ENV"
 
-      - name: Build, test, validate plugins
-        run: ./gradlew build validatePlugins --configuration-cache --stacktrace
+      - name: Set up JDK 17 Gradle runtime
+        if: matrix.java == 17
+        uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@0b6dd653ba04f4f93bf581ec31e66cbd7dcb644d # v4
+
+      - name: Build, test, validate, and reuse configuration cache
+        shell: bash
+        run: |
+          TOOLCHAIN_ARGS=()
+          if [[ -n "${JDK21_HOME:-}" ]]; then
+            TOOLCHAIN_ARGS=(-Dorg.gradle.java.installations.paths="$JDK21_HOME")
+          fi
+          ./gradlew "${TOOLCHAIN_ARGS[@]}" clean --no-configuration-cache --stacktrace
+          ./gradlew "${TOOLCHAIN_ARGS[@]}" build validatePlugins --configuration-cache --configuration-cache-problems=fail --stacktrace
+          mkdir -p build/reports
+          set -o pipefail
+          ./gradlew "${TOOLCHAIN_ARGS[@]}" build validatePlugins --configuration-cache --configuration-cache-problems=fail --stacktrace | tee build/reports/configuration-cache-reuse.log
+          grep -F 'Configuration cache entry reused.' build/reports/configuration-cache-reuse.log
+
+      - name: Apply the published-shape plugin on an outer JDK 17 consumer
+        if: matrix.java == 17
+        shell: bash
+        env:
+          KMP_SSOT_PLUGIN_JAR: ${{ github.workspace }}/build/libs/kmp-ssot-0.0.0-SNAPSHOT.jar
+        run: |
+          ./gradlew --version --no-daemon | grep -E 'Launcher JVM:.*17'
+          CONSUMER_DIR="$RUNNER_TEMP/kmpssot-jdk17-consumer"
+          mkdir -p "$CONSUMER_DIR"
+          printf '%s\n' "rootProject.name = 'jdk17-consumer'" > "$CONSUMER_DIR/settings.gradle"
+          printf '%s\n' \
+            "buildscript { dependencies { classpath files(System.getenv('KMP_SSOT_PLUGIN_JAR')) } }" \
+            "apply plugin: 'io.github.yuroyami.kmpssot'" \
+            "def kmpSsotApplied = extensions.findByName('kmpSsot') != null" \
+            "tasks.register('verifyPluginOnJdk17') {" \
+            "  doLast {" \
+            "    assert JavaVersion.current() == JavaVersion.VERSION_17" \
+            "    assert kmpSsotApplied" \
+            "    println 'KMP SSOT plugin applied under outer JDK 17'" \
+            "  }" \
+            "}" > "$CONSUMER_DIR/build.gradle"
+          ./gradlew -p "$CONSUMER_DIR" verifyPluginOnJdk17 --no-configuration-cache --no-daemon --stacktrace
+
+      - name: Exercise Gradle floor and real AGP consumer builds
+        if: matrix.os == 'ubuntu-24.04' && matrix.java == 21
+        shell: bash
+        run: ./gradlew agpCompatibilityTest --stacktrace
+
+      - name: Ordinary build must not mutate tracked source
+        shell: bash
+        run: |
+          STATUS="$(git status --porcelain --untracked-files=all)"
+          if [[ -n "$STATUS" ]]; then
+            printf '%s\n' "$STATUS" >&2
+            exit 1
+          fi
 
       - name: Upload test reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: test-reports
+          name: test-reports-${{ matrix.os }}-jdk${{ matrix.java }}-wrapper
           path: build/reports/tests/
           if-no-files-found: ignore

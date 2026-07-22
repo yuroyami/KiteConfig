@@ -16,20 +16,24 @@ class IoWorkerGenTest {
     fun `exposes the suspend offload entry point`() {
         val src = generateIoWorkerSource("kmpssot.generated")
         assertTrue(src.contains("suspend fun kmpSsotOffload(jobJs: String, payload: String): String"))
+        assertTrue(src.contains("timeoutMillis: Long"))
+        assertTrue(src.contains("KMP_SSOT_DEFAULT_TIMEOUT_MILLIS = 30_000L"))
     }
 
     @Test
     fun `wires the blob worker and coroutine bridge`() {
         val src = generateIoWorkerSource("kmpssot.generated")
         assertTrue(src.contains("URL.createObjectURL"))
-        assertTrue(src.contains("new Blob("))
-        assertTrue(src.contains("import kotlinx.coroutines.CompletableDeferred"))
+        assertTrue(src.contains("new globalThis.Blob("))
+        assertTrue(src.contains("import kotlinx.coroutines.suspendCancellableCoroutine"))
+        assertTrue(src.contains("import kotlinx.coroutines.withTimeout"))
         assertTrue(src.contains("worker.terminate()"))
     }
 
     @Test
     fun `revokes the blob object URL to avoid a leak`() {
-        assertTrue(generateIoWorkerSource("kmpssot.generated").contains("revokeObjectURL"))
+        val src = generateIoWorkerSource("kmpssot.generated")
+        assertTrue(src.contains("finally { globalThis.URL.revokeObjectURL(u); }"), src)
     }
 
     @Test
@@ -47,7 +51,7 @@ class IoWorkerGenTest {
         assertFalse(src.contains("\${"))
     }
 
-    // --- Protocol v2 (kept in sync with KiteCore's KiteWorker) ---
+    // --- Protocol v2 (kept in sync with KiteCore's WebWorker) ---
 
     @Test
     fun `uses the protocol v2 request envelope`() {
@@ -81,7 +85,34 @@ class IoWorkerGenTest {
     fun `surfaces a useful worker error message instead of the bare event`() {
         val src = generateIoWorkerSource("kmpssot.generated")
         // The old form stringified the ErrorEvent to "[object ErrorEvent]".
-        assertTrue(src.contains("e.message"))
+        assertTrue(src.contains("event.message"))
         assertTrue(src.contains("worker script failed to load or crashed"))
+    }
+
+    @Test
+    fun `cancellation and timeout terminate the worker`() {
+        val src = generateIoWorkerSource("kmpssot.generated")
+        assertTrue(src.contains("withTimeout(timeoutMillis)"), src)
+        assertTrue(src.contains("continuation.invokeOnCancellation { closeWorker() }"), src)
+        assertTrue(src.contains("worker.onmessage = null"), src)
+        assertTrue(src.contains("worker.onerror = null"), src)
+        assertFalse(src.contains("CompletableDeferred"), src)
+    }
+
+    @Test
+    fun `fails clearly outside browser worker environments`() {
+        val src = generateIoWorkerSource("kmpssot.generated")
+        assertTrue(src.contains("browserWorkerApisAvailable"), src)
+        assertTrue(src.contains("Node.js-only and wasmJs runtimes are not supported"), src)
+        assertTrue(src.contains("worker-src policy"), src)
+    }
+
+    @Test
+    fun `documents raw code and dependency contracts in generated source`() {
+        val src = generateIoWorkerSource("kmpssot.generated")
+        assertTrue(src.contains("jobJs is trusted executable JavaScript, not data"), src)
+        assertTrue(src.contains("must declare kotlinx-coroutines-core"), src)
+        assertTrue(src.contains("worker-src blob:"), src)
+        assertTrue(src.contains("jobJs.isNotBlank()"), src)
     }
 }

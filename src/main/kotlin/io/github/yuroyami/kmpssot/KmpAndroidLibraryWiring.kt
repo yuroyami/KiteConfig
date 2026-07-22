@@ -28,31 +28,26 @@ import org.gradle.api.Project
  */
 internal object KmpAndroidLibraryWiring {
 
-    fun apply(project: Project, ext: KmpSsotExtension) {
-        if (!ext.propagateAndroidSdk.get()) return
-        val sdk = ext.android
-        if (!sdk.compileSdk.isPresent && !sdk.minSdk.isPresent) return
-
+    /** Returns false when the expected public components extension is absent. */
+    fun apply(project: Project, ext: KmpSsotExtension): Boolean {
         val components = project.extensions
             .findByType(KotlinMultiplatformAndroidComponentsExtension::class.java)
         if (components == null) {
-            project.logger.warn(
-                "[kmpSsot] ${project.path} applies com.android.kotlin.multiplatform.library but its " +
-                        "components extension was not found — compileSdk/minSdk not propagated."
-            )
-            return
+            return false
         }
 
         components.finalizeDsl { dsl ->
+            if (!ext.propagateAndroidSdk.get()) return@finalizeDsl
+            val sdk = ext.android
             if (sdk.compileSdk.isPresent) dsl.compileSdk = sdk.compileSdk.get()
             if (sdk.minSdk.isPresent) dsl.minSdk = sdk.minSdk.get()
-        }
-
-        if (sdk.targetSdk.isPresent || sdk.ndkVersion.isPresent) {
-            project.logger.info(
-                "[kmpSsot] ${project.path}: targetSdk/ndkVersion ignored — the KMP Android library " +
+            if (sdk.targetSdk.isPresent || sdk.ndkVersion.isPresent) {
+                project.logger.info(
+                    "[kmpSsot] ${project.path}: targetSdk/ndkVersion ignored — the KMP Android library " +
                         "DSL exposes neither."
-            )
+                )
+            }
         }
+        return true
     }
 }

@@ -1,23 +1,25 @@
 package io.github.yuroyami.kmpssot
 
 import org.gradle.api.DefaultTask
+import org.gradle.api.GradleException
 import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.Property
-import org.gradle.api.tasks.CacheableTask
 import org.gradle.api.tasks.Input
-import org.gradle.api.tasks.InputFile
 import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.Optional
-import org.gradle.api.tasks.OutputFiles
-import org.gradle.api.tasks.PathSensitive
-import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
+import org.gradle.work.DisableCachingByDefault
 import java.awt.Color
 import java.awt.image.BufferedImage
 import java.io.ByteArrayOutputStream
 import java.io.File
+import java.nio.charset.StandardCharsets
+import java.nio.file.Files
+import java.nio.file.LinkOption.NOFOLLOW_LINKS
+import java.nio.file.attribute.BasicFileAttributes
+import java.security.MessageDigest
 import javax.imageio.ImageIO
 
 /**
@@ -27,60 +29,94 @@ import javax.imageio.ImageIO
  *    so any FG/BG transparency is baked against white.
  *  - Writes `AppIcon-1024.png` + a single-image universal `Contents.json`.
  *
- * Requires iOS deployment target 14+. Cacheable/incremental — declared outputs
- * mean the icon is only rebuilt when the source PNGs/colour change.
+ * Requires Xcode 14+ and an iOS deployment target of at least 12.0 (validated by
+ * the root model). This is deliberately non-cacheable because it installs into a
+ * user-owned Xcode asset catalog and must execute configured recovery, ownership,
+ * orphan, and path-safety checks on every invocation.
  */
-@CacheableTask
+@DisableCachingByDefault(because = "Installs and validates files in a user-owned Xcode asset catalog.")
 abstract class SyncIosLogoTask : DefaultTask() {
 
     init {
         group = "kmp-ssot"
         description = "Composite FG+BG app-logo PNGs into the iOS AppIcon.appiconset (single 1024 universal)."
+        outputs.upToDateWhen { false }
+        backupDir.convention(project.layout.projectDirectory.dir(".kmpssot/recovery/ios-appicon"))
+        projectRootDir.convention(project.layout.projectDirectory)
     }
 
-    @get:[InputFile Optional PathSensitive(PathSensitivity.RELATIVE)]
+    /** Validated explicitly so configured-but-missing files receive actionable plugin diagnostics. */
+    @get:Internal
     abstract val foregroundPng: RegularFileProperty
 
-    @get:[InputFile Optional PathSensitive(PathSensitivity.RELATIVE)]
+    @get:Internal
     abstract val backgroundPng: RegularFileProperty
 
     @get:[Input Optional] abstract val backgroundColorHex: Property<String>
-    @get:Input abstract val dryRun: Property<Boolean>
-    @get:Input abstract val backup: Property<Boolean>
+    @get:Internal abstract val dryRun: Property<Boolean>
+    @get:Internal abstract val backup: Property<Boolean>
 
     @get:Internal abstract val appiconsetDir: DirectoryProperty
+    @get:Internal abstract val backupDir: DirectoryProperty
+    @get:Internal abstract val projectRootDir: DirectoryProperty
 
-    @get:OutputFiles abstract val outputFiles: ConfigurableFileCollection
+    /** Compatibility surface for diagnostics/wiring; source-tree files are not Gradle task outputs. */
+    @get:Internal abstract val outputFiles: ConfigurableFileCollection
 
     @TaskAction
     fun sync() {
         val dry = dryRun.get()
         val fgFile = foregroundPng.asFile.orNull
-        if (fgFile == null || !fgFile.exists()) {
-            logger.warn("[kmpSsot] appLogoPngForeground not found — skipping iOS logo.")
+        if (fgFile == null) {
+            logger.lifecycle("[kmpSsot] iOS logo sync skipped: appLogoPngForeground is not configured.")
             return
         }
-        val fg = ImageIO.read(fgFile) ?: run {
-            logger.warn("[kmpSsot] Could not decode ${fgFile.path} as an image — skipping iOS logo.")
-            return
+        if (!fgFile.exists()) {
+            throw GradleException(
+                "[kmpSsot] appLogoPngForeground points to a missing file: ${fgFile.path}. " +
+                    "Fix the path or disable logo propagation.",
+            )
         }
+        val outDir = appiconsetDir.asFile.get()
+        OwnedOutputSafety.requireInstallerInsideProject(
+            outDir,
+            projectRootDir.asFile.get(),
+            "iOS AppIcon output",
+        )
+        OwnedOutputSafety.requireInputOutsideOutput(fgFile, outDir, "appLogoPngForeground")
+        val fgSnapshot = decodeLogo(fgFile, "appLogoPngForeground")
+        val fg = fgSnapshot.image
 
         val bgDescription: String
+        var bgSnapshot: LogoPngSnapshot? = null
         val bg = if (backgroundColorHex.isPresent) {
             val hex = backgroundColorHex.get()
             bgDescription = "color $hex"
-            solidColorImage(IOS_SIZE, parseLogoBackgroundColor(hex))
+            var color = parseLogoBackgroundColor(hex)
+            if (color.alpha < 255) {
+                logger.warn(
+                    "[kmpSsot] appLogoBackgroundColor $hex is semi-transparent — " +
+                        "flattening over white because App Store icons must be opaque.",
+                )
+                color = flattenOverWhite(color)
+            }
+            solidColorImage(IOS_SIZE, color)
         } else {
             val bgFile = backgroundPng.asFile.orNull
-            if (bgFile == null || !bgFile.exists()) {
-                logger.warn("[kmpSsot] appLogoPngBackground not found — skipping iOS logo.")
-                return
+            if (bgFile == null) {
+                throw GradleException(
+                    "[kmpSsot] iOS logo requires appLogoPngBackground or appLogoBackgroundColor.",
+                )
             }
+            if (!bgFile.exists()) {
+                throw GradleException(
+                    "[kmpSsot] appLogoPngBackground points to a missing file: ${bgFile.path}. " +
+                        "Fix the path or configure appLogoBackgroundColor.",
+                )
+            }
+            OwnedOutputSafety.requireInputOutsideOutput(bgFile, outDir, "appLogoPngBackground")
             bgDescription = bgFile.name
-            ImageIO.read(bgFile) ?: run {
-                logger.warn("[kmpSsot] Could not decode ${bgFile.path} as an image — skipping iOS logo.")
-                return
-            }
+            decodeLogo(bgFile, "appLogoPngBackground").also { bgSnapshot = it }.image
         }
 
         // INT_RGB so any residual alpha is composed against opaque white.
@@ -91,16 +127,66 @@ abstract class SyncIosLogoTask : DefaultTask() {
             drawContain(fg, 0, 0, IOS_SIZE, IOS_SIZE)
         }
 
-        val outDir = appiconsetDir.asFile.get()
-        val pngBytes = ByteArrayOutputStream().apply { ImageIO.write(composite, "PNG", this) }.toByteArray()
-        writeBytesSafely(outDir.resolve("AppIcon-1024.png"), pngBytes, dry, logger, "iOS AppIcon-1024.png")
-        // Contents.json is user-owned on first contact (often a full multi-size
-        // catalog) — honour backupBeforeRewrite so the original is recoverable.
-        writeTextSafely(outDir.resolve("Contents.json"), CONTENTS_JSON, backup = backup.get(), dryRun = dry, logger = logger, label = "iOS Contents.json")
-
+        OwnedOutputSafety.requireSafePath(outDir, "iOS AppIcon output")
+        val pngBytes = encodePng(composite)
+        val rendered = linkedMapOf(
+            "AppIcon-1024.png" to pngBytes,
+            "Contents.json" to CONTENTS_JSON.toByteArray(StandardCharsets.UTF_8),
+        )
+        val configuredColor = backgroundColorHex.orNull
+        val inputFingerprint = logoInputFingerprint(
+            rendererVersion = RENDERER_FINGERPRINT_VERSION,
+            foregroundSha256 = fgSnapshot.sha256,
+            backgroundSha256 = bgSnapshot?.sha256,
+            backgroundColor = configuredColor,
+        )
         warnOnOrphanIcons(outDir)
 
-        if (!dry) logger.lifecycle("[kmpSsot] iOS AppIcon synced from ${fgFile.name} + $bgDescription (1024×1024 opaque).")
+        if (dry) {
+            rendered.keys.forEach { logger.lifecycle("[kmpSsot][dry-run] would write iOS AppIcon file: $it") }
+            return
+        }
+
+        val catalogIdentity = catalogIdentity(projectRootDir.asFile.get(), outDir)
+        val metadataBase = (outDir.parentFile?.parentFile ?: outDir.parentFile ?: outDir)
+            .resolve(".kmpssot/$catalogIdentity")
+        val ownershipManifest = metadataBase.resolve("owned-files-v1")
+        if (backup.getOrElse(true)) {
+            OwnedOutputSafety.replaceInstalledFilesWithBackup(
+                installationRoot = outDir,
+                manifestFile = ownershipManifest,
+                backupRoot = backupDir.asFile.get().resolve(catalogIdentity),
+                projectRoot = projectRootDir.asFile.get(),
+                owner = catalogIdentity,
+                files = rendered,
+                inputFingerprint = inputFingerprint,
+            )
+        } else {
+            OwnedOutputSafety.replaceInstalledFiles(
+                installationRoot = outDir,
+                manifestFile = ownershipManifest,
+                projectRoot = projectRootDir.asFile.get(),
+                owner = catalogIdentity,
+                files = rendered,
+                inputFingerprint = inputFingerprint,
+            )
+        }
+
+        logger.lifecycle("[kmpSsot] iOS AppIcon synced from ${fgFile.name} + $bgDescription (1024×1024 opaque).")
+    }
+
+    private fun decodeLogo(file: File, label: String): LogoPngSnapshot = try {
+        readBoundedLogoPngSnapshot(file, label)
+    } catch (e: IllegalArgumentException) {
+        throw GradleException("[kmpSsot] ${e.message}", e)
+    }
+
+    private fun encodePng(image: BufferedImage): ByteArray {
+        val output = ByteArrayOutputStream()
+        if (!ImageIO.write(image, "PNG", output)) {
+            throw GradleException("[kmpSsot] This JDK has no PNG encoder; cannot render iOS logo.")
+        }
+        return output.toByteArray()
     }
 
     /**
@@ -109,21 +195,64 @@ abstract class SyncIosLogoTask : DefaultTask() {
      * children" warnings and the stale icons ship dead weight.
      */
     private fun warnOnOrphanIcons(outDir: File) {
-        val orphans = (outDir.listFiles()?.asList() ?: emptyList()).filter {
-            it.isFile && it.extension.equals("png", ignoreCase = true) && it.name !in OUTPUT_FILE_NAMES
+        val directory = outDir.toPath()
+        if (!Files.exists(directory, NOFOLLOW_LINKS)) return
+        val orphans = Files.newDirectoryStream(directory).use { entries ->
+            val found = mutableListOf<File>()
+            var entryCount = 0
+            for (path in entries) {
+                entryCount += 1
+                if (entryCount > MAX_CATALOG_SCAN_ENTRIES) {
+                    throw GradleException(
+                        "[kmpSsot] Refusing to scan an AppIcon catalog with more than " +
+                            "$MAX_CATALOG_SCAN_ENTRIES entries: ${diagnosticSafeText(directory.toString())}",
+                    )
+                }
+                val attrs = Files.readAttributes(path, BasicFileAttributes::class.java, NOFOLLOW_LINKS)
+                if (attrs.isSymbolicLink || attrs.isOther) {
+                    throw GradleException(
+                        "[kmpSsot] Refusing unsafe AppIcon catalog entry: " +
+                            diagnosticSafeText(path.toString()),
+                    )
+                }
+                path.toFile().takeIf {
+                    attrs.isRegularFile && it.extension.equals("png", ignoreCase = true) &&
+                        it.name !in OUTPUT_FILE_NAMES
+                }?.let(found::add)
+            }
+            found.sortedBy(File::getName)
         }
         if (orphans.isEmpty()) return
+        val displayed = orphans.take(MAX_DISPLAYED_ORPHANS)
+        val omitted = orphans.size - displayed.size
         logger.warn(
             "[kmpSsot] ${orphans.size} icon file(s) in the appiconset are no longer referenced by the " +
                     "generated Contents.json:\n" +
-                    orphans.joinToString("\n") { "    ${it.name}" } +
+                    displayed.joinToString("\n") { "    ${diagnosticSafeText(it.name)}" } +
+                    (if (omitted > 0) "\n    … and $omitted more" else "") +
                     "\n  Delete them to silence Xcode's \"unassigned children\" warning."
         )
     }
 
     companion object {
         internal const val IOS_SIZE = 1024
+        internal const val RENDERER_FINGERPRINT_VERSION = "ios-appicon-renderer-v1"
+        private const val MAX_CATALOG_SCAN_ENTRIES = 10_000
+        private const val MAX_DISPLAYED_ORPHANS = 20
         internal val OUTPUT_FILE_NAMES = listOf("AppIcon-1024.png", "Contents.json")
+
+        /** Stable namespace for catalogs that may share the same final directory name. */
+        internal fun catalogIdentity(projectRoot: File, appiconset: File): String {
+            val root = projectRoot.toPath().toAbsolutePath().normalize()
+            val output = appiconset.toPath().toAbsolutePath().normalize()
+            require(output.startsWith(root)) { "AppIcon catalog is outside project root: $output" }
+            val relative = root.relativize(output).joinToString("/") { it.toString() }
+            val hash = MessageDigest.getInstance("SHA-256")
+                .digest(relative.toByteArray(StandardCharsets.UTF_8))
+                .take(10)
+                .joinToString("") { "%02x".format(it.toInt() and 0xff) }
+            return "ios-appicon-$hash"
+        }
 
         private val CONTENTS_JSON = """
             |{

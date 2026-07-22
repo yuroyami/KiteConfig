@@ -1,10 +1,14 @@
+@file:Suppress("DEPRECATION")
+
 package io.github.yuroyami.kmpssot
 
 import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
+import org.gradle.api.Task
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.api.plugins.ExtensionAware
+import org.gradle.api.provider.HasConfigurableValue
 import org.gradle.kotlin.dsl.create
 import org.gradle.kotlin.dsl.getByType
 import org.gradle.kotlin.dsl.register
@@ -12,6 +16,19 @@ import org.gradle.util.GradleVersion
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
 import org.jetbrains.kotlin.gradle.plugin.KotlinPlatformType
 
+/**
+ * Root aggregation plugin for the `kmpSsot` application model.
+ *
+ * Applying the plugin configures only provider-backed Android/KMP adapters and
+ * registers read-only diagnostics plus explicitly invoked migration/install tasks.
+ * It does not mutate Xcode, plist, Swift, Podfile, or launcher-icon source files
+ * during ordinary compilation. Destructive capabilities default off, require
+ * unambiguous project/target selectors, validate containment, and fail closed.
+ *
+ * The supported Gradle floor is [MIN_GRADLE], and the implementation bytecode is
+ * Java 17. KGP-typed integrations require KGP to be declared in the root plugin
+ * classloader; requested features fail with guidance when that contract is not met.
+ */
 class KmpSsotPlugin : Plugin<Project> {
 
     override fun apply(target: Project) {
@@ -22,11 +39,21 @@ class KmpSsotPlugin : Plugin<Project> {
             )
         }
         if (GradleVersion.current() < GradleVersion.version(MIN_GRADLE)) {
-            target.logger.warn(
-                "[kmpSsot] Gradle ${GradleVersion.current().version} is older than the supported " +
-                        "minimum ($MIN_GRADLE). The plugin may not behave correctly."
+            throw GradleException(
+                "kmpSsot requires Gradle $MIN_GRADLE or newer; current Gradle is " +
+                    "${GradleVersion.current().version}. Upgrade the wrapper before applying the plugin."
             )
         }
+        // Resolve compatibility before the first typed peer-plugin call. An
+        // unsupported runtime remains observational when no related capability is
+        // requested, but its adapter classes are never touched speculatively.
+        val activeKgpVersion = if (KGP_ON_CLASSPATH) runtimeKgpVersion() else null
+        val activeAgpVersion = if (AGP_ON_CLASSPATH) runtimeAgpVersion() else null
+        val kgpAdaptersUsable = activeKgpVersion?.let(::isSupportedKgpVersion) == true
+        val agpAdaptersUsable = activeAgpVersion?.let(::isSupportedAgpVersion) == true
+        val useAgp8ClassicAdapter = activeAgpVersion
+            ?.let(::parseToolVersion)
+            ?.major == 8
 
         val ext = target.extensions.create<KmpSsotExtension>("kmpSsot").apply {
             iosProjectPath.convention("iosApp/iosApp.xcodeproj/project.pbxproj")
@@ -34,24 +61,33 @@ class KmpSsotPlugin : Plugin<Project> {
             iosInfoPlistPath.convention("iosApp/iosApp/Info.plist")
             iosAppDir.convention("iosApp")
             iosAppiconsetPath.convention("iosApp/iosApp/Assets.xcassets/AppIcon.appiconset")
+            iosPbxprojFile.convention(target.layout.projectDirectory.file(iosProjectPath))
+            iosPodfileFile.convention(target.layout.projectDirectory.file(iosPodfilePath))
+            iosInfoPlistFile.convention(target.layout.projectDirectory.file(iosInfoPlistPath))
+            iosAppDirectory.convention(target.layout.projectDirectory.dir(iosAppDir))
+            iosAppIconDirectory.convention(target.layout.projectDirectory.dir(iosAppiconsetPath))
             androidAppModule.convention("androidApp")
+            androidApplicationProjects.convention(emptyList())
             propagateAppName.convention(true)
             propagateBundleId.convention(true)
             propagateVersion.convention(true)
             propagateLocaleList.convention(true)
-            propagateLogo.convention(true)
-            propagateSharedModule.convention(true)
+            filterAndroidResources.convention(false)
+            propagateLogo.convention(false)
+            propagateSharedModule.convention(false)
             propagateAndroidSdk.convention(true)
-            propagateInteropOptIns.convention(true)
+            propagateInteropOptIns.convention(false)
             extraOptIns.convention(emptyList())
-            syncIos.convention(true)
-            sanitizeIosProject.convention(true)
+            interopProjectPaths.convention(emptyList())
+            syncIos.convention(false)
+            sanitizeIosProject.convention(false)
             cleanupLegacyLogoArtifacts.convention(false)
             dryRun.convention(false)
             backupBeforeRewrite.convention(true)
             appLogoAndroidSafeZoneRatio.convention(66.0 / 108.0)
+            iosMarketingVersion.convention(versionName)
 
-            // Auto-detect locales from {sharedModule}/src/commonMain/composeResources/values-*.
+            // Auto-detect locales from the selected Compose resources directory's values-* children.
             locales.convention(target.provider { autoDetectLocales(target, this) })
         }
 
@@ -59,7 +95,10 @@ class KmpSsotPlugin : Plugin<Project> {
         // non-managed type on KmpSsotExtension, so we create them explicitly and
         // expose them via getters on the parent.
         val extAware = ext as ExtensionAware
-        extAware.extensions.create<KmpSsotIosExtension>("ios")
+        extAware.extensions.create<KmpSsotIosExtension>("ios").apply {
+            targetNames.convention(emptyList())
+            plistConflictPolicy.convention(PlistConflictPolicy.FAIL)
+        }
         extAware.extensions.create<KmpSsotAndroidExtension>("android")
         extAware.extensions.create<KmpSsotWebExtension>("web").apply {
             generateIoWorker.convention(false)
@@ -70,56 +109,153 @@ class KmpSsotPlugin : Plugin<Project> {
             packageName.convention("kmpssot.generated")
             className.convention("BuildConfig")
             includeIdentity.convention(true)
+            allowBuildCache.convention(false)
+            fields.convention(emptyList())
         }
 
-        val sanitizeIosTask = registerSanitizeIosTask(target, ext)
-        val syncIosTask = registerSyncIosTask(target, ext)
-        val syncIosLogoTask = registerSyncIosLogoTask(target, ext)
-        val syncAndroidLogoTask = registerSyncAndroidLogoTask(target, ext)
-        val cleanupLegacyLogoTask = registerCleanupLegacyLogoTask(target, ext)
-        registerVerifyTask(target, ext)
-        registerDoctorTask(target, ext)
+        // Keep the public DSL input immutable after root evaluation while still
+        // allowing the plugin to resolve a uniquely detected application later.
+        // Tasks consume this internal sink, never a mutable public property.
+        val resolvedAndroidAppDirectory = target.objects.directoryProperty()
 
-        // syncIosConfig relies on the Info.plist having SSOT-pointing keys, so sanitize first.
-        syncIosTask.configure { dependsOn(sanitizeIosTask) }
-
-        // Aggregate lifecycle tasks so users don't have to know each task name.
-        target.tasks.register("kmpSsotSyncIos") {
-            group = "kmp-ssot"
-            description = "Run all iOS sync tasks (Info.plist sanitize, pbxproj/Podfile/Swift, app icon)."
-            dependsOn(sanitizeIosTask, syncIosTask, syncIosLogoTask)
-        }
-        target.tasks.register("kmpSsotSyncAndroid") {
-            group = "kmp-ssot"
-            description = "Run the Android launcher-icon sync."
-            dependsOn(syncAndroidLogoTask)
-        }
-        target.tasks.register("kmpSsotSync") {
-            group = "kmp-ssot"
-            description = "Run every kmp-ssot sync task (iOS + Android)."
-            dependsOn(sanitizeIosTask, syncIosTask, syncIosLogoTask, syncAndroidLogoTask)
-        }
+        registerSanitizeIosTask(target, ext)
+        registerSyncIosTask(target, ext)
+        registerSyncIosLogoTask(target, ext)
+        registerSyncAndroidLogoTask(target, ext, resolvedAndroidAppDirectory)
+        registerCleanupLegacyLogoTask(target, ext, resolvedAndroidAppDirectory)
+        val verifyTask = registerVerifyTask(target, ext)
+        val doctorTask = registerDoctorTask(target, ext, resolvedAndroidAppDirectory)
+        val checkTask = registerCheckTask(target, ext, resolvedAndroidAppDirectory)
+        val planTask = registerPlanTask(target)
 
         target.afterEvaluate {
-            if (!ext.sharedModule.isPresent) {
-                throw GradleException(
-                    "kmpSsot { sharedModule = \"...\" } is required. Set it to the directory " +
-                            "name of your KMP shared module (e.g. \"shared\" or \"composeApp\")."
-                )
+            // Freeze the authoritative root model before any subproject build
+            // script can mutate it. Diagnostic-only invocations lock without
+            // realizing values so their tasks can report provider failures.
+            if (isResilientDiagnosticInvocation(target)) {
+                disallowModelChanges(ext)
+                return@afterEvaluate
             }
-            // Fail fast on a versionName we can't turn into a versionCode (unless overridden).
-            if (ext.propagateVersion.get() && ext.versionName.isPresent && !ext.versionCodeOverride.isPresent) {
-                deriveVersionCode(ext.versionName.get()) // throws GradleException with guidance if invalid
+            // Validate the resolved model once, before any explicit mutation task runs.
+            val buildConfigIdentity = ext.buildConfig.enabled.get() && ext.buildConfig.includeIdentity.get()
+            val usesAppName = ext.propagateAppName.get() || buildConfigIdentity
+            val usesBundleId = ext.propagateBundleId.get() || buildConfigIdentity
+            val usesVersion = ext.propagateVersion.get() || buildConfigIdentity
+            val usesLocaleModel = ext.propagateLocaleList.get() || ext.filterAndroidResources.get() || buildConfigIdentity
+            val usesSharedSelection = ext.buildConfig.enabled.get() || ext.propagateInteropOptIns.get() ||
+                ext.web.generateIoWorker.get() || usesLocaleModel
+            val usesAndroidApplicationSelection =
+                (ext.propagateAppName.get() && ext.appName.isPresent) ||
+                    (ext.propagateBundleId.get() && ext.bundleIdBase.isPresent) ||
+                    (ext.propagateVersion.get() &&
+                        (ext.versionName.isPresent || ext.versionCodeOverride.isPresent)) ||
+                    ext.filterAndroidResources.get() || ext.propagateLogo.get() ||
+                    ext.cleanupLegacyLogoArtifacts.get()
+            if (usesAppName) ext.appName.orNull?.let(::validateAppName)
+            if (usesVersion) ext.versionName.orNull?.let(::validateVersionName)
+            if ((ext.propagateVersion.get() || buildConfigIdentity) &&
+                ext.versionName.isPresent && !ext.versionCodeOverride.isPresent
+            ) {
+                deriveVersionCode(ext.versionName.get())
             }
-            // Safe-zone ratio sanity.
-            if (ext.appLogoAndroidSafeZoneRatio.isPresent) {
-                val r = ext.appLogoAndroidSafeZoneRatio.get()
-                if (r <= 0.0 || r > 2.0) {
+            if (usesVersion) ext.versionCodeOverride.orNull?.let(::validateVersionCode)
+            if (usesBundleId && ext.bundleIdBase.isPresent) {
+                validateAndroidApplicationId(ext.androidApplicationId.get())
+                validateAppleBundleId(ext.iosBundleId.get())
+            }
+            if (ext.syncIos.get() && ext.propagateVersion.get()) {
+                ext.iosMarketingVersion.orNull?.let(::validateAppleMarketingVersion)
+                ext.iosBuildNumber.orNull?.let(::validateAppleBuildNumber)
+            }
+            if (usesSharedSelection) {
+                ext.resolvedSharedProjectPath.orNull?.let {
+                    validateGradleProjectPath(it, "sharedProjectPath/sharedModule")
+                }
+            }
+            if (usesAndroidApplicationSelection) {
+                val selectedApplications = ext.androidApplicationProjects.get()
+                selectedApplications.forEach { validateGradleProjectPath(it, "androidApplicationProjects") }
+                if (selectedApplications.distinct().size != selectedApplications.size) {
+                    throw GradleException("kmpSsot { androidApplicationProjects } contains duplicate project paths.")
+                }
+            }
+            if (usesAndroidApplicationSelection) {
+                validateRelativeProjectPath(ext.androidAppModule.get(), "androidAppModule")
+            }
+            if (ext.syncIos.get()) {
+                listOf(
+                    "iosProjectPath" to ext.iosProjectPath.get(),
+                    "iosPodfilePath" to ext.iosPodfilePath.get(),
+                    "iosInfoPlistPath" to ext.iosInfoPlistPath.get(),
+                    "iosAppDir" to ext.iosAppDir.get(),
+                    "iosAppiconsetPath" to ext.iosAppiconsetPath.get(),
+                ).forEach { (name, path) -> validateRelativeProjectPath(path, name) }
+                val iosTargetNames = ext.ios.targetNames.get()
+                if (iosTargetNames.distinct().size != iosTargetNames.size ||
+                    iosTargetNames.any { it.isBlank() || it.any(Char::isISOControl) }
+                ) {
+                    throw GradleException("kmpSsot { ios { targetNames } } must contain unique, non-blank names without controls.")
+                }
+                if (iosTargetNames.size > 1 && ext.propagateBundleId.get() && ext.bundleIdBase.isPresent) {
                     throw GradleException(
-                        "kmpSsot { appLogoAndroidSafeZoneRatio } must be in (0, 2] — got $r. " +
-                                "Typical values are 0.55–0.61."
+                        "kmpSsot refuses to assign one Apple bundle identifier to multiple application targets " +
+                            "(${iosTargetNames.joinToString()}). Select one target or disable propagateBundleId."
                     )
                 }
+            }
+            ext.javaVersion.orNull?.let(::validateJavaVersion)
+            if (ext.propagateInteropOptIns.get()) {
+                val interopProjects = ext.interopProjectPaths.get()
+                ext.extraOptIns.get().forEach(::validateOptInMarker)
+                interopProjects.forEach { validateGradleProjectPath(it, "interopProjectPaths") }
+                if (interopProjects.distinct().size != interopProjects.size) {
+                    throw GradleException("kmpSsot { interopProjectPaths } contains duplicate project paths.")
+                }
+            }
+            val canonicalLocales = if (usesLocaleModel) ext.canonicalLocales.get() else emptyList()
+            if (ext.filterAndroidResources.get() && canonicalLocales.isEmpty()) {
+                throw GradleException(
+                    "kmpSsot filterAndroidResources=true requires at least one locale. " +
+                        "Configure locales explicitly or add a supported values-<locale> resource directory."
+                )
+            }
+            if (ext.buildConfig.enabled.get() && !ext.resolvedSharedProjectPath.isPresent) {
+                throw GradleException(
+                    "kmpSsot buildConfig is enabled but no shared project is selected. Set " +
+                        "sharedProjectPath = \":shared\" (preferred) or legacy sharedModule = \"shared\"."
+                )
+            }
+            if (ext.buildConfig.enabled.get() && ext.buildConfig.includeIdentity.get()) {
+                val missing = buildList {
+                    if (!ext.appName.isPresent) add("appName")
+                    if (!ext.versionName.isPresent) add("versionName")
+                    if (!ext.versionCode.isPresent) add("versionName or versionCodeOverride")
+                    if (!ext.bundleIdBase.isPresent) add("bundleIdBase")
+                }
+                if (missing.isNotEmpty()) {
+                    throw GradleException(
+                        "kmpSsot buildConfig.includeIdentity requires a complete identity; missing " +
+                            missing.joinToString() + ". Set includeIdentity=false for fields-only generation."
+                    )
+                }
+            }
+            if (ext.syncIos.get() && ext.propagateSharedModule.get()) {
+                if (!ext.resolvedIosSharedModuleName.isPresent || !ext.resolvedIosPreviousSharedModuleName.isPresent) {
+                    throw GradleException(
+                        "kmpSsot shared-module migration requires both iosSharedModuleName (new) and " +
+                            "iosPreviousSharedModuleName (old). Automatic Pod/Swift rename inference is disabled."
+                    )
+                }
+                runCatching {
+                    requireSwiftModuleIdentifier(ext.resolvedIosSharedModuleName.get(), "iosSharedModuleName")
+                    requireSwiftModuleIdentifier(ext.resolvedIosPreviousSharedModuleName.get(), "iosPreviousSharedModuleName")
+                }.getOrElse { failure ->
+                    throw GradleException(failure.message ?: "Invalid iOS shared-module migration identifier", failure)
+                }
+            }
+            // Safe-zone ratio sanity.
+            if (ext.propagateLogo.get() && ext.appLogoAndroidSafeZoneRatio.isPresent) {
+                validateLogoSafeZoneRatio(ext.appLogoAndroidSafeZoneRatio.get())
             }
             // Logo: FG must be paired with exactly one BG source (PNG or colour).
             // Only validate when logo propagation is on — otherwise a stray FG with
@@ -128,6 +264,12 @@ class KmpSsotPlugin : Plugin<Project> {
                 val fgSet = ext.appLogoPngForeground.isPresent
                 val bgSet = ext.appLogoPngBackground.isPresent
                 val bgColorSet = ext.appLogoBackgroundColor.isPresent
+                if (!fgSet && !bgSet && !bgColorSet) {
+                    throw GradleException(
+                        "kmpSsot propagateLogo=true requires appLogoPngForeground plus exactly one of " +
+                            "appLogoPngBackground or appLogoBackgroundColor."
+                    )
+                }
                 if (bgSet && bgColorSet) {
                     throw GradleException(
                         "kmpSsot { appLogoPngBackground } and { appLogoBackgroundColor } are mutually " +
@@ -147,63 +289,398 @@ class KmpSsotPlugin : Plugin<Project> {
                     )
                 }
                 if (bgColorSet) validateLogoBackgroundColorHex(ext.appLogoBackgroundColor.get())
+                if (ext.syncIos.get()) {
+                    val deploymentTarget = ext.ios.deploymentTarget.orNull ?: throw GradleException(
+                        "kmpSsot universal iOS AppIcon propagation requires ios.deploymentTarget >= 12.0 " +
+                            "and Xcode 14 or newer."
+                    )
+                    validateUniversalAppIconDeploymentTarget(deploymentTarget)
+                }
             }
 
-            // Auto-cleanup of legacy logo artefacts is opt-in. When enabled, run
-            // it before the regular Android sync so the new tree lands clean.
+            // Legacy takeover is validated as part of the Android installer's
+            // transaction. The standalone cleanup task remains available for an
+            // explicitly requested one-shot recovery workflow.
             if (ext.cleanupLegacyLogoArtifacts.get()) {
-                syncAndroidLogoTask.configure { dependsOn(cleanupLegacyLogoTask) }
-            }
-        }
-
-        val appModules = mutableListOf<String>()
-        target.subprojects {
-            val sub = this
-            plugins.withId("com.android.application") {
-                appModules += sub.path
-                if (appModules.size == 2) {
-                    sub.logger.warn(
-                        "[kmpSsot] More than one com.android.application module is present — each " +
-                                "receives the same applicationId/version from kmpSsot { }. Per-module " +
-                                "identity overlays are not yet supported; set propagateBundleId = false " +
-                                "and manage divergent ids per module (e.g. phone vs Wear/TV)."
+                if (!ext.propagateLogo.get() || !ext.appLogoPngForeground.isPresent ||
+                    (!ext.appLogoPngBackground.isPresent && !ext.appLogoBackgroundColor.isPresent)
+                ) {
+                    throw GradleException(
+                        "cleanupLegacyLogoArtifacts requires an enabled, complete replacement logo plan. " +
+                            "Set propagateLogo=true plus foreground and exactly one background."
                     )
                 }
-                ClassicAndroidWiring.wireApplication(sub, ext)
-                hookAndroidLogoTask(sub, syncAndroidLogoTask, ext)
             }
-            plugins.withId("com.android.library") { ClassicAndroidWiring.wireLibrary(sub, ext) }
+            finalizeModel(ext)
+        }
+
+        val detectedAndroidApplications = linkedSetOf<String>()
+        val detectedAndroidProjects = linkedSetOf<String>()
+        val detectedKmpProjects = linkedSetOf<String>()
+        val detectedKotlinJvmProjects = linkedSetOf<String>()
+        val kmpAndroidProjectsWithoutComponents = linkedSetOf<String>()
+        val androidProjectsWithoutSharedClassloader = linkedSetOf<String>()
+        val kmpProjectsWithoutSharedClassloader = linkedSetOf<String>()
+        target.allprojects {
+            val consumerProject = this
+            plugins.withId("com.android.application") {
+                detectedAndroidApplications += consumerProject.path
+                detectedAndroidProjects += consumerProject.path
+                if (!isResilientDiagnosticInvocation(target)) {
+                    if (agpAdaptersUsable) {
+                        if (useAgp8ClassicAdapter) {
+                            Agp8ClassicAndroidWiringBridge.wireApplication(consumerProject, ext)
+                        } else {
+                            ClassicAndroidWiring.wireApplication(consumerProject, ext)
+                        }
+                    } else if (!AGP_ON_CLASSPATH) {
+                        androidProjectsWithoutSharedClassloader += consumerProject.path
+                    }
+                }
+            }
+            plugins.withId("com.android.library") {
+                detectedAndroidProjects += consumerProject.path
+                if (!isResilientDiagnosticInvocation(target)) {
+                    if (agpAdaptersUsable) {
+                        if (useAgp8ClassicAdapter) {
+                            Agp8ClassicAndroidWiringBridge.wireLibrary(consumerProject, ext)
+                        } else {
+                            ClassicAndroidWiring.wireLibrary(consumerProject, ext)
+                        }
+                    } else if (!AGP_ON_CLASSPATH) {
+                        androidProjectsWithoutSharedClassloader += consumerProject.path
+                    }
+                }
+            }
             // AGP's KMP-native Android library plugin (com.android.kotlin.multiplatform.library)
             // exposes a different extension type than the classic com.android.library, so it needs
             // its own wiring. Common for the shared module in modern KMP setups (composeApp/shared).
-            plugins.withId("com.android.kotlin.multiplatform.library") { KmpAndroidLibraryWiring.apply(sub, ext) }
+            plugins.withId("com.android.kotlin.multiplatform.library") {
+                detectedAndroidProjects += consumerProject.path
+                if (!isResilientDiagnosticInvocation(target)) {
+                    if (agpAdaptersUsable) {
+                        if (!KmpAndroidLibraryWiring.apply(consumerProject, ext)) {
+                            kmpAndroidProjectsWithoutComponents += consumerProject.path
+                        }
+                    } else if (!AGP_ON_CLASSPATH) {
+                        androidProjectsWithoutSharedClassloader += consumerProject.path
+                    }
+                }
+            }
             plugins.withId("org.jetbrains.kotlin.multiplatform") {
-                hookIosFrameworkTasks(sub, syncIosTask, syncIosLogoTask, ext)
+                detectedKmpProjects += consumerProject.path
                 // KGP is compileOnly: when the consumer declares kotlin("multiplatform")
                 // only in a subproject's plugins block, KGP lands in a sibling
                 // classloader kmp-ssot can't see, and merely CALLING a method whose
                 // body references KGP types throws NoClassDefFoundError. Guard here
                 // (outside any KGP-typed method) and degrade with guidance.
-                if (KGP_ON_CLASSPATH) {
-                    propagateInteropOptIns(sub, ext)
+                if (isResilientDiagnosticInvocation(target)) {
+                    // Diagnostic/report tasks resolve provider failures themselves;
+                    // do not let peer-plugin adapters pre-empt those reports.
+                } else if (kgpAdaptersUsable) {
+                    propagateInteropOptIns(consumerProject, ext)
                     // withId fires during the subproject's `plugins {}` block, BEFORE its
                     // `kotlin { js() … }` body runs — the targets container is still empty
                     // there. wireWebIoWorker snapshots targets (unlike the lazy matching{}
                     // hooks above), so defer it to afterEvaluate.
-                    sub.afterEvaluate {
-                        wireWebIoWorker(sub, ext)
-                        wireBuildConfig(sub, ext)
+                    consumerProject.afterEvaluate {
+                        ext.javaVersion.orNull?.let { javaVersion ->
+                            val targetVersion = org.gradle.api.JavaVersion
+                                .toVersion(validateJavaVersion(javaVersion))
+                                .toString()
+                            KotlinJvmTargetWiring.apply(consumerProject, targetVersion)
+                        }
+                        wireWebIoWorker(consumerProject, ext)
+                        wireBuildConfig(consumerProject, ext)
                     }
+                } else if (!KGP_ON_CLASSPATH) {
+                    kmpProjectsWithoutSharedClassloader += consumerProject.path
+                }
+            }
+            listOf("org.jetbrains.kotlin.android", "org.jetbrains.kotlin.jvm").forEach { pluginId ->
+                plugins.withId(pluginId) {
+                    detectedKotlinJvmProjects += consumerProject.path
+                    if (isResilientDiagnosticInvocation(target)) {
+                        // See the KMP branch above.
+                    } else if (kgpAdaptersUsable) {
+                        consumerProject.afterEvaluate {
+                            ext.javaVersion.orNull?.let { javaVersion ->
+                                val targetVersion = org.gradle.api.JavaVersion
+                                    .toVersion(validateJavaVersion(javaVersion))
+                                    .toString()
+                                KotlinJvmTargetWiring.apply(consumerProject, targetVersion)
+                            }
+                        }
+                    } else if (!KGP_ON_CLASSPATH) {
+                        kmpProjectsWithoutSharedClassloader += consumerProject.path
+                    }
+                }
+            }
+        }
+
+        target.gradle.projectsEvaluated {
+            val diagnosticSelection = runCatching { ext.androidApplicationProjects.get() }.getOrDefault(emptyList())
+            val diagnosticApplications = diagnosticSelection.ifEmpty { detectedAndroidApplications.toList() }
+            val detectedDirectories = diagnosticApplications.mapNotNull { path ->
+                target.findProject(path)?.layout?.projectDirectory?.asFile
+            }
+            val explicitAndroidDirectory = runCatching { ext.androidAppDirectory.asFile.orNull }.getOrNull()
+            val legacyDirectory = runCatching {
+                target.layout.projectDirectory.dir(ext.androidAppModule.get()).asFile
+            }.getOrNull()
+            val manifestDirectories = detectedDirectories.ifEmpty {
+                listOfNotNull(explicitAndroidDirectory ?: legacyDirectory)
+            }
+            val resourceDirectories = listOfNotNull(explicitAndroidDirectory).ifEmpty {
+                detectedDirectories.ifEmpty { listOfNotNull(legacyDirectory) }
+            }
+            verifyTask.configure {
+                androidApplicationProjects.set(diagnosticApplications)
+                androidAppDirectories.set(manifestDirectories.map { it.path })
+            }
+            fun diagnosticBoolean(value: () -> Boolean): Boolean = runCatching(value).getOrDefault(false)
+            val diagnosticNeedsAndroidIntegration = detectedAndroidProjects.isNotEmpty() && (
+                diagnosticBoolean { ext.propagateAppName.get() && ext.appName.isPresent } ||
+                    diagnosticBoolean { ext.propagateBundleId.get() && ext.bundleIdBase.isPresent } ||
+                    diagnosticBoolean {
+                        ext.propagateVersion.get() &&
+                            (ext.versionName.isPresent || ext.versionCodeOverride.isPresent)
+                    } ||
+                    diagnosticBoolean { ext.propagateAndroidSdk.get() && listOf(
+                        ext.android.compileSdk,
+                        ext.android.minSdk,
+                        ext.android.targetSdk,
+                        ext.android.ndkVersion,
+                    ).any { it.isPresent } } ||
+                    diagnosticBoolean { ext.javaVersion.isPresent } ||
+                    diagnosticBoolean { ext.filterAndroidResources.get() }
+                )
+            val diagnosticNeedsKgpIntegration =
+                diagnosticBoolean { ext.propagateInteropOptIns.get() } ||
+                    diagnosticBoolean { ext.web.generateIoWorker.get() } ||
+                    diagnosticBoolean { ext.buildConfig.enabled.get() } ||
+                    (diagnosticBoolean { ext.javaVersion.isPresent } &&
+                        (detectedKmpProjects.isNotEmpty() || detectedKotlinJvmProjects.isNotEmpty()))
+            listOf(doctorTask, checkTask).forEach { diagnosticTask ->
+                diagnosticTask.configure {
+                    detectedAndroidApplicationProjects.set(detectedAndroidApplications.toList())
+                    androidManifestPaths.set(
+                        manifestDirectories.map { it.resolve("src/main/AndroidManifest.xml").path },
+                    )
+                    androidResPaths.set(resourceDirectories.map { it.resolve("src/main/res").path })
+                    agpRequired.set(diagnosticNeedsAndroidIntegration)
+                    kgpRequired.set(diagnosticNeedsKgpIntegration)
+                }
+            }
+            configurePlanTask(
+                root = target,
+                ext = ext,
+                planTask = planTask,
+                detectedApplications = detectedAndroidApplications.toList(),
+                androidResourceDirectories = resourceDirectories.map { it.resolve("src/main/res") },
+            )
+            if (isResilientDiagnosticInvocation(target)) {
+                return@projectsEvaluated
+            }
+            if (detectedAndroidProjects.isNotEmpty() && ext.propagateAndroidSdk.get()) {
+                validateSdkLevels(
+                    ext.android.compileSdk.orNull,
+                    ext.android.minSdk.orNull,
+                    ext.android.targetSdk.orNull,
+                )
+                ext.android.ndkVersion.orNull?.let(::validateNdkVersion)
+            }
+            if (detectedAndroidApplications.isNotEmpty() && ext.propagateVersion.get()) {
+                ext.android.publishedVersionCode.orNull?.let { published ->
+                    validatePublishedVersionCode(ext.versionCode.orNull, published)
+                }
+            }
+            val needsApplicationSelection =
+                (ext.propagateAppName.get() && ext.appName.isPresent) ||
+                    (ext.propagateBundleId.get() && ext.bundleIdBase.isPresent) ||
+                    (ext.propagateVersion.get() &&
+                        (ext.versionName.isPresent || ext.versionCodeOverride.isPresent)) ||
+                    ext.filterAndroidResources.get()
+            val usesApplicationSelection = needsApplicationSelection || ext.propagateLogo.get() ||
+                ext.cleanupLegacyLogoArtifacts.get()
+            val selectedApplications = if (usesApplicationSelection) {
+                ext.androidApplicationProjects.get()
+            } else {
+                emptyList()
+            }
+            when {
+                selectedApplications.isEmpty() && detectedAndroidApplications.size > 1 && needsApplicationSelection ->
+                    throw GradleException(
+                        "kmpSsot found multiple Android application projects while app-scoped values are enabled: " +
+                            "${detectedAndroidApplications.joinToString()}. Select the intended targets " +
+                            "explicitly with androidApplicationProjects.add(\":app\")."
+                    )
+
+                selectedApplications.isNotEmpty() -> {
+                    val unknown = selectedApplications.toSet() - detectedAndroidApplications
+                    if (unknown.isNotEmpty()) {
+                        throw GradleException(
+                            "kmpSsot { androidApplicationProjects } contains project paths that do not " +
+                                "apply com.android.application: ${unknown.sorted().joinToString()}."
+                        )
+                    }
+                    if (selectedApplications.size > 1 && ext.propagateBundleId.get() && ext.bundleIdBase.isPresent) {
+                        throw GradleException(
+                            "kmpSsot refuses to assign one Android applicationId to multiple selected apps " +
+                                "(${selectedApplications.joinToString()}). Select one app or disable " +
+                                "propagateBundleId and configure unique ids in each app module."
+                        )
+                    }
+                }
+            }
+
+            val effectiveApplications = selectedApplications.ifEmpty { detectedAndroidApplications.toList() }
+            if ((ext.propagateLogo.get() || ext.cleanupLegacyLogoArtifacts.get()) &&
+                effectiveApplications.size > 1
+            ) {
+                throw GradleException(
+                    "kmpSsot Android logo installation has one output sink but resolved multiple " +
+                        "Android application projects: ${effectiveApplications.joinToString()}. " +
+                        "Select exactly one with androidApplicationProjects.add(\":app\")."
+                )
+            }
+
+            val resolvedApplicationPath = selectedApplications.singleOrNull()
+                ?: detectedAndroidApplications.singleOrNull()
+            val detectedOrLegacyDirectory = resolvedApplicationPath
+                ?.let(target::findProject)
+                ?.layout
+                ?.projectDirectory
+                ?: if (usesApplicationSelection) {
+                    target.layout.projectDirectory.dir(ext.androidAppModule.get())
                 } else {
-                    sub.logger.warn(
-                        "[kmpSsot] Kotlin Multiplatform plugin is applied to ${sub.path} but its classes " +
-                                "are not visible to kmp-ssot's classloader — interop opt-in propagation and " +
-                                "web.generateIoWorker are skipped. Declare kotlin(\"multiplatform\") " +
-                                "(apply false) in the ROOT project's plugins block so both plugins share " +
-                                "a classloader."
+                    target.layout.projectDirectory
+                }
+            resolvedAndroidAppDirectory.set(ext.androidAppDirectory.orElse(detectedOrLegacyDirectory))
+            resolvedAndroidAppDirectory.finalizeValue()
+
+            val needsKgpIntegration = ext.propagateInteropOptIns.get() ||
+                ext.web.generateIoWorker.get() || ext.buildConfig.enabled.get() ||
+                (ext.javaVersion.isPresent &&
+                    (detectedKmpProjects.isNotEmpty() || detectedKotlinJvmProjects.isNotEmpty()))
+            doctorTask.configure { kgpRequired.set(needsKgpIntegration) }
+            checkTask.configure { kgpRequired.set(needsKgpIntegration) }
+            if (needsKgpIntegration && kmpProjectsWithoutSharedClassloader.isNotEmpty()) {
+                throw GradleException(
+                    "kmpSsot cannot configure requested KMP integrations in " +
+                        "${kmpProjectsWithoutSharedClassloader.joinToString()}: Kotlin Gradle plugin " +
+                        "classes are isolated in a sibling classloader. Declare " +
+                        "kotlin(\"multiplatform\") (apply false) in the root plugins block so KGP and " +
+                        "kmp-ssot share a classloader. No requested integration was silently skipped."
+                    )
+            }
+
+            val needsAndroidIntegration = detectedAndroidProjects.isNotEmpty() && (
+                (ext.propagateAppName.get() && ext.appName.isPresent) ||
+                    (ext.propagateBundleId.get() && ext.bundleIdBase.isPresent) ||
+                    (ext.propagateVersion.get() &&
+                        (ext.versionName.isPresent || ext.versionCodeOverride.isPresent)) ||
+                    (ext.propagateAndroidSdk.get() && listOf(
+                        ext.android.compileSdk,
+                        ext.android.minSdk,
+                        ext.android.targetSdk,
+                        ext.android.ndkVersion,
+                    ).any { it.isPresent }) ||
+                    ext.javaVersion.isPresent || ext.filterAndroidResources.get()
+                )
+            if (needsAndroidIntegration && androidProjectsWithoutSharedClassloader.isNotEmpty()) {
+                throw GradleException(
+                    "kmpSsot cannot configure requested Android integrations in " +
+                        "${androidProjectsWithoutSharedClassloader.joinToString()}: AGP classes are " +
+                        "isolated in a sibling classloader. Declare the Android plugin versions with " +
+                        "apply false in the root plugins block. No requested Android value was silently skipped."
+                )
+            }
+            if (needsAndroidIntegration && AGP_ON_CLASSPATH) {
+                val agpVersion = activeAgpVersion
+                    ?: throw GradleException(
+                        "[KMPSSOT-COMPAT-001] Could not determine the active Android Gradle plugin version. " +
+                            "Supported AGP range is 8.5.2 through 9.1.x."
+                    )
+                if (!isSupportedAgpVersion(agpVersion)) {
+                    throw GradleException(
+                        "[KMPSSOT-COMPAT-002] Unsupported Android Gradle plugin $agpVersion; " +
+                            "this kmp-ssot build supports AGP 8.5.2 through 9.1.x."
                     )
                 }
             }
+            val needsKmpAndroidSdk = ext.propagateAndroidSdk.get() &&
+                (ext.android.compileSdk.isPresent || ext.android.minSdk.isPresent)
+            if (needsKmpAndroidSdk && kmpAndroidProjectsWithoutComponents.isNotEmpty()) {
+                throw GradleException(
+                    "[KMPSSOT-COMPAT-005] The KMP Android components extension was unavailable in " +
+                        kmpAndroidProjectsWithoutComponents.joinToString() +
+                        "; compileSdk/minSdk were not silently skipped. Verify the supported AGP/KGP plugin shape."
+                )
+            }
+            if (needsKgpIntegration && KGP_ON_CLASSPATH) {
+                val kgpVersion = activeKgpVersion
+                    ?: throw GradleException(
+                        "[KMPSSOT-COMPAT-003] Could not determine the active Kotlin Gradle plugin version. " +
+                            "This kmp-ssot build supports KGP 2.4.x."
+                    )
+                if (!isSupportedKgpVersion(kgpVersion)) {
+                    throw GradleException(
+                        "[KMPSSOT-COMPAT-004] Unsupported Kotlin Gradle plugin $kgpVersion; " +
+                            "this kmp-ssot build supports KGP 2.4.x."
+                    )
+                }
+            }
+
+            val selectedSharedProject = ext.resolvedSharedProjectPath.orNull
+            if (ext.buildConfig.enabled.get() && selectedSharedProject !in detectedKmpProjects) {
+                throw GradleException(
+                    "kmpSsot buildConfig project '$selectedSharedProject' does not apply " +
+                        "org.jetbrains.kotlin.multiplatform."
+                )
+            }
+            if (ext.propagateInteropOptIns.get()) {
+                val interopProjects = ext.interopProjectPaths.get().ifEmpty {
+                    listOfNotNull(selectedSharedProject)
+                }
+                if (interopProjects.isEmpty()) {
+                    throw GradleException(
+                        "kmpSsot interop opt-ins need an explicit KMP scope. Set " +
+                            "interopProjectPaths.add(\":shared\") or sharedProjectPath."
+                    )
+                }
+                val invalid = interopProjects.toSet() - detectedKmpProjects
+                if (invalid.isNotEmpty()) {
+                    throw GradleException(
+                        "kmpSsot interop project selector(s) do not apply Kotlin Multiplatform: " +
+                            invalid.sorted().joinToString()
+                    )
+                }
+            }
+            if (ext.web.generateIoWorker.get()) {
+                val webProjects = ext.web.projectPaths.get()
+                webProjects.forEach { validateGradleProjectPath(it, "web.projectPaths") }
+                if (webProjects.distinct().size != webProjects.size) {
+                    throw GradleException("kmpSsot { web { projectPaths } } contains duplicate project paths.")
+                }
+                val effectiveWebProjects = webProjects.ifEmpty {
+                    listOfNotNull(selectedSharedProject)
+                }
+                if (effectiveWebProjects.isEmpty()) {
+                    throw GradleException(
+                        "kmpSsot web worker generation needs an explicit KMP project. Set " +
+                            "web.projectPaths.add(\":shared\") or sharedProjectPath = \":shared\"."
+                    )
+                }
+                val invalid = effectiveWebProjects.toSet() - detectedKmpProjects
+                if (invalid.isNotEmpty()) {
+                    throw GradleException(
+                        "kmpSsot web project selector(s) do not apply Kotlin Multiplatform: " +
+                            invalid.sorted().joinToString()
+                    )
+                }
+            }
+
         }
     }
 
@@ -215,10 +692,17 @@ class KmpSsotPlugin : Plugin<Project> {
      * targets, where the markers resolve — harmless and absent elsewhere.
      */
     private fun propagateInteropOptIns(project: Project, ext: KmpSsotExtension) {
-        if (!ext.propagateInteropOptIns.get()) return
         val kmp = project.extensions.findByType(KotlinMultiplatformExtension::class.java) ?: return
-        val markers = interopOptIns(ext.extraOptIns.getOrElse(emptyList()))
-        if (markers.isEmpty()) return
+        val markers = project.provider {
+            val selectedProjects = ext.interopProjectPaths.get().ifEmpty {
+                listOfNotNull(ext.resolvedSharedProjectPath.orNull)
+            }
+            if (ext.propagateInteropOptIns.get() && project.path in selectedProjects) {
+                interopOptIns(ext.extraOptIns.get())
+            } else {
+                emptyList()
+            }
+        }
         kmp.targets.matching { it.platformType == KotlinPlatformType.native }.configureEach {
             compilations.configureEach {
                 compileTaskProvider.configure {
@@ -231,23 +715,40 @@ class KmpSsotPlugin : Plugin<Project> {
     // --- Web IO worker generation -------------------------------------------
 
     /**
-     * Generate the inline Web Worker offload helper into the module's `jsMain`
-     * source set when `kmpSsot { web { generateIoWorker = true } }`. JS target
-     * only — a wasmJs-only module is logged and skipped.
+     * Generate the inline Web Worker offload helper into each explicitly selected
+     * Kotlin/JS target source set when
+     * `kmpSsot { web { generateIoWorker = true } }`. wasmJs and non-JS selectors
+     * are rejected.
      */
     private fun wireWebIoWorker(project: Project, ext: KmpSsotExtension) {
         if (!ext.web.generateIoWorker.get()) return
-        val kmp = project.extensions.findByType(KotlinMultiplatformExtension::class.java) ?: return
-        val jsTargets = kmp.targets.filter { it.platformType == KotlinPlatformType.js }
-        if (jsTargets.isEmpty()) {
-            if (kmp.targets.any { it.platformType == KotlinPlatformType.wasm }) {
-                project.logger.warn(
-                    "[kmpSsot] web.generateIoWorker currently supports the js() target only; " +
-                            "wasmJs worker generation is not yet implemented — skipping ${project.path}."
-                )
-            }
-            return
+        val selectedProjects = ext.web.projectPaths.get().ifEmpty {
+            listOfNotNull(ext.resolvedSharedProjectPath.orNull)
         }
+        if (project.path !in selectedProjects) return
+        val kmp = project.extensions.findByType(KotlinMultiplatformExtension::class.java) ?: return
+        val requestedNames = ext.web.browserTargetNames.get()
+        if (requestedNames.isEmpty()) {
+            throw GradleException(
+                "kmpSsot web worker generation is enabled for ${project.path}, but no browser target " +
+                    "was selected. Add web { browserTargetNames.add(\"js\") } (or the exact custom " +
+                    "Kotlin/JS browser target name). Browser capability is never inferred for Node targets."
+            )
+        }
+        if (requestedNames.any { it.isBlank() } || requestedNames.distinct().size != requestedNames.size) {
+            throw GradleException(
+                "kmpSsot { web { browserTargetNames } } must contain unique, non-blank target names."
+            )
+        }
+        val allTargetsByName = kmp.targets.associateBy { it.targetName }
+        val invalidTargets = requestedNames.filter { allTargetsByName[it]?.platformType != KotlinPlatformType.js }
+        if (invalidTargets.isNotEmpty()) {
+            throw GradleException(
+                "kmpSsot browser target selector(s) ${invalidTargets.joinToString()} in ${project.path} " +
+                    "do not resolve to Kotlin/JS targets. wasmJs and Node-only targets are unsupported."
+            )
+        }
+        val jsTargets = requestedNames.map { allTargetsByName.getValue(it) }
 
         // Validate the destination package up front — a malformed value would
         // otherwise surface as a confusing compile error inside the generated file.
@@ -281,13 +782,14 @@ class KmpSsotPlugin : Plugin<Project> {
 
     /**
      * Generate the runtime [generateBuildConfigSource] object into the shared
-     * module's `commonMain`. Scoped to the shared module only (by name), KGP-guarded
-     * by the caller, deferred to `afterEvaluate` so the source sets exist.
+     * module's `commonMain`. Scoped to the resolved shared project path,
+     * KGP-guarded by the caller, and deferred to `afterEvaluate` so the source
+     * sets exist.
      */
     private fun wireBuildConfig(project: Project, ext: KmpSsotExtension) {
         val cfg = ext.buildConfig
         if (!cfg.enabled.get()) return
-        if (!ext.sharedModule.isPresent || project.name != ext.sharedModule.get()) return
+        if (!ext.resolvedSharedProjectPath.isPresent || project.path != ext.resolvedSharedProjectPath.get()) return
         val kmp = project.extensions.findByType(KotlinMultiplatformExtension::class.java) ?: return
 
         val pkg = cfg.packageName.get()
@@ -306,12 +808,26 @@ class KmpSsotPlugin : Plugin<Project> {
             packageName.set(cfg.packageName)
             className.set(cfg.className)
             includeIdentity.set(cfg.includeIdentity)
+            allowBuildCache.set(cfg.allowBuildCache)
             appName.set(ext.appName.orElse(""))
             versionName.set(ext.versionName.orElse(""))
             versionCode.set(ext.versionCode.orElse(0))
             androidApplicationId.set(ext.androidApplicationId.orElse(""))
             iosBundleId.set(ext.iosBundleId.orElse(""))
-            locales.set(ext.locales)
+            locales.set(ext.canonicalLocales)
+            identityInputs.set(project.provider {
+                if (!cfg.includeIdentity.get()) {
+                    emptyList()
+                } else {
+                    listOf(
+                        ext.appName.orNull.orEmpty(),
+                        ext.versionName.orNull.orEmpty(),
+                        ext.versionCode.orNull?.toString().orEmpty(),
+                        ext.androidApplicationId.orNull.orEmpty(),
+                        ext.iosBundleId.orNull.orEmpty(),
+                    ) + ext.canonicalLocales.get()
+                }
+            })
             customFields.set(cfg.fields)
             outputDir.set(genDir)
             dryRun.set(ext.dryRun)
@@ -324,17 +840,15 @@ class KmpSsotPlugin : Plugin<Project> {
     // --- Locale auto-detection ----------------------------------------------
 
     private fun autoDetectLocales(root: Project, ext: KmpSsotExtension): List<String> {
-        if (!ext.sharedModule.isPresent) return emptyList()
-        val sharedDir = root.file(ext.sharedModule.get())
-        val composeRes = sharedDir.resolve("src/commonMain/composeResources")
-        if (!composeRes.isDirectory) return emptyList()
-        return composeRes
-            .listFiles { f -> f.isDirectory && f.name.startsWith("values-") }
-            ?.map { it.name.removePrefix("values-") }
-            ?.filter { looksLikeLocaleQualifier(it) }
-            ?.distinct()
-            ?.sorted()
-            ?: emptyList()
+        val composeRes = when {
+            ext.composeResourcesDirectory.isPresent -> ext.composeResourcesDirectory.get().asFile
+            ext.resolvedSharedProjectPath.isPresent -> {
+                val sharedProject = root.findProject(ext.resolvedSharedProjectPath.get()) ?: return emptyList()
+                sharedProject.projectDir.resolve("src/commonMain/composeResources")
+            }
+            else -> return emptyList()
+        }
+        return detectComposeResourceLocales(composeRes)
     }
 
     // --- Task registration --------------------------------------------------
@@ -343,13 +857,20 @@ class KmpSsotPlugin : Plugin<Project> {
         root: Project,
         ext: KmpSsotExtension,
     ): TaskProvider<SanitizeIosProjectTask> =
-        root.tasks.register<SanitizeIosProjectTask>("sanitizeIosProject") {
+        root.tasks.register<SanitizeIosProjectTask>("kmpSsotSanitizeIosProject") {
             onlyIf { ext.syncIos.get() && ext.sanitizeIosProject.get() }
-            infoPlistFile.set(root.layout.projectDirectory.file(ext.iosInfoPlistPath))
-            propagateAppName.set(ext.propagateAppName)
-            propagateVersion.set(ext.propagateVersion)
+            projectRootDir.set(root.layout.projectDirectory)
+            infoPlistFile.set(ext.iosInfoPlistFile)
+            propagateAppName.set(ext.appName.map { ext.propagateAppName.get() }.orElse(false))
+            propagateMarketingVersion.set(
+                ext.iosMarketingVersion.map { ext.propagateVersion.get() }.orElse(false)
+            )
+            propagateBuildNumber.set(
+                ext.iosBuildNumber.map { ext.propagateVersion.get() }.orElse(false)
+            )
             usesNonExemptEncryption.set(ext.ios.usesNonExemptEncryption)
             proMotion120Hz.set(ext.ios.proMotion120Hz)
+            conflictPolicy.set(ext.ios.plistConflictPolicy)
             dryRun.set(ext.dryRun)
             backup.set(ext.backupBeforeRewrite)
         }
@@ -358,23 +879,34 @@ class KmpSsotPlugin : Plugin<Project> {
         root: Project,
         ext: KmpSsotExtension,
     ): TaskProvider<SyncIosConfigTask> =
-        root.tasks.register<SyncIosConfigTask>("syncIosConfig") {
+        root.tasks.register<SyncIosConfigTask>("kmpSsotSyncIosConfig") {
             onlyIf { ext.syncIos.get() }
-            pbxprojFile.set(root.layout.projectDirectory.file(ext.iosProjectPath))
-            podfile.set(root.layout.projectDirectory.file(ext.iosPodfilePath))
-            iosAppDir.set(root.layout.projectDirectory.dir(ext.iosAppDir))
-            versionName.set(ext.versionName)
-            versionCode.set(ext.versionCode)
+            projectRootDir.set(root.layout.projectDirectory)
+            pbxprojFile.set(ext.iosPbxprojFile)
+            infoPlistFile.set(ext.iosInfoPlistFile)
+            podfile.set(ext.iosPodfileFile)
+            iosAppDir.set(ext.iosAppDirectory)
+            appiconsetDir.set(ext.iosAppIconDirectory)
+            marketingVersion.set(ext.iosMarketingVersion)
+            buildNumber.set(ext.iosBuildNumber)
             appName.set(ext.appName)
-            if (ext.bundleIdBase.isPresent) bundleId.set(ext.iosBundleId)
-            locales.set(ext.locales)
-            sharedModule.set(ext.sharedModule)
-            oldSharedModuleName.set(ext.oldSharedModuleName)
+            bundleId.set(ext.iosBundleId)
+            locales.set(ext.canonicalLocales)
+            targetNames.set(ext.ios.targetNames)
+            iosSharedModuleName.set(ext.resolvedIosSharedModuleName)
+            iosPreviousSharedModuleName.set(ext.resolvedIosPreviousSharedModuleName)
             propagateVersion.set(ext.propagateVersion)
-            propagateAppName.set(ext.propagateAppName)
-            propagateBundleId.set(ext.propagateBundleId)
-            propagateLocaleList.set(ext.propagateLocaleList)
+            propagateAppName.set(ext.appName.map { ext.propagateAppName.get() }.orElse(false))
+            propagateBundleId.set(ext.bundleIdBase.map { ext.propagateBundleId.get() }.orElse(false))
+            propagateLocaleList.set(
+                ext.canonicalLocales.map { it.isNotEmpty() && ext.propagateLocaleList.get() }
+            )
             propagateSharedModule.set(ext.propagateSharedModule)
+            propagateLogo.set(ext.propagateLogo)
+            sanitizeSourcePlist.set(ext.sanitizeIosProject)
+            usesNonExemptEncryption.set(ext.ios.usesNonExemptEncryption)
+            proMotion120Hz.set(ext.ios.proMotion120Hz)
+            plistConflictPolicy.set(ext.ios.plistConflictPolicy)
             dryRun.set(ext.dryRun)
             backup.set(ext.backupBeforeRewrite)
         }
@@ -383,18 +915,14 @@ class KmpSsotPlugin : Plugin<Project> {
         root: Project,
         ext: KmpSsotExtension,
     ): TaskProvider<SyncIosLogoTask> =
-        root.tasks.register<SyncIosLogoTask>("syncIosLogo") {
-            onlyIf {
-                ext.syncIos.get() && ext.propagateLogo.get() &&
-                        ext.appLogoPngForeground.isPresent &&
-                        (ext.appLogoPngBackground.isPresent || ext.appLogoBackgroundColor.isPresent)
-            }
+        root.tasks.register<SyncIosLogoTask>("kmpSsotSyncIosLogo") {
+            onlyIf { ext.syncIos.get() && ext.propagateLogo.get() }
             foregroundPng.set(ext.appLogoPngForeground)
+            projectRootDir.set(root.layout.projectDirectory)
             backgroundPng.set(ext.appLogoPngBackground)
             backgroundColorHex.set(ext.appLogoBackgroundColor)
-            val iconDir = root.layout.projectDirectory.dir(ext.iosAppiconsetPath)
-            appiconsetDir.set(iconDir)
-            outputFiles.from(iconDir.map { dir -> SyncIosLogoTask.OUTPUT_FILE_NAMES.map { dir.file(it) } })
+            appiconsetDir.set(ext.iosAppIconDirectory)
+            outputFiles.from(ext.iosAppIconDirectory.map { dir -> SyncIosLogoTask.OUTPUT_FILE_NAMES.map { dir.file(it) } })
             dryRun.set(ext.dryRun)
             backup.set(ext.backupBeforeRewrite)
         }
@@ -402,20 +930,20 @@ class KmpSsotPlugin : Plugin<Project> {
     private fun registerSyncAndroidLogoTask(
         root: Project,
         ext: KmpSsotExtension,
+        resolvedAndroidAppDirectory: org.gradle.api.file.DirectoryProperty,
     ): TaskProvider<SyncAndroidLogoTask> =
-        root.tasks.register<SyncAndroidLogoTask>("syncAndroidLogo") {
-            onlyIf {
-                ext.propagateLogo.get() &&
-                        ext.appLogoPngForeground.isPresent &&
-                        (ext.appLogoPngBackground.isPresent || ext.appLogoBackgroundColor.isPresent)
-            }
+        root.tasks.register<SyncAndroidLogoTask>("kmpSsotSyncAndroidLogo") {
+            onlyIf { ext.propagateLogo.get() }
             foregroundPng.set(ext.appLogoPngForeground)
+            projectRootDir.set(root.layout.projectDirectory)
             backgroundPng.set(ext.appLogoPngBackground)
             backgroundColorHex.set(ext.appLogoBackgroundColor)
             safeZoneRatio.set(ext.appLogoAndroidSafeZoneRatio)
+            emitMonochrome.set(ext.android.compileSdk.map { it >= 33 }.orElse(false))
+            cleanupLegacyArtifacts.set(ext.cleanupLegacyLogoArtifacts)
             dryRun.set(ext.dryRun)
             // Resolve lazily — androidAppModule may not be set yet at register time.
-            val resDir = root.layout.projectDirectory.dir(ext.androidAppModule.map { "$it/src/main/res" })
+            val resDir = resolvedAndroidAppDirectory.dir("src/main/res")
             androidResDir.set(resDir)
             outputFiles.from(resDir.map { dir -> SyncAndroidLogoTask.OUTPUT_RELATIVE_PATHS.map { dir.file(it) } })
         }
@@ -423,12 +951,13 @@ class KmpSsotPlugin : Plugin<Project> {
     private fun registerCleanupLegacyLogoTask(
         root: Project,
         ext: KmpSsotExtension,
+        resolvedAndroidAppDirectory: org.gradle.api.file.DirectoryProperty,
     ): TaskProvider<CleanupLegacyAppLogoArtifactsTask> =
-        root.tasks.register<CleanupLegacyAppLogoArtifactsTask>("cleanupLegacyAppLogoArtifacts") {
+        root.tasks.register<CleanupLegacyAppLogoArtifactsTask>("kmpSsotCleanupLegacyAppLogoArtifacts") {
+            onlyIf { ext.cleanupLegacyLogoArtifacts.get() }
+            projectRootDir.set(root.layout.projectDirectory)
             dryRun.set(ext.dryRun)
-            androidResDir.set(root.layout.projectDirectory.dir(
-                ext.androidAppModule.map { "$it/src/main/res" }
-            ))
+            androidResDir.set(resolvedAndroidAppDirectory.dir("src/main/res"))
         }
 
     private fun registerVerifyTask(root: Project, ext: KmpSsotExtension): TaskProvider<KmpSsotVerifyTask> =
@@ -436,16 +965,13 @@ class KmpSsotPlugin : Plugin<Project> {
             appName.set(ext.appName)
             versionName.set(ext.versionName)
             versionCode.set(ext.versionCode)
-            if (ext.bundleIdBase.isPresent) {
-                androidApplicationId.set(ext.androidApplicationId)
-                iosBundleId.set(ext.iosBundleId)
-            }
-            locales.set(ext.locales)
-            sharedModule.set(ext.sharedModule)
-            pbxprojFile.set(root.layout.projectDirectory.file(ext.iosProjectPath))
-            infoPlistFile.set(root.layout.projectDirectory.file(ext.iosInfoPlistPath))
-            podfile.set(root.layout.projectDirectory.file(ext.iosPodfilePath))
-            androidAppModule.set(ext.androidAppModule)
+            androidApplicationId.set(ext.androidApplicationId)
+            iosBundleId.set(ext.iosBundleId)
+            locales.set(ext.canonicalLocales)
+            iosSharedModuleName.set(ext.resolvedIosSharedModuleName)
+            pbxprojFile.set(ext.iosPbxprojFile)
+            infoPlistFile.set(ext.iosInfoPlistFile)
+            podfile.set(ext.iosPodfileFile)
             compileSdk.set(ext.android.compileSdk)
             minSdk.set(ext.android.minSdk)
             targetSdk.set(ext.android.targetSdk)
@@ -458,53 +984,360 @@ class KmpSsotPlugin : Plugin<Project> {
             logoBackgroundColor.set(ext.appLogoBackgroundColor)
         }
 
-    private fun registerDoctorTask(root: Project, ext: KmpSsotExtension): TaskProvider<KmpSsotDoctorTask> =
+    private fun registerDoctorTask(
+        root: Project,
+        ext: KmpSsotExtension,
+        resolvedAndroidAppDirectory: org.gradle.api.file.DirectoryProperty,
+    ): TaskProvider<KmpSsotDoctorTask> =
         root.tasks.register<KmpSsotDoctorTask>("kmpSsotDoctor") {
-            propagateAppName.set(ext.propagateAppName)
-            appName.set(ext.appName)
-            propagateVersion.set(ext.propagateVersion)
-            versionName.set(ext.versionName)
-            hasVersionCodeOverride.set(ext.versionCodeOverride.map { true }.orElse(false))
-            propagateLocaleList.set(ext.propagateLocaleList)
-            locales.set(ext.locales)
-            syncIos.set(ext.syncIos)
-            manifestFile.set(root.layout.projectDirectory.file(ext.androidAppModule.map { "$it/src/main/AndroidManifest.xml" }))
-            infoPlistFile.set(root.layout.projectDirectory.file(ext.iosInfoPlistPath))
-            pbxprojFile.set(root.layout.projectDirectory.file(ext.iosProjectPath))
-            appiconsetDir.set(root.layout.projectDirectory.dir(ext.iosAppiconsetPath))
-            androidResDir.set(root.layout.projectDirectory.dir(ext.androidAppModule.map { "$it/src/main/res" }))
-            kgpOnClasspath.set(KGP_ON_CLASSPATH)
+            bindDiagnosticInputs(root, ext, resolvedAndroidAppDirectory)
         }
 
-    // --- Hooking new tasks --------------------------------------------------
-
-    private fun hookIosFrameworkTasks(
-        project: Project,
-        syncIosTask: TaskProvider<SyncIosConfigTask>,
-        syncIosLogoTask: TaskProvider<SyncIosLogoTask>,
+    private fun registerCheckTask(
+        root: Project,
         ext: KmpSsotExtension,
+        resolvedAndroidAppDirectory: org.gradle.api.file.DirectoryProperty,
+    ): TaskProvider<KmpSsotCheckTask> =
+        root.tasks.register<KmpSsotCheckTask>("kmpSsotCheck") {
+            bindDiagnosticInputs(root, ext, resolvedAndroidAppDirectory)
+        }
+
+    private fun registerPlanTask(root: Project): TaskProvider<KmpSsotPlanTask> =
+        root.tasks.register<KmpSsotPlanTask>("kmpSsotPlan")
+
+    private fun configurePlanTask(
+        root: Project,
+        ext: KmpSsotExtension,
+        planTask: TaskProvider<KmpSsotPlanTask>,
+        detectedApplications: List<String>,
+        androidResourceDirectories: List<java.io.File>,
     ) {
-        if (!ext.syncIos.get()) return
-        project.tasks.matching { isIosFrameworkLinkTaskName(it.name) }.configureEach {
-            dependsOn(syncIosTask)
-            dependsOn(syncIosLogoTask)
+        planTask.configure {
+            operations.set(root.provider {
+                buildList {
+                    if (ext.syncIos.get() && ext.sanitizeIosProject.get()) {
+                        add("sanitize source Info.plist in the iOS text transaction")
+                    }
+                    if (ext.syncIos.get()) add("migrate selected Xcode build settings")
+                    if (ext.syncIos.get() && ext.propagateSharedModule.get()) {
+                        add("migrate explicit Pod/Swift module references")
+                    }
+                    if (ext.syncIos.get() && ext.propagateLogo.get()) add("install iOS AppIcon assets")
+                    if (ext.propagateLogo.get()) add("install Android launcher assets")
+                    if (ext.cleanupLegacyLogoArtifacts.get()) {
+                        add("transactionally take over legacy Android logo artifacts")
+                    }
+                }
+            })
+            mutationPaths.set(root.provider {
+                buildList {
+                    fun addTextTarget(file: java.io.File) {
+                        add(file.path)
+                        if (ext.backupBeforeRewrite.get()) add(file.path + BACKUP_SUFFIX)
+                    }
+                    if (ext.syncIos.get()) {
+                        addTextTarget(ext.iosPbxprojFile.get().asFile)
+                        add(root.layout.projectDirectory.file(".gradle/kmpssot/rewrite.lock").asFile.path)
+                    }
+                    if (ext.syncIos.get() && ext.sanitizeIosProject.get()) {
+                        addTextTarget(ext.iosInfoPlistFile.get().asFile)
+                    }
+                    if (ext.syncIos.get() && ext.propagateSharedModule.get()) {
+                        addTextTarget(ext.iosPodfileFile.get().asFile)
+                        add(ext.iosAppDirectory.get().asFile.path)
+                    }
+                    if (ext.syncIos.get() && ext.propagateLogo.get()) {
+                        val icons = ext.iosAppIconDirectory.get().asFile
+                        add(icons.path)
+                        val identity = SyncIosLogoTask.catalogIdentity(root.projectDir, icons)
+                        val metadata = (icons.parentFile?.parentFile ?: icons.parentFile ?: icons)
+                            .resolve(".kmpssot/$identity")
+                        val manifest = metadata.resolve("owned-files-v1")
+                        add(manifest.path)
+                        add(manifest.path + ".lock")
+                        if (ext.backupBeforeRewrite.get()) {
+                            add(root.projectDir.resolve(".kmpssot/recovery/ios-appicon/$identity").path)
+                        }
+                    }
+                    if (ext.propagateLogo.get() || ext.cleanupLegacyLogoArtifacts.get()) {
+                        androidResourceDirectories.forEach { res ->
+                            add(res.path)
+                            val manifest = res.parentFile.resolve(".kmpssot/android-logo-owned-files-v1")
+                            add(manifest.path)
+                            add(manifest.path + ".lock")
+                        }
+                    }
+                    if (ext.cleanupLegacyLogoArtifacts.get()) {
+                        val recovery = root.projectDir.resolve(".kmpssot/recovery/android-logo")
+                        add(recovery.path)
+                        add(recovery.resolve("removal-provenance.tsv").path)
+                        add(recovery.resolve(".migration.lock").path)
+                    }
+                }
+            })
+            selectedTargets.set(root.provider {
+                ext.androidApplicationProjects.get().ifEmpty { detectedApplications }
+                    .map { "Android project $it" } +
+                    ext.ios.targetNames.get().map { "Xcode target $it" }
+            })
+            policies.set(root.provider {
+                mapOf(
+                    "backupBeforeRewrite" to ext.backupBeforeRewrite.get().toString(),
+                    "dryRun" to ext.dryRun.get().toString(),
+                    "plistConflictPolicy" to ext.ios.plistConflictPolicy.get().name,
+                    "iosDeploymentTarget" to ext.ios.deploymentTarget.orNull.orEmpty(),
+                    "pbxprojScope" to if (ext.ios.targetNames.get().isEmpty()) {
+                        "sole application target only"
+                    } else {
+                        "explicit targets"
+                    },
+                    "sourceMutationDuringBuild" to "disabled",
+                )
+            })
+            exactChanges.set(root.provider {
+                buildList {
+                    if (ext.syncIos.get()) {
+                        add(
+                            "iOS text transaction: calculate target-scoped unified diffs from " +
+                                ext.iosPbxprojFile.get().asFile.path,
+                        )
+                    }
+                    if (ext.syncIos.get() && ext.sanitizeIosProject.get()) {
+                        add(
+                            "Info.plist: include the configured SSOT references/flags under " +
+                                "${ext.ios.plistConflictPolicy.get()} policy",
+                        )
+                    }
+                    if (ext.syncIos.get() && ext.propagateLogo.get()) {
+                        add(
+                            "iOS AppIcon: align the selected target's existing catalog setting, then render " +
+                                "AppIcon-1024.png and Contents.json after ownership validation",
+                        )
+                    }
+                    if (ext.propagateLogo.get()) {
+                        val versionQualifier = if (ext.android.compileSdk.orNull?.let { it >= 33 } == true) {
+                            "/v33"
+                        } else {
+                            ""
+                        }
+                        add(
+                            "Android icons: render density PNGs plus v26$versionQualifier wrappers " +
+                                "after ownership validation; KMPS003 verifies the user-owned manifest references",
+                        )
+                    }
+                }
+            })
+            notes.set(
+                listOf(
+                    "Set dryRun=true and invoke an individual text migration task for its unified-style preview; " +
+                        "binary installers list exact owned paths.",
+                    "Generated BuildConfig/worker source is build-owned and is not part of this source mutation plan.",
+                    "The listed iOS app directory is a bounded discovery root; any matching Swift rewrite receives a sibling $BACKUP_SUFFIX backup when backups are enabled.",
+                    "Any provider-backed section that cannot be resolved is warned about and omitted; no mutation runs.",
+                ),
+            )
         }
     }
 
-    private fun hookAndroidLogoTask(
-        project: Project,
-        syncAndroidLogoTask: TaskProvider<SyncAndroidLogoTask>,
+    private fun KmpSsotDiagnosticTaskBase.bindDiagnosticInputs(
+        root: Project,
         ext: KmpSsotExtension,
+        resolvedAndroidAppDirectory: org.gradle.api.file.DirectoryProperty,
     ) {
-        if (!ext.propagateLogo.get()) return
-        // preBuild runs before resource processing — we want logo files in place by then.
-        project.tasks.matching { it.name == "preBuild" }.configureEach {
-            dependsOn(syncAndroidLogoTask)
+        propagateAppName.set(ext.propagateAppName)
+        appName.set(ext.appName)
+        propagateBundleId.set(ext.propagateBundleId)
+        iosBundleId.set(ext.iosBundleId)
+        propagateVersion.set(ext.propagateVersion)
+        versionName.set(ext.versionName)
+        hasVersionCodeOverride.set(ext.versionCodeOverride.map { true }.orElse(false))
+        propagateLocaleList.set(ext.propagateLocaleList)
+        locales.set(ext.locales)
+        filterAndroidResources.set(ext.filterAndroidResources)
+        syncIos.set(ext.syncIos)
+        sanitizeIosProject.set(ext.sanitizeIosProject)
+        propagateLogo.set(ext.propagateLogo)
+        cleanupLegacyLogoArtifacts.set(ext.cleanupLegacyLogoArtifacts)
+        iosMarketingVersion.set(ext.iosMarketingVersion)
+        iosBuildNumber.set(ext.iosBuildNumber)
+        iosDeploymentTarget.set(ext.ios.deploymentTarget)
+        usesNonExemptEncryption.set(ext.ios.usesNonExemptEncryption)
+        proMotion120Hz.set(ext.ios.proMotion120Hz)
+        plistConflictPolicy.set(ext.ios.plistConflictPolicy)
+        iosTargetNames.set(ext.ios.targetNames)
+        androidApplicationProjects.set(ext.androidApplicationProjects)
+        manifestFile.set(resolvedAndroidAppDirectory.file("src/main/AndroidManifest.xml"))
+        infoPlistFile.set(ext.iosInfoPlistFile)
+        pbxprojFile.set(ext.iosPbxprojFile)
+        appiconsetDir.set(ext.iosAppIconDirectory)
+        androidResDir.set(resolvedAndroidAppDirectory.dir("src/main/res"))
+        projectRootDir.set(root.layout.projectDirectory)
+        androidEmitMonochrome.set(ext.android.compileSdk.map { it >= 33 }.orElse(false))
+        androidLogoInputFingerprint.set(root.provider {
+            if (!ext.propagateLogo.get()) {
+                "disabled"
+            } else {
+                logoInputFingerprintForFiles(
+                    rendererVersion = SyncAndroidLogoTask.RENDERER_FINGERPRINT_VERSION,
+                    foreground = ext.appLogoPngForeground.asFile.get(),
+                    background = ext.appLogoPngBackground.asFile.orNull,
+                    backgroundColor = ext.appLogoBackgroundColor.orNull,
+                    parameters = mapOf(
+                        "emitMonochrome" to (ext.android.compileSdk.orNull?.let { it >= 33 } == true).toString(),
+                        "safeZoneRatio" to ext.appLogoAndroidSafeZoneRatio.get().toString(),
+                    ),
+                )
+            }
+        })
+        iosLogoInputFingerprint.set(root.provider {
+            if (!ext.syncIos.get() || !ext.propagateLogo.get()) {
+                "disabled"
+            } else {
+                logoInputFingerprintForFiles(
+                    rendererVersion = SyncIosLogoTask.RENDERER_FINGERPRINT_VERSION,
+                    foreground = ext.appLogoPngForeground.asFile.get(),
+                    background = ext.appLogoPngBackground.asFile.orNull,
+                    backgroundColor = ext.appLogoBackgroundColor.orNull,
+                )
+            }
+        })
+        agpOnClasspath.set(AGP_ON_CLASSPATH)
+        if (AGP_ON_CLASSPATH) runtimeAgpVersion()?.let(this.activeAgpVersion::set)
+        kgpOnClasspath.set(KGP_ON_CLASSPATH)
+        if (KGP_ON_CLASSPATH) runtimeKgpVersion()?.let(this.activeKgpVersion::set)
+        kgpRequired.set(
+            root.provider {
+                ext.propagateInteropOptIns.get() || ext.web.generateIoWorker.get() ||
+                    ext.buildConfig.enabled.get()
+            }
+        )
+    }
+
+    /**
+     * True when every explicitly requested task is a resilient report task or a
+     * lifecycle alias whose complete dependency closure contains only such tasks.
+     * Resolving aliases here avoids brittle command-line name matching while still
+     * keeping mixed builds (for example `check` plus diagnostics) fail-fast.
+     */
+    private fun isResilientDiagnosticInvocation(root: Project): Boolean {
+        val requested = root.gradle.startParameter.taskNames
+        if (requested.isEmpty()) return false
+
+        fun requestedTask(path: String): Task? {
+            val segments = path.removePrefix(":").split(':').filter(String::isNotBlank)
+            if (segments.isEmpty()) return null
+            val projectPath = if (segments.size == 1) ":" else ":" + segments.dropLast(1).joinToString(":")
+            val tasks = root.findProject(projectPath)?.tasks ?: return null
+            val requestedName = segments.last()
+            tasks.findByName(requestedName)?.let { return it }
+            val prefixMatches = tasks.names.filter { it.startsWith(requestedName) }
+            return prefixMatches.singleOrNull()?.let(tasks::findByName)
+        }
+
+        fun resilient(task: Task, visiting: MutableSet<String>): Boolean {
+            if (task.name in RESILIENT_DIAGNOSTIC_TASKS) return true
+            if (!visiting.add(task.path)) return false
+            val dependencies = runCatching { task.taskDependencies.getDependencies(task) }.getOrElse { return false }
+            return dependencies.isNotEmpty() && dependencies.all { resilient(it, visiting.toMutableSet()) }
+        }
+
+        return requested.all { path ->
+            path.substringAfterLast(':') in RESILIENT_DIAGNOSTIC_TASKS ||
+                requestedTask(path)?.let { resilient(it, mutableSetOf()) } == true
         }
     }
+
+    /** Freeze every validated DSL input before subprojects can observe it. */
+    private fun finalizeModel(ext: KmpSsotExtension) {
+        modelValues(ext).forEach { it.finalizeValue() }
+    }
+
+    /** Prevent late mutation without realizing provider-backed diagnostic values. */
+    private fun disallowModelChanges(ext: KmpSsotExtension) {
+        modelValues(ext).forEach { it.disallowChanges() }
+    }
+
+    private fun modelValues(ext: KmpSsotExtension): List<HasConfigurableValue> =
+        listOf(
+            ext.appName,
+            ext.versionName,
+            ext.bundleIdBase,
+            ext.iosMarketingVersion,
+            ext.iosBuildNumber,
+            ext.iosBundleSuffix,
+            ext.androidApplicationIdSuffix,
+            ext.versionCodeOverride,
+            ext.javaVersion,
+            ext.locales,
+            ext.sharedModule,
+            ext.sharedProjectPath,
+            ext.iosSharedModuleName,
+            ext.iosPreviousSharedModuleName,
+            ext.composeResourcesDirectory,
+            ext.androidAppDirectory,
+            ext.androidAppModule,
+            ext.androidApplicationProjects,
+            ext.oldSharedModuleName,
+            ext.appLogoPngForeground,
+            ext.appLogoPngBackground,
+            ext.appLogoBackgroundColor,
+            ext.appLogoAndroidSafeZoneRatio,
+            ext.iosProjectPath,
+            ext.iosPodfilePath,
+            ext.iosInfoPlistPath,
+            ext.iosAppDir,
+            ext.iosAppiconsetPath,
+            ext.iosPbxprojFile,
+            ext.iosPodfileFile,
+            ext.iosInfoPlistFile,
+            ext.iosAppDirectory,
+            ext.iosAppIconDirectory,
+            ext.propagateAppName,
+            ext.propagateBundleId,
+            ext.propagateVersion,
+            ext.propagateLocaleList,
+            ext.filterAndroidResources,
+            ext.propagateLogo,
+            ext.propagateSharedModule,
+            ext.propagateAndroidSdk,
+            ext.propagateInteropOptIns,
+            ext.extraOptIns,
+            ext.interopProjectPaths,
+            ext.syncIos,
+            ext.sanitizeIosProject,
+            ext.cleanupLegacyLogoArtifacts,
+            ext.dryRun,
+            ext.backupBeforeRewrite,
+            ext.ios.targetNames,
+            ext.ios.deploymentTarget,
+            ext.ios.plistConflictPolicy,
+            ext.ios.usesNonExemptEncryption,
+            ext.ios.proMotion120Hz,
+            ext.android.publishedVersionCode,
+            ext.android.compileSdk,
+            ext.android.minSdk,
+            ext.android.targetSdk,
+            ext.android.ndkVersion,
+            ext.web.generateIoWorker,
+            ext.web.browserTargetNames,
+            ext.web.projectPaths,
+            ext.web.ioWorkerPackage,
+            ext.buildConfig.enabled,
+            ext.buildConfig.packageName,
+            ext.buildConfig.className,
+            ext.buildConfig.includeIdentity,
+            ext.buildConfig.allowBuildCache,
+            ext.buildConfig.fields,
+        )
 
     companion object {
         private const val MIN_GRADLE = "8.5"
+        private val RESILIENT_DIAGNOSTIC_TASKS = setOf(
+            "kmpSsotVerify",
+            "kmpSsotDoctor",
+            "kmpSsotCheck",
+            "kmpSsotPlan",
+        )
 
         /**
          * Whether the (compileOnly) Kotlin Gradle plugin classes are loadable from
@@ -522,6 +1355,39 @@ class KmpSsotPlugin : Plugin<Project> {
             true
         } catch (_: ClassNotFoundException) {
             false
+        } catch (_: LinkageError) {
+            false
         }
+
+        internal val AGP_ON_CLASSPATH: Boolean = try {
+            Class.forName(
+                "com.android.build.api.variant.ApplicationAndroidComponentsExtension",
+                false,
+                KmpSsotPlugin::class.java.classLoader,
+            )
+            true
+        } catch (_: ClassNotFoundException) {
+            false
+        } catch (_: LinkageError) {
+            false
+        }
+
+        private fun runtimeKgpVersion(): String? = runCatching {
+            Class.forName(
+                "org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension",
+                false,
+                KmpSsotPlugin::class.java.classLoader,
+            ).`package`.implementationVersion
+        }.getOrNull()
+
+        private fun runtimeAgpVersion(): String? = runCatching {
+            val versionClass = Class.forName(
+                "com.android.build.api.AndroidPluginVersion",
+                false,
+                KmpSsotPlugin::class.java.classLoader,
+            )
+            val current = versionClass.getMethod("getCurrent").invoke(null)
+            versionClass.getMethod("getVersion").invoke(current)?.toString()
+        }.getOrNull()
     }
 }

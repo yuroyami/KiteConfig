@@ -31,22 +31,29 @@ internal object ClassicAndroidWiring {
             .findByType(ApplicationAndroidComponentsExtension::class.java) ?: return
         components.finalizeDsl { android ->
             val dc = android.defaultConfig
-            if (ext.propagateBundleId.get() && ext.bundleIdBase.isPresent) {
-                dc.applicationId = ext.androidApplicationId.get()
-            }
-            if (ext.propagateVersion.get()) {
-                // versionName and versionCode are independent — a lone
-                // versionCodeOverride still bumps the build number.
-                if (ext.versionName.isPresent) dc.versionName = ext.versionName.get()
-                ext.versionCode.orNull?.let { dc.versionCode = it }
-            }
-            if (ext.propagateAppName.get() && ext.appName.isPresent) {
-                dc.manifestPlaceholders["appName"] = ext.appName.get()
-            }
-            if (ext.propagateLocaleList.get()) {
-                val l = ext.locales.get()
-                if (l.isNotEmpty()) applyLocaleFilters({ android.androidResources.localeFilters.addAll(l) }) {
-                    @Suppress("DEPRECATION") dc.resourceConfigurations.addAll(l)
+            val selectedApplications = ext.androidApplicationProjects.get()
+            val receivesAppScopedValues =
+                selectedApplications.isEmpty() || project.path in selectedApplications
+            if (receivesAppScopedValues) {
+                if (ext.propagateBundleId.get() && ext.bundleIdBase.isPresent) {
+                    dc.applicationId = ext.androidApplicationId.get()
+                }
+                if (ext.propagateVersion.get()) {
+                    // versionName and versionCode are independent — a lone
+                    // versionCodeOverride still bumps the build number.
+                    if (ext.versionName.isPresent) dc.versionName = ext.versionName.get()
+                    ext.versionCode.orNull?.let { dc.versionCode = it }
+                }
+                if (ext.propagateAppName.get() && ext.appName.isPresent) {
+                    dc.manifestPlaceholders["appName"] = ext.appName.get()
+                }
+                if (ext.filterAndroidResources.get()) {
+                    val l = ext.canonicalLocales.get().map(::bcp47ToAndroidQualifier)
+                    require(l.isNotEmpty()) {
+                        "[kmpSsot] filterAndroidResources=true requires at least one canonical locale."
+                    }
+                    android.androidResources.localeFilters.clear()
+                    android.androidResources.localeFilters.addAll(l)
                 }
             }
             if (ext.propagateAndroidSdk.get()) {
@@ -57,12 +64,11 @@ internal object ClassicAndroidWiring {
                 if (sdk.targetSdk.isPresent) dc.targetSdk = sdk.targetSdk.get()
             }
             if (ext.javaVersion.isPresent) {
-                val jv = JavaVersion.toVersion(ext.javaVersion.get())
+                val jv = JavaVersion.toVersion(validateJavaVersion(ext.javaVersion.get()))
                 android.compileOptions.sourceCompatibility = jv
                 android.compileOptions.targetCompatibility = jv
             }
         }
-        applyKotlinJvmTarget(project, ext)
     }
 
     fun wireLibrary(project: Project, ext: KmpSsotExtension) {
@@ -70,14 +76,6 @@ internal object ClassicAndroidWiring {
             .findByType(LibraryAndroidComponentsExtension::class.java) ?: return
         components.finalizeDsl { android ->
             val dc = android.defaultConfig
-            if (ext.propagateLocaleList.get()) {
-                val l = ext.locales.get()
-                // Library modules have no androidResources.localeFilters — locale
-                // filtering is an application concern — so keep the (deprecated)
-                // resourceConfigurations, which is all AGP offers here.
-                @Suppress("DEPRECATION")
-                if (l.isNotEmpty()) dc.resourceConfigurations.addAll(l)
-            }
             if (ext.propagateAndroidSdk.get()) {
                 val sdk = ext.android
                 if (sdk.compileSdk.isPresent) android.compileSdk = sdk.compileSdk.get()
@@ -86,31 +84,11 @@ internal object ClassicAndroidWiring {
                 // Library modules have no targetSdk (AGP removed it).
             }
             if (ext.javaVersion.isPresent) {
-                val jv = JavaVersion.toVersion(ext.javaVersion.get())
+                val jv = JavaVersion.toVersion(validateJavaVersion(ext.javaVersion.get()))
                 android.compileOptions.sourceCompatibility = jv
                 android.compileOptions.targetCompatibility = jv
             }
         }
-        applyKotlinJvmTarget(project, ext)
     }
 
-    /**
-     * AGP 9's `androidResources.localeFilters` replaces the deprecated
-     * `defaultConfig.resourceConfigurations`. Try the new API (compiled against
-     * AGP 9); on older AGP at runtime the accessor is missing → fall back. The
-     * `catch` IS the version gate.
-     */
-    private inline fun applyLocaleFilters(new: () -> Unit, old: () -> Unit) {
-        try {
-            new()
-        } catch (_: Throwable) {
-            old()
-        }
-    }
-
-    private fun applyKotlinJvmTarget(project: Project, ext: KmpSsotExtension) {
-        if (!ext.javaVersion.isPresent) return
-        if (!KmpSsotPlugin.KGP_ON_CLASSPATH) return
-        KotlinJvmTargetWiring.apply(project, JavaVersion.toVersion(ext.javaVersion.get()).toString())
-    }
 }

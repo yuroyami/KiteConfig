@@ -1,14 +1,14 @@
 [versions]
-# Kept in lockstep with the KiteCore runtime sibling (kotlin 2.4.0 / agp 9.2.1)
-# and the actual consumer stack (syncplay/Jetzy on 2.4) — these are the KGP/AGP
-# APIs the plugin compiles its injectors against (compileOnly; consumers supply
-# their own at runtime).
-agp = "9.2.1"
+# Compile against the upper KGP-supported AGP 9.1 line. Both dependencies are
+# compileOnly: consumers supply a matrix-tested compatible implementation.
+agp = "9.1.1"
+agp-floor = "8.5.2"
 kotlin = "2.4.0"
 junit = "5.11.4"
 
 [libraries]
 android-gradle-api = { module = "com.android.tools.build:gradle-api", version.ref = "agp" }
+android-gradle-api-floor = { module = "com.android.tools.build:gradle-api", version.ref = "agp-floor" }
 kotlin-gradle-plugin-api = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin-api", version.ref = "kotlin" }
 kotlin-gradle-plugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit" }

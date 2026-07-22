@@ -1,8 +1,5 @@
 name: Publish
 
-# Publishes to the Gradle Plugin Portal (primary) and GitHub Packages
-# (secondary) when a v* tag is pushed, e.g. `git tag v1.4.0 && git push --tags`.
-
 on:
   push:
     tags:
@@ -10,34 +7,234 @@ on:
 
 permissions:
   contents: read
-  packages: write
+
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-  publish:
-    runs-on: ubuntu-latest
+  stage:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    outputs:
+      version: ${{ steps.release.outputs.version }}
     steps:
-      - uses: actions/checkout@v4
+      - name: Check out the tagged revision
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate Gradle wrapper
+        uses: gradle/actions/wrapper-validation@0b6dd653ba04f4f93bf581ec31e66cbd7dcb644d # v4
+
+      - name: Derive and validate release version
+        id: release
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          if ! git tag --points-at HEAD | grep -Fx -- "$GITHUB_REF_NAME" >/dev/null; then
+            echo "Tag $GITHUB_REF_NAME does not point at the checked-out revision" >&2
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "KMP_SSOT_VERSION=$VERSION" >> "$GITHUB_ENV"
 
       - name: Set up JDK 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
         with:
           distribution: temurin
           java-version: '21'
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@0b6dd653ba04f4f93bf581ec31e66cbd7dcb644d # v4
 
-      - name: Build & test
-        run: ./gradlew build validatePlugins --stacktrace
+      - name: Build and verify the release candidate
+        shell: bash
+        run: |
+          ./gradlew clean --no-configuration-cache --stacktrace
+          ./gradlew agpCompatibilityTest \
+            -PkmpSsot.version="$KMP_SSOT_VERSION" \
+            -PkmpSsot.releaseTag="$GITHUB_REF_NAME" \
+            --no-configuration-cache --no-daemon --stacktrace
+          ./gradlew build validatePlugins verifyReleaseMetadata cyclonedxBom \
+            -PkmpSsot.version="$KMP_SSOT_VERSION" \
+            -PkmpSsot.releaseTag="$GITHUB_REF_NAME" \
+            --configuration-cache --configuration-cache-problems=fail --stacktrace
+          mkdir -p build/reports
+          set -o pipefail
+          ./gradlew build validatePlugins verifyReleaseMetadata cyclonedxBom \
+            -PkmpSsot.version="$KMP_SSOT_VERSION" \
+            -PkmpSsot.releaseTag="$GITHUB_REF_NAME" \
+            --configuration-cache --configuration-cache-problems=fail --stacktrace \
+            | tee build/reports/release-configuration-cache-reuse.log
+          grep -F 'Configuration cache entry reused.' build/reports/release-configuration-cache-reuse.log
+          test -z "$(git status --porcelain --untracked-files=all)"
+          unzip -l "build/libs/kmp-ssot-$KMP_SSOT_VERSION.jar" | grep 'META-INF/LICENSE'
+          unzip -l "build/libs/kmp-ssot-$KMP_SSOT_VERSION-javadoc.jar" | grep -E '\.html$'
+          test -s build/reports/cyclonedx/bom.json
+          test -s build/reports/cyclonedx/bom.xml
+          jq -e --arg version "$KMP_SSOT_VERSION" \
+            '.bomFormat == "CycloneDX" and .specVersion == "1.6" and .metadata.component.version == $version and ((.components // []) | length == 0)' \
+            build/reports/cyclonedx/bom.json >/dev/null
+
+      - name: Stage the unsigned Maven candidate
+        shell: bash
+        run: |
+          ./gradlew stageUnsignedReleaseCandidate \
+            -PkmpSsot.version="$KMP_SSOT_VERSION" \
+            -PkmpSsot.releaseTag="$GITHUB_REF_NAME" \
+            --no-configuration-cache --no-daemon --stacktrace
+          test -z "$(find build/unsigned-release-candidate -type f -name '*.asc' -print -quit)"
+          test "$(find build/unsigned-release-candidate -type f \
+            \( -name '*.jar' -o -name '*.pom' -o -name '*.module' \) | wc -l)" -eq 6
+          MAIN_POM="build/unsigned-release-candidate/io/github/yuroyami/kmp-ssot/$KMP_SSOT_VERSION/kmp-ssot-$KMP_SSOT_VERSION.pom"
+          grep -F '<name>The Apache License, Version 2.0</name>' "$MAIN_POM" >/dev/null
+          grep -F "<tag>v$KMP_SSOT_VERSION</tag>" "$MAIN_POM" >/dev/null
+          (cd build/unsigned-release-candidate && \
+            find . -type f \( -name '*.jar' -o -name '*.pom' -o -name '*.module' \) -print0 \
+              | sort -z \
+              | xargs -0 shasum -a 256) > build/unsigned-publication-checksums.sha256
+
+      - name: Upload immutable release candidate
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: release-candidate-${{ env.KMP_SSOT_VERSION }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            build/unsigned-release-candidate/
+            build/unsigned-publication-checksums.sha256
+            build/reports/cyclonedx/bom.json
+            build/reports/cyclonedx/bom.xml
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    needs: stage
+    runs-on: ubuntu-24.04
+    environment: release
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      packages: write
+      id-token: write
+      attestations: write
+    env:
+      KMP_SSOT_VERSION: ${{ needs.stage.outputs.version }}
+    steps:
+      - name: Check out the tagged revision
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate Gradle wrapper
+        uses: gradle/actions/wrapper-validation@0b6dd653ba04f4f93bf581ec31e66cbd7dcb644d # v4
+
+      - name: Verify the protected revision
+        shell: bash
+        run: |
+          test "$GITHUB_REF_NAME" = "v$KMP_SSOT_VERSION"
+          git tag --points-at HEAD | grep -Fx -- "$GITHUB_REF_NAME" >/dev/null
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@0b6dd653ba04f4f93bf581ec31e66cbd7dcb644d # v4
+
+      - name: Download immutable release candidate
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: release-candidate-${{ env.KMP_SSOT_VERSION }}-${{ github.run_id }}-${{ github.run_attempt }}
+          # upload-artifact stores these paths relative to their common
+          # `build/` ancestor; restore that root exactly for Gradle and checks.
+          path: build
+
+      - name: Sign, restage, and verify the exact candidate
+        env:
+          SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
+          SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
+          SIGNING_KEY_ID: ${{ secrets.SIGNING_KEY_ID }}
+        shell: bash
+        run: |
+          ./gradlew verifyReleaseSigning publishAllPublicationsToReleaseStagingRepository \
+            -PkmpSsot.version="$KMP_SSOT_VERSION" \
+            -PkmpSsot.releaseTag="$GITHUB_REF_NAME" \
+            --no-configuration-cache --no-daemon --stacktrace
+          (cd build/staging-repository && \
+            find . -type f \( -name '*.jar' -o -name '*.pom' -o -name '*.module' \) -print0 \
+              | sort -z \
+              | xargs -0 shasum -a 256) > build/signed-publication-payload-checksums.sha256
+          cmp build/unsigned-publication-checksums.sha256 build/signed-publication-payload-checksums.sha256
+          test "$(find build/staging-repository -type f \
+            \( -name '*.jar' -o -name '*.pom' -o -name '*.module' \) | wc -l)" -eq 6
+          while IFS= read -r -d '' payload; do
+            test -s "$payload.asc"
+          done < <(find build/staging-repository -type f \
+            \( -name '*.jar' -o -name '*.pom' -o -name '*.module' \) -print0)
+          find build/staging-repository build/reports/cyclonedx -type f -print0 \
+            | sort -z \
+            | xargs -0 shasum -a 256 > build/artifact-checksums.sha256
+
+      - name: Attest the exact signed release set
+        uses: actions/attest-build-provenance@43d14bc2b83dec42d39ecae14e916627a18bb661 # v3
+        with:
+          subject-path: |
+            build/staging-repository/**
+            build/artifact-checksums.sha256
+            build/reports/cyclonedx/bom.json
+            build/reports/cyclonedx/bom.xml
 
       - name: Publish to Gradle Plugin Portal
         env:
+          SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
+          SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
+          SIGNING_KEY_ID: ${{ secrets.SIGNING_KEY_ID }}
           GRADLE_PUBLISH_KEY: ${{ secrets.GRADLE_PUBLISH_KEY }}
           GRADLE_PUBLISH_SECRET: ${{ secrets.GRADLE_PUBLISH_SECRET }}
-        run: ./gradlew publishPlugins --stacktrace
+        run: >-
+          ./gradlew publishPlugins
+          -PkmpSsot.version="$KMP_SSOT_VERSION"
+          -PkmpSsot.releaseTag="$GITHUB_REF_NAME"
+          --no-configuration-cache --no-daemon
+          --stacktrace
 
       - name: Publish to GitHub Packages
         env:
+          SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
+          SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
+          SIGNING_KEY_ID: ${{ secrets.SIGNING_KEY_ID }}
           GITHUB_ACTOR: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: ./gradlew publishAllPublicationsToGitHubPackagesRepository --stacktrace
+        run: >-
+          ./gradlew publishAllPublicationsToGitHubPackagesRepository
+          -PkmpSsot.version="$KMP_SSOT_VERSION"
+          -PkmpSsot.releaseTag="$GITHUB_REF_NAME"
+          --no-configuration-cache --no-daemon
+          --stacktrace
+
+      - name: Upload staged artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: signed-release-${{ env.KMP_SSOT_VERSION }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            build/staging-repository/
+            build/artifact-checksums.sha256
+            build/reports/cyclonedx/bom.json
+            build/reports/cyclonedx/bom.xml
+          if-no-files-found: error
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: >-
+          gh release create "$GITHUB_REF_NAME"
+          build/libs/*.jar
+          build/libs/*.asc
+          build/artifact-checksums.sha256
+          build/reports/cyclonedx/bom.json
+          build/reports/cyclonedx/bom.xml
+          --verify-tag
+          --generate-notes

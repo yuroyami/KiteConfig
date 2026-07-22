@@ -1,6 +1,8 @@
 package io.github.yuroyami.kmpssot
 
+import org.gradle.api.GradleException
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
@@ -28,5 +30,16 @@ class AndroidLogoCollisionTest {
         File(res, "mipmap-hdpi").mkdirs()
         File(res, "mipmap-hdpi/ic_launcher.png").writeText("x")
         assertTrue(SyncAndroidLogoTask.collidingTemplateIcons(res).isEmpty())
+    }
+
+    @Test
+    fun `bounds the total number of scanned resource entries`(@TempDir res: File) {
+        File(res, "mipmap-mdpi").mkdirs()
+        File(res, "mipmap-mdpi/one.txt").writeText("x")
+        File(res, "mipmap-mdpi/two.txt").writeText("x")
+
+        assertThrows(GradleException::class.java) {
+            SyncAndroidLogoTask.collidingTemplateIcons(res, maximumEntries = 1)
+        }
     }
 }

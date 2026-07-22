@@ -18,6 +18,8 @@ class WorkerPackageTest {
     fun `rejects malformed packages`() {
         assertNotNull(invalidWorkerPackageReason("1bad.pkg")) // leading digit
         assertNotNull(invalidWorkerPackageReason("com..empty")) // empty segment
+        assertNotNull(invalidWorkerPackageReason("com._.generated")) // reserved underscore-only identifier
+        assertNotNull(invalidWorkerPackageReason("a".repeat(513)))
     }
 
     @Test

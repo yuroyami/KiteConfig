@@ -2,7 +2,7 @@ package io.github.yuroyami.kmpssot
 
 /**
  * Opt-in compiler markers propagated to every Kotlin/Native compilation when
- * `kmpSsot { propagateInteropOptIns = true }` (the default).
+ * `kmpSsot { propagateInteropOptIns = true }` (explicit opt-in; default false).
  *
  * These are the markers a KMP project otherwise sprinkles `@OptIn(...)` for at
  * every Obj-C / cinterop call site (`ExperimentalForeignApi` on cinterop,

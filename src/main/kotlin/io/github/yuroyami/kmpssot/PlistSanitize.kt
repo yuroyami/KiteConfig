@@ -1,250 +1,339 @@
 package io.github.yuroyami.kmpssot
 
+import org.w3c.dom.Document
 import org.w3c.dom.Element
 import org.w3c.dom.Node
 import org.xml.sax.InputSource
 import java.io.StringReader
 import java.io.StringWriter
+import javax.xml.XMLConstants
 import javax.xml.parsers.DocumentBuilderFactory
 import javax.xml.transform.OutputKeys
 import javax.xml.transform.TransformerFactory
 import javax.xml.transform.dom.DOMSource
 import javax.xml.transform.stream.StreamResult
 
+/** Policy for an existing plist key whose value differs from the requested SSOT value. */
+enum class PlistConflictPolicy {
+    /** Abort the entire plist plan and leave the file byte-for-byte untouched. */
+    FAIL,
+    /** Preserve the existing value and report a warning. */
+    KEEP,
+    /** Replace the existing value with the requested value. */
+    REPLACE,
+}
+
 internal data class PlistStringEntry(val name: String, val value: String)
 internal data class PlistBoolEntry(val name: String, val value: Boolean)
 
 internal data class PlistSanitizeResult(
-    /** New plist text, or null when nothing changed / the file could not be parsed. */
+    /** New plist text, or null when nothing changed or the plan failed. */
     val text: String?,
     val inserted: List<String>,
     val overwritten: List<String>,
     val warnings: List<String>,
+    val errors: List<String> = emptyList(),
 )
 
+private const val MAX_PLIST_BYTES = 4 * 1024 * 1024
+private val PLIST_VALUE_TAGS = setOf("array", "data", "date", "dict", "false", "integer", "real", "string", "true")
+
 /**
- * Sanitize an `Info.plist` against the desired SSOT keys using a **real XML
- * parser** rather than regex. This fixes the duplicate-key bug the regex
- * version had: a key whose value is a `<dict>`, `<array>`, CDATA string, or
- * `<integer>` is
- * now correctly recognised as *present* (the old `<key>…</key><string>…` value-
- * shaped regex treated it as missing and inserted a second key).
+ * Plan an XML Info.plist change using hardened XML parsing and an explicit
+ * conflict policy. Any parser-hardening failure, malformed dictionary, duplicate
+ * key, non-lossless baseline round-trip, or FAIL conflict aborts the complete
+ * plan. No partially mutated text is returned.
  *
- * Rules:
- *  - String entries (the `$(…)` SSOT references) are **append-only**: inserted
- *    when the key is absent; never overwritten. If the key exists with a
- *    different value a warning is emitted so the user knows SSOT propagation
- *    won't reach that field.
- *  - Bool entries (the `ios { }` feature flags) are **DSL-wins**: inserted when
- *    absent, the value replaced when it differs. A key present with a non-bool
- *    value is left alone with a warning (we don't clobber an unexpected type).
- *
- * External DTD loading is disabled so the Apple `PropertyList-1.0.dtd` DOCTYPE
- * never triggers a network fetch. On any parse failure the function returns a
- * null [PlistSanitizeResult.text] plus a warning — it never corrupts the file.
+ * Binary/OpenStep plists are intentionally rejected by this pure migration path;
+ * callers should configure generated plist/build settings instead of converting
+ * a user-owned file implicitly.
  */
 internal fun sanitizeInfoPlist(
     xml: String,
     stringEntries: List<PlistStringEntry>,
     boolEntries: List<PlistBoolEntry>,
+    conflictPolicy: PlistConflictPolicy = PlistConflictPolicy.FAIL,
 ): PlistSanitizeResult {
     if (stringEntries.isEmpty() && boolEntries.isEmpty()) {
         return PlistSanitizeResult(null, emptyList(), emptyList(), emptyList())
     }
+    // Fast-reject oversized ASCII before allocating an encoded copy. When the
+    // UTF-16 length is within the budget, the temporary UTF-8 array is bounded
+    // to a small multiple of 4 MiB and gives the actual on-disk measurement.
+    if (xml.length > MAX_PLIST_BYTES || xml.toByteArray(Charsets.UTF_8).size > MAX_PLIST_BYTES) {
+        return plistFailure("Info.plist exceeds the 4 MiB UTF-8 in-place migration limit")
+    }
+    if (!xml.trimStart().startsWith("<?xml") && !xml.trimStart().startsWith("<plist")) {
+        return plistFailure("Info.plist is not an XML property list; binary/OpenStep plists are unsupported by this migration")
+    }
+    if (containsInternalSubset(xml) || Regex("<!ENTITY\\b", RegexOption.IGNORE_CASE).containsMatchIn(xml)) {
+        return plistFailure("Info.plist contains an internal DTD subset/entity declaration; refusing unsafe XML")
+    }
+    val requestedNames = (stringEntries.map { it.name } + boolEntries.map { it.name })
+    val duplicateRequests = requestedNames.groupingBy { it }.eachCount().filterValues { it > 1 }.keys
+    if (duplicateRequests.isNotEmpty()) return plistFailure("duplicate requested plist key(s): ${duplicateRequests.joinToString()}")
 
-    val doc = try {
-        val dbf = DocumentBuilderFactory.newInstance().apply {
-            isNamespaceAware = false
-            isValidating = false
-            // Don't fetch the Apple plist DTD referenced by the DOCTYPE.
-            runCatching { setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false) }
-            runCatching { setFeature("http://xml.org/sax/features/external-general-entities", false) }
-            runCatching { setFeature("http://xml.org/sax/features/external-parameter-entities", false) }
-        }
-        val db = dbf.newDocumentBuilder().apply {
-            setEntityResolver { _, _ -> InputSource(StringReader("")) }
-        }
-        db.parse(InputSource(StringReader(xml)))
-    } catch (e: Exception) {
-        return PlistSanitizeResult(
-            null, emptyList(), emptyList(),
-            listOf("Info.plist could not be parsed as XML (${e.message}) — left untouched."),
+    val doc = parsePlist(xml).getOrElse { return plistFailure(it.message ?: "Info.plist XML parser setup failed") }
+    val plist = doc.documentElement
+    if (plist == null || plist.tagName != "plist") return plistFailure("Info.plist root element must be <plist>")
+    val plistChildren = childElements(plist)
+    if (plistChildren.size != 1 || plistChildren.single().tagName != "dict") {
+        return plistFailure("Info.plist must contain exactly one root <dict>")
+    }
+    val rootDict = plistChildren.single()
+    val scan = scanRootDict(rootDict)
+    if (scan.errors.isNotEmpty()) return PlistSanitizeResult(null, emptyList(), emptyList(), emptyList(), scan.errors)
+
+    // Refuse a rewrite when this JAXP implementation cannot round-trip the
+    // untouched document exactly. This prevents unrelated CDATA/entity/formatting
+    // normalization from hitchhiking on a one-key migration.
+    val baseline = runCatching { normalizeSerialized(serializePlist(doc), xml) }.getOrElse {
+        return plistFailure("Info.plist could not be serialized safely (${it.message})")
+    }
+    if (baseline != xml) {
+        return plistFailure(
+            "Info.plist cannot be round-tripped byte-for-byte by the XML migration; " +
+                "use generated build settings/xcconfig or normalize it explicitly first"
         )
     }
 
-    val rootDict = doc.documentElement
-        ?.let { plist -> childElements(plist).firstOrNull { it.tagName == "dict" } }
-        ?: return PlistSanitizeResult(
-            null, emptyList(), emptyList(),
-            listOf("Info.plist has no root <dict> — left untouched."),
-        )
-
-    val pairs = rootDictPairs(rootDict)
     val indent = detectIndentUnit(rootDict)
     val inserted = mutableListOf<String>()
     val overwritten = mutableListOf<String>()
     val warnings = mutableListOf<String>()
+    val errors = mutableListOf<String>()
+
+    fun conflict(name: String, current: Element, expected: String, replacement: () -> Unit) {
+        val diagnosticName = plistDiagnosticText(name)
+        when (conflictPolicy) {
+            PlistConflictPolicy.FAIL -> errors +=
+                "Info.plist key '$diagnosticName' is <${current.tagName}> " +
+                    "'${plistDiagnosticText(current.textContent)}' but expected ${plistDiagnosticText(expected)}"
+            PlistConflictPolicy.KEEP -> warnings +=
+                "Info.plist key '$diagnosticName' differs from ${plistDiagnosticText(expected)}; " +
+                    "preserved by conflictPolicy=KEEP"
+            PlistConflictPolicy.REPLACE -> {
+                replacement()
+                overwritten += name
+            }
+        }
+    }
 
     for (entry in stringEntries) {
-        val present = pairs.containsKey(entry.name)
-        val value = pairs[entry.name]
+        val value = scan.entries[entry.name]
         when {
-            !present -> {
+            value == null -> {
                 appendKeyValue(rootDict, entry.name, doc.createElement("string").apply { textContent = entry.value }, indent)
                 inserted += entry.name
             }
-            value == null -> warnings += "Info.plist has a <key>${entry.name}</key> with no following value " +
-                "element (malformed plist) — leaving it untouched rather than inserting a duplicate."
-            value.tagName == "string" && value.textContent == entry.value -> { /* already correct */ }
-            value.tagName == "string" -> warnings += "Info.plist <${entry.name}> is hardcoded to " +
-                "\"${value.textContent}\" — kmpSsot propagation will NOT reach it. Change it to " +
-                "<string>${entry.value}</string> to restore SSOT."
-            else -> warnings += "Info.plist <${entry.name}> has an unexpected <${value.tagName}> value — " +
-                "leaving it untouched. Expected <string>${entry.value}</string>."
+            value.tagName == "string" && value.textContent == entry.value -> Unit
+            else -> conflict(entry.name, value, "<string>${entry.value}</string>") {
+                rootDict.replaceChild(doc.createElement("string").apply { textContent = entry.value }, value)
+            }
         }
     }
 
     for (entry in boolEntries) {
-        val present = pairs.containsKey(entry.name)
-        val value = pairs[entry.name]
         val desiredTag = if (entry.value) "true" else "false"
+        val value = scan.entries[entry.name]
         when {
-            !present -> {
+            value == null -> {
                 appendKeyValue(rootDict, entry.name, doc.createElement(desiredTag), indent)
                 inserted += entry.name
             }
-            value == null -> warnings += "Info.plist has a <key>${entry.name}</key> with no following value " +
-                "element (malformed plist) — leaving it untouched."
-            value.tagName == "true" || value.tagName == "false" -> {
-                if (value.tagName != desiredTag) {
-                    rootDict.replaceChild(doc.createElement(desiredTag), value)
-                    overwritten += entry.name
-                }
+            value.tagName == desiredTag -> Unit
+            else -> conflict(entry.name, value, "<$desiredTag/>") {
+                rootDict.replaceChild(doc.createElement(desiredTag), value)
             }
-            else -> warnings += "Info.plist <${entry.name}> has a non-boolean <${value.tagName}> value — " +
-                "leaving it untouched."
         }
     }
 
+    if (errors.isNotEmpty()) return PlistSanitizeResult(null, emptyList(), emptyList(), warnings, errors)
     if (inserted.isEmpty() && overwritten.isEmpty()) {
         return PlistSanitizeResult(null, emptyList(), emptyList(), warnings)
     }
 
-    val serialized = try {
-        serializePlist(doc)
-    } catch (e: Exception) {
+    val serialized = runCatching { normalizeSerialized(serializePlist(doc), xml) }.getOrElse {
         return PlistSanitizeResult(
-            null, emptyList(), emptyList(),
-            warnings + "Info.plist could not be re-serialized (${e.message}) — left untouched.",
+            null, emptyList(), emptyList(), warnings,
+            listOf("Info.plist could not be serialized safely (${it.message})"),
         )
     }
-    val reheadered = normalizePlistProlog(serialized, xml)
-    val normalized = if (xml.endsWith("\n") && !reheadered.endsWith("\n")) reheadered + "\n" else reheadered
-    if (normalized == xml) return PlistSanitizeResult(null, emptyList(), emptyList(), warnings)
-    return PlistSanitizeResult(normalized, inserted, overwritten, warnings)
+    if (serialized == xml) return PlistSanitizeResult(null, emptyList(), emptyList(), warnings)
+    return PlistSanitizeResult(serialized, inserted, overwritten, warnings)
+}
+
+private fun plistFailure(message: String) =
+    PlistSanitizeResult(null, emptyList(), emptyList(), emptyList(), listOf(message))
+
+private fun containsInternalSubset(xml: String): Boolean {
+    val start = xml.indexOf("<!DOCTYPE", ignoreCase = true)
+    if (start < 0) return false
+    var quote: Char? = null
+    var i = start + 9
+    while (i < xml.length) {
+        val c = xml[i]
+        if (quote != null) {
+            if (c == quote) quote = null
+        } else when (c) {
+            '\'', '"' -> quote = c
+            '[' -> return true
+            '>' -> return false
+        }
+        i++
+    }
+    return true // unterminated declaration is malformed; fail before parser work
+}
+
+private fun parsePlist(xml: String): Result<Document> = runCatching {
+    val factory = DocumentBuilderFactory.newInstance().apply {
+        isNamespaceAware = false
+        isValidating = false
+        isXIncludeAware = false
+        isExpandEntityReferences = false
+        setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true)
+        setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false)
+        setFeature("http://xml.org/sax/features/external-general-entities", false)
+        setFeature("http://xml.org/sax/features/external-parameter-entities", false)
+        setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "")
+        setAttribute(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "")
+    }
+    val builder = factory.newDocumentBuilder().apply {
+        setEntityResolver { _, _ -> InputSource(StringReader("")) }
+    }
+    builder.parse(InputSource(StringReader(xml)))
+}
+
+private data class DictScan(val entries: LinkedHashMap<String, Element>, val errors: List<String>)
+
+private fun scanRootDict(dict: Element): DictScan {
+    val elements = childElements(dict)
+    val entries = LinkedHashMap<String, Element>()
+    val errors = mutableListOf<String>()
+    if (elements.size % 2 != 0) errors += "Info.plist root dictionary has an unpaired key/value element"
+    var i = 0
+    while (i < elements.size) {
+        val key = elements[i]
+        if (key.tagName != "key") {
+            errors += "Info.plist root dictionary expected <key> but found <${key.tagName}> at element ${i + 1}"
+            i++
+            continue
+        }
+        if (childElements(key).isNotEmpty()) {
+            errors += "Info.plist root dictionary <key> at element ${i + 1} must contain text only"
+        }
+        // Plist key text is data, not formatting. Trimming would alias
+        // `<key> CFBundleName </key>` to the required `CFBundleName` key and
+        // could rewrite the wrong entry while leaving the real key absent.
+        val name = key.textContent
+        if (name.isBlank()) errors += "Info.plist contains a blank root dictionary key"
+        val value = elements.getOrNull(i + 1)
+        if (value == null || value.tagName == "key") {
+            errors += "Info.plist key '${plistDiagnosticText(name)}' has no following value element"
+            i++
+            continue
+        }
+        if (value.tagName !in PLIST_VALUE_TAGS) {
+            errors += "Info.plist key '${plistDiagnosticText(name)}' has unsupported <${value.tagName}> value"
+        } else {
+            when (value.tagName) {
+                "string" -> if (childElements(value).isNotEmpty()) {
+                    errors += "Info.plist key '${plistDiagnosticText(name)}' has a <string> value containing nested elements"
+                }
+                "true", "false" -> if (value.hasChildNodes()) {
+                    errors += "Info.plist key '${plistDiagnosticText(name)}' has a non-empty <${value.tagName}> value"
+                }
+            }
+        }
+        if (entries.put(name, value) != null) {
+            errors += "Info.plist contains duplicate root key '${plistDiagnosticText(name)}'"
+        }
+        i += 2
+    }
+    return DictScan(entries, errors.distinct())
+}
+
+/** Keep malformed source content from flooding logs/reports or emitting controls. */
+private fun plistDiagnosticText(value: String, maximumChars: Int = 160): String {
+    val abbreviated = if (value.length > maximumChars) value.take(maximumChars) + "…" else value
+    return buildString(abbreviated.length) {
+        abbreviated.forEach { character ->
+            when (character) {
+                '\n' -> append("\\n")
+                '\r' -> append("\\r")
+                '\t' -> append("\\t")
+                else -> if (character.isISOControl()) {
+                    append("\\u%04X".format(character.code))
+                } else {
+                    append(character)
+                }
+            }
+        }
+    }
 }
 
 private fun childElements(node: Node): List<Element> {
     val out = ArrayList<Element>()
     val kids = node.childNodes
-    for (i in 0 until kids.length) (kids.item(i) as? Element)?.let { out += it }
+    for (i in 0 until kids.length) (kids.item(i) as? Element)?.let(out::add)
     return out
 }
 
-/**
- * Map each top-level `<key>` to its following value element, in document order.
- * A trailing `<key>` with no following element (malformed plist) is recorded
- * with a **null** value so callers can tell "key present but unpaired" apart from
- * "key absent" — and warn instead of inserting a duplicate key.
- */
-private fun rootDictPairs(dict: Element): LinkedHashMap<String, Element?> {
-    val els = childElements(dict)
-    val map = LinkedHashMap<String, Element?>()
-    var i = 0
-    while (i < els.size) {
-        val el = els[i]
-        if (el.tagName == "key") {
-            val name = el.textContent.trim()
-            if (i + 1 < els.size) {
-                map[name] = els[i + 1]
-                i += 2
-            } else {
-                map[name] = null // dangling trailing <key>
-                i++
-            }
-        } else {
-            i++
-        }
-    }
-    return map
-}
-
-/** Sniff the indentation used for entries in the root dict (tabs/spaces). */
 private fun detectIndentUnit(dict: Element): String {
     val kids = dict.childNodes
     for (i in 0 until kids.length) {
         val n = kids.item(i)
         if (n.nodeType == Node.ELEMENT_NODE && (n as Element).tagName == "key") {
-            val prev = n.previousSibling
-            if (prev != null && prev.nodeType == Node.TEXT_NODE) {
-                val t = prev.textContent
-                val nl = t.lastIndexOf('\n')
-                if (nl >= 0) return t.substring(nl + 1)
+            val previous = n.previousSibling
+            if (previous != null && previous.nodeType == Node.TEXT_NODE) {
+                val text = previous.textContent
+                val newline = text.lastIndexOf('\n')
+                if (newline >= 0) return text.substring(newline + 1)
             }
-            break
         }
     }
     return "\t"
 }
 
-/** Append `<key>name</key><value/>` to the end of the dict, each on its own indented line. */
 private fun appendKeyValue(dict: Element, name: String, value: Element, indent: String) {
     val doc = dict.ownerDocument
-    // Consume the trailing whitespace-only text node before </dict> (the original
-    // one, or the "\n" a previous insert added) so back-to-back inserts don't stack
-    // two newlines into a blank line.
     val last = dict.lastChild
-    if (last != null && last.nodeType == Node.TEXT_NODE && last.textContent.isBlank()) {
-        dict.removeChild(last)
-    }
-    val key = doc.createElement("key").apply { textContent = name }
+    if (last != null && last.nodeType == Node.TEXT_NODE && last.textContent.isBlank()) dict.removeChild(last)
     dict.appendChild(doc.createTextNode("\n$indent"))
-    dict.appendChild(key)
+    dict.appendChild(doc.createElement("key").apply { textContent = name })
     dict.appendChild(doc.createTextNode("\n$indent"))
     dict.appendChild(value)
-    // Re-establish the newline that precedes </dict>.
     dict.appendChild(doc.createTextNode("\n"))
 }
 
-/**
- * Undo the JDK Transformer's prolog mangling so a one-key insert produces a
- * faithful, minimal diff on a user-owned `Info.plist`:
- *  - it injects `standalone="no"` that wasn't there, and
- *  - it collapses the newlines between the `<?xml?>` declaration, the `<!DOCTYPE>`
- *    and `<plist>` onto a single line.
- * Apple's tooling emits neither, so restore the canonical multi-line prolog.
- */
-private fun normalizePlistProlog(serialized: String, original: String): String {
-    var s = serialized
-    // Drop standalone="no" unless the original genuinely declared standalone.
+private fun normalizeSerialized(serialized: String, original: String): String {
+    var result = serialized
     if (!Regex("""<\?xml[^>]*\bstandalone\b""").containsMatchIn(original)) {
-        s = s.replace(Regex(""" standalone=["']no["']"""), "")
+        result = result.replace(Regex(""" standalone=["']no["']"""), "")
     }
-    // Re-expand the prolog onto separate lines (declaration / DOCTYPE / <plist>).
-    s = s.replace(Regex("""\?>\s*<!DOCTYPE"""), "?>\n<!DOCTYPE")
-    s = s.replace(Regex("""\?>\s*<plist"""), "?>\n<plist")
-    s = s.replace(Regex("""(<!DOCTYPE[^>]*>)\s*<plist"""), "$1\n<plist")
-    return s
+    result = result.replace(Regex("""\?>\s*<!DOCTYPE"""), "?>\n<!DOCTYPE")
+    result = result.replace(Regex("""\?>\s*<plist"""), "?>\n<plist")
+    result = result.replace(Regex("""(<!DOCTYPE[^>]*>)\s*<plist"""), "$1\n<plist")
+    return when {
+        original.endsWith("\n") && !result.endsWith("\n") -> "$result\n"
+        !original.endsWith("\n") && result.endsWith("\n") -> result.dropLast(1)
+        else -> result
+    }
 }
 
-private fun serializePlist(doc: org.w3c.dom.Document): String {
-    val transformer = TransformerFactory.newInstance().newTransformer().apply {
+private fun serializePlist(doc: Document): String {
+    val factory = TransformerFactory.newInstance().apply {
+        setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true)
+        setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "")
+        setAttribute(XMLConstants.ACCESS_EXTERNAL_STYLESHEET, "")
+    }
+    val transformer = factory.newTransformer().apply {
         setOutputProperty(OutputKeys.METHOD, "xml")
         setOutputProperty(OutputKeys.ENCODING, "UTF-8")
         setOutputProperty(OutputKeys.INDENT, "no")
-        doc.doctype?.let { dt ->
-            dt.publicId?.let { setOutputProperty(OutputKeys.DOCTYPE_PUBLIC, it) }
-            dt.systemId?.let { setOutputProperty(OutputKeys.DOCTYPE_SYSTEM, it) }
+        doc.doctype?.let { doctype ->
+            doctype.publicId?.let { setOutputProperty(OutputKeys.DOCTYPE_PUBLIC, it) }
+            doctype.systemId?.let { setOutputProperty(OutputKeys.DOCTYPE_SYSTEM, it) }
         }
     }
     val writer = StringWriter()
