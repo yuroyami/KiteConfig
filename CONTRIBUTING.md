@@ -1,6 +1,6 @@
 # Contributing
 
-Thank you for improving kmp-ssot. Start with an issue for material API or behavior
+Thank you for improving kitessot. Start with an issue for material API or behavior
 changes so platform scope, defaults, compatibility, and migration semantics are
 agreed before implementation.
 

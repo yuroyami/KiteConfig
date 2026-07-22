@@ -76,21 +76,21 @@ jobs:
         if: matrix.java == 17
         shell: bash
         env:
-          KMP_SSOT_PLUGIN_JAR: ${{ github.workspace }}/build/libs/kmp-ssot-0.0.0-SNAPSHOT.jar
+          KITE_SSOT_PLUGIN_JAR: ${{ github.workspace }}/build/libs/kitessot-0.0.0-SNAPSHOT.jar
         run: |
           ./gradlew --version --no-daemon | grep -E 'Launcher JVM:.*17'
-          CONSUMER_DIR="$RUNNER_TEMP/kmpssot-jdk17-consumer"
+          CONSUMER_DIR="$RUNNER_TEMP/kitessot-jdk17-consumer"
           mkdir -p "$CONSUMER_DIR"
           printf '%s\n' "rootProject.name = 'jdk17-consumer'" > "$CONSUMER_DIR/settings.gradle"
           printf '%s\n' \
-            "buildscript { dependencies { classpath files(System.getenv('KMP_SSOT_PLUGIN_JAR')) } }" \
-            "apply plugin: 'io.github.yuroyami.kmpssot'" \
-            "def kmpSsotApplied = extensions.findByName('kmpSsot') != null" \
+            "buildscript { dependencies { classpath files(System.getenv('KITE_SSOT_PLUGIN_JAR')) } }" \
+            "apply plugin: 'io.github.yuroyami.kitessot'" \
+            "def kiteSsotApplied = extensions.findByName('kiteSsot') != null" \
             "tasks.register('verifyPluginOnJdk17') {" \
             "  doLast {" \
             "    assert JavaVersion.current() == JavaVersion.VERSION_17" \
-            "    assert kmpSsotApplied" \
-            "    println 'KMP SSOT plugin applied under outer JDK 17'" \
+            "    assert kiteSsotApplied" \
+            "    println 'KiteSSOT plugin applied under outer JDK 17'" \
             "  }" \
             "}" > "$CONSUMER_DIR/build.gradle"
           ./gradlew -p "$CONSUMER_DIR" verifyPluginOnJdk17 --no-configuration-cache --no-daemon --stacktrace

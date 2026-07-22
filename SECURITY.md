@@ -10,7 +10,7 @@ problem that is already resolved there.
 ## Reporting a vulnerability
 
 Do not open a public issue for a suspected vulnerability. Use the repository's
-[private security advisory form](https://github.com/yuroyami/kmp-ssot/security/advisories/new)
+[private security advisory form](https://github.com/yuroyami/KiteSSOT/security/advisories/new)
 and include affected versions, impact, a minimal reproduction, and any proposed
 mitigation. Never attach real signing keys, tokens, credentials, private project
 files, or customer data.

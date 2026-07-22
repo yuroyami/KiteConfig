@@ -1,20 +1,26 @@
-# kmp-ssot
+# KiteSSOT
 
-`kmp-ssot` is a root-applied Gradle plugin for declaring one Kotlin Multiplatform
+[![Gradle Plugin Portal](https://img.shields.io/gradle-plugin-portal/v/io.github.yuroyami.kitessot?label=plugin%20portal)](https://plugins.gradle.org/plugin/io.github.yuroyami.kitessot)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
+
+KiteSSOT is a root-applied Gradle plugin for declaring one Kotlin Multiplatform
 application model and adapting it to Android, Apple projects, generated runtime
-configuration, and narrowly selected Kotlin targets.
+configuration, and narrowly selected Kotlin targets. It is part of the Kite
+family of Kotlin Multiplatform libraries. Before 2.0.0 it was published as
+`kmp-ssot` (`io.github.yuroyami.kmpssot`); the 1.x line stays resolvable under
+that id but receives no further releases.
 
 Its safety boundary is intentional:
 
 - ordinary builds configure Gradle/AGP/KGP and may generate files only below
-  `build/generated/kmpssot`;
+  `build/generated/kitessot`;
 - Xcode projects, plists, Podfiles, Swift files, and launcher assets change only
-  when you run an explicitly named `kmpSsot*` migration or install task;
+  when you run an explicitly named `kiteSsot*` migration or install task;
 - ambiguous apps, projects, Xcode targets, paths, ownership, and parser results
   fail closed instead of widening scope.
 
 The plugin is available from the
-[Gradle Plugin Portal](https://plugins.gradle.org/plugin/io.github.yuroyami.kmpssot).
+[Gradle Plugin Portal](https://plugins.gradle.org/plugin/io.github.yuroyami.kitessot).
 
 ## Mental model
 
@@ -57,10 +63,10 @@ separately.
 plugins {
     kotlin("multiplatform") version "2.4.0" apply false
     id("com.android.application") version "9.1.1" apply false
-    id("io.github.yuroyami.kmpssot") version "<version>"
+    id("io.github.yuroyami.kitessot") version "<version>"
 }
 
-kmpSsot {
+kiteSsot {
     appName = "Jetzy"
     versionName = "1.4.0"
     bundleIdBase = "com.example.jetzy"
@@ -94,7 +100,7 @@ explicit opt-in described below.
 Use selectors whenever a build has more than one plausible destination:
 
 ```kotlin
-kmpSsot {
+kiteSsot {
     sharedProjectPath = ":shared"
     androidApplicationProjects.add(":androidApp")
     interopProjectPaths.add(":shared")
@@ -149,7 +155,7 @@ Configure the model during root-project evaluation. The plugin validates and
 freezes it at the end of that evaluation so later cross-project writes cannot
 silently change values already consumed by platform adapters.
 
-The deprecated `Project.kmpSsot` accessor remains only for source compatibility.
+The deprecated `Project.kiteSsot` accessor remains only for source compatibility.
 It performs cross-project model access, cannot support Gradle Isolated Projects,
 and must not be used to configure the model from subprojects; prefer the root DSL
 and generated/read-only outputs.
@@ -266,7 +272,7 @@ BuildConfig is a typed public-client-configuration generator for the selected
 shared project's `commonMain`:
 
 ```kotlin
-kmpSsot {
+kiteSsot {
     sharedProjectPath = ":shared"
     buildConfig {
         enabled = true
@@ -284,8 +290,8 @@ kmpSsot {
 }
 ```
 
-The task `:shared:generateKmpSsotBuildConfig` owns
-`build/generated/kmpssot/commonMain/kotlin` and wires that directory to
+The task `:shared:generateKiteSsotBuildConfig` owns
+`build/generated/kitessot/commonMain/kotlin` and wires that directory to
 `commonMain`. Duplicate names, invalid identifiers, arbitrary Kotlin fragments,
 non-finite doubles, and collisions with identity fields are rejected. Generation
 is bounded to 512 custom fields, 10,000 characters per String value, 65,536
@@ -303,7 +309,7 @@ not put credentials or signing material here.
 The optional worker is intentionally browser-only and explicitly scoped:
 
 ```kotlin
-kmpSsot {
+kiteSsot {
     sharedProjectPath = ":shared"
     web {
         generateIoWorker = true
@@ -314,9 +320,9 @@ kmpSsot {
 }
 ```
 
-For target `js`, `:shared:generateKmpSsotIoWorkerJs` emits a single-shot
-`kmpSsotOffload` helper into
-`build/generated/kmpssot/jsMain/kotlin`. Custom target names produce matching
+For target `js`, `:shared:generateKiteSsotIoWorkerJs` emits a single-shot
+`kiteSsotOffload` helper into
+`build/generated/kitessot/jsMain/kotlin`. Custom target names produce matching
 task/source-set names. The consumer must provide `kotlinx-coroutines-core`.
 
 The helper validates browser Worker/Blob APIs, applies a 30-second default
@@ -346,7 +352,7 @@ Apple source synchronization is never attached to link, archive, or ordinary
 build tasks. First configure exact paths/targets, opt in, inspect, and invoke it:
 
 ```kotlin
-kmpSsot {
+kiteSsot {
     syncIos = true
     sanitizeIosProject = true
 
@@ -355,18 +361,18 @@ kmpSsot {
         usesNonExemptEncryption = false
         proMotion120Hz = true
         plistConflictPolicy =
-            io.github.yuroyami.kmpssot.PlistConflictPolicy.FAIL
+            io.github.yuroyami.kitessot.PlistConflictPolicy.FAIL
     }
 }
 ```
 
-`kmpSsotSyncIosConfig` walks the pbxproj object graph and changes build settings
+`kiteSsotSyncIosConfig` walks the pbxproj object graph and changes build settings
 only for the selected application target configurations. An empty selector is
 accepted only for exactly one application target. Missing graph links, malformed
 settings, no application target, or ambiguity abort the plan—there is no global
 fallback. Locale `knownRegions` remains project-level.
 
-`kmpSsotSanitizeIosProject` supports source XML plists. It uses hardened XML
+`kiteSsotSanitizeIosProject` supports source XML plists. It uses hardened XML
 parsing, rejects duplicate/malformed/unsafe input or content over 4 MiB of UTF-8,
 and requires a lossless baseline round trip. Conflict policies are:
 
@@ -385,7 +391,7 @@ The plugin does not rename a directory and does not infer an old module from a
 Podfile. After performing the Gradle project rename yourself, declare both ends:
 
 ```kotlin
-kmpSsot {
+kiteSsot {
     syncIos = true
     propagateSharedModule = true
     iosPreviousSharedModuleName = "shared"
@@ -423,14 +429,14 @@ uses one):
 
 The selected Xcode application target must likewise declare the catalog named by
 `iosAppIconDirectory`—normally `ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon` for
-the default `AppIcon.appiconset`. `kmpSsotSyncIosConfig` aligns an existing
+the default `AppIcon.appiconset`. `kiteSsotSyncIosConfig` aligns an existing
 assignment in every selected application configuration and fails closed when the
-setting is absent; it never inserts a guessed build setting. `kmpSsotDoctor` and
-`kmpSsotCheck` validate both platform references (`KMPS003`, `KMPS021`, and
+setting is absent; it never inserts a guessed build setting. `kiteSsotDoctor` and
+`kiteSsotCheck` validate both platform references (`KMPS003`, `KMPS021`, and
 `KMPS024`). Verify the merged Android manifest and the selected target's effective
 Xcode build settings as the final application-level check.
 
-`kmpSsotSyncAndroidLogo` installs adaptive and legacy launcher images at all
+`kiteSsotSyncAndroidLogo` installs adaptive and legacy launcher images at all
 densities. The foreground is aspect-contained within the configurable safe zone
 (default `66/108`); backgrounds aspect-cover the canvas. When the SSOT
 `android.compileSdk` is explicitly 33 or newer, v33 wrappers reuse the foreground
@@ -440,19 +446,19 @@ cause a failure.
 
 Set `cleanupLegacyLogoArtifacts = true` to authorize reversible takeover of
 legacy/colliding Android icon files and, on first contact, unowned paths the
-current installer will claim. `kmpSsotSyncAndroidLogo` renders and validates the
+current installer will claim. `kiteSsotSyncAndroidLogo` renders and validates the
 complete replacement first, then backs up, removes, and installs as one
-rollback-capable operation. `kmpSsotCleanupLegacyAppLogoArtifacts` exposes only
+rollback-capable operation. `kiteSsotCleanupLegacyAppLogoArtifacts` exposes only
 the backup/removal half for an explicitly requested recovery workflow. It shares
 the installer's ownership lock and never removes current manifest-owned outputs.
 
-`kmpSsotSyncIosLogo` installs an opaque 1024×1024 composite and universal
+`kiteSsotSyncIosLogo` installs an opaque 1024×1024 composite and universal
 `Contents.json`. This single-size catalog requires Xcode 14 or newer and an
 explicit `ios.deploymentTarget` of at least 12.0. That property asserts
 compatibility; it does not write Xcode's `IPHONEOS_DEPLOYMENT_TARGET`. With the
 default `backupBeforeRewrite = true`, first contact backs up existing outputs
-below the durable `.kmpssot/recovery/ios-appicon` tree, which `clean` does not erase. Android
-takeover uses `.kmpssot/recovery/android-logo`. Archive or commit these verified
+below the durable `.kitessot/recovery/ios-appicon` tree, which `clean` does not erase. Android
+takeover uses `.kitessot/recovery/android-logo`. Archive or commit these verified
 recovery records until the migration is accepted. Unreferenced icon PNGs are
 reported, not silently deleted.
 
@@ -468,30 +474,30 @@ unowned targets, symlinks, and path escapes fail closed.
 Commit those small ownership manifests together with the installed icon assets:
 they are required provenance, not disposable build output. A fresh clone without
 them correctly treats committed icons as unowned. Empty coordination lock files
-below `.kmpssot` are ignored and must not be committed.
+below `.kitessot` are ignored and must not be committed.
 
 ## Diagnostics and task reference
 
 Start with the read-only tasks:
 
 ```bash
-./gradlew kmpSsotVerify
-./gradlew kmpSsotDoctor
-./gradlew kmpSsotCheck
-./gradlew kmpSsotPlan
+./gradlew kiteSsotVerify
+./gradlew kiteSsotDoctor
+./gradlew kiteSsotCheck
+./gradlew kiteSsotPlan
 ```
 
 | Task | Behavior |
 |---|---|
-| `kmpSsotVerify` | Prints resolved model values and selected path presence; never mutates files. |
-| `kmpSsotDoctor` | Runs the resilient aggregate checks and reports PASS/SKIP/WARN/FAIL without gating on findings. |
-| `kmpSsotCheck` | Writes deterministic JSON by default, then fails on ERROR findings; can emit SARIF and fail on warnings. |
-| `kmpSsotPlan` | Prints enabled operations, exact selectors/paths, policies, and available change summaries without mutation. |
-| `kmpSsotSanitizeIosProject` | Applies the opted-in source XML plist plan. |
-| `kmpSsotSyncIosConfig` | Applies the optional plist, selected pbxproj, and optional Podfile/Swift text migration as one recoverable batch. |
-| `kmpSsotSyncIosLogo` | Installs the opted-in Apple app icon. |
-| `kmpSsotSyncAndroidLogo` | Installs the opted-in Android launcher-icon tree. |
-| `kmpSsotCleanupLegacyAppLogoArtifacts` | Backs up and removes selected legacy/colliding files and, on first contact, unowned paths the current installer will claim. |
+| `kiteSsotVerify` | Prints resolved model values and selected path presence; never mutates files. |
+| `kiteSsotDoctor` | Runs the resilient aggregate checks and reports PASS/SKIP/WARN/FAIL without gating on findings. |
+| `kiteSsotCheck` | Writes deterministic JSON by default, then fails on ERROR findings; can emit SARIF and fail on warnings. |
+| `kiteSsotPlan` | Prints enabled operations, exact selectors/paths, policies, and available change summaries without mutation. |
+| `kiteSsotSanitizeIosProject` | Applies the opted-in source XML plist plan. |
+| `kiteSsotSyncIosConfig` | Applies the optional plist, selected pbxproj, and optional Podfile/Swift text migration as one recoverable batch. |
+| `kiteSsotSyncIosLogo` | Installs the opted-in Apple app icon. |
+| `kiteSsotSyncAndroidLogo` | Installs the opted-in Android launcher-icon tree. |
+| `kiteSsotCleanupLegacyAppLogoArtifacts` | Backs up and removes selected legacy/colliding files and, on first contact, unowned paths the current installer will claim. |
 
 There is deliberately no “apply everything” aggregate: text and binary platform
 installers have different ownership and rollback domains. Invoke each reviewed
@@ -499,14 +505,14 @@ plan explicitly so a later unrelated installer cannot turn an earlier success
 into a misleading partial global sync.
 
 The default check report is
-`build/reports/kmpssot/diagnostics.json`. Configure CI output in the root build:
+`build/reports/kitessot/diagnostics.json`. Configure CI output in the root build:
 
 ```kotlin
-import io.github.yuroyami.kmpssot.KmpSsotCheckTask
-import io.github.yuroyami.kmpssot.KmpSsotDiagnosticReportFormat
+import io.github.yuroyami.kitessot.KiteSsotCheckTask
+import io.github.yuroyami.kitessot.KiteSsotDiagnosticReportFormat
 
-tasks.named<KmpSsotCheckTask>("kmpSsotCheck") {
-    reportFormat.set(KmpSsotDiagnosticReportFormat.SARIF)
+tasks.named<KiteSsotCheckTask>("kiteSsotCheck") {
+    reportFormat.set(KiteSsotDiagnosticReportFormat.SARIF)
     failOnWarnings.set(true)
 }
 ```
@@ -542,7 +548,7 @@ For a reviewable unified-style text preview, set `dryRun = true` and invoke the
 selected migration task. User-owned text changes are staged before commit;
 multi-file iOS migration uses locks, atomic replacement, and rollback if a later
 commit fails. The default `backupBeforeRewrite = true` also creates write-once
-`.kmpssot.bak` recovery copies.
+`.kitessot.bak` recovery copies.
 
 ## Migrating from 1.7
 
@@ -574,13 +580,13 @@ working tree and make these changes before running any sync task:
 
    | 1.7 task | Current task |
    |---|---|
-   | `sanitizeIosProject` | `kmpSsotSanitizeIosProject` |
-   | `syncIosConfig` | `kmpSsotSyncIosConfig` |
-   | `syncIosLogo` | `kmpSsotSyncIosLogo` |
-   | `syncAndroidLogo` | `kmpSsotSyncAndroidLogo` |
-   | `cleanupLegacyAppLogoArtifacts` | `kmpSsotCleanupLegacyAppLogoArtifacts` |
+   | `sanitizeIosProject` | `kiteSsotSanitizeIosProject` |
+   | `syncIosConfig` | `kiteSsotSyncIosConfig` |
+   | `syncIosLogo` | `kiteSsotSyncIosLogo` |
+   | `syncAndroidLogo` | `kiteSsotSyncAndroidLogo` |
+   | `cleanupLegacyAppLogoArtifacts` | `kiteSsotCleanupLegacyAppLogoArtifacts` |
 
-9. Run `kmpSsotVerify`, `kmpSsotDoctor`, `kmpSsotCheck`, and `kmpSsotPlan`.
+9. Run `kiteSsotVerify`, `kiteSsotDoctor`, `kiteSsotCheck`, and `kiteSsotPlan`.
    Then use `dryRun = true` with only the migration you intend to execute.
 
 BuildConfig caching is now denied by default. If the generated object contains

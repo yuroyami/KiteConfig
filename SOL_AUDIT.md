@@ -1,4 +1,4 @@
-# kmp-ssot — Fresh-Slate, Code-Truth Audit
+# kitessot — Fresh-Slate, Code-Truth Audit
 
 - **Audit date:** 2026-07-14
 - **Audited release:** `1.7.0`
@@ -46,11 +46,11 @@ values it consumes, while a configured capability may not silently no-op.
 | **P1-09/10/11/13/15 — mutation correctness** | One iOS config invocation plans plist, pbxproj, Podfile, and Swift changes before a single locked transaction; commit failure rolls prior files back. Missing configured inputs fail explicitly. Plist parsing is hardened, its 4 MiB budget is measured in UTF-8 bytes, and duplicate/conflicting values follow an explicit `FAIL`/`KEEP`/`REPLACE` policy. Swift comments, strings, raw strings, and extended regex literals are masked before exact import migration. Android cleanup and replacement share one rollback domain. Parked entries remain lexical, no-follow handles even under concurrent symlink substitution. Logo ownership prevents overwriting unknown or manually modified files. | Core safety remedy implemented. The plugin still edits source formats; generated xcconfig and syntax-tree migrations remain preferable future architecture. |
 | **P1-12 — locales** | Locale inputs use one bounded, duplicate-free platform-resource BCP-47 subset. Auto-discovery accepts only locale-only `values-en`, `values-pt-rBR`, and `values-b+sr+Latn` forms, never mixed qualifiers. Apple regions are additive; Android filtering is separate, exact, opt-in, and rejects an empty set. | Implemented and regression-tested; on-device language-picker behavior remains application integration testing. |
 | **P1-16/17 — worker and BuildConfig** | Both generators write only owned `build/generated` trees. BuildConfig uses validated Kotlin identifiers/literals, rejects duplicates/collisions/non-finite numbers, scopes identity inclusion, and warns against cache-backed secrets. The browser worker adds explicit target selection, startup/error normalization, timeout and coroutine-cancellation termination, and clearer browser/CSP contracts. | Hardened, but intentionally still generated convenience APIs. The worker remains browser-only and executes caller-supplied JavaScript text; BuildConfig is not a secret store. |
-| **P1-18 — diagnostics and UX** | `kmpSsotDoctor` is resilient and observational; `kmpSsotCheck` writes deterministic JSON or SARIF then fails on policy; `kmpSsotPlan` reports operations, targets, paths, policies, notes, and bounded reviewable unified-style previews without mutation. Stable IDs and structural inspections replace best-effort messages, including checksum-owned icon completeness, Android manifest consumption, and selected Xcode AppIcon alignment. | Implemented and covered for malformed providers, aliases/abbreviations, mixed invocations, report escaping, fail-after-report behavior, and installed-but-unused branding. |
+| **P1-18 — diagnostics and UX** | `kiteSsotDoctor` is resilient and observational; `kiteSsotCheck` writes deterministic JSON or SARIF then fails on policy; `kiteSsotPlan` reports operations, targets, paths, policies, notes, and bounded reviewable unified-style previews without mutation. Stable IDs and structural inspections replace best-effort messages, including checksum-owned icon completeness, Android manifest consumption, and selected Xcode AppIcon alignment. | Implemented and covered for malformed providers, aliases/abbreviations, mixed invocations, report escaping, fail-after-report behavior, and installed-but-unused branding. |
 | **P2-01/02/10 — resource, error, and ownership hardening** | PNG and text inputs, traversal, generated fields, manifests, snapshots, and diff logs have explicit budgets. Errors sanitize hostile text and preserve useful root causes. Text/asset batches are lock-coordinated and rollback-capable. | Implemented with hostile-input, limit, symlink, concurrency, and recovery coverage. |
 | **P2-03/04/07 — publication and API discipline** | Dokka-backed javadocs, license/manifest metadata, complete POMs, ABI validation, locks, dependency verification, CycloneDX SBOMs, PGP signing, pinned actions, source-cleanliness checks, deterministic archives, and staged provenance are present. | Locally verified: ABI passes; six Maven payloads stage; all archive times/orders are normalized; the runtime SBOM has zero dependencies; signing and clean-build reproducibility rehearsals pass. |
 | **P2-05/06/08 — compatibility tests and documentation** | Coverage spans validation, ownership/rollback/races, parser ambiguity, diagnostics, generated-source compilation, source non-mutation, multi-project selection, real AGP/KGP consumers, and release tasks. README, FEATURES, CHANGELOG, DSL KDocs, and generated Dokka were reconciled against code. | Locally release-gated. Browser/CSP execution, Xcode signing/upload, and remote OS CI remain environment-level checks, not unimplemented code paths. |
-| **P2-09/11 — performance and public coupling** | Work is provider-backed, selected by capability/project, generated into owned directories, and source mutation is removed from normal task graphs. `KmpSsotAccess` documents the finalized read-only model. | Improved. The root aggregation plugin and convenience accessor remain public architectural coupling rather than a split adapter/runtime ecosystem. |
+| **P2-09/11 — performance and public coupling** | Work is provider-backed, selected by capability/project, generated into owned directories, and source mutation is removed from normal task graphs. `KiteSsotAccess` documents the finalized read-only model. | Improved. The root aggregation plugin and convenience accessor remain public architectural coupling rather than a split adapter/runtime ecosystem. |
 
 ### Intentional boundaries after remediation
 
@@ -104,7 +104,7 @@ occurred.
 
 ## 1. Executive verdict
 
-`kmp-ssot` has a valuable central idea and noticeably careful local workmanship,
+`kitessot` has a valuable central idea and noticeably careful local workmanship,
 but the current release is not yet safe enough to be the authoritative layer for
 real, multi-target KMP applications.
 
@@ -167,7 +167,7 @@ topologies.
 
 ## 2. What the code actually does
 
-The root plugin creates a managed `kmpSsot` extension and then reaches into every
+The root plugin creates a managed `kiteSsot` extension and then reaches into every
 **subproject** to configure detected plugins. The implemented sinks are:
 
 - classic Android application and library DSLs through AGP `finalizeDsl`;
@@ -211,7 +211,7 @@ The following checks were run against the inspected working tree:
 - plugin validation: **passed**;
 - an identical build reused the outer build's configuration cache;
 - a Gradle **8.9** consumer smoke applied the built plugin, ran
-  `kmpSsotVerify`, stored configuration cache, and correctly invalidated it when a
+  `kiteSsotVerify`, stored configuration cache, and correctly invalidated it when a
   new `values-fr` locale directory appeared;
 - a configured-but-missing logo input was tested: Gradle rejected the missing
   `@InputFile` before task action, proving the task's “not found — skipping” branch
@@ -304,7 +304,7 @@ offer a task that proves the next code is greater than a supplied/store baseline
 ### P0-02 — Automatic shared-module detection can rename an unrelated local Pod
 
 **Evidence:** `SharedModuleRewrite.kt:13-38`, `SyncIosConfigTask.kt:102-149`, and
-the default `propagateSharedModule = true` at `KmpSsotPlugin.kt:43`.
+the default `propagateSharedModule = true` at `KiteSsotPlugin.kt:43`.
 
 Any single Podfile entry whose pod name equals its path tail is assumed to be the old
 shared module. If the project's only local development pod is `Utils`, but the KMP
@@ -349,10 +349,10 @@ OpenStep tokenizer/parser, preserve formatting, and require exact target/config 
 ### P0-04 — Build-cache restore can bypass the promised AppIcon backup
 
 **Evidence:** `SyncIosLogoTask.kt:33, 49, 53, 94-101` and
-`KmpSsotPluginFunctionalTest.kt:209-233`.
+`KiteSsotPluginFunctionalTest.kt:209-233`.
 
 `SyncIosLogoTask` is cacheable and declares the user-owned `Contents.json` as an
-output. Its `.kmpssot.bak` is created only inside `@TaskAction` and is not a declared
+output. Its `.kitessot.bak` is created only inside `@TaskAction` and is not a declared
 output. On a local or remote cache hit, Gradle can restore/replace `Contents.json`
 without running the action, so `backupBeforeRewrite = true` produces no backup.
 
@@ -367,7 +367,7 @@ requires a complete, repeatable input/output model.
 **Required fix:** never make a source-tree installer/rewrite task cacheable. Split icon
 work into:
 
-1. a pure cacheable renderer under `build/generated/kmpssot/...`;
+1. a pure cacheable renderer under `build/generated/kitessot/...`;
 2. an explicit, non-cacheable installer/merge task with transactional backup; or
 3. preferably, an AGP/Xcode integration that consumes generated assets without copying
    over user-owned source files.
@@ -378,7 +378,7 @@ work into:
 `.github/workflows/publish.yml:6-43`.
 
 Any `v*` tag triggers publishing, but the artifact version comes from the independent
-`kmpSsot.version` property and silently falls back to the valid-looking version `1.0.0`.
+`kiteSsot.version` property and silently falls back to the valid-looking version `1.0.0`.
 A `v1.8.0` tag currently attempts to publish `1.7.0`. If the property is accidentally
 absent, a release job can attempt `1.0.0`.
 
@@ -395,7 +395,7 @@ independent retry/recovery.
 
 ### P0-06 — Normal compilation is the wrong place to mutate Xcode project state
 
-**Evidence:** `KmpSsotPlugin.kt:481-491`, `IosTaskMatching.kt:19-22`, and all
+**Evidence:** `KiteSsotPlugin.kt:481-491`, `IosTaskMatching.kt:19-22`, and all
 in-place iOS task properties in `SyncIosConfigTask.kt:38-57`.
 
 Every matching link/embed/XCFramework task depends on source-tree mutation. This has
@@ -429,7 +429,7 @@ reject symlinks in any path component, or check the deletion result. Kotlin's
 treated as a directory and followed through `listFiles`.
 
 A symlink such as
-`shared/build/generated/kmpssot/commonMain/kotlin -> shared/src/commonMain/kotlin`
+`shared/build/generated/kitessot/commonMain/kotlin -> shared/src/commonMain/kotlin`
 therefore directs generation cleanup through the handwritten source tree. Files are
 deleted before the symlink itself. If deletion only partly succeeds, stale generated
 declarations can also remain and be compiled beside the new one. This can arise from a
@@ -448,7 +448,7 @@ junctions/reparse points.
 
 ### P1-01 — Cross-platform version and identifier types are missing
 
-**Evidence:** `KmpSsotExtension.kt:25-41, 265-272`,
+**Evidence:** `KiteSsotExtension.kt:25-41, 265-272`,
 `ClassicAndroidWiring.kt:34-42`, and `PbxprojRewrite.kt:51-70`.
 
 The API accepts raw strings and appends suffixes without validating either platform.
@@ -476,9 +476,9 @@ then render through platform-specific escaping—not string concatenation.
 
 ### P1-02 — Default application is not observational or opt-in
 
-**Evidence:** conventions at `KmpSsotPlugin.kt:38-52`, sanitizer logic at
+**Evidence:** conventions at `KiteSsotPlugin.kt:38-52`, sanitizer logic at
 `SanitizeIosProjectTask.kt:65-83`, and the optional-field contract at
-`KmpSsotExtension.kt:10-19`.
+`KiteSsotExtension.kt:10-19`.
 
 With app name and version unset, sanitizer still inserts `CFBundleDisplayName`,
 `CFBundleName`, `CFBundleShortVersionString`, and `CFBundleVersion`, because it checks
@@ -500,7 +500,7 @@ its non-destructive adapter, but migration/apply still requires an explicit comm
 
 ### P1-03 — The root project can never be a target project
 
-**Evidence:** `KmpSsotPlugin.kt:159-207` iterates only `target.subprojects`.
+**Evidence:** `KiteSsotPlugin.kt:159-207` iterates only `target.subprojects`.
 
 The plugin is required on root, yet a root project that itself applies Android or KMP
 receives none of the platform wiring. Single-project KMP builds silently miss identity,
@@ -512,7 +512,7 @@ fixtures, but the adapter architecture in section 11 is the real fix.
 
 ### P1-04 — Multi-app and multi-target behavior cannot be represented safely
 
-**Evidence:** `KmpSsotPlugin.kt:159-174, 402-420, 494-503` and
+**Evidence:** `KiteSsotPlugin.kt:159-174, 402-420, 494-503` and
 `PbxprojTargetScope.kt:86-109`.
 
 Every Android application receives the same ID/version; a warning appears only after
@@ -527,7 +527,7 @@ an error. Never continue after detecting duplicate application IDs.
 
 ### P1-05 — `sharedModule` conflates four distinct identities
 
-**Evidence:** `KmpSsotExtension.kt:60-74`, `KmpSsotPlugin.kt:287-337`, and
+**Evidence:** `KiteSsotExtension.kt:60-74`, `KiteSsotPlugin.kt:287-337`, and
 `SyncIosConfigTask.kt:102-115`.
 
 The same string is used as:
@@ -548,8 +548,8 @@ and typed `DirectoryProperty`/`RegularFileProperty` for paths.
 ### P1-06 — Peer-plugin classloading is a documented workaround, not a robust API
 
 **Evidence:** compile-only dependencies at `build.gradle.kts:35-42`, the KGP guard and
-warning at `KmpSsotPlugin.kt:182-205`, and unguarded Android adapter calls at
-`KmpSsotPlugin.kt:162-179`.
+warning at `KiteSsotPlugin.kt:182-205`, and unguarded Android adapter calls at
+`KiteSsotPlugin.kt:162-179`.
 
 If KGP is not visible to the root plugin's classloader, requested native opt-ins,
 worker generation, and BuildConfig generation are skipped. The warning omits BuildConfig.
@@ -568,13 +568,13 @@ and subproject-only peer-plugin classloaders independently.
 
 ### P1-07 — Configuration order can permanently change installed behavior
 
-**Evidence:** `KmpSsotPlugin.kt:217-226`, `KmpAndroidLibraryWiring.kt:31-49`,
+**Evidence:** `KiteSsotPlugin.kt:217-226`, `KmpAndroidLibraryWiring.kt:31-49`,
 `ClassicAndroidWiring.kt:111-115`, and conditional provider binding at
-`KmpSsotPlugin.kt:369, 439-442`.
+`KiteSsotPlugin.kt:369, 439-442`.
 
 Several callbacks branch on `.get()` or `.isPresent` when a peer plugin is applied. In
 unusual but legal evaluation orders—root logic applying/configuring children before a
-later `kmpSsot {}` block—an adapter can return permanently or install default behavior
+later `kiteSsot {}` block—an adapter can return permanently or install default behavior
 that later DSL values cannot undo. A task realized before `bundleIdBase` is set can also
 omit the derived provider forever.
 
@@ -596,7 +596,7 @@ declared outputs untouched. Consequences:
   new cache key;
 - a dry run does not show a diff—only the path that would be written.
 
-`kmpSsotVerify` nevertheless tells users they can “Preview exact edits.”
+`kiteSsotVerify` nevertheless tells users they can “Preview exact edits.”
 
 **Recommendation:** dry-run applies only to explicit source installation/migration.
 Build-owned generation should always produce deterministic outputs. `plan` should compute
@@ -633,7 +633,7 @@ overstated:
   an import-looking line inside a multiline comment or string;
 - multiple Gradle/Xcode processes have no lock; stale-temp cleanup deletes every matching
   sibling and can remove another active writer's temporary file;
-- `.kmpssot.bak` duplicates potentially sensitive plist/source data and is not ignored by
+- `.kitessot.bak` duplicates potentially sensitive plist/source data and is not ignored by
   the repository `.gitignore`.
 
 **Recommendation:** replace string paths with typed file/directory/project selectors;
@@ -688,7 +688,7 @@ duplicate keys, and round-trip real Xcode fixtures across supported Xcode versio
 ### P1-12 — Locale sync overwrites project metadata and conflates metadata with filtering
 
 **Evidence:** `PbxprojRewrite.kt:95-121`, `LocaleTags.kt:11-33`,
-`KmpSsotPlugin.kt:326-337`, and `ClassicAndroidWiring.kt:46-80`.
+`KiteSsotPlugin.kt:326-337`, and `ClassicAndroidWiring.kt:46-80`.
 
 The `knownRegions` writer replaces the entire project list with `Base` plus detected
 locales. Existing regions not present in one Compose directory are discarded. It does
@@ -745,7 +745,7 @@ performance guarantees in KDoc; link to Apple's source material.
 ### P1-14 — Android wiring is incomplete, ambiguous, and almost entirely untested
 
 **Evidence:** `ClassicAndroidWiring.kt:29-115`, `KmpAndroidLibraryWiring.kt:31-57`,
-and the functional-test header at `KmpSsotPluginFunctionalTest.kt:9-12`.
+and the functional-test header at `KiteSsotPluginFunctionalTest.kt:9-12`.
 
 No test applies real AGP. Current risks include:
 
@@ -808,7 +808,7 @@ inputs, deterministic renderer versioning, and golden pixel/dimension/alpha/colo
 ### P1-16 — the generated worker is not a safe or portable web API
 
 **Evidence:** `IoWorkerGen.kt:35-119`, `GenerateIoWorkerTask.kt:47-69`, and
-`KmpSsotPlugin.kt:238-277`.
+`KiteSsotPlugin.kt:238-277`.
 
 The feature is advertised as a Kotlin/JS offload primitive, but the generated code is a
 browser-only JavaScript evaluator:
@@ -848,8 +848,8 @@ cleanup. Test it in Chromium/Firefox/WebKit and Node under production bundling a
 
 ### P1-17 — BuildConfig is a useful prototype with an unsafe source-level contract
 
-**Evidence:** `BuildConfigGen.kt:14-84`, `KmpSsotBuildConfigExtension.kt:36-80`,
-`GenerateBuildConfigTask.kt:40-65`, and `KmpSsotPlugin.kt:287-321`.
+**Evidence:** `BuildConfigGen.kt:14-84`, `KiteSsotBuildConfigExtension.kt:36-80`,
+`GenerateBuildConfigTask.kt:40-65`, and `KiteSsotPlugin.kt:287-321`.
 
 The field API stores pre-rendered Kotlin fragments in a public `ListProperty<String>`.
 That representation discards type/value structure too early and allows consumers to
@@ -890,9 +890,9 @@ of expanding this plugin's scope.
 
 ### P1-18 — diagnostics describe problems but cannot enforce correctness
 
-**Evidence:** `KmpSsotDoctorTask.kt:12-135` and `KmpSsotVerifyTask.kt:11-97`.
+**Evidence:** `KiteSsotDoctorTask.kt:12-135` and `KiteSsotVerifyTask.kt:11-97`.
 
-`kmpSsotDoctor` emits `[FAIL]` yet intentionally returns success. That is reasonable for
+`kiteSsotDoctor` emits `[FAIL]` yet intentionally returns success. That is reasonable for
 an interactive doctor, but there is no strict counterpart for CI, and plugin
 configuration can already fail before the doctor is runnable. Its summary counts lines
 by substring, not typed results. Most checks are lexical `contains` operations rather
@@ -906,7 +906,7 @@ and structural parsing can still throw on permissions, concurrent deletion, malf
 state, or I/O failure. “Does not intentionally gate on findings” is the accurate
 contract; exception containment would need to be implemented per diagnostic.
 
-`kmpSsotVerify` is a resolved-value printout, not verification. It does not compare
+`kiteSsotVerify` is a resolved-value printout, not verification. It does not compare
 expected and actual values, calculate a change plan, show a unified diff, or return a
 non-zero status on drift. Its advice to combine `dryRun` with sync tasks promises “exact
 edits,” while current dry-run logging is only summaries and has unsafe output semantics.
@@ -916,9 +916,9 @@ hooked tasks, cacheability, source ownership, or the effective locale/resource m
 **Recommendation:** define a shared typed `Diagnostic` model with stable IDs, severity,
 location, expected/actual values, remediation, and documentation URL. Offer:
 
-- `kmpSsotPlan`: read-only exact change plan/diffs;
-- `kmpSsotCheck`: strict, non-mutating drift and configuration gate;
-- `kmpSsotDoctor`: forgiving interactive explanation;
+- `kiteSsotPlan`: read-only exact change plan/diffs;
+- `kiteSsotCheck`: strict, non-mutating drift and configuration gate;
+- `kiteSsotDoctor`: forgiving interactive explanation;
 - JSON and SARIF output plus Gradle Problems API integration.
 
 The strict check should validate final AGP variants and Xcode build settings, not source
@@ -926,7 +926,7 @@ substrings, and should be safe to run even when optional configuration is incomp
 
 ### P1-19 — the Gradle architecture is not ready for the advertised compatibility surface
 
-**Evidence:** `KmpSsotPlugin.kt:15-207, 506-525`, the `compileOnly` dependencies at
+**Evidence:** `KiteSsotPlugin.kt:15-207, 506-525`, the `compileOnly` dependencies at
 `build.gradle.kts:35-42`, and the single CI environment.
 
 The root plugin captures a root extension and mutates each subproject from
@@ -970,8 +970,8 @@ execution, and remote build cache should be release gates, not aspirational badg
 ### P1-20 — global experimental opt-ins should not be a default identity policy
 
 **Evidence:** the `propagateInteropOptIns = true` convention at
-`KmpSsotPlugin.kt:45` and the wiring at `InteropOptIns.kt` /
-`KmpSsotPlugin.kt:217-228`.
+`KiteSsotPlugin.kt:45` and the wiring at `InteropOptIns.kt` /
+`KiteSsotPlugin.kt:217-228`.
 
 Applying experimental Native opt-ins to every Native compilation changes source-level
 compiler policy, suppresses valuable warnings across production and tests, and accepts
@@ -1138,15 +1138,15 @@ filename and extension.
 
 Every generated artifact should carry or be covered by a manifest containing plugin
 version, schema version, source hash, renderer/strategy ID, and exact owned paths. Never
-delete a file merely because its name matches. A `kmpSsotCleanGenerated` task should
+delete a file merely because its name matches. A `kiteSsotCleanGenerated` task should
 remove only manifest-owned build outputs; source migration rollback should use a
 separate journal.
 
 ### P2-11 — the convenience accessor makes the architectural coupling public API
 
-**Evidence:** `KmpSsotAccess.kt:6-17`.
+**Evidence:** `KiteSsotAccess.kt:6-17`.
 
-`Project.kmpSsot` looks convenient in subproject scripts, but it performs
+`Project.kiteSsot` looks convenient in subproject scripts, but it performs
 `rootProject.extensions.getByType` and therefore encourages precisely the cross-project
 model access that blocks isolated projects. It also throws Gradle's generic missing-type
 exception when the root plugin was not applied, exposes mutable root properties to
@@ -1160,7 +1160,7 @@ plugin-specific and document its lifecycle/isolated-project limitation.
 
 ### P2-12 — `sharedModule` is globally mandatory even when no selected feature needs it
 
-**Evidence:** unconditional validation at `KmpSsotPlugin.kt:103-109`.
+**Evidence:** unconditional validation at `KiteSsotPlugin.kt:103-109`.
 
 An Android-only user who wants only application ID/version/SDK propagation must still
 invent a `sharedModule`. So must a user who wants only verify/doctor or Apple identity
@@ -1217,7 +1217,7 @@ need one truth-generation/checking workflow, not another manual reconciliation p
 Production KDoc also tells maintainers to consult sections of `FABLE5_AUDIT.md`; an audit
 snapshot is not a stable published protocol specification or API reference.
 
-KDoc coverage is uneven despite the volume. `KmpSsotPlugin` itself has no public class
+KDoc coverage is uneven despite the volume. `KiteSsotPlugin` itself has no public class
 KDoc explaining root-only scope, mutation, defaults, compatibility, or lifecycle.
 Most propagation booleans have no individual KDoc. Public task types expose implementation
 details without a stable-API warning. Generated source has stronger prose than the API
@@ -1396,13 +1396,13 @@ Publish cohesive components:
 
 | Component | Responsibility |
 |---|---|
-| `io.github.yuroyami.kmpssot` | root identity/application model, plan/check/report |
-| `kmpssot-android` adapter | module-local AGP Variant API integration |
-| `kmpssot-apple` adapter | selected Xcode targets, generated xcconfig/plist/assets |
-| `kmpssot-compose-resources` adapter | locale/resource discovery and coverage |
-| `kmpssot-migrate` plugin | explicit transactional source migrations only |
-| `kmpssot-constants` optional adapter | typed public runtime metadata generation |
-| `kmpssot-worker` runtime/plugin | typed cross-environment worker facility, if retained |
+| `io.github.yuroyami.kitessot` | root identity/application model, plan/check/report |
+| `kitessot-android` adapter | module-local AGP Variant API integration |
+| `kitessot-apple` adapter | selected Xcode targets, generated xcconfig/plist/assets |
+| `kitessot-compose-resources` adapter | locale/resource discovery and coverage |
+| `kitessot-migrate` plugin | explicit transactional source migrations only |
+| `kitessot-constants` optional adapter | typed public runtime metadata generation |
+| `kitessot-worker` runtime/plugin | typed cross-environment worker facility, if retained |
 
 The root plugin can apply adapters to explicitly selected projects, but adapters execute
 inside their own project/classloader. The resolved immutable model travels through a
@@ -1412,10 +1412,10 @@ well-defined shared service/model interface.
 
 ```kotlin
 plugins {
-    id("io.github.yuroyami.kmpssot") version "2.x"
+    id("io.github.yuroyami.kitessot") version "2.x"
 }
 
-kmpSsot {
+kiteSsot {
     identity {
         organization.set("Acme")
         product.set("Orbit")
@@ -1501,13 +1501,13 @@ untouched.
 
 Migration is a separate two-phase protocol:
 
-1. `kmpSsotMigrationPlan` parses files, selects exact targets, validates containment,
+1. `kiteSsotMigrationPlan` parses files, selects exact targets, validates containment,
    writes unified diffs plus source hashes, and changes nothing.
 2. The developer reviews the plan.
-3. `kmpSsotMigrationApply --plan ...` acquires a workspace lock, verifies source hashes,
+3. `kiteSsotMigrationApply --plan ...` acquires a workspace lock, verifies source hashes,
    stages all new bytes, validates syntax/project loading, commits atomically, and writes
    a rollback journal.
-4. `kmpSsotMigrationRollback` restores the journal if no intervening file changed.
+4. `kiteSsotMigrationRollback` restores the journal if no intervening file changed.
 
 Ambiguity is an error. No “best effort” global fallback exists. The migration tool can
 support more formats over time without endangering every build.
@@ -1603,9 +1603,9 @@ This is a concise ownership map, not a substitute for the findings above.
 
 | File / area | Disposition |
 |---|---|
-| `KmpSsotPlugin.kt` | Major redesign: split model, adapters, generation, checks, migration; remove cross-project mutation and `afterEvaluate` |
-| `KmpSsotExtension.kt` | Replace stringly global bag with named typed applications/policies; keep compatibility facade during migration |
-| `KmpSsotAccess.kt` | Deprecate mutable root cross-project accessor; expose a module-local resolved model |
+| `KiteSsotPlugin.kt` | Major redesign: split model, adapters, generation, checks, migration; remove cross-project mutation and `afterEvaluate` |
+| `KiteSsotExtension.kt` | Replace stringly global bag with named typed applications/policies; keep compatibility facade during migration |
+| `KiteSsotAccess.kt` | Deprecate mutable root cross-project accessor; expose a module-local resolved model |
 | Android/iOS/web/buildConfig extensions | Keep domain blocks, but scope to named consumers and document defaults/ownership |
 | `VersionCode.kt` | Immediate correctness fix; then replace with explicit strategy/value object |
 | `ClassicAndroidWiring.kt` | Keep `finalizeDsl` idea; move module-local and add final-variant checks |
@@ -1661,6 +1661,6 @@ The current implementation is not “0%”: it contains several strong primitive
 clear developer pain point worth solving. But the path to a world-class KMP tool is not
 to add more propagation toggles to automatic rewrites. It is to become a typed
 application model with safe platform adapters, exact diagnostics, and explicit
-migrations. That change would turn `kmp-ssot` from a convenient synchronizer into a
+migrations. That change would turn `kitessot` from a convenient synchronizer into a
 trustworthy foundation that teams can place above Android, Apple, Compose, web, and
 future KMP targets without fearing what the next build will silently touch.

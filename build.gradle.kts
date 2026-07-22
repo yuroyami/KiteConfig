@@ -58,13 +58,13 @@ abstract class VerifyReleaseMetadataTask : DefaultTask() {
             "Release version is not a supported semantic version."
         }
         require(!resolvedVersion.uppercase(Locale.ROOT).endsWith("SNAPSHOT")) {
-            "Refusing to publish snapshot version '$resolvedVersion'. Pass -PkmpSsot.version from an exact v<version> tag."
+            "Refusing to publish snapshot version '$resolvedVersion'. Pass -PkiteSsot.version from an exact v<version> tag."
         }
         val tag = releaseTag.orNull
             ?.takeIf(String::isNotBlank)
             ?: error(
                 "Refusing to publish without an exact release tag. Set GITHUB_REF_NAME or " +
-                    "-PkmpSsot.releaseTag=v$resolvedVersion."
+                    "-PkiteSsot.releaseTag=v$resolvedVersion."
             )
         require(
             tag.length <= MAX_RELEASE_COORDINATE_LENGTH + 1 &&
@@ -145,7 +145,7 @@ abstract class VerifyReleaseSigningTask : DefaultTask() {
 }
 
 group = "io.github.yuroyami"
-version = providers.gradleProperty("kmpSsot.version").getOrElse("0.0.0-SNAPSHOT")
+version = providers.gradleProperty("kiteSsot.version").getOrElse("0.0.0-SNAPSHOT")
 
 java {
     withSourcesJar()
@@ -235,7 +235,7 @@ tasks.register<Test>("agpCompatibilityTest") {
     }
     dependsOn(pluginJar)
     doFirst {
-        systemProperty("kmpssot.test.pluginJar", pluginJar.get().archiveFile.get().asFile.absolutePath)
+        systemProperty("kitessot.test.pluginJar", pluginJar.get().archiveFile.get().asFile.absolutePath)
     }
     shouldRunAfter(tasks.named("test"))
 }
@@ -251,11 +251,11 @@ tasks.withType<Jar>().configureEach {
     }
     manifest {
         attributes(
-            "Implementation-Title" to "kmp-ssot Gradle Plugin",
+            "Implementation-Title" to "KiteSSOT Gradle Plugin",
             "Implementation-Version" to project.version.toString(),
             "Implementation-Vendor" to "yuroyami",
             "Build-Revision" to providers.environmentVariable("GITHUB_SHA").getOrElse("unknown"),
-            "Automatic-Module-Name" to "io.github.yuroyami.kmpssot",
+            "Automatic-Module-Name" to "io.github.yuroyami.kitessot",
         )
     }
 }
@@ -310,14 +310,14 @@ tasks.named<org.gradle.plugin.devel.tasks.PluginUnderTestMetadata>("pluginUnderT
 }
 
 gradlePlugin {
-    website = "https://github.com/yuroyami/kmp-ssot"
-    vcsUrl = "https://github.com/yuroyami/kmp-ssot.git"
+    website = "https://github.com/yuroyami/KiteSSOT"
+    vcsUrl = "https://github.com/yuroyami/KiteSSOT.git"
     plugins {
-        create("kmpSsot") {
-            id = "io.github.yuroyami.kmpssot"
-            implementationClass = "io.github.yuroyami.kmpssot.KmpSsotPlugin"
-            displayName = "KMP SSOT Plugin"
-            description = "Single source of truth for KMP app configuration (appName, version, bundleId, locales, app logo, Android SDK levels) propagated to Android + iOS."
+        create("kiteSsot") {
+            id = "io.github.yuroyami.kitessot"
+            implementationClass = "io.github.yuroyami.kitessot.KiteSsotPlugin"
+            displayName = "KiteSSOT"
+            description = "Single source of truth for Kotlin Multiplatform app configuration (identity, version, bundle ids, locales, launcher assets, generated BuildConfig) propagated to Android + iOS."
             tags = listOf("kotlin", "kotlin-multiplatform", "kmp", "android", "ios", "configuration", "versioning")
         }
     }
@@ -327,11 +327,11 @@ gradlePlugin {
 publishing {
     publications.withType<MavenPublication>().configureEach {
         pom {
-            name.set("kmp-ssot Gradle Plugin")
+            name.set("KiteSSOT Gradle Plugin")
             description.set(
                 "A safe, explicit single-source application model and platform adapter for Kotlin Multiplatform projects."
             )
-            url.set("https://github.com/yuroyami/kmp-ssot")
+            url.set("https://github.com/yuroyami/KiteSSOT")
             inceptionYear.set("2026")
             licenses {
                 license {
@@ -349,18 +349,18 @@ publishing {
                 }
             }
             scm {
-                connection.set("scm:git:https://github.com/yuroyami/kmp-ssot.git")
-                developerConnection.set("scm:git:ssh://git@github.com/yuroyami/kmp-ssot.git")
-                url.set("https://github.com/yuroyami/kmp-ssot")
+                connection.set("scm:git:https://github.com/yuroyami/KiteSSOT.git")
+                developerConnection.set("scm:git:ssh://git@github.com/yuroyami/KiteSSOT.git")
+                url.set("https://github.com/yuroyami/KiteSSOT")
                 tag.set("v${project.version}")
             }
             issueManagement {
                 system.set("GitHub Issues")
-                url.set("https://github.com/yuroyami/kmp-ssot/issues")
+                url.set("https://github.com/yuroyami/KiteSSOT/issues")
             }
             ciManagement {
                 system.set("GitHub Actions")
-                url.set("https://github.com/yuroyami/kmp-ssot/actions")
+                url.set("https://github.com/yuroyami/KiteSSOT/actions")
             }
         }
     }
@@ -375,7 +375,7 @@ publishing {
         }
         maven {
             name = "GitHubPackages"
-            url = uri("https://maven.pkg.github.com/yuroyami/kmp-ssot")
+            url = uri("https://maven.pkg.github.com/yuroyami/KiteSSOT")
             credentials {
                 username = providers.environmentVariable("GITHUB_ACTOR")
                     .filter { it.isNotBlank() }
@@ -403,13 +403,13 @@ tasks.register<Sync>("stageUnsignedReleaseCandidate") {
         "javadocJar",
         "generatePomFileForPluginMavenPublication",
         "generateMetadataFileForPluginMavenPublication",
-        "generatePomFileForKmpSsotPluginMarkerMavenPublication",
+        "generatePomFileForKiteSsotPluginMarkerMavenPublication",
     )
 
     val releaseVersion = project.version.toString()
-    val implementationPath = "io/github/yuroyami/kmp-ssot/$releaseVersion"
+    val implementationPath = "io/github/yuroyami/kitessot/$releaseVersion"
     val markerPath =
-        "io/github/yuroyami/kmpssot/io.github.yuroyami.kmpssot.gradle.plugin/$releaseVersion"
+        "io/github/yuroyami/kitessot/io.github.yuroyami.kitessot.gradle.plugin/$releaseVersion"
 
     into(layout.buildDirectory.dir("unsigned-release-candidate"))
     into(implementationPath) {
@@ -417,15 +417,15 @@ tasks.register<Sync>("stageUnsignedReleaseCandidate") {
         from(tasks.named<Jar>("sourcesJar").flatMap { it.archiveFile })
         from(tasks.named<Jar>("javadocJar").flatMap { it.archiveFile })
         from(layout.buildDirectory.file("publications/pluginMaven/pom-default.xml")) {
-            rename { "kmp-ssot-$releaseVersion.pom" }
+            rename { "kitessot-$releaseVersion.pom" }
         }
         from(layout.buildDirectory.file("publications/pluginMaven/module.json")) {
-            rename { "kmp-ssot-$releaseVersion.module" }
+            rename { "kitessot-$releaseVersion.module" }
         }
     }
     into(markerPath) {
-        from(layout.buildDirectory.file("publications/kmpSsotPluginMarkerMaven/pom-default.xml")) {
-            rename { "io.github.yuroyami.kmpssot.gradle.plugin-$releaseVersion.pom" }
+        from(layout.buildDirectory.file("publications/kiteSsotPluginMarkerMaven/pom-default.xml")) {
+            rename { "io.github.yuroyami.kitessot.gradle.plugin-$releaseVersion.pom" }
         }
     }
 }
@@ -460,7 +460,7 @@ signing {
 val releaseVersionValue = version.toString()
 val releaseTagProvider = providers.environmentVariable("GITHUB_REF_NAME")
     .filter { it.isNotBlank() }
-    .orElse(providers.gradleProperty("kmpSsot.releaseTag").filter { it.isNotBlank() })
+    .orElse(providers.gradleProperty("kiteSsot.releaseTag").filter { it.isNotBlank() })
 
 tasks.register<VerifyReleaseMetadataTask>("verifyReleaseMetadata") {
     group = "verification"

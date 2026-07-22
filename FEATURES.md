@@ -1,4 +1,4 @@
-# kmp-ssot feature reference
+# kitessot feature reference
 
 This file describes the current implementation. It is a capability inventory,
 not a roadmap or idea bank. The [README](README.md) is the guided setup and
@@ -8,7 +8,7 @@ migration document.
 
 | Surface | Current capability |
 |---|---|
-| Central model | One provider-backed `kmpSsot {}` extension applied at the root; optional identity, toolchain, locale, selector, and migration values |
+| Central model | One provider-backed `kiteSsot {}` extension applied at the root; optional identity, toolchain, locale, selector, and migration values |
 | Android adapter | Authoritative AGP `finalizeDsl` configuration for selected applications, classic libraries, and KMP-native Android libraries |
 | KMP adapter | Selected native compiler opt-ins, global compatible Kotlin/JVM alignment, generated `commonMain`, and explicitly selected browser-target source |
 | Apple migration | Target-scoped pbxproj rewrite, hardened source-plist sanitation, explicit Podfile/Swift module-reference migration |
@@ -17,7 +17,7 @@ migration document.
 | Release guardrails | Fixed-width Android version derivation, explicit Play baseline, independent Apple marketing/build numbers |
 
 The model is configured only in the root project and frozen after root evaluation.
-The deprecated `Project.kmpSsot` cross-project accessor remains compatibility-only
+The deprecated `Project.kiteSsot` cross-project accessor remains compatibility-only
 and is not Isolated-Projects safe.
 
 ## Compatibility evidence
@@ -134,7 +134,7 @@ Java levels, and supported runtime tool versions are validated before use.
 
 - Disabled by default and scoped to `sharedProjectPath`.
 - Generates one Kotlin object below
-  `build/generated/kmpssot/commonMain/kotlin` and wires it to `commonMain`.
+  `build/generated/kitessot/commonMain/kotlin` and wires it to `commonMain`.
 - Optional identity fields: app name, version name/code, Android ID, Apple ID,
   locales.
 - Typed custom fields: String, Int, Long, Boolean, Double.
@@ -151,8 +151,8 @@ Java levels, and supported runtime tool versions are validated before use.
 
 - Disabled by default and requires exact KMP project and Kotlin/JS browser target
   selection.
-- Generates a single-shot `kmpSsotOffload` helper below the target's owned
-  `build/generated/kmpssot/<target>Main/kotlin` directory.
+- Generates a single-shot `kiteSsotOffload` helper below the target's owned
+  `build/generated/kitessot/<target>Main/kotlin` directory.
 - Custom target names and package names are supported.
 - Protocol envelopes carry request IDs and explicit success/error state.
 - Browser API checks, object-URL revocation, a 30-second default timeout,
@@ -250,7 +250,7 @@ therefore not reported as an aligned application.
   Icon Composer files remain deliberately outside this raster installer.
 - Bounded input decoding and output containment checks.
 - With backups enabled (the default), durable first-contact recovery lives below
-  `.kmpssot/recovery`; checksum ownership tracking is always enforced, and
+  `.kitessot/recovery`; checksum ownership tracking is always enforced, and
   `clean` cannot erase recovery copies.
 - Reports unreferenced PNGs without deleting unknown assets.
 
@@ -269,10 +269,10 @@ therefore not reported as an aligned application.
 
 | Task | Contract |
 |---|---|
-| `kmpSsotVerify` | Best-effort resolved model/path report |
-| `kmpSsotDoctor` | Resilient aggregate diagnostic; never gates on findings |
-| `kmpSsotCheck` | Same diagnostic engine, deterministic JSON or SARIF, fails after report creation on errors or optional warnings |
-| `kmpSsotPlan` | Read-only selected operation/path/target/policy report |
+| `kiteSsotVerify` | Best-effort resolved model/path report |
+| `kiteSsotDoctor` | Resilient aggregate diagnostic; never gates on findings |
+| `kiteSsotCheck` | Same diagnostic engine, deterministic JSON or SARIF, fails after report creation on errors or optional warnings |
+| `kiteSsotPlan` | Read-only selected operation/path/target/policy report |
 
 Stable diagnostic families cover Android manifest placeholders and launcher-icon
 references (`KMPS001`–`KMPS003`), plist and bundle-name compatibility
@@ -293,7 +293,7 @@ remains an error until the explicit migration applies the replacement.
 - Every operation resolves a complete plan before the first source write.
 - User-owned text changes use strict UTF-8 reads, path containment, no-follow
   checks, sibling staging, atomic replacement where supported, directory
-  durability attempts, and—when backups are enabled—write-once `.kmpssot.bak`
+  durability attempts, and—when backups are enabled—write-once `.kitessot.bak`
   recovery.
 - Multi-file iOS plans lock and stage the batch, re-check source snapshots before
   commit, and roll back already committed files on failure. Swift discovery is

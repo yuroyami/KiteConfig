@@ -10,7 +10,7 @@ build/
 local.properties
 gradle.properties.local
 .claude
-*.kmpssot.bak
-*.kmpssot-journal.json
-.kmpssot-owned-files-v1.lock
-**/.kmpssot/**/*.lock
+*.kitessot.bak
+*.kitessot-journal.json
+.kitessot-owned-files-v1.lock
+**/.kitessot/**/*.lock

@@ -6,15 +6,34 @@ Gradle Plugin Portal releases.
 
 ## [Unreleased]
 
+## [2.0.0]
+
+### Renamed
+- **kmp-ssot is now KiteSSOT**, joining the Kite family of Kotlin Multiplatform
+  libraries. Nothing about the charter changed: one root-applied single source
+  of truth for app identity, propagated to Android and iOS.
+  Migration from 1.x:
+  - Plugin id: `io.github.yuroyami.kmpssot` → `io.github.yuroyami.kitessot`
+  - DSL block: `kmpSsot { }` → `kiteSsot { }`
+  - Task prefix and group: `kmpSsot*` / `kmp-ssot` → `kiteSsot*` / `kitessot`
+  - Version properties: `kmpSsot.version` / `kmpSsot.releaseTag` →
+    `kiteSsot.version` / `kiteSsot.releaseTag`
+  - Maven artifact: `io.github.yuroyami:kmp-ssot` → `io.github.yuroyami:kitessot`
+  - Repository: `github.com/yuroyami/kmp-ssot` → `github.com/yuroyami/KiteSSOT`
+  - Backup suffix written next to rewritten iOS/Android sources:
+    `.kmpssot.bak` → `.kitessot.bak`
+  The 1.x line stays published and resolvable under the old id; it will receive
+  no further releases.
+
 ### Breaking changes
 - **Source mutation is explicit-only.** Ordinary Android/KMP/iOS build and link
   tasks no longer depend on launcher-icon, Xcode, plist, Podfile, or Swift
   migration tasks. `syncIos`, `sanitizeIosProject`, `propagateLogo`,
   `propagateSharedModule`, `propagateInteropOptIns`, and Android locale filtering
   now default off. The individual migration tasks are consistently prefixed:
-  `kmpSsotSanitizeIosProject`, `kmpSsotSyncIosConfig`, `kmpSsotSyncIosLogo`,
-  `kmpSsotSyncAndroidLogo`, and `kmpSsotCleanupLegacyAppLogoArtifacts`.
-  The former broad `kmpSsotSync*` aggregate tasks are removed so each reviewed
+  `kiteSsotSanitizeIosProject`, `kiteSsotSyncIosConfig`, `kiteSsotSyncIosLogo`,
+  `kiteSsotSyncAndroidLogo`, and `kiteSsotCleanupLegacyAppLogoArtifacts`.
+  The former broad `kiteSsotSync*` aggregate tasks are removed so each reviewed
   text or asset transaction is invoked within its own ownership/rollback domain.
 - **Ambiguity now fails closed.** Android applications use exact
   `androidApplicationProjects`; KMP generators/compiler policy use
@@ -38,8 +57,8 @@ Gradle Plugin Portal releases.
 - **BuildConfig cache storage defaults off.** Set
   `buildConfig.allowBuildCache=true` only for public client configuration and
   trusted caches.
-- **Cross-project mutable access is deprecated.** Configure the root `kmpSsot {}`
-  model during root evaluation; the compatibility `Project.kmpSsot` accessor is
+- **Cross-project mutable access is deprecated.** Configure the root `kiteSsot {}`
+  model during root evaluation; the compatibility `Project.kiteSsot` accessor is
   frozen afterward and remains unavailable to Isolated Projects.
 
 ### Added
@@ -59,12 +78,12 @@ Gradle Plugin Portal releases.
   complete PGP-signed Maven publication (implementation, marker, POMs, Gradle
   metadata, and signatures) before remote publishing. Checksums and GitHub
   provenance cover that staged repository plus both CycloneDX SBOM formats.
-- **Strict diagnostics:** `kmpSsotCheck` shares the resilient doctor engine,
+- **Strict diagnostics:** `kiteSsotCheck` shares the resilient doctor engine,
   writes deterministic JSON or SARIF, and fails after report creation on errors
   (or warnings when configured). Findings have stable `KMPSnnn` IDs, retain
   duplicate/invalid Android and iOS selectors, and report unsupported active
   AGP/KGP versions when an enabled integration requires them.
-- **Read-only mutation planning:** `kmpSsotPlan` reports enabled operations,
+- **Read-only mutation planning:** `kiteSsotPlan` reports enabled operations,
   selectors, source paths, policies, and available change summaries without
   executing an installer.
 - **Output provenance:** generated source, Android icons, and Apple AppIcon files

@@ -1,1 +1,1 @@
-rootProject.name = "kmp-ssot"
+rootProject.name = "kitessot"
