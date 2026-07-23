@@ -4,66 +4,71 @@ import org.gradle.api.provider.Property
 import org.gradle.api.provider.ListProperty
 
 /**
- * iOS-specific options. Nested under `kiteSsot { ios { ... } }`.
+ * Apple platform settings inside `kiteSsot { ios { ... } }`.
  *
- * Every plist feature flag is optional (`Property<Boolean>` with no convention).
- * With root `syncIos=true` and `sanitizeIosProject=true`, a configured flag is
- * propagated into `Info.plist` by the explicit `kiteSsotSyncIosConfig` transaction
- * or the separately named `kiteSsotSanitizeIosProject` task: inserted when missing
- * and handled according to [plistConflictPolicy] when an existing value differs.
- * The default policy is [PlistConflictPolicy.FAIL], so divergence is never
- * overwritten implicitly. When unset, the key is left untouched.
+ * The Info.plist feature flags are optional and have no default. To apply a flag,
+ * set both root options `syncIos = true` and `sanitizeIosProject = true`, then run
+ * `kiteSsotSyncIosConfig` or `kiteSsotSanitizeIosProject`. KiteSSOT adds a missing
+ * key. If the key already has a different value, [plistConflictPolicy] decides
+ * what happens.
  *
- * These differ from the SSOT-pointing string keys (`CFBundleDisplayName` etc.)
- * only in their value type. All conflicting existing values use the same
- * explicit FAIL/KEEP/REPLACE policy.
+ * The default conflict policy is [PlistConflictPolicy.FAIL], so KiteSSOT never
+ * replaces a different value without permission. When a flag is unset, its plist
+ * key is left unchanged. The same conflict policy also applies to SSOT string
+ * keys such as `CFBundleDisplayName`.
  */
 abstract class KiteSsotIosExtension {
 
     /**
-     * Declared minimum iOS deployment target used to validate compatibility of
-     * generated assets. Required when Apple universal AppIcon propagation is
-     * enabled and must be at least 12.0. This is an assertion, not a writer for
-     * Xcode's `IPHONEOS_DEPLOYMENT_TARGET`; configure that setting in the Apple
-     * project. Producing the single-size catalog also requires Xcode 14 or newer.
+     * The minimum iOS version that the app supports.
+     *
+     * This value is required when the universal iOS AppIcon installer is enabled,
+     * and it must be at least `12.0`. KiteSSOT uses it only to check asset
+     * compatibility. It does not change Xcode's `IPHONEOS_DEPLOYMENT_TARGET`.
+     * The universal single-size catalog also requires Xcode 14 or newer.
      */
     abstract val deploymentTarget: Property<String>
 
     /**
-     * Exact Xcode application target names that may be changed by iOS migration tasks.
-     * Empty (default) permits auto-selection only when the project contains exactly one
-     * application target. Set names explicitly to select one or more app targets.
+     * Exact Xcode application targets whose build configurations may change.
+     *
+     * This selector scopes the `project.pbxproj` app settings. Project-level
+     * locales and file-based plist, Podfile, and Swift work use their own paths.
+     * The default is an empty list. When an enabled app-setting update needs a
+     * target, an empty list can select only a sole application target.
      */
     abstract val targetNames: ListProperty<String>
 
     /**
-     * Policy for existing conflicting Info.plist values. Default [PlistConflictPolicy.FAIL]
-     * makes drift visible; [PlistConflictPolicy.KEEP] preserves it and
-     * [PlistConflictPolicy.REPLACE] explicitly authorizes replacement.
+     * What to do when an existing Info.plist value differs from the requested value.
+     *
+     * The default is [PlistConflictPolicy.FAIL]. [PlistConflictPolicy.KEEP] keeps
+     * the existing value and [PlistConflictPolicy.REPLACE] allows KiteSSOT to
+     * replace it.
      */
     abstract val plistConflictPolicy: Property<PlistConflictPolicy>
 
     /**
-     * Controls `ITSAppUsesNonExemptEncryption` in `Info.plist`.
+     * Optional value for `ITSAppUsesNonExemptEncryption` in `Info.plist`.
      *
-     * This property only writes the Boolean plist declaration; it does not
-     * determine export-control status, file compliance documents, or provide
-     * legal advice. Choose the value from your application's actual encryption
-     * behavior and the current Apple/jurisdictional requirements.
+     * KiteSSOT only writes the Boolean plist value. It does not determine your
+     * export-control status, submit compliance documents, or provide legal advice.
+     * Choose the value from the app's actual encryption behavior and the rules
+     * that apply to it.
      *
-     * Unset (default): the key is not touched.
+     * The default is unset, which leaves the key unchanged.
      */
     abstract val usesNonExemptEncryption: Property<Boolean>
 
     /**
-     * Controls `CADisableMinimumFrameDurationOnPhone` in `Info.plist`.
+     * Optional value for `CADisableMinimumFrameDurationOnPhone` in `Info.plist`.
      *
-     * Set to `true` to set the Apple plist opt-in that permits lower minimum
-     * frame durations on supported iPhone displays. It does not guarantee a
-     * particular refresh rate or application performance; rendering cadence
-     * remains subject to the device, OS, framework, and workload.
+     * Set it to `true` to add Apple's plist opt-in for lower minimum frame
+     * durations on supported iPhone displays. This does not guarantee a refresh
+     * rate or performance level. The device, OS, framework, and workload still
+     * control rendering behavior.
      *
-     * Unset (default): the key is not touched.
+     * The default is unset, which leaves the key unchanged.
      */
     abstract val proMotion120Hz: Property<Boolean>
 }

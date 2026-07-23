@@ -4,12 +4,14 @@ import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.Property
 
 /**
- * Browser Kotlin/JS options. Nested under `kiteSsot { web { ... } }`.
+ * Browser Kotlin/JS settings inside `kiteSsot { web { ... } }`.
  *
- * This does not provide `Dispatchers.IO` and is not a cross-platform worker runtime.
- * Enabling [generateIoWorker] emits a small, single-shot browser Worker helper into
- * each selected Kotlin/JS target's generated source directory (`jsMain` for the
- * conventional `js` target).
+ * KiteSSOT can generate a small, single-use Web Worker helper for selected
+ * Kotlin/JS browser targets. For the normal `js` target, the generated source is
+ * added to `jsMain`.
+ *
+ * This feature does not provide `Dispatchers.IO` and is not a cross-platform
+ * worker runtime.
  */
 abstract class KiteSsotWebExtension {
 
@@ -21,49 +23,47 @@ abstract class KiteSsotWebExtension {
     }
 
     /**
-     * Generate an inline Web Worker offload helper (`kiteSsotOffload`) into a
-     * plugin-owned generated source dir for each selected target. Default false.
+     * Generate `kiteSsotOffload` for each selected browser target.
      *
-     * The consumer must declare `kotlinx-coroutines-core`; the plugin does not add
-     * that dependency. The generated API is browser-only and fails with a clear
-     * exception when browser `Worker`, `Blob`, and object-URL APIs are unavailable.
-     * It is unsuitable for Node.js-only targets. wasmJs is unsupported and cannot
-     * be selected.
+     * The default is `false`. When enabled, the consumer must add
+     * `kotlinx-coroutines-core`; KiteSSOT does not add it. The generated API needs
+     * browser `Worker`, `Blob`, and object-URL APIs. It throws a clear exception when
+     * those APIs are unavailable. Node.js-only targets and wasmJs are not supported.
      *
-     * The API executes trusted raw JavaScript source. Never derive the job source
-     * from user-controlled data. Deployments must permit Blob workers in Content
-     * Security Policy, normally with `worker-src blob:`.
+     * The helper executes raw JavaScript source as code. Only pass trusted source.
+     * Never build it from user-controlled data. The deployed Content Security
+     * Policy must allow Blob workers, normally with `worker-src blob:`.
      */
     abstract val generateIoWorker: Property<Boolean>
 
     /**
-     * Exact Kotlin/JS target names that are configured for a browser runtime and may
-     * receive the generated helper. Default empty, so generation fails closed instead
-     * of attaching browser APIs to an unknown or Node.js-only target.
+     * Exact Kotlin/JS target names that run in a browser.
      *
-     * For the conventional `js { browser() }` target:
+     * The default is an empty list. At least one name is required when
+     * [generateIoWorker] is `true`. KiteSSOT does not guess whether a target is a
+     * browser or Node.js target.
      *
-     * ```
+     * For the normal `js { browser() }` target:
+     *
+     * ```kotlin
      * browserTargetNames.add("js")
      * ```
      *
-     * Custom targets use their declared target name, for example `js("web")` uses
-     * `"web"`. A listed name that does not identify a Kotlin/JS target is a
-     * configuration error.
+     * Use the declared name for a custom target. For example, `js("web")` uses
+     * `"web"`. Every listed name must resolve to a Kotlin/JS target.
      */
     abstract val browserTargetNames: ListProperty<String>
 
     /**
-     * Exact Gradle project paths whose selected browser targets may receive the
-     * generated helper, for example `":shared"` or `":apps:web"`. Default empty.
+     * Exact Gradle project paths that may receive the generated helper.
      *
-     * When empty, the plugin may use the uniquely resolved shared KMP project. It
-     * must fail on ambiguity instead of generating the same top-level API into every
-     * KMP module. Entries must be absolute Gradle paths and must identify projects
-     * that apply Kotlin Multiplatform.
+     * Use absolute paths such as `":shared"` or `":apps:web"`. Each project must
+     * apply Kotlin Multiplatform. The default is an empty list. When empty,
+     * KiteSSOT may use the one resolved shared KMP project. If it cannot choose one
+     * project safely, generation fails.
      */
     abstract val projectPaths: ListProperty<String>
 
-    /** Package for the generated worker helper. Default `kitessot.generated`. */
+    /** Kotlin package for the generated helper. The default is `kitessot.generated`. */
     abstract val ioWorkerPackage: Property<String>
 }

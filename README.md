@@ -3,79 +3,62 @@
 [![Gradle Plugin Portal](https://img.shields.io/gradle-plugin-portal/v/io.github.yuroyami.kitessot?label=plugin%20portal)](https://plugins.gradle.org/plugin/io.github.yuroyami.kitessot)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 
-KiteSSOT is a root-applied Gradle plugin for declaring one Kotlin Multiplatform
-application model and adapting it to Android, Apple projects, generated runtime
-configuration, and narrowly selected Kotlin targets. It is part of the Kite
-family of Kotlin Multiplatform libraries. Before 2.0.0 it was published as
-`kmp-ssot` (`io.github.yuroyami.kmpssot`); the 1.x line stays resolvable under
-that id but receives no further releases.
+KiteSSOT lets a Kotlin Multiplatform project declare shared app settings once,
+in the root Gradle build. It can then apply those settings to Android, prepare
+reviewable Apple project updates, and generate values that common Kotlin code
+can read.
 
-Its safety boundary is intentional:
+You choose each feature separately. Most unset values leave the existing
+project configuration alone. Two useful exceptions have defaults:
+`iosMarketingVersion` follows `versionName`, and locales can be discovered from
+Compose resources. Features that need several inputs fail with setup guidance
+when one is missing.
 
-- ordinary builds configure Gradle/AGP/KGP and may generate files only below
-  `build/generated/kitessot`;
-- Xcode projects, plists, Podfiles, Swift files, and launcher assets change only
-  when you run an explicitly named `kiteSsot*` migration or install task;
-- ambiguous apps, projects, Xcode targets, paths, ownership, and parser results
-  fail closed instead of widening scope.
-
-The plugin is available from the
-[Gradle Plugin Portal](https://plugins.gradle.org/plugin/io.github.yuroyami.kitessot).
-
-## Mental model
-
-The implementation has five layers:
-
-| Layer | Responsibility |
+| Declare once | KiteSSOT can use it for |
 |---|---|
-| Model | Provider-backed root DSL, validation, derived IDs/version codes, and canonical BCP-47 locales |
-| Adapters | AGP application/library configuration and selected KGP compiler policy |
-| Generators | Owned `commonMain` BuildConfig and selected browser-target worker source below `build/` |
-| Checks | Human reports, stable diagnostic IDs, JSON/SARIF CI reports, and a read-only mutation plan |
-| Migrations/installers | Explicit, scoped, ownership-checked changes with configurable durable recovery |
+| App name, version, and bundle ID | Android app configuration, Apple project updates, and generated runtime constants |
+| Android SDK and Java versions | Android applications, Android libraries, and compatible Kotlin JVM targets |
+| Locales | Apple regions, optional Android resource filtering, and generated runtime constants |
+| Public client values | A typed Kotlin object in `commonMain` |
+| Logo layers | Android launcher icons and an Apple AppIcon catalog |
+| Native opt-ins | Selected Kotlin/Native compilations |
+| Browser worker settings | A generated Kotlin/JS offload helper |
 
-The model is not a mutable global dictionary for subprojects. Configure it once
-at the root, then let adapters consume it or expose runtime values through the
-generated BuildConfig object.
+This README is the guided tour. See [FEATURES.md](FEATURES.md) for the exact
+capability and safety reference.
 
-## Compatibility contract
+[Start here](#start-in-five-minutes) |
+[See every option](#complete-api-example) |
+[Read values yourself](#read-kitessot-values-yourself) |
+[Run source-changing tasks](#apple-updates-and-logo-installation)
 
-| Component | Supported contract and evidence |
-|---|---|
-| Gradle | 8.5 or newer. Applying on an older Gradle fails immediately. Real consumer fixtures exercise standalone application and KGP 2.4.0 integration on the 8.5 floor; CI also proves strict configuration-cache reuse on the current wrapper line. |
-| JVM running Gradle | Java 17 or 21 in CI. The plugin is built with a Java 21 toolchain and emits Java 17 bytecode. |
-| Kotlin Gradle plugin | Stable 2.4.x releases. A published-plugin TestKit consumer compiles source against a generated fields-only BuildConfig with KGP 2.4.0 on Gradle 8.5 and the current wrapper. KGP's numeric `-release-N` stable implementation metadata is recognized; RC, Beta, dev, and arbitrary suffixes remain rejected. |
-| Android Gradle plugin | 8.5.2 through 9.1.x. The implementation compiles against 9.1.1 and rejects requested Android integrations below 8.5.2 or at 9.2+. |
+## Start in five minutes
 
-Declare KGP and AGP versions in the root `plugins` block with `apply false` when
-subprojects use them. That gives the root plugin access to their typed APIs; a
-requested integration fails with guidance if the classes are isolated in a
-sibling classloader.
+### 1. Apply the plugin at the root
 
-The root aggregation design configures other projects and is not compatible
-with Gradle Isolated Projects. Configuration cache support is verified
-separately.
-
-## Install and declare the model
+KiteSSOT is a root plugin. If Android or Kotlin Multiplatform plugins are used
+by subprojects, declare their versions at the root with `apply false`. This lets
+KiteSSOT use their typed Gradle APIs.
 
 ```kotlin
-// root build.gradle.kts
+// Root build.gradle.kts
 plugins {
     kotlin("multiplatform") version "2.4.0" apply false
     id("com.android.application") version "9.1.1" apply false
-    id("io.github.yuroyami.kitessot") version "<version>"
+    id("com.android.library") version "9.1.1" apply false
+    id("io.github.yuroyami.kitessot") version "2.0.0"
 }
+```
 
+### 2. Declare only the values you want KiteSSOT to own
+
+```kotlin
+// Root build.gradle.kts
 kiteSsot {
     appName = "Jetzy"
     versionName = "1.4.0"
     bundleIdBase = "com.example.jetzy"
 
-    // Apple release numbers are independent from Android's versionCode.
-    iosMarketingVersion = "1.4.0" // defaults to versionName when present
-    iosBuildNumber = "42"
-
-    // Exact Gradle project selectors are preferred over directory-name guesses.
     sharedProjectPath = ":shared"
     androidApplicationProjects.add(":androidApp")
 
@@ -83,205 +66,462 @@ kiteSsot {
         compileSdk = 36
         minSdk = 26
         targetSdk = 36
-        publishedVersionCode = 1_001_003_999 // optional offline release guard
-    }
-
-    locales.set(listOf("en", "en-US", "fr"))
-}
-```
-
-All identity values are optional. An identity value reaches an Android app only
-when both its value exists and its `propagate*` toggle is enabled. SDK values
-similarly apply only when present. Source-tree behavior has an additional,
-explicit opt-in described below.
-
-### Selectors and typed paths
-
-Use selectors whenever a build has more than one plausible destination:
-
-```kotlin
-kiteSsot {
-    sharedProjectPath = ":shared"
-    androidApplicationProjects.add(":androidApp")
-    interopProjectPaths.add(":shared")
-
-    composeResourcesDirectory.set(
-        layout.projectDirectory.dir("shared/src/commonMain/composeResources")
-    )
-    androidAppDirectory.set(layout.projectDirectory.dir("apps/android"))
-
-    iosPbxprojFile.set(
-        layout.projectDirectory.file("apps/ios/MyApp.xcodeproj/project.pbxproj")
-    )
-    iosInfoPlistFile.set(layout.projectDirectory.file("apps/ios/MyApp/Info.plist"))
-    iosPodfileFile.set(layout.projectDirectory.file("apps/ios/Podfile"))
-    iosAppDirectory.set(layout.projectDirectory.dir("apps/ios"))
-    iosAppIconDirectory.set(
-        layout.projectDirectory.dir("apps/ios/MyApp/Assets.xcassets/AppIcon.appiconset")
-    )
-
-    ios {
-        deploymentTarget = "12.0" // required for the Xcode 14+ universal AppIcon installer
-        // Empty is safe only when the pbxproj has exactly one application target.
-        targetNames.add("MyApp")
     }
 }
 ```
 
-`androidApplicationProjects`, `sharedProjectPath`, `interopProjectPaths`, and
-`web.projectPaths` use absolute Gradle paths such as `:shared`. Multiple detected
-Android applications require an explicit selection only when an enabled
-app-scoped value needs a destination. Native interop opt-ins and generated source
-have independent, explicit scopes. By contrast, setting root `javaVersion` is
-deliberately root-global toolchain policy: it configures Java compatibility in
-every compatible classic Android module and aligns every detected Kotlin/JVM
-compile task in projects applying Kotlin Multiplatform, Kotlin/JVM, or Kotlin
-Android. `androidApplicationProjects`, `sharedProjectPath`, and
-`interopProjectPaths` do not restrict that alignment.
+That small block already does useful work:
 
-The Android logo installer has one typed `androidAppDirectory` sink, so logo
-propagation accepts at most one effective Android application. With no applied
-application plugin, an explicit directory (or the legacy fallback) remains
-supported. Selecting multiple applications is valid for compatible
-identity/locale policy only when the specific value itself can safely fan out
-(one bundle ID still cannot).
+- the selected Android app receives the app ID, version name, derived version
+  code, and `appName` manifest placeholder;
+- compatible Android modules receive the declared SDK values;
+- values you did not set, such as `ndkVersion`, stay under module control.
 
-Typed `DirectoryProperty`/`RegularFileProperty` paths are preferred. Legacy
-string properties remain for migration, but they must be relative, contained by
-the root project, and free of `.`/`..` path segments. Mutation and install tasks
-also reject symlinks, special files, and paths escaping their declared root.
-
-Configure the model during root-project evaluation. The plugin validates and
-freezes it at the end of that evaluation so later cross-project writes cannot
-silently change values already consumed by platform adapters.
-
-The deprecated `Project.kiteSsot` accessor remains only for source compatibility.
-It performs cross-project model access, cannot support Gradle Isolated Projects,
-and must not be used to configure the model from subprojects; prefer the root DSL
-and generated/read-only outputs.
-
-## Defaults and authority
-
-| Setting | Default | Effect |
-|---|---:|---|
-| Identity fields, suffixes, `versionCodeOverride`, `iosBuildNumber`, `ios.deploymentTarget`, `javaVersion` | unset | Existing platform values remain unless a value is declared. `ios.deploymentTarget` is a compatibility assertion required only for the Apple universal AppIcon installer; it does not configure Xcode. |
-| `iosMarketingVersion` | `versionName` provider | Apple marketing version remains independently overridable. |
-| `propagateAppName`, `propagateBundleId`, `propagateVersion`, `propagateLocaleList` | `true` | Present scalar values are authoritative. Apple `knownRegions` is deliberately additive: requested regions are ensured but unrelated existing regions are not deleted. |
-| `propagateAndroidSdk` | `true` | Present `android {}` SDK values are authoritative. |
-| `filterAndroidResources` | `false` | Locale metadata does not prune packaged Android resources unless explicitly requested. |
-| `propagateLogo`, `propagateSharedModule`, `propagateInteropOptIns` | `false` | Branding, rename migration, and compiler policy require opt-in. |
-| `syncIos`, `sanitizeIosProject`, `cleanupLegacyLogoArtifacts` | `false` | Source-tree mutation is disabled. |
-| `backupBeforeRewrite` | `true` | User-owned text and eligible Apple assets are backed up before first replacement. |
-| `dryRun` | `false` | Explicit migrations apply; set true for their bounded unified-style preview. It never suppresses build-owned code generation. |
-| `ios.targetNames` | empty | Auto-select only a sole application target; ambiguity is an error. |
-| `ios.plistConflictPolicy` | `FAIL` | Existing conflicting plist values abort the complete plist plan. |
-| `web.generateIoWorker` | `false` | No browser source is generated. |
-| `web.browserTargetNames`, `web.projectPaths` | empty | Browser runtime is never inferred; project scope may fall back only to the unique shared project. |
-| `buildConfig.enabled` | `false` | No runtime constants object is generated. |
-| `buildConfig.includeIdentity` | `true` | Enabling it requires a complete identity; set false for custom fields only. |
-| `buildConfig.allowBuildCache` | `false` | Generated values are excluded from Gradle build-cache storage unless explicitly trusted. |
-
-Android application identity is applied in AGP `finalizeDsl`, after a module's
-own `android {}` block, so the declared SSOT wins. Classic and KMP-native Android
-libraries receive only compatible SDK/toolchain values. Leaving a model field
-unset preserves the module's value.
-
-## Versioning
-
-Android and Apple release numbers are intentionally separate:
-
-- `versionName` is Android's display version. When consumed, it must be
-  non-blank, control-free, and at most 255 characters.
-- `versionCodeOverride` is an explicit Android store build number in
-  `1..2_100_000_000`.
-- when an enabled consumer needs a derived Android code and no override exists,
-  `versionName` must be exactly three numeric components, each `0..999` without
-  leading zeroes. The fixed-width encoding is
-  `"1" + xxx + yyy + zzz`; for example, `1.2.3` becomes `1001002003`.
-- `android.publishedVersionCode` is an optional offline baseline; while Android
-  version propagation is active for a detected app, the resolved next code must
-  be strictly greater. The plugin does not contact a store.
-- during explicit iOS synchronization, `iosMarketingVersion` maps to
-  `MARKETING_VERSION` and must be `x.y.z`.
-- during explicit iOS synchronization, `iosBuildNumber` maps to
-  `CURRENT_PROJECT_VERSION`: one to three numeric components, with maximum
-  widths 4/2/2 and a positive first component. It never inherits Android's
-  version code.
-
-Use `versionCodeOverride` for prerelease names, four-component versions, or a
-different release scheme.
-
-## Locales
-
-The model stores a canonical, de-duplicated platform-resource subset of BCP-47:
-a 2–3 letter language with optional script, region, and variants. Prefer values
-such as `en`, `pt-BR`, and `sr-Latn`. Extensions, private-use, and grandfathered
-tags are rejected because they do not map consistently to both Android resource
-qualifiers and Xcode regions. Legacy Android forms such as `pt-rBR` and
-`b+sr+Latn` are accepted at the boundary and canonicalized immediately.
-At most 1,000 configured entries are accepted, and each raw tag is limited to
-255 characters before parsing.
-
-When `locales` is not set, discovery scans `values-*` directories below
-`composeResourcesDirectory`, or the selected shared project's conventional
-`src/commonMain/composeResources` directory. It accepts exact locale-only resource
-forms such as `values-en`, `values-pt-rBR`, and `values-b+sr+Latn`. Direct
-hyphenated BCP-47 forms belong in the explicit `locales` list; mixed/non-locale
-directories such as `values-pt-BR`, `values-en-night`, `values-land`, and
-`values-v26` are ignored. Discovery is shallow, does not follow links, and
-refuses more than 10,000 immediate resource entries.
-
-Canonical locales are added to Apple `knownRegions` during explicit iOS sync;
-`Base` and unrelated existing regions are preserved because this task does not
-own or validate every `.lproj` resource. They do **not** automatically restrict
-Android resources. Set
-`filterAndroidResources = true` to opt into application-level packaging filters;
-the plugin replaces the selected application's effective AGP locale-filter set
-with the canonical list via AGP 9 `localeFilters` or the compatible AGP 8
-qualifier form. On AGP 8, unrelated legacy resource configurations such as
-density, ABI, or the ambiguous `car` UI-mode qualifier are preserved; a `car`
-locale is emitted unambiguously as `b+car`. An empty list is rejected, and libraries
-are not pruned.
-
-## Android adapters
-
-For a selected `com.android.application`, the app-scoped adapter can set:
-
-- `applicationId`, `versionName`, `versionCode`;
-- `manifestPlaceholders["appName"]`;
-- optional application locale filters.
-
-Independently of that selector, every compatible classic Android module can
-receive configured `compileSdk`, `minSdk`, `ndkVersion`, Java source/target
-compatibility, and matching Kotlin JVM target. Configured `targetSdk` applies to
-application modules only.
-
-Use the placeholder in the app manifest:
+Use the app name placeholder in the selected Android manifest:
 
 ```xml
 <application android:label="${appName}" />
 ```
 
-Classic `com.android.library` modules receive compatible SDK and JVM values but
-not app identity or locale pruning. `com.android.kotlin.multiplatform.library`
-receives `compileSdk` and `minSdk`; that DSL has no `targetSdk` or `ndkVersion`.
+### 3. Check the result
 
-## BuildConfig generation
+Start with commands that do not change source files:
 
-BuildConfig is a typed public-client-configuration generator for the selected
-shared project's `commonMain`:
+```bash
+./gradlew kiteSsotVerify
+./gradlew kiteSsotDoctor
+./gradlew kiteSsotPlan
+./gradlew kiteSsotCheck
+```
+
+`kiteSsotVerify` prints the resolved model. `kiteSsotDoctor` explains setup
+problems without failing the build. `kiteSsotPlan` shows enabled operations and
+their destinations. `kiteSsotCheck` writes a CI report and fails on errors.
+
+## What KiteSSOT applies automatically
+
+KiteSSOT applies an optional value only when it is present. When that feature
+has a propagation switch, the switch must also be enabled. Generators use their
+own `enabled` switches.
+
+| Destination | Values applied during normal Gradle configuration |
+|---|---|
+| Selected Android application | App ID, version name, version code, `appName` manifest placeholder, and optional locale filters |
+| Every classic Android application | `compileSdk`, `minSdk`, `targetSdk`, `ndkVersion`, Java compatibility, and matching Kotlin JVM target when supported |
+| Every classic Android library | `compileSdk`, `minSdk`, `ndkVersion`, Java compatibility, and matching Kotlin JVM target when supported |
+| KMP-native Android library | `compileSdk` and `minSdk` |
+| Compatible KMP, Kotlin/JVM, and Kotlin Android projects | Kotlin JVM target when `javaVersion` is set |
+| Apple source files | Nothing during a normal build. Apple updates require an explicit `kiteSsot*` task |
+| `commonMain` | Generated `BuildConfig` only when `buildConfig.enabled = true` |
+| Selected browser source sets | Generated worker helper only when `web.generateIoWorker = true` |
+
+`androidApplicationProjects` limits app identity and locale filtering. It does
+not limit Android SDK or JVM policy. Those values are shared toolchain policy.
+
+KiteSSOT applies Android values after each module's own `android {}` block. A
+value declared in KiteSSOT wins over the same value in a module. Leave the
+KiteSSOT value unset when the module should remain in charge.
+
+## Complete API example
+
+The next example is a map of every preferred DSL option. It deliberately enables
+several independent features so their requirements are visible. It is not a
+starter template. Copy the small setup above, then add only the parts you need.
+
+Each KDoc comment says whether a value is optional, has a default, or becomes
+required when another feature is enabled. Deprecated 1.x compatibility names
+are intentionally omitted.
 
 ```kotlin
+// Root build.gradle.kts
+import io.github.yuroyami.kitessot.PlistConflictPolicy
+
 kiteSsot {
+    // Identity and release =====================================================
+
+    /**
+     * OPTIONAL.
+     * REQUIRED WHEN buildConfig.enabled = true and includeIdentity = true.
+     * Display name used by enabled Android and Apple consumers.
+     */
+    appName = "Jetzy"
+
+    /**
+     * OPTIONAL.
+     * REQUIRED WHEN buildConfig.enabled = true and includeIdentity = true.
+     * Android versionName. Apple marketing version uses this by default.
+     * A plain x.y.z value can also produce Android's versionCode.
+     */
+    versionName = "1.4.0"
+
+    /**
+     * OPTIONAL.
+     * REQUIRED WHEN buildConfig.enabled = true and includeIdentity = true.
+     * Base ID used to create Android and Apple identifiers.
+     */
+    bundleIdBase = "com.example.jetzy"
+
+    /**
+     * OPTIONAL.
+     * Android-only text appended to bundleIdBase.
+     */
+    androidApplicationIdSuffix = ".demo"
+
+    /**
+     * OPTIONAL.
+     * Apple-only text appended to bundleIdBase.
+     */
+    iosBundleSuffix = ".demo"
+
+    /**
+     * OPTIONAL.
+     * Explicit Android versionCode. Remove this to derive it from versionName.
+     */
+    versionCodeOverride = 1_004_000_042
+
+    /**
+     * OPTIONAL. DEFAULT: versionName.
+     * Apple MARKETING_VERSION used by explicit iOS synchronization.
+     */
+    iosMarketingVersion = "1.4.0"
+
+    /**
+     * OPTIONAL.
+     * Apple CURRENT_PROJECT_VERSION used by explicit iOS synchronization.
+     * Use one to three numeric parts. The first part must be positive.
+     */
+    iosBuildNumber = "42"
+
+    // Shared toolchain and locales ============================================
+
+    /**
+     * OPTIONAL.
+     * Java compatibility for classic Android modules and Kotlin JVM target
+     * alignment for compatible Kotlin projects.
+     */
+    javaVersion = 17
+
+    /**
+     * OPTIONAL.
+     * Canonical locale tags. When omitted, KiteSSOT can discover supported
+     * values-* directories from the selected Compose resources directory.
+     */
+    locales.set(listOf("en", "en-US", "fr"))
+
+    // Project selection ========================================================
+
+    /**
+     * REQUIRED WHEN BuildConfig generation is enabled.
+     * Also provides the default scope for locale discovery, Native opt-ins,
+     * and browser worker generation.
+     */
     sharedProjectPath = ":shared"
+
+    /**
+     * REQUIRED WHEN more than one Android app exists and an app-level feature
+     * is active. One app is selected automatically when it is unambiguous.
+     */
+    androidApplicationProjects.add(":androidApp")
+
+    /**
+     * REQUIRED WHEN Native opt-ins are enabled and sharedProjectPath is not
+     * the intended scope.
+     */
+    interopProjectPaths.add(":shared")
+
+    // Typed paths ==============================================================
+
+    /**
+     * OPTIONAL.
+     * Explicit Compose resources directory used for locale discovery.
+     */
+    composeResourcesDirectory.set(
+        layout.projectDirectory.dir("shared/src/commonMain/composeResources")
+    )
+
+    /**
+     * OPTIONAL.
+     * Android app source directory. Auto-detected from the selected app in
+     * normal Android builds.
+     */
+    androidAppDirectory.set(layout.projectDirectory.dir("apps/android"))
+
+    /**
+     * OPTIONAL. DEFAULT: iosApp/iosApp.xcodeproj/project.pbxproj.
+     * Xcode project file used by explicit iOS tasks.
+     */
+    iosPbxprojFile.set(
+        layout.projectDirectory.file("apps/ios/Jetzy.xcodeproj/project.pbxproj")
+    )
+
+    /**
+     * OPTIONAL. DEFAULT: iosApp/Podfile.
+     * Podfile used only for an enabled shared-module reference migration.
+     */
+    iosPodfileFile.set(layout.projectDirectory.file("apps/ios/Podfile"))
+
+    /**
+     * OPTIONAL. DEFAULT: iosApp/iosApp/Info.plist.
+     * Source XML plist used by explicit sanitization.
+     */
+    iosInfoPlistFile.set(
+        layout.projectDirectory.file("apps/ios/Jetzy/Info.plist")
+    )
+
+    /**
+     * OPTIONAL. DEFAULT: iosApp.
+     * Apple source tree searched by shared-module import migration.
+     */
+    iosAppDirectory.set(layout.projectDirectory.dir("apps/ios"))
+
+    /**
+     * OPTIONAL.
+     * DEFAULT: iosApp/iosApp/Assets.xcassets/AppIcon.appiconset.
+     * AppIcon catalog directory used by the Apple logo installer.
+     */
+    iosAppIconDirectory.set(
+        layout.projectDirectory.dir(
+            "apps/ios/Jetzy/Assets.xcassets/AppIcon.appiconset"
+        )
+    )
+
+    // Propagation switches =====================================================
+
+    /** DEFAULT: true. Apply appName when it is present. */
+    propagateAppName = true
+
+    /** DEFAULT: true. Apply resolved Android and Apple identifiers. */
+    propagateBundleId = true
+
+    /** DEFAULT: true. Apply present platform version values. */
+    propagateVersion = true
+
+    /** DEFAULT: true. Add locale metadata to enabled consumers. */
+    propagateLocaleList = true
+
+    /** DEFAULT: true. Apply values from android { } to compatible modules. */
+    propagateAndroidSdk = true
+
+    /**
+     * DEFAULT: false.
+     * Replace the selected Android app's locale filters. This affects packaging.
+     * At least one locale is required when enabled.
+     */
+    filterAndroidResources = true
+
+    /**
+     * DEFAULT: false.
+     * Enable explicitly invoked Android and Apple logo installers.
+     * Apple installation also requires syncIos = true.
+     */
+    propagateLogo = true
+
+    /**
+     * DEFAULT: false.
+     * Allow explicit Podfile and Swift import migration.
+     * Requires syncIos plus the old and new module names below.
+     */
+    propagateSharedModule = true
+
+    /**
+     * DEFAULT: false.
+     * Add the built-in interop markers to selected Native compilations.
+     */
+    propagateInteropOptIns = true
+
+    /**
+     * OPTIONAL.
+     * Extra fully qualified opt-in markers for the same Native scope.
+     */
+    extraOptIns.add("kotlin.experimental.ExperimentalObjCRefinement")
+
+    /**
+     * DEFAULT: false.
+     * Authorize explicitly invoked Apple source update tasks.
+     */
+    syncIos = true
+
+    /**
+     * DEFAULT: false. REQUIRES: syncIos = true.
+     * Maintain KiteSSOT references in a source XML Info.plist.
+     */
+    sanitizeIosProject = true
+
+    /**
+     * DEFAULT: false.
+     * Allow the Android logo task to back up and replace known legacy icons.
+     * Requires propagateLogo and a complete replacement logo.
+     */
+    cleanupLegacyLogoArtifacts = true
+
+    /**
+     * DEFAULT: true.
+     * Keep first-contact recovery copies for user-owned source and Apple assets.
+     */
+    backupBeforeRewrite = true
+
+    /**
+     * DEFAULT: false.
+     * Preview explicitly invoked source-changing tasks without applying them.
+     * Build-owned generated Kotlin source is still produced.
+     */
+    dryRun = true
+
+    // Shared-module migration ==================================================
+
+    /**
+     * REQUIRED WHEN shared-module migration is enabled.
+     * Previous CocoaPods and Swift module name.
+     */
+    iosPreviousSharedModuleName = "SharedKit"
+
+    /**
+     * REQUIRED WHEN shared-module migration is enabled.
+     * New CocoaPods and Swift module name.
+     */
+    iosSharedModuleName = "JetzyShared"
+
+    // Logo inputs ==============================================================
+
+    /**
+     * REQUIRED WHEN propagateLogo = true.
+     * Foreground PNG for both platform installers.
+     */
+    appLogoPngForeground.set(
+        layout.projectDirectory.file("branding/logo-foreground.png")
+    )
+
+    /**
+     * REQUIRED WHEN propagateLogo = true.
+     * Choose this color or appLogoPngBackground, never both.
+     */
+    appLogoBackgroundColor = "#6750A4"
+
+    /**
+     * ALTERNATIVE to appLogoBackgroundColor.
+     * Uncomment this and remove the color when the background is a PNG.
+     */
+    // appLogoPngBackground.set(
+    //     layout.projectDirectory.file("branding/logo-background.png")
+    // )
+
+    /**
+     * OPTIONAL. DEFAULT: 66.0 / 108.0.
+     * Foreground size inside Android's adaptive icon canvas.
+     */
+    appLogoAndroidSafeZoneRatio = 66.0 / 108.0
+
+    // Android ==================================================================
+
+    android {
+        /**
+         * OPTIONAL.
+         * Offline guard. The next resolved versionCode must be greater.
+         */
+        publishedVersionCode = 1_004_000_041
+
+        /** OPTIONAL. Applied to every compatible Android module. */
+        compileSdk = 36
+
+        /** OPTIONAL. Applied to every compatible Android module. */
+        minSdk = 26
+
+        /** OPTIONAL. Applied to Android applications only. */
+        targetSdk = 36
+
+        /** OPTIONAL. Applied to classic Android modules only. */
+        ndkVersion = "27.0.12077973"
+    }
+
+    // Apple ====================================================================
+
+    ios {
+        /**
+         * REQUIRED for Apple universal AppIcon installation.
+         * This validates compatibility. It does not configure Xcode's
+         * IPHONEOS_DEPLOYMENT_TARGET.
+         */
+        deploymentTarget = "12.0"
+
+        /**
+         * REQUIRED WHEN an enabled Xcode app-setting update must choose among
+         * multiple application targets. A sole app is selected automatically.
+         * Project-level locales and file-only updates do not need this selector.
+         */
+        targetNames.add("Jetzy")
+
+        /**
+         * DEFAULT: FAIL.
+         * Choose FAIL, KEEP, or REPLACE for conflicting plist values.
+         */
+        plistConflictPolicy = PlistConflictPolicy.FAIL
+
+        /**
+         * OPTIONAL.
+         * Manage ITSAppUsesNonExemptEncryption during explicit plist updates.
+         */
+        usesNonExemptEncryption = false
+
+        /**
+         * OPTIONAL.
+         * Manage CADisableMinimumFrameDurationOnPhone in the source plist.
+         */
+        proMotion120Hz = true
+    }
+
+    // Browser Kotlin/JS ========================================================
+
+    web {
+        /** DEFAULT: false. Generate the browser-only kiteSsotOffload helper. */
+        generateIoWorker = true
+
+        /**
+         * REQUIRED WHEN generation is enabled.
+         * Exact Kotlin/JS targets that are configured with browser().
+         */
+        browserTargetNames.add("js")
+
+        /**
+         * REQUIRED WHEN sharedProjectPath is not the intended worker scope.
+         * Each path must select a Kotlin Multiplatform project.
+         */
+        projectPaths.add(":shared")
+
+        /** OPTIONAL. DEFAULT: kitessot.generated. */
+        ioWorkerPackage = "com.example.jetzy.generated"
+    }
+
+    // Runtime constants ========================================================
+
     buildConfig {
+        /** DEFAULT: false. Generate a Kotlin object into commonMain. */
         enabled = true
-        packageName = "com.example.generated"
-        className = "BuildConfig"
+
+        /** OPTIONAL. DEFAULT: kitessot.generated. */
+        packageName = "com.example.jetzy.generated"
+
+        /** OPTIONAL. DEFAULT: BuildConfig. */
+        className = "AppConfig"
+
+        /**
+         * DEFAULT: true.
+         * Include appName, version values, IDs, and locales. Complete identity
+         * values are required when this is true.
+         */
         includeIdentity = true
+
+        /**
+         * DEFAULT: false.
+         * Enable only for public values and trusted build caches.
+         */
         allowBuildCache = false
 
+        /** OPTIONAL. Public client configuration only, never secrets. */
         stringField("BASE_URL", "https://api.example.com")
+        stringField(
+            "PUBLIC_CHANNEL",
+            providers.gradleProperty("publicChannel").orElse("stable"),
+        )
         intField("API_TIMEOUT_MS", 30_000)
         longField("CACHE_BYTES", 5_000_000L)
         booleanField("ANALYTICS_ENABLED", true)
@@ -290,136 +530,270 @@ kiteSsot {
 }
 ```
 
-The task `:shared:generateKiteSsotBuildConfig` owns
-`build/generated/kitessot/commonMain/kotlin` and wires that directory to
-`commonMain`. Duplicate names, invalid identifiers, arbitrary Kotlin fragments,
-non-finite doubles, and collisions with identity fields are rejected. Generation
-is bounded to 512 custom fields, 10,000 characters per String value, 65,536
-characters per legacy transport entry, and 1,048,576 transport characters in
-total. Integer extrema are emitted as `Int.MIN_VALUE` and `Long.MIN_VALUE`, so
-their source representation remains valid Kotlin.
+The full example uses the preferred 2.x API. These older properties still exist
+only so existing builds can migrate:
 
-This is **not a secret store**. A provider can keep a value out of the build
-script, but the resolved value still enters generated source, task inputs, build
-scans, KLIBs, application binaries, and—if explicitly enabled—build caches. Do
-not put credentials or signing material here.
+| Compatibility property | Preferred replacement |
+|---|---|
+| `sharedModule` | `sharedProjectPath`, `composeResourcesDirectory`, and `iosSharedModuleName` |
+| `oldSharedModuleName` | `iosPreviousSharedModuleName` |
+| `androidAppModule` | `androidApplicationProjects` or `androidAppDirectory` |
+| `iosProjectPath` | `iosPbxprojFile` |
+| `iosPodfilePath` | `iosPodfileFile` |
+| `iosInfoPlistPath` | `iosInfoPlistFile` |
+| `iosAppDir` | `iosAppDirectory` |
+| `iosAppiconsetPath` | `iosAppIconDirectory` |
+| `buildConfig.fields` | `stringField`, `intField`, `longField`, `booleanField`, and `doubleField` |
 
-## Browser worker generation
+## Read KiteSSOT values yourself
 
-The optional worker is intentionally browser-only and explicitly scoped:
+There are three different places where you may want a value. Use the matching
+approach so it is clear whether you are reading Gradle configuration or
+application runtime data.
+
+### In root Gradle build logic
+
+The root extension exposes Gradle `Property` and `Provider` values. Keep the
+provider lazy when the receiving API accepts one.
+
+```kotlin
+// Root build.gradle.kts
+import io.github.yuroyami.kitessot.KiteSsotExtension
+import org.gradle.kotlin.dsl.getByType
+
+val ssot = extensions.getByType<KiteSsotExtension>()
+
+val minSdkProvider = ssot.android.minSdk
+val versionCodeProvider = ssot.versionCode
+val androidIdProvider = ssot.androidApplicationId
+
+tasks.register("printKiteSsotMinSdk") {
+    inputs.property("minSdk", minSdkProvider)
+    doLast {
+        logger.lifecycle("KiteSSOT minSdk = ${minSdkProvider.get()}")
+    }
+}
+```
+
+If another Gradle plugin exposes a `Property<Int>`, connect the providers
+directly:
+
+```kotlin
+// Replace this with the other plugin's actual extension.
+otherPluginExtension.minimumSdk.set(ssot.android.minSdk)
+```
+
+Use `.get()` only when an API requires a plain value and only after you have set
+that optional property:
+
+```kotlin
+val requiredMinSdk: Int = ssot.android.minSdk.get()
+val optionalMinSdk: Int? = ssot.android.minSdk.orNull
+```
+
+Available read-only derived providers are:
+
+| Provider | Result |
+|---|---|
+| `ssot.versionCode` | Explicit or derived Android version code |
+| `ssot.androidApplicationId` | Base bundle ID plus Android suffix |
+| `ssot.iosBundleId` | Base bundle ID plus Apple suffix |
+| `ssot.canonicalLocales` | Normalized, de-duplicated locale list |
+| `ssot.resolvedSharedProjectPath` | Effective shared Gradle project path |
+
+### In a subproject build script
+
+The current compatibility accessor can read the root model:
+
+```kotlin
+@file:Suppress("DEPRECATION")
+
+import io.github.yuroyami.kitessot.kiteSsot
+
+val minSdkProvider = kiteSsot.android.minSdk
+val optionalMinSdk = minSdkProvider.orNull
+```
+
+This accessor is deprecated because it reaches across Gradle projects and does
+not support Isolated Projects. Treat it as read-only. Never configure or mutate
+the root model from a subproject. For new shared build logic, prefer a convention
+plugin with its own local input or pass the provider from root build logic.
+
+### In application code
+
+Enable `buildConfig` to generate a typed object in the selected shared project's
+`commonMain`:
+
+```kotlin
+kiteSsot {
+    appName = "Jetzy"
+    versionName = "1.4.0"
+    bundleIdBase = "com.example.jetzy"
+    sharedProjectPath = ":shared"
+
+    buildConfig {
+        enabled = true
+        packageName = "com.example.jetzy.generated"
+        className = "AppConfig"
+    }
+}
+```
+
+Read it from `commonMain` and production source sets that depend on
+`commonMain`:
+
+```kotlin
+import com.example.jetzy.generated.AppConfig
+
+fun userAgent(): String =
+    "${AppConfig.appName}/${AppConfig.versionName} (${AppConfig.versionCode})"
+```
+
+With identity enabled, the generated object contains `appName`, `versionName`,
+`versionCode`, `androidApplicationId`, `iosBundleId`, and `locales`. SDK and
+toolchain values are not included automatically.
+
+If runtime code needs `minSdk`, keep one root value and use it for both Android
+configuration and a custom generated field:
+
+```kotlin
+val appMinSdk = 26
+
+kiteSsot {
+    sharedProjectPath = ":shared"
+
+    android {
+        minSdk = appMinSdk
+    }
+
+    buildConfig {
+        enabled = true
+        includeIdentity = false
+        packageName = "com.example.jetzy.generated"
+        className = "PlatformConfig"
+        intField("MIN_SDK", appMinSdk)
+    }
+}
+```
+
+```kotlin
+import com.example.jetzy.generated.PlatformConfig
+
+val minimumSupportedAndroidSdk = PlatformConfig.MIN_SDK
+```
+
+Generated values are public binary inputs. Do not put credentials, signing
+material, private API keys, or other secrets in `buildConfig`.
+
+## Common feature walkthroughs
+
+### Versions
+
+`versionName = "1.2.3"` produces Android version code `1001002003`. Use
+`versionCodeOverride` for prerelease names, four-part versions, or another store
+numbering scheme.
+
+Apple numbers are independent:
+
+```kotlin
+kiteSsot {
+    versionName = "1.4.0"
+    iosMarketingVersion = "1.4.0"
+    iosBuildNumber = "42"
+}
+```
+
+`android.publishedVersionCode` is an optional offline check. It runs when an
+Android application is detected and version propagation is enabled. KiteSSOT
+never contacts a store and never increments versions for you.
+
+### Locales
+
+Set locales directly:
+
+```kotlin
+kiteSsot {
+    locales.set(listOf("en", "en-US", "fr", "sr-Latn"))
+}
+```
+
+Or let KiteSSOT discover exact locale directories such as `values-en`,
+`values-pt-rBR`, and `values-b+sr+Latn` under the selected Compose resources
+directory.
+
+Locale metadata does not remove Android resources. Turn on
+`filterAndroidResources` only when you want the selected application package to
+contain the declared locale set:
+
+```kotlin
+kiteSsot {
+    locales.set(listOf("en", "fr"))
+    filterAndroidResources = true
+}
+```
+
+### Browser worker
+
+After enabling the `web {}` block from the complete example, call the generated
+helper from the selected browser target:
+
+```kotlin
+import com.example.jetzy.generated.kiteSsotOffload
+
+suspend fun parseAwayFromTheUiThread(json: String): String =
+    kiteSsotOffload(
+        jobJs = "(value) => JSON.parse(value).name",
+        payload = json,
+        timeoutMillis = 1_000L,
+    )
+```
+
+The consumer supplies `kotlinx-coroutines-core`. The helper is for browser
+Kotlin/JS, not Node.js or wasm. `jobJs` is executable JavaScript, so it must not
+come from user input. The deployed Content Security Policy must allow Blob
+workers, normally through `worker-src blob:`.
+
+### Native interop opt-ins
 
 ```kotlin
 kiteSsot {
     sharedProjectPath = ":shared"
-    web {
-        generateIoWorker = true
-        projectPaths.add(":shared")
-        browserTargetNames.add("js") // exact Kotlin/JS target name
-        ioWorkerPackage = "com.example.generated"
-    }
+    propagateInteropOptIns = true
+    interopProjectPaths.add(":shared")
+    extraOptIns.add("kotlin.experimental.ExperimentalObjCRefinement")
 }
 ```
 
-For target `js`, `:shared:generateKiteSsotIoWorkerJs` emits a single-shot
-`kiteSsotOffload` helper into
-`build/generated/kitessot/jsMain/kotlin`. Custom target names produce matching
-task/source-set names. The consumer must provide `kotlinx-coroutines-core`.
+This adds compiler opt-ins to selected Native compilations. It does not edit
+source files.
 
-The helper validates browser Worker/Blob APIs, applies a 30-second default
-timeout, and terminates on completion, failure, timeout, or coroutine
-cancellation. It does not support Node.js-only or `wasmJs` targets. `jobJs` is
-trusted executable JavaScript—not data—and must never be constructed from user
-input. A deployed Content Security Policy must allow Blob workers, normally with
-`worker-src blob:`.
+## Apple updates and logo installation
 
-## Native interop compiler policy
+KiteSSOT does not change Xcode projects, plists, Podfiles, Swift files, or source
+assets during an ordinary build. These changes use explicit tasks.
 
-`propagateInteropOptIns = true` adds these markers only to native compilations in
-the selected `interopProjectPaths` (or the uniquely selected shared project):
+Use this workflow:
 
-- `kotlinx.cinterop.ExperimentalForeignApi`
-- `kotlin.experimental.ExperimentalObjCName`
-- `kotlin.experimental.ExperimentalNativeApi`
+1. Configure exact paths and target names.
+2. Enable only the operation you need.
+3. Run `./gradlew kiteSsotPlan`.
+4. Set `dryRun = true`.
+5. Run one explicit task and review its preview.
+6. Set `dryRun = false`, run that same task, then inspect the diff.
+7. Run `kiteSsotDoctor` and `kiteSsotCheck`.
 
-Add validated fully qualified names through `extraOptIns`. This is compiler
-policy, so it is disabled by default and never edits source. This selector scopes
-only the Native opt-ins; it does not scope the root-global Kotlin/JVM alignment
-activated by `javaVersion`.
+| Task | Purpose |
+|---|---|
+| `kiteSsotSanitizeIosProject` | Maintain configured keys in a source XML Info.plist |
+| `kiteSsotSyncIosConfig` | Apply selected Xcode, plist, Podfile, and Swift plans |
+| `kiteSsotSyncIosLogo` | Install the selected Apple AppIcon catalog |
+| `kiteSsotSyncAndroidLogo` | Install the Android launcher icon tree |
+| `kiteSsotCleanupLegacyAppLogoArtifacts` | Back up and remove selected legacy Android icon files |
 
-## Explicit Apple migrations
+There is no "apply everything" task. Each source-changing operation has its own
+review and recovery boundary.
 
-Apple source synchronization is never attached to link, archive, or ordinary
-build tasks. First configure exact paths/targets, opt in, inspect, and invoke it:
-
-```kotlin
-kiteSsot {
-    syncIos = true
-    sanitizeIosProject = true
-
-    ios {
-        targetNames.add("MyApp")
-        usesNonExemptEncryption = false
-        proMotion120Hz = true
-        plistConflictPolicy =
-            io.github.yuroyami.kitessot.PlistConflictPolicy.FAIL
-    }
-}
-```
-
-`kiteSsotSyncIosConfig` walks the pbxproj object graph and changes build settings
-only for the selected application target configurations. An empty selector is
-accepted only for exactly one application target. Missing graph links, malformed
-settings, no application target, or ambiguity abort the plan—there is no global
-fallback. Locale `knownRegions` remains project-level.
-
-`kiteSsotSanitizeIosProject` supports source XML plists. It uses hardened XML
-parsing, rejects duplicate/malformed/unsafe input or content over 4 MiB of UTF-8,
-and requires a lossless baseline round trip. Conflict policies are:
-
-- `FAIL`: abort and preserve the file byte-for-byte;
-- `KEEP`: preserve the conflicting value and warn;
-- `REPLACE`: explicitly authorize replacement.
-
-It can manage the `$(PRODUCT_NAME)`, `$(MARKETING_VERSION)`, and
-`$(CURRENT_PROJECT_VERSION)` references plus the two optional boolean flags.
-Binary/OpenStep and Xcode-generated plists are not converted; configure their
-build settings instead.
-
-### Explicit shared-module reference migration
-
-The plugin does not rename a directory and does not infer an old module from a
-Podfile. After performing the Gradle project rename yourself, declare both ends:
-
-```kotlin
-kiteSsot {
-    syncIos = true
-    propagateSharedModule = true
-    iosPreviousSharedModuleName = "shared"
-    iosSharedModuleName = "composeApp"
-}
-```
-
-The iOS config task then updates at most one exact local-pod declaration and
-plain exact Swift `import shared` statements under the selected iOS tree.
-Vendored, dependency, build, checkout, and symlink trees are skipped. Qualified,
-testable, implementation-only, bridging-header, and same-prefix imports are not
-rewritten. Comment, string, raw-string, and extended-regex contents are masked;
-unterminated lexical regions abort the complete migration rather than widening it.
-
-Run `pod install` yourself after reviewing a CocoaPods migration.
-
-## Logo installers and ownership
-
-Set `propagateLogo = true`, a foreground PNG, and exactly one background PNG or
-`#RRGGBB`/`#AARRGGBB` color. The Apple installer additionally requires
-`syncIos = true`; the Android installer does not. PNGs are decoded with
-strict limits of 32 MiB, 4,096 pixels per dimension, and 16,777,216 decoded
-pixels; inputs cannot live inside the output tree.
-
-These tasks install assets, while strict diagnostics prove that the selected
-applications consume them. The Android application manifest remains user-owned;
-it must reference the generated names (including `roundIcon` when the application
-uses one):
+For Android icons, the manifest must use the generated resource names:
 
 ```xml
 <application
@@ -427,202 +801,82 @@ uses one):
     android:roundIcon="@mipmap/ic_launcher_round" />
 ```
 
-The selected Xcode application target must likewise declare the catalog named by
-`iosAppIconDirectory`—normally `ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon` for
-the default `AppIcon.appiconset`. `kiteSsotSyncIosConfig` aligns an existing
-assignment in every selected application configuration and fails closed when the
-setting is absent; it never inserts a guessed build setting. `kiteSsotDoctor` and
-`kiteSsotCheck` validate both platform references (`KMPS003`, `KMPS021`, and
-`KMPS024`). Verify the merged Android manifest and the selected target's effective
-Xcode build settings as the final application-level check.
+For Apple icons, the selected Xcode application target must already have
+`ASSETCATALOG_COMPILER_APPICON_NAME` for the chosen catalog. The universal
+AppIcon installer requires Xcode 14 or newer and
+`ios.deploymentTarget = "12.0"` or newer. That property is a compatibility
+assertion. It does not write `IPHONEOS_DEPLOYMENT_TARGET`.
 
-`kiteSsotSyncAndroidLogo` installs adaptive and legacy launcher images at all
-densities. The foreground is aspect-contained within the configurable safe zone
-(default `66/108`); backgrounds aspect-cover the canvas. When the SSOT
-`android.compileSdk` is explicitly 33 or newer, v33 wrappers reuse the foreground
-as Android's supported monochrome layer. See Android's [adaptive-icon guidance](https://developer.android.com/develop/ui/compose/system/icon_design_adaptive).
-Existing unowned files at requested paths or same-stem Android Studio WebP icons
-cause a failure.
+Both logo installers enforce path containment and checksum ownership. Android
+refuses unowned collisions unless `cleanupLegacyLogoArtifacts` explicitly
+authorizes a backed-up takeover. Apple can back up eligible first-contact files
+when `backupBeforeRewrite` is enabled. Later manual changes are not silently
+replaced, and unreferenced Apple PNGs are reported instead of deleted.
 
-Set `cleanupLegacyLogoArtifacts = true` to authorize reversible takeover of
-legacy/colliding Android icon files and, on first contact, unowned paths the
-current installer will claim. `kiteSsotSyncAndroidLogo` renders and validates the
-complete replacement first, then backs up, removes, and installs as one
-rollback-capable operation. `kiteSsotCleanupLegacyAppLogoArtifacts` exposes only
-the backup/removal half for an explicitly requested recovery workflow. It shares
-the installer's ownership lock and never removes current manifest-owned outputs.
+## Defaults worth remembering
 
-`kiteSsotSyncIosLogo` installs an opaque 1024×1024 composite and universal
-`Contents.json`. This single-size catalog requires Xcode 14 or newer and an
-explicit `ios.deploymentTarget` of at least 12.0. That property asserts
-compatibility; it does not write Xcode's `IPHONEOS_DEPLOYMENT_TARGET`. With the
-default `backupBeforeRewrite = true`, first contact backs up existing outputs
-below the durable `.kitessot/recovery/ios-appicon` tree, which `clean` does not erase. Android
-takeover uses `.kitessot/recovery/android-logo`. Archive or commit these verified
-recovery records until the migration is accepted. Unreferenced icon PNGs are
-reported, not silently deleted.
-
-This installer emits only the universal default appearance. It does not generate
-the optional Dark/Tinted appearances or an Icon Composer file; keep those assets
-under a separate workflow. Apple documents the current single-size and appearance
-options in [Configuring your app icon using an asset catalog](https://developer.apple.com/documentation/xcode/configuring-your-app-icon/).
-
-Both installers maintain checksum ownership manifests. Later runs replace or
-delete only unchanged files the manifest proves the plugin owns. Manual changes,
-unowned targets, symlinks, and path escapes fail closed.
-
-Commit those small ownership manifests together with the installed icon assets:
-they are required provenance, not disposable build output. A fresh clone without
-them correctly treats committed icons as unowned. Empty coordination lock files
-below `.kitessot` are ignored and must not be committed.
-
-## Diagnostics and task reference
-
-Start with the read-only tasks:
-
-```bash
-./gradlew kiteSsotVerify
-./gradlew kiteSsotDoctor
-./gradlew kiteSsotCheck
-./gradlew kiteSsotPlan
-```
-
-| Task | Behavior |
+| Setting | Default |
 |---|---|
-| `kiteSsotVerify` | Prints resolved model values and selected path presence; never mutates files. |
-| `kiteSsotDoctor` | Runs the resilient aggregate checks and reports PASS/SKIP/WARN/FAIL without gating on findings. |
-| `kiteSsotCheck` | Writes deterministic JSON by default, then fails on ERROR findings; can emit SARIF and fail on warnings. |
-| `kiteSsotPlan` | Prints enabled operations, exact selectors/paths, policies, and available change summaries without mutation. |
-| `kiteSsotSanitizeIosProject` | Applies the opted-in source XML plist plan. |
-| `kiteSsotSyncIosConfig` | Applies the optional plist, selected pbxproj, and optional Podfile/Swift text migration as one recoverable batch. |
-| `kiteSsotSyncIosLogo` | Installs the opted-in Apple app icon. |
-| `kiteSsotSyncAndroidLogo` | Installs the opted-in Android launcher-icon tree. |
-| `kiteSsotCleanupLegacyAppLogoArtifacts` | Backs up and removes selected legacy/colliding files and, on first contact, unowned paths the current installer will claim. |
+| Identity, SDK, Java, Apple build number, logo inputs | Unset |
+| `iosMarketingVersion` | Follows `versionName` |
+| Identity, locale metadata, and Android SDK propagation | `true` |
+| Android locale filtering | `false` |
+| Logo, shared-module migration, and Native opt-ins | `false` |
+| Apple sync and plist sanitization | `false` |
+| `backupBeforeRewrite` | `true` |
+| `dryRun` | `false` |
+| Browser worker generation | `false` |
+| BuildConfig generation | `false` |
+| BuildConfig identity fields | `true` after generation is enabled |
+| BuildConfig cache storage | `false` |
+| Plist conflict policy | `FAIL` |
 
-There is deliberately no “apply everything” aggregate: text and binary platform
-installers have different ownership and rollback domains. Invoke each reviewed
-plan explicitly so a later unrelated installer cannot turn an earlier success
-into a misleading partial global sync.
+## Compatibility
 
-The default check report is
-`build/reports/kitessot/diagnostics.json`. Configure CI output in the root build:
-
-```kotlin
-import io.github.yuroyami.kitessot.KiteSsotCheckTask
-import io.github.yuroyami.kitessot.KiteSsotDiagnosticReportFormat
-
-tasks.named<KiteSsotCheckTask>("kiteSsotCheck") {
-    reportFormat.set(KiteSsotDiagnosticReportFormat.SARIF)
-    failOnWarnings.set(true)
-}
-```
-
-Diagnostics expose stable IDs:
-
-| IDs | Area |
+| Component | Supported range |
 |---|---|
-| `KMPS001`–`KMPS003` | Android manifest app-name and launcher-icon reference contracts |
-| `KMPS010`–`KMPS012` | source Info.plist references and Apple bundle-name compatibility |
-| `KMPS020`–`KMPS024` | pbxproj target selection, Apple app-icon state/selection, and deployment compatibility |
-| `KMPS030`–`KMPS031` | Android resource/icon state |
-| `KMPS040` | locale canonicalization |
-| `KMPS050` | monotonic Android version derivation |
-| `KMPS060`–`KMPS062` | KGP classloader visibility and active AGP/KGP compatibility |
-| `KMPS070`–`KMPS071` | exact Android project and iOS target selector validity |
-| `KMPS901`–`KMPS940` | provider/path/input-fingerprint resolution failures |
-| `KMPS999` | unexpected diagnostic-engine failure |
+| Gradle | 8.5 or newer |
+| JVM running Gradle | Java 17 or 21 in CI |
+| Kotlin Gradle plugin | Stable 2.4.x |
+| Android Gradle plugin | 8.5.2 through 9.1.x |
 
-`KMPS011` honors `ios.plistConflictPolicy`: `FAIL` conflicts are errors,
-`KEEP` conflicts are warnings describing the intentionally preserved drift, and
-`REPLACE` conflicts remain actionable errors until the explicit migration has
-overwritten the source plist.
+The plugin is built with Java 21 and emits Java 17 bytecode. The root aggregation
+design supports Gradle configuration cache, but not Gradle Isolated Projects.
 
-Selector findings retain the configured list exactly: ambiguous implicit app
-selection and malformed, unknown, or duplicate `androidApplicationProjects`
-entries report `KMPS070`, while blank, control-bearing, or duplicate
-`ios.targetNames` entries report `KMPS071`.
-Compatibility findings are actionable only when the corresponding typed AGP or
-KGP integration is required by the detected projects and enabled features.
+## Current boundaries
 
-For a reviewable unified-style text preview, set `dryRun = true` and invoke the
-selected migration task. User-owned text changes are staged before commit;
-multi-file iOS migration uses locks, atomic replacement, and rollback if a later
-commit fails. The default `backupBeforeRewrite = true` also creates write-once
-`.kitessot.bak` recovery copies.
+KiteSSOT does not provide:
 
-## Migrating from 1.7
+- per-flavor, per-build-type, or per-Xcode-target identity overrides;
+- automatic Gradle directory or `settings.gradle` renames;
+- generated or binary Info.plist conversion;
+- xcconfig generation;
+- Node.js or wasm workers;
+- SVG or vector logo input;
+- Apple dark or tinted icon variants;
+- store access, signing, secret management, release upload, or `pod install`.
 
-This unreleased safety line intentionally changes behavior. Upgrade in a clean
-working tree and make these changes before running any sync task:
+These are deliberate boundaries, not implied future behavior.
 
-1. Replace directory guesses with `sharedProjectPath`,
-   `androidApplicationProjects`, typed file/directory properties, and
-   `ios.targetNames` where the destination is not unique.
-2. Opt back into behavior that used to be broad or automatic:
-   `syncIos`, `sanitizeIosProject`, `propagateLogo`,
-   `propagateSharedModule`, `propagateInteropOptIns`, and
-   `filterAndroidResources` now default to false.
-3. Split release numbers. Keep Android `versionCodeOverride` independent, set
-   `iosMarketingVersion`, and provide `iosBuildNumber` when Apple build-number
-   propagation is wanted.
-4. Change derived versions to exact `x.y.z` without leading zeroes, or set an
-   explicit `versionCodeOverride`. Optionally set
-   `android.publishedVersionCode` to guard monotonic releases.
-5. Canonicalize locale configuration to BCP-47. Android resource filtering is a
-   separate opt-in and no longer prunes libraries.
-6. For shared-module reference migration, set both
-   `iosPreviousSharedModuleName` and `iosSharedModuleName`; automatic Podfile
-   inference is removed. The legacy `oldSharedModuleName`/`sharedModule` pair is
-   retained only as a compatibility fallback.
-7. For worker generation, select exact `web.projectPaths` and
-   `web.browserTargetNames`. Node and wasm targets are rejected.
-8. Rename direct task invocations:
+## Upgrading from 1.x
 
-   | 1.7 task | Current task |
-   |---|---|
-   | `sanitizeIosProject` | `kiteSsotSanitizeIosProject` |
-   | `syncIosConfig` | `kiteSsotSyncIosConfig` |
-   | `syncIosLogo` | `kiteSsotSyncIosLogo` |
-   | `syncAndroidLogo` | `kiteSsotSyncAndroidLogo` |
-   | `cleanupLegacyAppLogoArtifacts` | `kiteSsotCleanupLegacyAppLogoArtifacts` |
+Version 2.0 renamed the plugin and made every source-changing operation explicit.
+The short migration checklist is:
 
-9. Run `kiteSsotVerify`, `kiteSsotDoctor`, `kiteSsotCheck`, and `kiteSsotPlan`.
-   Then use `dryRun = true` with only the migration you intend to execute.
+1. Change the plugin ID to `io.github.yuroyami.kitessot`.
+2. Rename `kmpSsot {}` to `kiteSsot {}`.
+3. Replace directory guesses with project selectors and typed paths.
+4. Opt into logo, Apple, Native, and locale-filtering behavior explicitly.
+5. Keep Android and Apple build numbers separate.
+6. Run the four read-only checks before any source-changing task.
 
-BuildConfig caching is now denied by default. If the generated object contains
-only public client configuration and every configured cache is trusted, opt in
-with `allowBuildCache = true`.
-
-## Boundaries
-
-The plugin does not provide per-flavor identities, per-Xcode-target identity
-overlays, xcconfig generation, automatic Gradle-directory renames, generated
-Info.plist conversion, store API integration, signing configuration, secret
-storage, Node workers, or wasm workers. It does not run `pod install`.
-
-Those boundaries keep the central model deterministic and prevent the plugin
-from becoming an implicit release system.
+See [CHANGELOG.md](CHANGELOG.md) for the complete 2.0 migration record.
 
 ## Contributing
 
-```bash
-./gradlew clean build validatePlugins \
-  --configuration-cache --configuration-cache-problems=fail
-```
-
-CI runs compatibility jobs on Linux, macOS, and Windows and checks that an
-ordinary build does not modify tracked source. Release publication requires an
-exact `v<version>` tag matching the artifact version and changelog. The release
-workflow first builds an unprivileged, immutable unsigned candidate. That job
-runs the real AGP matrix, proves strict configuration-cache reuse for the
-cacheable release graph, and emits a runtime-surface CycloneDX SBOM (the plugin
-currently has no published runtime dependencies). Only the protected publish
-job receives signing or repository secrets and write permissions. It restages
-the signed Maven repository, proves every core payload is byte-identical to the
-reviewed candidate, and requires a detached signature for each payload before
-publication and provenance attestation. Secret-bearing Gradle invocations run
-with the configuration cache disabled in single-use daemons so credentials
-cannot be persisted in a cache entry.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the development workflow and test
+commands. Security reports belong in the process described by
+[SECURITY.md](SECURITY.md).
 
 ## License
 

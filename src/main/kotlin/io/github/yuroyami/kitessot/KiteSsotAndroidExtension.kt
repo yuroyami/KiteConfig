@@ -3,53 +3,57 @@ package io.github.yuroyami.kitessot
 import org.gradle.api.provider.Property
 
 /**
- * Android-only SDK options. Nested under `kiteSsot { android { ... } }`.
+ * Android build settings inside `kiteSsot { android { ... } }`.
  *
- * Every value is optional (`Property` with no convention). The SDK fields are
- * propagated into each compatible Android module iff they are set and the root
- * `propagateAndroidSdk` toggle is on. Leave an SDK field unset to keep whatever
- * the module declares itself. [publishedVersionCode] is an offline validation
- * guard, not a value propagated into Android DSLs.
+ * Every value is optional and has no default. When the root
+ * `propagateAndroidSdk` setting is `true`, which is the default, KiteSSOT copies
+ * each SDK value you set into supported Android modules. An unset value leaves
+ * the module's own setting unchanged.
  *
- * These are deliberately *not* part of cross-platform identity — they're the
- * Android toolchain knobs that otherwise get copy-pasted across every Android
- * module in a KMP project (`compileSdk`/`minSdk`/`targetSdk`/`ndkVersion`).
- * Centralising them here is the same SSOT win as appName/version, scoped to
- * Android.
+ * These values control the Android toolchain. They are separate from
+ * cross-platform app identity. [publishedVersionCode] is only an offline release
+ * check and is never copied into an Android DSL.
  *
- *     kiteSsot {
- *         android {
- *             compileSdk = 36
- *             minSdk     = 26
- *             targetSdk  = 36
- *             ndkVersion = "27.0.12077973"
- *         }
+ * ```kotlin
+ * kiteSsot {
+ *     android {
+ *         compileSdk = 36
+ *         minSdk = 26
+ *         targetSdk = 36
+ *         ndkVersion = "27.0.12077973"
  *     }
+ * }
+ * ```
  */
 abstract class KiteSsotAndroidExtension {
 
     /**
-     * Optional highest version code already published to an Android store. When
-     * set, model finalization fails unless the resolved next version code is
-     * strictly greater while Android version propagation is active for a detected
-     * application. This is an offline guard; the plugin never contacts a store or
-     * guesses the baseline.
+     * The highest version code you have already published.
+     *
+     * This is optional. When Android version propagation is active for a detected
+     * application, the next resolved version code must be greater than this value.
+     * KiteSSOT does not contact an app store or guess this value.
      */
     abstract val publishedVersionCode: Property<Int>
 
-    /** `compileSdk` for every Android module (application + library). */
+    /** Optional `compileSdk` for every supported Android application and library. */
     abstract val compileSdk: Property<Int>
 
-    /** `defaultConfig.minSdk` for every Android module (application + library). */
+    /** Optional `defaultConfig.minSdk` for every supported Android application and library. */
     abstract val minSdk: Property<Int>
 
     /**
-     * `defaultConfig.targetSdk` for the Android **application** module(s).
-     * Library modules have no `targetSdk` (AGP removed it), so this is ignored
-     * there.
+     * Optional `defaultConfig.targetSdk` for Android application modules.
+     *
+     * Android library modules do not expose `targetSdk`, so this value does not
+     * apply to them.
      */
     abstract val targetSdk: Property<Int>
 
-    /** `ndkVersion` for classic Android modules. AGP's KMP-native library DSL does not expose it. */
+    /**
+     * Optional `ndkVersion` for classic Android modules.
+     *
+     * The KMP-native Android library DSL does not expose this setting.
+     */
     abstract val ndkVersion: Property<String>
 }

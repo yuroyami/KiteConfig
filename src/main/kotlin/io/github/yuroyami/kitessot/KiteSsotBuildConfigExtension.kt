@@ -5,75 +5,99 @@ import org.gradle.api.provider.Property
 import org.gradle.api.provider.Provider
 
 /**
- * Runtime constants codegen. Nested under `kiteSsot { buildConfig { ... } }`.
+ * Generates a Kotlin object with public runtime configuration.
  *
- * A single-plugin replacement for buildKonfig for the common case: declare typed
- * constants once, read them from every KMP source set (no `expect/actual`). The
- * generated object also carries the identity SSOT the plugin already computes
- * (appName, versionName, versionCode, bundle ids, locales) unless
- * [includeIdentity] is turned off.
+ * Configure it inside `kiteSsot { buildConfig { ... } }`. KiteSSOT adds the
+ * generated object to the selected shared project's `commonMain`. Production
+ * source sets that depend on `commonMain` can read the same constants without
+ * `expect` and `actual` declarations.
  *
- * Generated into a plugin-owned `commonMain` source dir on the shared module,
- * wired via the source set — never your hand-authored tree.
+ * By default, the object includes app name, version name, version code, Android
+ * application ID, iOS bundle ID, and locales. Set [includeIdentity] to `false`
+ * when you only want custom fields. Generated source stays in a plugin-owned
+ * build directory and never enters your hand-written source tree. Every package,
+ * object, and custom field name must be a valid Kotlin name.
  *
- * ```
+ * Android SDK and toolchain values are not included automatically. If runtime
+ * code needs one, declare a custom field from the same root value that configures
+ * the Android block.
+ *
+ * ```kotlin
  * kiteSsot {
+ *     sharedProjectPath = ":shared"
+ *
  *     buildConfig {
- *         enabled     = true
- *         className   = "BuildConfig"      // default; the generated object's name
- *         packageName = "com.acme.app"     // default: kitessot.generated
+ *         enabled = true
+ *         className = "BuildConfig"       // default
+ *         packageName = "com.acme.app"    // default: kitessot.generated
+ *
  *         stringField("BASE_URL", "https://api.acme.com")
  *         intField("API_TIMEOUT_MS", 30_000)
  *         booleanField("ANALYTICS_ENABLED", true)
- *         stringField("SENTRY_DSN", providers.gradleProperty("sentryDsn")) // from gradle.properties
+ *         stringField(
+ *             "PUBLIC_CHANNEL",
+ *             providers.gradleProperty("publicChannel"),
+ *         )
  *     }
  * }
  * ```
  *
- * **This is not a secret store.** Only public client configuration belongs here.
- * A provider can keep a value out of the build script and version control, but its
- * resolved value still becomes generated source and a Gradle task input. It can also
- * enter build scans, KLIBs, APKs/IPAs, decompiled binaries, and—when
- * [allowBuildCache] is explicitly enabled—local or remote build caches. Never
- * generate passwords, private API keys, signing material, or any other credential
- * with this API.
+ * **This is not a secret store.** Only put public client configuration here. A
+ * provider can keep a value out of the build script and version control, but the
+ * resolved value still enters generated source and Gradle task inputs. It may
+ * also appear in build scans, KLIBs, APKs, IPAs, decompiled binaries, and trusted
+ * build caches when [allowBuildCache] is enabled. Never add passwords, private
+ * API keys, signing material, or other credentials.
  */
 abstract class KiteSsotBuildConfigExtension {
 
     /**
-     * Generate the object into the selected KMP shared project's `commonMain`.
-     * Default false; enabling requires `sharedProjectPath` (or its legacy fallback).
+     * Whether to generate the object. The default is `false`.
+     *
+     * Enabling generation requires `sharedProjectPath` or its legacy fallback.
+     * The selected project must apply Kotlin Multiplatform and contain
+     * `commonMain`.
      */
     abstract val enabled: Property<Boolean>
 
-    /** Validated Kotlin package for the generated object. Default `kitessot.generated`. */
+    /** Valid Kotlin package for the generated object. The default is `kitessot.generated`. */
     abstract val packageName: Property<String>
 
-    /** Validated Kotlin identifier for the generated object. Default `BuildConfig`. */
+    /** Valid Kotlin identifier for the generated object. The default is `BuildConfig`. */
     abstract val className: Property<String>
 
     /**
-     * Include the identity SSOT (appName/versionName/versionCode/bundle ids/locales)
-     * in the generated object. Default true and requires complete app name,
-     * version, and bundle-id inputs when generation is enabled. Turn off for a
-     * fields-only object; generation then does not resolve any identity provider.
+     * Whether to include KiteSSOT app identity in the generated object.
+     *
+     * The default is `true`. When generation is enabled, this requires `appName`,
+     * `versionName`, a derived version code or `versionCodeOverride`, and
+     * `bundleIdBase`. The generated object also includes the resolved Android and
+     * iOS IDs and canonical locales.
+     *
+     * Set this to `false` for a custom-fields-only object. In that mode, generation
+     * does not read any identity provider.
      */
     abstract val includeIdentity: Property<Boolean>
 
     /**
-     * Permit Gradle build-cache storage of generated BuildConfig source. Default
-     * false because field values become cache payload. Enable only when every
-     * field is public client configuration and the configured local/remote cache
-     * is trusted.
+     * Whether Gradle may store the generated source in a build cache.
+     *
+     * The default is `false` because every generated value becomes part of the
+     * cache entry. Enable this only when all fields are public client
+     * configuration and every local or remote cache is trusted.
      */
     abstract val allowBuildCache: Property<Boolean>
 
     /**
-     * Legacy Gradle transport for typed fields. Prefer the `*Field` methods: direct
-     * entries are parsed against the supported type/literal grammar and rejected if
-     * they contain arbitrary Kotlin source. Duplicate and identity-colliding names
-     * are rejected during generation. The model accepts at most 512 entries,
-     * 65,536 characters per entry, and 1,048,576 characters in total.
+     * Legacy list representation for custom fields.
+     *
+     * Prefer [stringField], [intField], [longField], [booleanField], and
+     * [doubleField]. Direct entries must match the supported type and literal
+     * grammar. Arbitrary Kotlin source, duplicate names, and names that collide
+     * with generated identity fields are rejected.
+     *
+     * The list accepts at most 512 entries, 65,536 characters per entry, and
+     * 1,048,576 characters in total.
      */
     abstract val fields: ListProperty<String>
 
@@ -83,22 +107,25 @@ abstract class KiteSsotBuildConfigExtension {
     }
 
     /**
-     * String field sourced lazily and resolved at generation time. This keeps the value
-     * out of the build script; it does **not** keep it out of generated source, caches,
-     * build scans, or application binaries. The resolved value is limited to
-     * 10,000 characters. Do not use it for credentials.
+     * Add a validated Kotlin `String` constant from a provider.
+     *
+     * KiteSSOT resolves the provider when it generates the source. This can keep
+     * the value out of the build script, but not out of generated source, task
+     * inputs, build scans, application binaries, or an enabled build cache. The
+     * resolved value may contain at most 10,000 characters. Do not use this for
+     * credentials.
      */
     fun stringField(name: String, value: Provider<String>) {
         val checkedName = name.checkedFieldName()
         fields.add(value.map { BuildConfigField.StringValue(checkedName, it).renderBody() })
     }
 
-    /** Add a validated Kotlin `Int` constant; `Int.MIN_VALUE` is emitted canonically. */
+    /** Add a validated Kotlin `Int` constant. `Int.MIN_VALUE` is emitted as valid Kotlin source. */
     fun intField(name: String, value: Int) {
         fields.add(BuildConfigField.IntValue(name.checkedFieldName(), value).renderBody())
     }
 
-    /** Add a validated Kotlin `Long` constant; `Long.MIN_VALUE` is emitted canonically. */
+    /** Add a validated Kotlin `Long` constant. `Long.MIN_VALUE` is emitted as valid Kotlin source. */
     fun longField(name: String, value: Long) {
         fields.add(BuildConfigField.LongValue(name.checkedFieldName(), value).renderBody())
     }
@@ -108,7 +135,7 @@ abstract class KiteSsotBuildConfigExtension {
         fields.add(BuildConfigField.BooleanValue(name.checkedFieldName(), value).renderBody())
     }
 
-    /** Add a finite Kotlin `Double` constant. */
+    /** Add a validated finite Kotlin `Double` constant. NaN and infinite values are rejected. */
     fun doubleField(name: String, value: Double) {
         fields.add(BuildConfigField.DoubleValue(name.checkedFieldName(), value).renderBody())
     }

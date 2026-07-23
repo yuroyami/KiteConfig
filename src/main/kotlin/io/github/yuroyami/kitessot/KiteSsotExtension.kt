@@ -11,214 +11,203 @@ import org.gradle.api.provider.Property
 import org.gradle.api.provider.Provider
 
 /**
- * DSL for the kitessot plugin. Applied to the **root project** only.
+ * Root configuration for KiteSSOT.
  *
- * Every identity field is optional. Identity reaches a platform only when its
- * propagation toggle is enabled and the value is present. Source-tree migrations,
- * compiler-policy changes, locale packaging filters, and branding are disabled by
- * default and require an explicit opt-in.
+ * Apply the plugin and configure this model in the root project. Set only the
+ * values that KiteSSOT should own. Most unset scalar values leave existing
+ * project configuration alone. [iosMarketingVersion] can inherit [versionName],
+ * [locales] can be discovered, and enabled features may require related inputs.
  *
- * App logo: opt in with [propagateLogo], then set [appLogoPngForeground] and
- * exactly one of [appLogoPngBackground] / [appLogoBackgroundColor]. Incomplete
- * layer configuration fails only when propagation is enabled. Apple logo
- * installation also requires [syncIos]. PNG inputs are capped at 32 MiB, 4,096
- * pixels per dimension, and 16,777,216 decoded pixels.
+ * Present identity, locale, and Android SDK values are applied by default.
+ * Source changes, logo installation, Native compiler opt-ins, and Android
+ * resource filtering require explicit switches.
+ *
+ * A small setup looks like this:
+ *
+ * ```kotlin
+ * kiteSsot {
+ *     appName = "Jetzy"
+ *     versionName = "1.4.0"
+ *     bundleIdBase = "com.example.jetzy"
+ *     sharedProjectPath = ":shared"
+ *
+ *     android {
+ *         compileSdk = 36
+ *         minSdk = 26
+ *         targetSdk = 36
+ *     }
+ * }
+ * ```
+ *
+ * Scalar and list inputs use Gradle `Property` and `ListProperty`. Typed paths
+ * use `DirectoryProperty` and `RegularFileProperty`. Build logic can keep a
+ * value lazy, for example `val minSdk = ssot.android.minSdk`, and pass that
+ * provider to another Gradle property. The derived read-only providers are
+ * [versionCode], [androidApplicationId], [iosBundleId], [canonicalLocales], and
+ * [resolvedSharedProjectPath].
  */
 abstract class KiteSsotExtension {
 
     // --- Identity -------------------------------------------------------------
 
     /**
-     * Cross-platform app name. During explicit iOS synchronization, Apple uses
-     * this for `PRODUCT_NAME`, `CFBundleName`, and `CFBundleDisplayName`;
-     * diagnostics warn at 16+ characters because Apple recommends a shorter
-     * `CFBundleName`.
+     * Optional app display name.
+     *
+     * Android receives the `appName` manifest placeholder. Explicit Apple sync
+     * can use it for `PRODUCT_NAME`, `CFBundleName`, and `CFBundleDisplayName`.
      */
     abstract val appName: Property<String>
 
     /**
-     * Cross-platform human-readable release version. Android uses it as
-     * `versionName`; Apple [iosMarketingVersion] defaults to it. Canonical
-     * numeric `x.y.z` is also required when deriving [versionCode]. When an
-     * enabled consumer uses the value, it must be non-blank, contain no control
-     * characters, and contain at most 255 characters.
+     * Optional release version shown to users.
+     *
+     * Android uses it as `versionName`. [iosMarketingVersion] uses it by
+     * default. A plain `x.y.z` value can also produce [versionCode].
      */
     abstract val versionName: Property<String>
 
     /**
-     * Reverse-DNS identifier stem used by [androidApplicationId] and [iosBundleId].
-     * Platform suffixes are appended literally and the resolved identifiers are
-     * validated before a consuming adapter or migration runs.
+     * Optional reverse-DNS base for Android and Apple identifiers.
+     *
+     * KiteSSOT appends [androidApplicationIdSuffix] and [iosBundleSuffix] to
+     * produce the platform IDs.
      */
     abstract val bundleIdBase: Property<String>
 
     /**
-     * Apple marketing version (`CFBundleShortVersionString`). Defaults to
-     * [versionName] and is Apple-validated when iOS version synchronization is
-     * enabled.
+     * Optional Apple marketing version.
+     *
+     * The default is [versionName]. Explicit Apple sync writes it as
+     * `MARKETING_VERSION`.
      */
     abstract val iosMarketingVersion: Property<String>
 
     /**
-     * Apple build number (`CFBundleVersion`): one to three numeric components,
-     * with widths 4/2/2 and a positive first component. Deliberately independent
-     * from Android [versionCodeOverride].
+     * Optional Apple build number for `CURRENT_PROJECT_VERSION`.
+     *
+     * It is independent from Android's [versionCodeOverride].
      */
     abstract val iosBuildNumber: Property<String>
 
-    /** Suffix appended to [bundleIdBase] for the iOS bundle id. Unset means no suffix. */
+    /** Optional suffix appended to [bundleIdBase] for the Apple bundle ID. */
     abstract val iosBundleSuffix: Property<String>
 
-    /** Suffix appended to [bundleIdBase] for the Android applicationId. Unset means no suffix. */
+    /** Optional suffix appended to [bundleIdBase] for the Android application ID. */
     abstract val androidApplicationIdSuffix: Property<String>
 
     /**
-     * Explicit Android `versionCode`. When set, it is used verbatim and the
-     * derivation from [versionName] is bypassed. Set this when [versionName] is
-     * not a plain numeric `x.y.z` or when you want full control. Values are
-     * validated against Google Play's `1..2_100_000_000` range.
+     * Optional explicit Android `versionCode`.
+     *
+     * Use it for prerelease names or a custom numbering scheme. When omitted,
+     * KiteSSOT derives the code from a plain `x.y.z` [versionName].
      */
     abstract val versionCodeOverride: Property<Int>
 
     // --- Shared toolchain (cross-platform) -----------------------------------
 
     /**
-     * Java source/target compatibility for classic AGP application/library
-     * modules, plus root-global Kotlin JVM target alignment where KGP is visible.
-     * The alignment reaches every detected project applying Kotlin Multiplatform,
-     * Kotlin/JVM, or Kotlin Android and is not scoped by application, shared,
-     * interop, or web selectors. AGP's KMP-native Android library DSL exposes no
-     * Java `compileOptions`, so only its Kotlin compilation can be configured by
-     * that module. **No default**.
+     * Optional Java and Kotlin JVM level.
+     *
+     * It configures Java compatibility in classic Android modules and aligns
+     * compatible Kotlin JVM compile tasks across the build. Project selectors
+     * do not limit this shared toolchain policy.
      */
     abstract val javaVersion: Property<Int>
 
     // --- Localization ---------------------------------------------------------
 
     /**
-     * Canonical platform-resource locale tags: 2–3 letter language with optional
-     * script, region, and variants. General BCP-47 extensions/private-use tags do
-     * not map consistently across Android/Xcode and are rejected. Legacy Android
-     * qualifiers are accepted and normalized. Defaults to discovery of exact
-     * locale-only resource directories (`values-en`, `values-pt-rBR`, or
-     * `values-b+sr+Latn`) when a shared project/directory can be resolved.
-     * Configuration accepts at most 1,000 entries, each at most 255 characters,
-     * before canonicalization.
+     * Optional locale tags such as `en`, `en-US`, and `sr-Latn`.
+     *
+     * When omitted, KiteSSOT can discover exact locale-only directories such as
+     * `values-en`, `values-pt-rBR`, and `values-b+sr+Latn` from the selected
+     * Compose resources directory.
      */
     abstract val locales: ListProperty<String>
 
     // --- Module structure ----------------------------------------------------
 
-    /**
-     * Legacy shared module directory/name. Optional. Prefer [sharedProjectPath]
-     * and [composeResourcesDirectory] when directory, Gradle project, CocoaPod,
-     * and Swift framework names differ.
-     */
+    /** Legacy shared module name. Prefer the specific selectors below. */
     @Deprecated(
         "Conflates a Gradle project, directory, and Swift module; use sharedProjectPath, " +
             "composeResourcesDirectory, and iosSharedModuleName.",
     )
     abstract val sharedModule: Property<String>
 
-    /** Absolute Gradle project path that owns shared/common generated source, for example `:shared`. */
+    /**
+     * Absolute Gradle path of the KMP project that owns generated `commonMain`
+     * source, for example `:shared`.
+     */
     abstract val sharedProjectPath: Property<String>
 
     /**
-     * New CocoaPods/Swift module identifier for an explicit iOS reference
-     * migration. Set together with [iosPreviousSharedModuleName]. This is an
-     * identifier, not a Gradle project path or filesystem directory.
+     * New CocoaPods and Swift module name for an explicit reference migration.
+     * Set it with [iosPreviousSharedModuleName].
      */
     abstract val iosSharedModuleName: Property<String>
 
     /**
-     * Previous CocoaPods/Swift module identifier for an explicit iOS reference
-     * migration. Set together with [iosSharedModuleName]. The plugin never
-     * guesses this value from a Podfile.
+     * Previous CocoaPods and Swift module name for an explicit reference
+     * migration. Set it with [iosSharedModuleName].
      */
     abstract val iosPreviousSharedModuleName: Property<String>
 
-    /** Optional explicit Compose resources directory used for locale discovery. */
+    /** Optional Compose resources directory used for locale discovery. */
     abstract val composeResourcesDirectory: DirectoryProperty
 
-    /**
-     * Legacy Android application directory string. Prefer [androidAppDirectory];
-     * retained as a compatibility fallback for builds without an application plugin.
-     */
+    /** Legacy Android app directory. Prefer [androidApplicationProjects]. */
     @Deprecated("Use androidApplicationProjects or the typed androidAppDirectory property.")
     abstract val androidAppModule: Property<String>
 
     /**
-     * Typed directory that owns the Android application's `src/main` tree. By
-     * default the plugin resolves it from the uniquely selected/detected Android
-     * application project, including custom `projectDir` mappings.
+     * Optional Android app directory.
+     *
+     * KiteSSOT normally finds it from the selected Android application project.
      */
     abstract val androidAppDirectory: DirectoryProperty
 
     /**
-     * Exact Android application project paths that may receive app-scoped
-     * identity, version, name, and locale-filter values. When empty, a
-     * sole detected application is selected automatically; multiple detected
-     * applications are accepted only while no app-scoped value needs a target.
-     * Android SDK and JVM policy remain global to compatible Android modules
-     * and are not restricted by this selector. The single Android logo output
-     * sink accepts at most one effective application; with no Android plugin it
-     * uses an explicit [androidAppDirectory] or the legacy directory fallback.
+     * Exact Android application project paths for app identity, versions, name,
+     * locale filters, and logo output.
+     *
+     * Leave this empty when the build has one clear application. Android SDK
+     * and JVM values still apply to every compatible module.
      */
     abstract val androidApplicationProjects: ListProperty<String>
 
-    /**
-     * Legacy compatibility input for [iosPreviousSharedModuleName]. New builds
-     * should use the semantically scoped iOS property instead.
-     */
+    /** Legacy input for [iosPreviousSharedModuleName]. */
     @Deprecated("Use iosPreviousSharedModuleName.")
     abstract val oldSharedModuleName: Property<String>
 
     // --- App logo -------------------------------------------------------------
 
     /**
-     * Foreground layer of the app logo, preferably a square PNG with an alpha channel.
-     * Designed naturally — fill the canvas like an iOS marketing icon. The
-     * plugin handles Android's adaptive-icon safe zone automatically by
-     * centring the FG at [appLogoAndroidSafeZoneRatio] of the adaptive canvas
-     * (default 66/108 ~61.1%); for iOS and Android legacy fallbacks, the FG is
-     * aspect-fit into each platform's target canvas. A non-square source is contained (never
-     * stretched).
+     * Foreground PNG used by both logo installers.
      *
-     * Recommended source size: 1024×1024. Minimum useful size: 432×432.
+     * A square 1024 by 1024 image with transparency works best. KiteSSOT keeps
+     * its aspect ratio and applies Android's adaptive icon safe zone.
      */
     abstract val appLogoPngForeground: RegularFileProperty
 
     /**
-     * Background layer of the app logo, preferably a square PNG. Alpha is allowed but
-     * the BG should be effectively opaque — any transparency reads as white on
-     * the iOS flattened output. A flat-colour PNG works fine.
+     * Background PNG used by both logo installers.
      *
-     * Mutually exclusive with [appLogoBackgroundColor] — set exactly one when
-     * [appLogoPngForeground] is set.
+     * Set this or [appLogoBackgroundColor], never both.
      */
     abstract val appLogoPngBackground: RegularFileProperty
 
     /**
-     * Solid-colour background, as a hex string `#RRGGBB` or `#AARRGGBB`
-     * (Android convention — alpha first). Used in place of a BG PNG when the
-     * background is just a flat colour. A semi-transparent colour is flattened
-     * over white on both platforms (with a warning) so Android and iOS match.
+     * Solid logo background in `#RRGGBB` or `#AARRGGBB` form.
      *
-     * Mutually exclusive with [appLogoPngBackground] — set exactly one when
-     * [appLogoPngForeground] is set.
+     * Set this or [appLogoPngBackground], never both.
      */
     abstract val appLogoBackgroundColor: Property<String>
 
     /**
-     * Fraction of the Android adaptive-icon canvas (108dp) that the foreground
-     * is scaled to. The FG is centred on a transparent canvas at this size, so
-     * smaller values mean more padding and less chance of the launcher's mask
-     * clipping corners.
+     * Fraction of Android's adaptive icon canvas used by the foreground.
      *
-     * Default `66.0 / 108.0` (~0.611), matching Android's adaptive-icon safe
-     * zone. Lower this (typically `0.55`–`0.6`) for tighter OEM/third-party
-     * masks. Validated at configuration and execution: must be in `(0, 1]` so
-     * the requested safe zone cannot crop outside the adaptive-icon canvas.
+     * The default is `66.0 / 108.0`. A smaller value adds more padding. Valid
+     * values are greater than zero and at most one.
      */
     abstract val appLogoAndroidSafeZoneRatio: Property<Double>
 
@@ -240,144 +229,142 @@ abstract class KiteSsotExtension {
     @Deprecated("Use the typed iosAppDirectory property.")
     abstract val iosAppDir: Property<String>
 
-    /**
-     * Path (relative to root project) to the iOS `AppIcon.appiconset` directory.
-     * Defaults to `iosApp/iosApp/Assets.xcassets/AppIcon.appiconset`. Override
-     * for non-standard Xcode group layouts.
-     */
+    /** Legacy Apple AppIcon directory. Prefer [iosAppIconDirectory]. */
     @Deprecated("Use the typed iosAppIconDirectory property.")
     abstract val iosAppiconsetPath: Property<String>
 
     /**
-     * Typed source `project.pbxproj` selected for explicit iOS migration. Defaults
-     * to `iosApp/iosApp.xcodeproj/project.pbxproj` below the root project.
+     * Xcode `project.pbxproj` used by explicit Apple tasks.
+     *
+     * The default is `iosApp/iosApp.xcodeproj/project.pbxproj`.
      */
     abstract val iosPbxprojFile: RegularFileProperty
 
     /**
-     * Typed Podfile selected for an explicit shared-module migration. Defaults to
-     * `iosApp/Podfile` below the root project.
+     * Podfile used by explicit shared-module migration.
+     *
+     * The default is `iosApp/Podfile`.
      */
     abstract val iosPodfileFile: RegularFileProperty
 
     /**
-     * Typed source XML Info.plist selected for explicit sanitization. Defaults to
-     * `iosApp/iosApp/Info.plist` below the root project.
+     * Source XML Info.plist used by explicit sanitization.
+     *
+     * The default is `iosApp/iosApp/Info.plist`.
      */
     abstract val iosInfoPlistFile: RegularFileProperty
 
     /**
-     * Typed iOS source tree used for narrowly scoped Swift migration. Defaults to
-     * `iosApp` below the root project.
+     * Apple source tree searched by explicit Swift import migration.
+     *
+     * The default is `iosApp`.
      */
     abstract val iosAppDirectory: DirectoryProperty
 
     /**
-     * Typed AppIcon.appiconset installation directory. Defaults to
-     * `iosApp/iosApp/Assets.xcassets/AppIcon.appiconset` below the root project.
+     * Destination for Apple AppIcon installation.
+     *
+     * The default is `iosApp/iosApp/Assets.xcassets/AppIcon.appiconset`.
      */
     abstract val iosAppIconDirectory: DirectoryProperty
 
     // --- Capability toggles --------------------------------------------------
 
-    /** Propagate a present [appName] to selected platform consumers. Default true. */
+    /** Apply a present [appName]. Default is `true`. */
     abstract val propagateAppName: Property<Boolean>
 
-    /** Propagate resolved platform bundle/application identifiers. Default true. */
+    /** Apply resolved platform identifiers. Default is `true`. */
     abstract val propagateBundleId: Property<Boolean>
 
-    /** Propagate present platform release versions and build numbers. Default true. */
+    /** Apply present platform versions and build numbers. Default is `true`. */
     abstract val propagateVersion: Property<Boolean>
 
-    /** Add requested locale metadata to enabled platform consumers. Default true. */
+    /** Add locale metadata to enabled consumers. Default is `true`. */
     abstract val propagateLocaleList: Property<Boolean>
 
-    /** Apply Android packaging resource filters derived from [locales]. Dangerous optimization; default false. */
+    /**
+     * Replace the selected Android app's locale filters with [locales].
+     *
+     * This changes packaged resources. Default is `false`.
+     */
     abstract val filterAndroidResources: Property<Boolean>
 
     /**
-     * Enable explicitly invoked logo installers. Default false. Android requires
-     * this toggle alone; the Apple installer additionally requires [syncIos].
+     * Enable explicitly invoked logo installers. Default is `false`.
+     *
+     * Set [appLogoPngForeground] and exactly one background. Apple installation
+     * also requires [syncIos].
      */
     abstract val propagateLogo: Property<Boolean>
 
-    /** Enable the explicit Podfile/Swift shared-module reference migration under [syncIos]. Default false. */
+    /**
+     * Enable explicit Podfile and Swift shared-module migration under [syncIos].
+     * Default is `false`.
+     */
     abstract val propagateSharedModule: Property<Boolean>
 
-    /** Propagate the `android { }` SDK knobs (compileSdk/minSdk/targetSdk/ndkVersion). Default true. */
+    /** Apply values from `android {}` to compatible modules. Default is `true`. */
     abstract val propagateAndroidSdk: Property<Boolean>
 
     /**
-     * Propagate the interop opt-in markers (`ExperimentalForeignApi`,
-     * `ExperimentalObjCName`, `ExperimentalNativeApi`) to Kotlin/Native
-     * compilations in [interopProjectPaths] (or the selected shared project).
-     * Default false. Add your own via [extraOptIns].
+     * Add KiteSSOT's built-in interop markers to selected Native compilations.
+     *
+     * Default is `false`. Use [extraOptIns] for additional markers.
      */
     abstract val propagateInteropOptIns: Property<Boolean>
 
     /**
-     * Extra opt-in marker FQNs appended to the interop defaults in the same
-     * explicitly selected Native compilation scope, e.g.
-     * `extraOptIns.add("kotlin.experimental.ExperimentalObjCRefinement")`.
+     * Additional fully qualified opt-in markers for the selected Native scope.
      */
     abstract val extraOptIns: ListProperty<String>
 
     /**
-     * Exact KMP project paths eligible for Native compiler-policy propagation.
-     * Empty falls back to [resolvedSharedProjectPath]; ambiguity or no selection
-     * is an error when [propagateInteropOptIns] is enabled.
+     * Exact KMP project paths for Native opt-ins.
+     *
+     * An empty list uses [resolvedSharedProjectPath].
      */
     abstract val interopProjectPaths: ListProperty<String>
 
-    /** Explicit opt-in for source-tree iOS migration tasks. Default false; ordinary builds never invoke them. */
+    /**
+     * Authorize explicitly invoked Apple source tasks. Default is `false`.
+     *
+     * Ordinary builds never invoke these tasks.
+     */
     abstract val syncIos: Property<Boolean>
 
     /**
-     * Ensure the iOS `Info.plist` has the SSOT-pointing keys the sync task relies
-     * on. Effective only with [syncIos]. Default false. Run explicitly after
-     * reviewing the plan/check output.
+     * Maintain KiteSSOT references in a source XML Info.plist.
+     *
+     * Default is `false` and [syncIos] is also required.
      */
     abstract val sanitizeIosProject: Property<Boolean>
 
     /**
-     * Authorize takeover of pre-FG/BG artefacts, template collisions, and—before
-     * the first ownership manifest—unowned paths the current Android installer
-     * will claim. Default false. A complete enabled replacement logo is required.
-     * When true,
-     * `kiteSsotSyncAndroidLogo` validates/renders the replacement first, then
-     * backs up, takes over, and installs in one rollback-capable operation.
-     * `kiteSsotCleanupLegacyAppLogoArtifacts` remains an explicit backup/removal
-     * task for manual recovery workflows.
+     * Allow Android logo installation to take over known legacy icon files.
+     *
+     * Default is `false`. A complete enabled replacement logo is required.
+     * KiteSSOT backs up candidates before replacing them.
      */
     abstract val cleanupLegacyLogoArtifacts: Property<Boolean>
 
     /**
-     * Preview switch for explicitly invoked migration/install tasks. Text tasks
-     * render unified-style diffs and binary installers list planned paths without
-     * writing. Generated build outputs ignore this flag. Prefer the read-only
-     * `kiteSsotPlan` task for an initial overview.
+     * Preview explicitly invoked source-changing tasks. Default is `false`.
+     *
+     * Generated Kotlin source ignores this flag because it is a build input.
      */
     abstract val dryRun: Property<Boolean>
 
     /**
-     * Copy a user-owned text target to `<file>.kitessot.bak` before its first
-     * rewrite and preserve first-contact iOS AppIcon files in the checksummed
-     * durable `.kitessot/recovery` area outside `build/`. Default true. Android
-     * legacy takeover always uses its checksummed recovery area when
-     * [cleanupLegacyLogoArtifacts] is enabled.
+     * Keep first-contact recovery copies for source rewrites and Apple icons.
+     *
+     * Default is `true`. Android legacy takeover always keeps its own recovery
+     * record when [cleanupLegacyLogoArtifacts] is enabled.
      */
     abstract val backupBeforeRewrite: Property<Boolean>
 
     // --- Platform-specific blocks --------------------------------------------
 
-    /**
-     * iOS-only options (Info.plist feature flags). See [KiteSsotIosExtension].
-     * Accessed as `kiteSsot { ios { usesNonExemptEncryption = false } }`.
-     *
-     * Created as a child extension by `KiteSsotPlugin.apply` — Gradle can't
-     * decorate an abstract property of a non-managed type, so it's exposed
-     * through this getter.
-     */
+    /** Apple-only options. Configure them with `kiteSsot { ios { ... } }`. */
     val ios: KiteSsotIosExtension
         get() = (this as ExtensionAware).extensions.getByType(KiteSsotIosExtension::class.java)
 
@@ -386,11 +373,7 @@ abstract class KiteSsotExtension {
         action.execute(ios)
     }
 
-    /**
-     * Android-only SDK options. See [KiteSsotAndroidExtension]. Accessed as
-     * `kiteSsot { android { compileSdk = 36; minSdk = 26 } }`. Created as a child
-     * extension by `KiteSsotPlugin.apply` for the same reason as [ios].
-     */
+    /** Android SDK options. Configure them with `kiteSsot { android { ... } }`. */
     val android: KiteSsotAndroidExtension
         get() = (this as ExtensionAware).extensions.getByType(KiteSsotAndroidExtension::class.java)
 
@@ -399,12 +382,7 @@ abstract class KiteSsotExtension {
         action.execute(android)
     }
 
-    /**
-     * Browser Kotlin/JS options. wasmJs and Node-only targets are unsupported.
-     * See [KiteSsotWebExtension]. Accessed as
-     * `kiteSsot { web { generateIoWorker = true } }`. Created as a child extension
-     * by `KiteSsotPlugin.apply` for the same reason as [ios] / [android].
-     */
+    /** Browser Kotlin/JS options. Node.js and wasm targets are unsupported. */
     val web: KiteSsotWebExtension
         get() = (this as ExtensionAware).extensions.getByType(KiteSsotWebExtension::class.java)
 
@@ -413,11 +391,7 @@ abstract class KiteSsotExtension {
         action.execute(web)
     }
 
-    /**
-     * Runtime build-config codegen. See [KiteSsotBuildConfigExtension]. Accessed as
-     * `kiteSsot { buildConfig { enabled = true } }`. Created as a child extension by
-     * `KiteSsotPlugin.apply` for the same reason as [ios] / [android] / [web].
-     */
+    /** Generated runtime constants for the selected KMP project's `commonMain`. */
     val buildConfig: KiteSsotBuildConfigExtension
         get() = (this as ExtensionAware).extensions.getByType(KiteSsotBuildConfigExtension::class.java)
 
@@ -429,27 +403,27 @@ abstract class KiteSsotExtension {
     // --- Derived values (read-only) ------------------------------------------
 
     /**
-     * versionCode: validated [versionCodeOverride] when set, otherwise derived from
-     * [versionName] via `"1" + three zero-padded dot segments`. The derivation
-     * requires exactly three canonical numeric components in `0..999` (see
-     * [deriveVersionCode]).
+     * Resolved Android version code.
+     *
+     * This uses [versionCodeOverride] when present. Otherwise it derives a code
+     * from a plain three-part [versionName].
      */
     val versionCode: Provider<Int>
         get() = versionCodeOverride.map(::validateVersionCode).orElse(versionName.map { deriveVersionCode(it) })
 
-    /** Resolved Android identifier: [bundleIdBase] plus [androidApplicationIdSuffix]. */
+    /** Read-only Android ID: [bundleIdBase] plus [androidApplicationIdSuffix]. */
     val androidApplicationId: Provider<String>
         get() = bundleIdBase.zip(androidApplicationIdSuffix.orElse("")) { base, suffix -> base + suffix }
 
-    /** Resolved Apple identifier: [bundleIdBase] plus [iosBundleSuffix]. */
+    /** Read-only Apple ID: [bundleIdBase] plus [iosBundleSuffix]. */
     val iosBundleId: Provider<String>
         get() = bundleIdBase.zip(iosBundleSuffix.orElse("")) { base, suffix -> base + suffix }
 
-    /** Canonical, de-duplicated supported resource-locale model used by every renderer. */
+    /** Read-only normalized and de-duplicated locale list. */
     val canonicalLocales: Provider<List<String>>
         get() = locales.map(::canonicalizeLocales)
 
-    /** Effective absolute shared-project selector, including the legacy module-name fallback. */
+    /** Read-only shared project path, including the legacy fallback. */
     val resolvedSharedProjectPath: Provider<String>
         get() = sharedProjectPath.orElse(sharedModule.map { if (it.startsWith(':')) it else ":$it" })
 

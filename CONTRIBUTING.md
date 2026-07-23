@@ -32,7 +32,7 @@ Source-tree mutations must be opt-in, target-selected, bounded, no-follow, and
 planned completely before commit. They must preserve unknown files, use durable
 recovery/provenance where ownership is taken, roll back without overwriting newer
 external edits, and provide actionable dry-run or diagnostic output. Add tests for
-malformed input, ambiguity, races/rollback, and idempotence—not only the happy path.
+malformed input, ambiguity, races/rollback, and idempotence, not only the happy path.
 
 ## Pull requests
 
