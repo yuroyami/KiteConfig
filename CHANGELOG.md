@@ -6,6 +6,25 @@ Gradle Plugin Portal releases.
 
 ## [Unreleased]
 
+## [2.0.2]
+
+### Fixed
+- Resilient-diagnostic detection no longer looks up requested tasks in the
+  `TaskContainer` nor walks their dependencies. Those lookups ran from
+  `plugins.withId` callbacks — while a module's `plugins { }` block was still
+  executing — and AGP 9.2's KMP-native library plugin registers its compilation
+  tasks at apply time, so the lookup realized the requested compile task and
+  observed the module's compile classpaths before its build script body had run.
+  Real-world KMP modules then failed configuration with "Cannot mutate the
+  dependencies of configuration ... after the configuration's child
+  configuration ... was resolved" (and `jvmToolchain { }` writes with "The value
+  for property 'languageVersion' is final"), with the failure appearing only
+  when the affected module's own Android/JVM tasks were requested directly.
+  Task-based detection (the aggregate-alias dependency walk) is now restricted
+  to unqualified requests resolved against the root project's task container,
+  guarded by the non-realizing `names` view; subproject-qualified invocations
+  use plain name matching only.
+
 ## [2.0.1]
 
 ### Changed

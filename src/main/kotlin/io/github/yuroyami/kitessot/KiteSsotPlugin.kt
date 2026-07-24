@@ -1223,15 +1223,27 @@ class KiteSsotPlugin : Plugin<Project> {
         val requested = root.gradle.startParameter.taskNames
         if (requested.isEmpty()) return false
 
-        fun requestedTask(path: String): Task? {
+        /* Task lookups are restricted to the ROOT project's container, guarded by the
+         * non-realizing `names` view. NEVER resolve subproject-qualified paths: this method
+         * runs from `plugins.withId` callbacks, i.e. while a module's `plugins { }` block is
+         * still executing, and AGP 9.2's KMP-native library plugin registers its compilation
+         * tasks at apply time — so `findByName(":shared:compileAndroidMain")` would REALIZE
+         * that task and observe the module's compile classpaths before its build script body
+         * has run. Every later `dependencies { }` mutation in that script then fails with
+         * "configuration was observed" (and `jvmToolchain { }` with "property 'languageVersion'
+         * is final"). Subproject-qualified invocations still get plain name matching; only the
+         * aggregate-alias dependency walk is root-only. */
+        fun rootTask(path: String): Task? {
             val segments = path.removePrefix(":").split(':').filter(String::isNotBlank)
-            if (segments.isEmpty()) return null
-            val projectPath = if (segments.size == 1) ":" else ":" + segments.dropLast(1).joinToString(":")
-            val tasks = root.findProject(projectPath)?.tasks ?: return null
-            val requestedName = segments.last()
-            tasks.findByName(requestedName)?.let { return it }
-            val prefixMatches = tasks.names.filter { it.startsWith(requestedName) }
-            return prefixMatches.singleOrNull()?.let(tasks::findByName)
+            if (segments.size != 1) return null // subproject-qualified: name matching only
+            val requestedName = segments.single()
+            val names = root.tasks.names
+            val resolvedName = if (requestedName in names) {
+                requestedName
+            } else {
+                names.filter { it.startsWith(requestedName) }.singleOrNull() ?: return null
+            }
+            return root.tasks.findByName(resolvedName)
         }
 
         fun resilient(task: Task, visiting: MutableSet<String>): Boolean {
@@ -1243,7 +1255,7 @@ class KiteSsotPlugin : Plugin<Project> {
 
         return requested.all { path ->
             path.substringAfterLast(':') in RESILIENT_DIAGNOSTIC_TASKS ||
-                requestedTask(path)?.let { resilient(it, mutableSetOf()) } == true
+                rootTask(path)?.let { resilient(it, mutableSetOf()) } == true
         }
     }
 
