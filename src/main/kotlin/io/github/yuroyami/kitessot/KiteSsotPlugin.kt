@@ -600,12 +600,12 @@ class KiteSsotPlugin : Plugin<Project> {
                 val agpVersion = activeAgpVersion
                     ?: throw GradleException(
                         "[KITESSOT-COMPAT-001] Could not determine the active Android Gradle plugin version. " +
-                            "Supported AGP range is 8.5.2 through 9.1.x."
+                            "Supported AGP range is 8.5.2 through 9.2.x."
                     )
                 if (!isSupportedAgpVersion(agpVersion)) {
                     throw GradleException(
                         "[KITESSOT-COMPAT-002] Unsupported Android Gradle plugin $agpVersion; " +
-                            "this kitessot build supports AGP 8.5.2 through 9.1.x."
+                            "this kitessot build supports AGP 8.5.2 through 9.2.x."
                     )
                 }
             }

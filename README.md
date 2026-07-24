@@ -43,9 +43,9 @@ KiteSSOT use their typed Gradle APIs.
 ```kotlin
 // Root build.gradle.kts
 plugins {
-    kotlin("multiplatform") version "2.4.0" apply false
-    id("com.android.application") version "9.1.1" apply false
-    id("com.android.library") version "9.1.1" apply false
+    kotlin("multiplatform") version "2.4.10" apply false
+    id("com.android.application") version "9.2.1" apply false
+    id("com.android.library") version "9.2.1" apply false
     id("io.github.yuroyami.kitessot") version "2.0.0"
 }
 ```
@@ -838,7 +838,7 @@ replaced, and unreferenced Apple PNGs are reported instead of deleted.
 | Gradle | 8.5 or newer |
 | JVM running Gradle | Java 17 or 21 in CI |
 | Kotlin Gradle plugin | Stable 2.4.x |
-| Android Gradle plugin | 8.5.2 through 9.1.x |
+| Android Gradle plugin | 8.5.2 through 9.2.x |
 
 The plugin is built with Java 21 and emits Java 17 bytecode. The root aggregation
 design supports Gradle configuration cache, but not Gradle Isolated Projects.

@@ -1,9 +1,9 @@
 [versions]
-# Compile against the upper KGP-supported AGP 9.1 line. Both dependencies are
+# Compile against the upper supported AGP 9.2 line. Both dependencies are
 # compileOnly: consumers supply a matrix-tested compatible implementation.
-agp = "9.1.1"
+agp = "9.2.1"
 agp-floor = "8.5.2"
-kotlin = "2.4.0"
+kotlin = "2.4.10"
 junit = "5.11.4"
 
 [libraries]
