@@ -99,7 +99,7 @@ abstract class SyncAndroidLogoTask : DefaultTask() {
             val hex = backgroundColorHex.get()
             var color = parseLogoBackgroundColor(hex)
             if (color.alpha < 255) {
-                logger.warn("[kiteSsot] appLogoBackgroundColor $hex is semi-transparent — flattening over white so Android matches the iOS icon.")
+                logger.warn("[kiteSsot] appLogoBackgroundColor $hex is semi-transparent, so it will be flattened over white to match the iOS icon.")
                 color = flattenOverWhite(color)
             }
             bgDescription = "color $hex"
@@ -123,20 +123,20 @@ abstract class SyncAndroidLogoTask : DefaultTask() {
             val decoded = decodeLogo(bgFile, "appLogoPngBackground")
             bgSnapshot = decoded
             if (decoded.image.width != decoded.image.height) {
-                logger.warn("[kiteSsot] appLogoPngBackground is not square (${decoded.image.width}×${decoded.image.height}) — it will be center-cropped to fill the canvas.")
+                logger.warn("[kiteSsot] appLogoPngBackground is not square (${decoded.image.width}×${decoded.image.height}), so it will be center-cropped to fill the canvas.")
             }
             bgDescription = bgFile.name
             decoded.image
         }
 
         if (fg.width != fg.height) {
-            logger.warn("[kiteSsot] appLogoPngForeground is not square (${fg.width}×${fg.height}) — it will be letterboxed (aspect-preserving) inside the safe zone.")
+            logger.warn("[kiteSsot] appLogoPngForeground is not square (${fg.width}×${fg.height}), so it will be letterboxed inside the safe zone, preserving aspect ratio.")
         }
         if (!fg.colorModel.hasAlpha()) {
-            logger.warn("[kiteSsot] appLogoPngForeground has no alpha channel — it will fully cover the background. Use a PNG with transparency for proper layering.")
+            logger.warn("[kiteSsot] appLogoPngForeground has no alpha channel, so it will fully cover the background. Use a PNG with transparency for proper layering.")
         }
         if (fg.width < 432) {
-            logger.warn("[kiteSsot] appLogoPngForeground is ${fg.width}px wide — recommend ≥432px (xxxhdpi adaptive size) to avoid upscaling artifacts.")
+            logger.warn("[kiteSsot] appLogoPngForeground is ${fg.width}px wide. Use ≥432px (the xxxhdpi adaptive size) to avoid upscaling artifacts.")
         }
 
         val ratio = validateLogoSafeZoneRatio(safeZoneRatio.get())

@@ -258,7 +258,7 @@ class KiteSsotPlugin : Plugin<Project> {
                 validateLogoSafeZoneRatio(ext.appLogoAndroidSafeZoneRatio.get())
             }
             // Logo: FG must be paired with exactly one BG source (PNG or color).
-            // Only validate when logo propagation is on — otherwise a stray FG with
+            // Only validate when logo propagation is on, otherwise a stray FG with
             // propagateLogo = false shouldn't fail the build.
             if (ext.propagateLogo.get()) {
                 val fgSet = ext.appLogoPngForeground.isPresent
@@ -273,18 +273,18 @@ class KiteSsotPlugin : Plugin<Project> {
                 if (bgSet && bgColorSet) {
                     throw GradleException(
                         "kiteSsot { appLogoPngBackground } and { appLogoBackgroundColor } are mutually " +
-                                "exclusive — set exactly one."
+                                "exclusive. Set exactly one."
                     )
                 }
                 if (fgSet && !bgSet && !bgColorSet) {
                     throw GradleException(
-                        "kiteSsot { appLogoPngForeground } is set but no background — set either " +
+                        "kiteSsot { appLogoPngForeground } is set but no background. Set either " +
                                 "appLogoPngBackground or appLogoBackgroundColor."
                     )
                 }
                 if (!fgSet && (bgSet || bgColorSet)) {
                     throw GradleException(
-                        "kiteSsot background is set without a foreground — set appLogoPngForeground, " +
+                        "kiteSsot background is set without a foreground. Set appLogoPngForeground, " +
                                 "or remove the background."
                     )
                 }
@@ -380,7 +380,7 @@ class KiteSsotPlugin : Plugin<Project> {
                 } else if (kgpAdaptersUsable) {
                     propagateInteropOptIns(consumerProject, ext)
                     // withId fires during the subproject's `plugins {}` block, BEFORE its
-                    // `kotlin { js() … }` body runs — the targets container is still empty
+                    // `kotlin { js() … }` body runs. The targets container is still empty
                     // there. wireWebIoWorker snapshots targets (unlike the lazy matching{}
                     // hooks above), so defer it to afterEvaluate.
                     consumerProject.afterEvaluate {
@@ -689,7 +689,7 @@ class KiteSsotPlugin : Plugin<Project> {
     /**
      * Add the interop opt-in markers to every Kotlin/Native compilation, so
      * cinterop / Obj-C call sites don't each need an `@OptIn`. Scoped to native
-     * targets, where the markers resolve — harmless and absent elsewhere.
+     * targets, where the markers resolve. Elsewhere they are absent and harmless.
      */
     private fun propagateInteropOptIns(project: Project, ext: KiteSsotExtension) {
         val kmp = project.extensions.findByType(KotlinMultiplatformExtension::class.java) ?: return
@@ -750,8 +750,8 @@ class KiteSsotPlugin : Plugin<Project> {
         }
         val jsTargets = requestedNames.map { allTargetsByName.getValue(it) }
 
-        // Validate the destination package up front — a malformed value would
-        // otherwise surface as a confusing compile error inside the generated file.
+        // Validate the destination package early. A malformed value would otherwise
+        // appear as a confusing compile error inside the generated file.
         val pkg = ext.web.ioWorkerPackage.get()
         invalidWorkerPackageReason(pkg)?.let {
             throw GradleException("kiteSsot { web { ioWorkerPackage } } \"$pkg\" $it")
@@ -770,8 +770,8 @@ class KiteSsotPlugin : Plugin<Project> {
                 dryRun.set(ext.dryRun)
             }
             // srcDir(taskProvider.flatMap { output }) carries the task dependency to
-            // EVERY consumer of the source set — compile, sourcesJar, dokka, IDE
-            // import — not just a name-matched compile task.
+            // EVERY consumer of the source set (compile, sourcesJar, dokka, IDE
+            // import), not just a name-matched compile task.
             kmp.sourceSets.matching { it.name == "${name}Main" }.configureEach {
                 kotlin.srcDir(genTask.flatMap { it.outputDir })
             }
@@ -942,7 +942,7 @@ class KiteSsotPlugin : Plugin<Project> {
             emitMonochrome.set(ext.android.compileSdk.map { it >= 33 }.orElse(false))
             cleanupLegacyArtifacts.set(ext.cleanupLegacyLogoArtifacts)
             dryRun.set(ext.dryRun)
-            // Resolve lazily — androidAppModule may not be set yet at register time.
+            // Resolve lazily: androidAppModule may not be set yet at register time.
             val resDir = resolvedAndroidAppDirectory.dir("src/main/res")
             androidResDir.set(resDir)
             outputFiles.from(resDir.map { dir -> SyncAndroidLogoTask.OUTPUT_RELATIVE_PATHS.map { dir.file(it) } })
@@ -1227,7 +1227,7 @@ class KiteSsotPlugin : Plugin<Project> {
          * non-realizing `names` view. NEVER resolve subproject-qualified paths: this method
          * runs from `plugins.withId` callbacks, i.e. while a module's `plugins { }` block is
          * still executing, and AGP 9.2's KMP-native library plugin registers its compilation
-         * tasks at apply time — so `findByName(":shared:compileAndroidMain")` would REALIZE
+         * tasks at apply time, so `findByName(":shared:compileAndroidMain")` would REALIZE
          * that task and observe the module's compile classpaths before its build script body
          * has run. Every later `dependencies { }` mutation in that script then fails with
          * "configuration was observed" (and `jvmToolchain { }` with "property 'languageVersion'
@@ -1355,7 +1355,7 @@ class KiteSsotPlugin : Plugin<Project> {
          * Whether the (compileOnly) Kotlin Gradle plugin classes are loadable from
          * kitessot's own classloader. False when the consumer declares
          * kotlin("multiplatform") only in a subproject, which puts KGP in a sibling
-         * classloader — calling into KGP-typed methods would then throw
+         * classloader. Calling into KGP-typed methods would then throw
          * NoClassDefFoundError, so those features are guarded on this.
          */
         internal val KGP_ON_CLASSPATH: Boolean = try {

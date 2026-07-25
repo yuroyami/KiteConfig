@@ -6,7 +6,7 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 /**
  * Aligns Kotlin's `jvmTarget` with `kiteSsot { javaVersion }` so Kotlin and Java
- * agree — otherwise a module that sets only the Java compat gets the
+ * agree, otherwise a module that sets only the Java compat gets the
  * "Inconsistent JVM-target compatibility (Java N vs Kotlin M)" error this knob is
  * meant to eliminate.
  *

@@ -8,7 +8,7 @@ import org.gradle.api.JavaVersion
 import org.gradle.api.Project
 
 /**
- * Wiring for the classic AGP plugins — `com.android.application` and
+ * Wiring for the classic AGP plugins: `com.android.application` and
  * `com.android.library`.
  *
  * Kept in its **own class** on purpose (same reason as [KmpAndroidLibraryWiring]):
@@ -18,7 +18,7 @@ import org.gradle.api.Project
  * iOS-only functional tests).
  *
  * **Authority:** the wiring runs inside AGP's `finalizeDsl` hook, i.e. AFTER the
- * module's own `android { }` block — so an SSOT value in `kiteSsot { }` overrides a
+ * module's own `android { }` block, so an SSOT value in `kiteSsot { }` overrides a
  * module-local `applicationId` / `versionName` / `compileSdk`. This matches the
  * KMP-native library path ([KmpAndroidLibraryWiring]) and makes the single source
  * of truth authoritative for every Android module shape. Leave a field unset in
@@ -39,8 +39,8 @@ internal object ClassicAndroidWiring {
                     dc.applicationId = ext.androidApplicationId.get()
                 }
                 if (ext.propagateVersion.get()) {
-                    // versionName and versionCode are independent — a lone
-                    // versionCodeOverride still bumps the build number.
+                    // versionName and versionCode are independent. A lone
+                    // versionCodeOverride still increments the build number.
                     if (ext.versionName.isPresent) dc.versionName = ext.versionName.get()
                     ext.versionCode.orNull?.let { dc.versionCode = it }
                 }

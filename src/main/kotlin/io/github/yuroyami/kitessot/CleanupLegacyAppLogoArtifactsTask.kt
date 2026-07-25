@@ -12,8 +12,8 @@ import org.gradle.work.DisableCachingByDefault
  * orphans or actively break the resource merge after adopting the FG+BG pipeline.
  *
  * Files migrated (only when present):
- *  - `${androidResDir}/drawable/ic_launcher.xml` — pre-FG/BG generated artifact.
- *  - `${androidResDir}/values/ic_launcher_background.xml` — pre-FG/BG artifact.
+ *  - `${androidResDir}/drawable/ic_launcher.xml`: pre-FG/BG generated artifact.
+ *  - `${androidResDir}/values/ic_launcher_background.xml`: pre-FG/BG artifact.
  *  - template launcher icons under each `mipmap-<density>` dir (typically
  *    `ic_launcher.webp` from the Android Studio wizard) that collide with the
  *    generated `.png` of the same stem and fail AAPT2's merge.

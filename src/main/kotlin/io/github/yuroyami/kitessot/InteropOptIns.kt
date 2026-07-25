@@ -8,7 +8,7 @@ package io.github.yuroyami.kitessot
  * every Obj-C / cinterop call site (`ExperimentalForeignApi` on cinterop,
  * `ExperimentalForeignApi`/`ExperimentalObjCName` on interop names,
  * `ExperimentalNativeApi` on `kotlin.native.Platform` etc). Setting them once at
- * the toolchain level — only on native compilations, where the markers resolve —
+ * the toolchain level (only on native compilations, where the markers resolve)
  * removes the per-call-site noise without touching shared code.
  */
 internal val DEFAULT_INTEROP_OPT_INS: List<String> = listOf(

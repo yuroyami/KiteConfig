@@ -111,7 +111,7 @@ class PbxprojRewriteTest {
         assertTrue(r.errors.any { it.contains("PRODUCT_NAME") }, r.errors.toString())
     }
 
-    // --- T03: build settings are scoped to the application target — a test target
+    // --- T03: build settings are scoped to the application target. A test target
     // and an app-extension keep their own PRODUCT_NAME and distinct bundle ids. ---
     private val multiTarget = """
         // !${'$'}*UTF8*${'$'}!
@@ -195,13 +195,13 @@ class PbxprojRewriteTest {
     fun `rewrites only the application target's build configs`() {
         val r = rewritePbxproj(multiTarget, "1.2.3", "27", "Probe", "com.probe.app", null)
 
-        // App target — updated.
+        // App target: updated.
         assertTrue(r.text.contains("PRODUCT_NAME = \"Probe\";"), r.text)
         assertTrue(r.text.contains("PRODUCT_BUNDLE_IDENTIFIER = com.probe.app;"), r.text)
         assertTrue(r.text.contains("MARKETING_VERSION = 1.2.3;"), r.text)
         assertTrue(r.text.contains("CURRENT_PROJECT_VERSION = 27;"), r.text)
 
-        // Test + extension targets — byte-for-byte untouched.
+        // Test + extension targets: byte-for-byte untouched.
         assertTrue(r.text.contains("PRODUCT_BUNDLE_IDENTIFIER = com.demo.app.tests;"), r.text)
         assertTrue(r.text.contains("PRODUCT_BUNDLE_IDENTIFIER = com.demo.app.widget;"), r.text)
         assertTrue(r.text.contains("PRODUCT_NAME = WidgetExtension;"), r.text)

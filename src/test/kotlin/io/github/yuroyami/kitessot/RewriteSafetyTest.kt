@@ -16,7 +16,7 @@ class RewriteSafetyTest {
 
     private val log = Logging.getLogger("test")
 
-    // --- F4: backup is write-once — the earliest pristine copy survives later
+    // --- F4: backup is write-once. The earliest pristine copy survives later
     // (possibly already-modified) writes. -------------------------------------
     @Test
     fun `backup is write-once and keeps the first pristine copy`(@TempDir dir: File) {

@@ -28,7 +28,7 @@ internal fun deriveVersionCode(versionName: String): Int {
     if (segments.size != 3) {
         throw GradleException(
             "kiteSsot: cannot derive a monotonic versionCode from versionName " +
-                "\"${diagnosticSafeText(versionName, 255)}\" — " +
+                "\"${diagnosticSafeText(versionName, 255)}\": " +
                 "exactly three numeric segments (x.y.z) are required. Short forms change the " +
                 "encoded width and can make a later release's versionCode go backwards. Use " +
                 "x.y.z or set kiteSsot { versionCodeOverride = <int> }."
@@ -38,7 +38,7 @@ internal fun deriveVersionCode(versionName: String): Int {
     if (offending != null) {
         throw GradleException(
             "kiteSsot: cannot derive a versionCode from versionName " +
-                "\"${diagnosticSafeText(versionName, 255)}\" — segment " +
+                "\"${diagnosticSafeText(versionName, 255)}\": segment " +
                 "\"${diagnosticSafeText(offending, 32)}\" is not 0 or a 1–3 digit number without leading zeroes. " +
                 "Use a numeric x.y.z " +
                 "versionName, or set kiteSsot { versionCodeOverride = <int> }."

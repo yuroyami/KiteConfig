@@ -52,7 +52,7 @@ class PbxprojTargetScopeTest {
                 }
         """.trimIndent()
         val spans = findObjectSpans(text)
-        // Exactly the three real objects — the nested buildSettings block is not one.
+        // Exactly the three real objects. The nested buildSettings block is not one.
         assertEquals(
             setOf("AA00000000000000000000AA", "BB00000000000000000000BB", "EE00000000000000000000EE"),
             spans.keys,

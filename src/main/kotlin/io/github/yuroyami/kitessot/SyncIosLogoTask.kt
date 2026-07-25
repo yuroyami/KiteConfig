@@ -25,8 +25,8 @@ import javax.imageio.ImageIO
 /**
  * Composites the FG/BG layers into the iOS AppIcon.appiconset:
  *  - BG *covers* the 1024² canvas, FG *contains* (aspect-preserving) on top.
- *  - Flattened to opaque RGB — App Store marketing icons MUST NOT have alpha,
- *    so any FG/BG transparency is baked against white.
+ *  - Flattened to opaque RGB: App Store marketing icons MUST NOT have alpha,
+ *    so any FG/BG transparency is composited against white.
  *  - Writes `AppIcon-1024.png` + a single-image universal `Contents.json`.
  *
  * Requires Xcode 14+ and an iOS deployment target of at least 12.0 (validated by
@@ -96,7 +96,7 @@ abstract class SyncIosLogoTask : DefaultTask() {
             var color = parseLogoBackgroundColor(hex)
             if (color.alpha < 255) {
                 logger.warn(
-                    "[kiteSsot] appLogoBackgroundColor $hex is semi-transparent — " +
+                    "[kiteSsot] appLogoBackgroundColor $hex is semi-transparent. " +
                         "flattening over white because App Store icons must be opaque.",
                 )
                 color = flattenOverWhite(color)
@@ -193,8 +193,8 @@ abstract class SyncIosLogoTask : DefaultTask() {
 
     /**
      * Warn about `.png` files left in the appiconset that the new single-universal
-     * `Contents.json` no longer references — otherwise Xcode shows "unassigned
-     * children" warnings and the stale icons ship dead weight.
+     * `Contents.json` no longer references, otherwise Xcode shows "unassigned
+     * children" warnings and the stale icons stay in the built app.
      */
     private fun warnOnOrphanIcons(outDir: File) {
         val directory = outDir.toPath()

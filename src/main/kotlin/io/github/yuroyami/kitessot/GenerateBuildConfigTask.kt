@@ -14,10 +14,11 @@ import java.nio.charset.StandardCharsets
 /**
  * Generate the runtime build-config object ([generateBuildConfigSource]) into a
  * plugin-owned generated `commonMain` dir wired onto the shared module's source
- * set — never the user's hand-authored tree. The task is cache-capable, but cache
- * storage is denied unless the DSL explicitly enables it. A checksum ownership
- * manifest removes only outputs from the previous successful generation. Unknown,
- * modified, escaping, or symlinked content fails closed instead of being deleted.
+ * set. It never writes into the user's hand-authored tree. The task is cache-capable,
+ * but cache storage is denied unless the DSL explicitly enables it. A checksum
+ * ownership manifest removes only outputs from the previous successful generation.
+ * Unknown, modified, escaping, or symlinked content fails closed instead of being
+ * deleted.
  */
 @CacheableTask
 abstract class GenerateBuildConfigTask : DefaultTask() {

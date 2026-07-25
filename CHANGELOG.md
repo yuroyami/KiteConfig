@@ -11,8 +11,8 @@ Gradle Plugin Portal releases.
 ### Fixed
 - Resilient-diagnostic detection no longer looks up requested tasks in the
   `TaskContainer` nor walks their dependencies. Those lookups ran from
-  `plugins.withId` callbacks — while a module's `plugins { }` block was still
-  executing — and AGP 9.2's KMP-native library plugin registers its compilation
+  `plugins.withId` callbacks, while a module's `plugins { }` block was still
+  executing, and AGP 9.2's KMP-native library plugin registers its compilation
   tasks at apply time, so the lookup realized the requested compile task and
   observed the module's compile classpaths before its build script body had run.
   Real-world KMP modules then failed configuration with "Cannot mutate the
@@ -205,26 +205,26 @@ The entries below describe the behavior shipped by that historical release.
 The Unreleased section above intentionally supersedes several of these contracts.
 
 ### Fixed
-- **pbxproj rewrites are now target-scoped** — identity keys (`PRODUCT_NAME`,
+- **pbxproj rewrites are now target-scoped**: identity keys (`PRODUCT_NAME`,
   `PRODUCT_BUNDLE_IDENTIFIER`, `MARKETING_VERSION`, `CURRENT_PROJECT_VERSION`,
   `INFOPLIST_KEY_*`) are rewritten only inside the **application target's** build
   configurations, so unit-test targets and app extensions keep their own names and
   distinct bundle ids. Previously every target was overwritten with the app's
-  values — breaking test-bundle linkage and producing App-Store-rejectable
+  values, breaking test-bundle linkage and producing App-Store-rejectable
   extension bundle ids. Falls back to a global rewrite (with a warning) when no
   application target is found.
-- **`GenerateIoWorkerTask` is now cacheable** — the plugin previously failed its
+- **`GenerateIoWorkerTask` is now cacheable**: the plugin previously failed its
   own `validatePlugins` (the task carried no cacheability annotation).
-- **Java-17 bytecode** — the plugin is compiled on JDK 21 but emits Java-17
+- **Java-17 bytecode**: the plugin is compiled on JDK 21 but emits Java-17
   bytecode, so a consumer whose Gradle daemon runs on JDK 17 can load it (it was
   shipping Java-21 bytecode against a documented "JDK 17+").
 - **`versionCodeOverride` without `versionName`** now writes the Android
-  `versionCode` and iOS `CURRENT_PROJECT_VERSION` — it was a silent no-op on both
+  `versionCode` and iOS `CURRENT_PROJECT_VERSION`. It was a silent no-op on both
   platforms.
 - **Shared-module auto-detect refuses to guess** when a Podfile has more than one
   local dev-pod, instead of renaming the first (possibly wrong) pod and rewriting
   its Swift imports. Set `oldSharedModuleName` to proceed.
-- **Android launcher-icon template collisions** — the sync warns about template
+- **Android launcher-icon template collisions**: the sync warns about template
   `ic_launcher.webp` (and friends) that collide with the generated `.png` and fail
   the AAPT2 merge; `cleanupLegacyAppLogoArtifacts` now removes them.
 - **iOS `Contents.json` is backed up** before the app-icon sync overwrites it, and
@@ -232,7 +232,7 @@ The Unreleased section above intentionally supersedes several of these contracts
 - **Region-qualified locales map to the Apple form** for `knownRegions`
   (`pt-rBR` → `pt-BR`, `b+sr+Latn` → `sr-Latn`), and non-locale `values-*` dirs
   (`night`, `v26`, `land`) are excluded from auto-detection.
-- **Non-CocoaPods iOS projects sync from Gradle** — the iOS sync now hooks plain
+- **Non-CocoaPods iOS projects sync from Gradle**: the iOS sync now hooks plain
   `linkReleaseFrameworkIos*` / `assemble*XCFramework` tasks, not just `linkPod*`.
 - Changing `web { ioWorkerPackage }` no longer leaves a stale generated file
   (duplicate `kmpSsotOffload`); the generated Blob worker revokes its object URL;
@@ -242,9 +242,9 @@ The Unreleased section above intentionally supersedes several of these contracts
   `propagateLogo`.
 
 ### Added
-- **Runtime `buildConfig` codegen** — `kmpSsot { buildConfig { enabled = true } }`
+- **Runtime `buildConfig` codegen**: `kmpSsot { buildConfig { enabled = true } }`
   generates a typed constants object into the shared module's `commonMain`,
-  readable from every KMP source set with no `expect/actual` — a single-plugin
+  readable from every KMP source set with no `expect/actual`. This is a single-plugin
   **buildKonfig replacement** for the common case. The object carries the identity
   SSOT (appName, versionName, versionCode, androidApplicationId, iosBundleId,
   locales) plus your own `stringField` / `intField` / `longField` / `booleanField`
@@ -253,11 +253,11 @@ The Unreleased section above intentionally supersedes several of these contracts
   artifacts and therefore must never contain secrets. The object name is
   configurable via `className` (default `BuildConfig`), the package via
   `packageName`, and identity inclusion via `includeIdentity`. Default off.
-  Deliberately flat — no per-flavor / per-target value overlays.
-- **`kmpSsotDoctor`** — a read-only end-to-end setup diagnostic (manifest
+  Deliberately flat: no per-flavor or per-target value overlays.
+- **`kmpSsotDoctor`**: a read-only end-to-end setup diagnostic (manifest
   placeholder, Info.plist SSOT refs, pbxproj application target, appiconset, icon
   collisions, locale sanity, versionCode derivability, KGP visibility).
-- **Aggregate tasks** — `kmpSsotSync`, `kmpSsotSyncIos`, `kmpSsotSyncAndroid`.
+- **Aggregate tasks**: `kmpSsotSync`, `kmpSsotSyncIos`, `kmpSsotSyncAndroid`.
 - **Kotlin `jvmTarget`** is set alongside `javaVersion`, eliminating the
   "Inconsistent JVM-target compatibility" error.
 - `kmpSsotVerify` now also reports the Android SDK levels, `javaVersion`, the
@@ -267,7 +267,7 @@ The Unreleased section above intentionally supersedes several of these contracts
 - **Classic Android modules are now SSOT-authoritative.** `com.android.application`
   and `com.android.library` wiring moved to AGP's `finalizeDsl`, so a value in
   `kmpSsot { }` overrides a module-local `applicationId` / `versionName` /
-  `compileSdk` — matching the KMP-native library path. Leave a field unset in
+  `compileSdk`, matching the KMP-native library path. Leave a field unset in
   `kmpSsot { }` to keep the module's own value. (Previously module-local values
   won for these two plugins.)
 - **Application locale propagation uses AGP 9 `androidResources.localeFilters`**
@@ -276,7 +276,7 @@ The Unreleased section above intentionally supersedes several of these contracts
 ## [1.6.0]
 
 ### Added
-- **Interop opt-in propagation** — `kmpSsot { propagateInteropOptIns = true }`
+- **Interop opt-in propagation**: `kmpSsot { propagateInteropOptIns = true }`
   (default on) adds the cinterop / Obj-C opt-in markers
   (`kotlinx.cinterop.ExperimentalForeignApi`,
   `kotlin.experimental.ExperimentalObjCName`,
@@ -284,15 +284,15 @@ The Unreleased section above intentionally supersedes several of these contracts
   compilation**, so call sites no longer each need an `@OptIn`. Scoped to native
   targets, where the markers resolve. Add your own with
   `kmpSsot { extraOptIns.add("…") }`.
-- **Web Worker IO generation** — `kmpSsot { web { generateIoWorker = true } }`
+- **Web Worker IO generation**: `kmpSsot { web { generateIoWorker = true } }`
   (default off) generates an inline Blob-Worker offload helper
   (`suspend fun kmpSsotOffload(jobJs, payload): String`) into a plugin-owned
   generated `jsMain` source dir (`build/generated/kmpssot/jsMain/kotlin`, wired
-  onto the `jsMain` source set — never your hand-authored tree). Closes the "no
+  onto the `jsMain` source set, never your hand-authored tree). Closes the "no
   `Dispatchers.IO` on the web target" gap by packaging the runtime-worker pattern.
   Generated code depends only on `kotlinx-coroutines-core`. Configure the package
   with `web { ioWorkerPackage = "…" }` (default `kmpssot.generated`). **JS target
-  only** in this release — a wasmJs-only module is logged and skipped. Pairs with
+  only** in this release. A wasmJs-only module is logged and skipped. Pairs with
   the `io.github.yuroyami:kitecore` runtime library (`KiteWorker`, `ioDispatcher()`).
 
 ### Notes
@@ -313,7 +313,7 @@ The Unreleased section above intentionally supersedes several of these contracts
 ## [1.5.0]
 
 ### Added
-- **KMP-native Android library support** — the `kmpSsot { android { … } }` SDK
+- **KMP-native Android library support**: the `kmpSsot { android { … } }` SDK
   block now also propagates `compileSdk`/`minSdk` to modules using AGP's
   `com.android.kotlin.multiplatform.library` plugin (the Android target of a
   Kotlin Multiplatform module: `kotlin { androidLibrary { } }`), not just the
@@ -325,7 +325,7 @@ The Unreleased section above intentionally supersedes several of these contracts
 - The KMP library DSL exposes no `targetSdk` (libraries never had one) nor
   `ndkVersion`, so those are skipped for these modules even when set (logged at
   `info`); `targetSdk`/`ndkVersion` still apply to application and classic
-  library modules. Locale propagation is unchanged — the application module owns
+  library modules. Locale propagation is unchanged: the application module owns
   the locale list.
 - Wiring goes through the components extension's `finalizeDsl` hook, so a value
   set in `kmpSsot { android { } }` wins over a `compileSdk` declared in the
@@ -334,23 +334,23 @@ The Unreleased section above intentionally supersedes several of these contracts
 ## [1.4.0]
 
 ### Added
-- **`kmpSsot { android { … } }` block** — propagate `compileSdk`, `minSdk`,
+- **`kmpSsot { android { … } }` block**: propagate `compileSdk`, `minSdk`,
   `targetSdk`, and `ndkVersion` to every Android module (application + library).
   All optional; gated by the new `propagateAndroidSdk` toggle (default true).
   `targetSdk` is applied to application modules only (libraries have none).
-- **`versionCodeOverride`** — set an explicit Android `versionCode` instead of
+- **`versionCodeOverride`**: set an explicit Android `versionCode` instead of
   deriving it from `versionName`. Required for non-`x.y.z` version strings.
-- **`oldSharedModuleName`** — explicitly name the previous shared-module name
+- **`oldSharedModuleName`**: explicitly name the previous shared-module name
   for the rename SSOT, for projects where the Podfile `pod`/path can't be
   auto-detected (pod name ≠ directory name, nested paths).
-- **`dryRun` toggle** — when true, every file-rewriting task logs the change it
+- **`dryRun` toggle**: when true, every file-rewriting task logs the change it
   *would* make and writes nothing. Preview edits before committing to them.
-- **`backupBeforeRewrite` toggle** (default true) — user-owned files (pbxproj,
+- **`backupBeforeRewrite` toggle** (default true): user-owned files (pbxproj,
   Info.plist, Podfile, Swift) are copied to `<file>.kmpssot.bak` before the
   first real rewrite, so a mis-detected edit is always recoverable.
-- **`kmpSsotVerify` task** — prints the resolved SSOT values and which iOS
+- **`kmpSsotVerify` task**: prints the resolved SSOT values and which iOS
   target files exist. Modifies nothing.
-- **Tests** — unit tests for versionCode derivation, hex-colour parsing,
+- **Tests**: unit tests for versionCode derivation, hex-colour parsing,
   pbxproj rewrites, the plist sanitizer, and the shared-module rewrites, plus a
   GradleRunner functional test. **CI** (GitHub Actions) now builds, tests, and
   runs `validatePlugins` on every push/PR; a tag-triggered workflow publishes.
@@ -358,28 +358,28 @@ The Unreleased section above intentionally supersedes several of these contracts
   (`gradle/libs.versions.toml`).
 
 ### Fixed
-- **Build crash on `$`/`\` in identity values** — app name, version, or bundle
+- **Build crash on `$`/`\` in identity values**: app name, version, or bundle
   id containing `$` (e.g. `"Cost$ Money"`) no longer throws
   `IllegalArgumentException: Illegal group reference` during the pbxproj
   rewrite. Replacements are now treated as literals.
-- **versionCode crash/overflow** — a non-numeric or 4+-segment `versionName`
+- **versionCode crash/overflow**: a non-numeric or 4+-segment `versionName`
   (`1.2.3-rc1`, `2.0.0.1`, segment > 999) used to throw a raw
   `NumberFormatException` or silently overflow `Int`. It now fails fast at
   configuration with a clear message, or you set `versionCodeOverride`.
-- **Distorted icons from non-square sources** — foreground and background
+- **Distorted icons from non-square sources**: foreground and background
   layers are now aspect-fit (FG *contained*, BG *cover*) instead of stretched
   to a square. A non-square source is letterboxed/cropped, never squashed.
-- **Duplicate plist keys** — the Info.plist sanitizer is now a real XML parser.
+- **Duplicate plist keys**: the Info.plist sanitizer is now a real XML parser.
   A key whose value is a `<dict>`/`<array>`/CDATA/`<integer>` is correctly seen
   as present (the old regex inserted a second key).
-- **Cross-platform colour mismatch** — a semi-transparent
+- **Cross-platform colour mismatch**: a semi-transparent
   `appLogoBackgroundColor` (e.g. `#80FF0000`) is now flattened over white on
   **both** Android and iOS, with a warning, so the two platforms match.
-- **Silent locale drop** — a missing `knownRegions` block in the pbxproj now
+- **Silent locale drop**: a missing `knownRegions` block in the pbxproj now
   logs a warning instead of silently discarding the locale list.
-- **safeZoneRatio out of range** — values ≤ 0 (blank foreground) or > 2 now
+- **safeZoneRatio out of range**: values ≤ 0 (blank foreground) or > 2 now
   fail validation at configuration instead of producing a broken icon.
-- **Swift import over-match** — `import shared.Submodule` / `import sharedKit`
+- **Swift import over-match**: `import shared.Submodule` / `import sharedKit`
   are no longer rewritten by the shared-module rename; only exact whole-module
   imports are.
 
@@ -390,9 +390,9 @@ The Unreleased section above intentionally supersedes several of these contracts
   behaviour.
 - **Image tasks are now properly cacheable/incremental** (`@InputFile` /
   `@OutputFiles`), so the launcher icons are no longer decoded and re-encoded on
-  every build — only when the source PNGs, colour, or ratio actually change.
+  every build, only when the source PNGs, color, or ratio actually change.
 - Removed the stale "iOS launcher name" manual `INFOPLIST_KEY_CFBundleName`
-  patch advice from the README — `PRODUCT_NAME` propagation covers it.
+  patch advice from the README. `PRODUCT_NAME` propagation covers it.
 
 ### Known limitations
 - Cross-project configuration (the root plugin reaching into each Android

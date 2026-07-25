@@ -1,6 +1,6 @@
 site_name: KiteSSOT
 site_url: https://yuroyami.github.io/KiteSSOT/
-site_description: A Gradle plugin that keeps Kotlin Multiplatform app identity — name, version, bundle ID, locales, SDK levels — in one place.
+site_description: "A Gradle plugin that keeps Kotlin Multiplatform app identity in one place: name, version, bundle ID, locales and SDK levels."
 site_author: yuroyami
 copyright: Apache-2.0
 

@@ -1,19 +1,22 @@
 # Contributing
 
-Thank you for improving kitessot. Start with an issue for material API or behavior
-changes so platform scope, defaults, compatibility, and migration semantics are
-agreed before implementation.
+Thank you for improving KiteSSOT. Open an issue before you change the public API
+or the behavior. That way we agree on platform scope, defaults, compatibility and
+migration before anyone writes code.
 
 ## Development baseline
 
 - Use the checked-in Gradle wrapper and a supported JDK.
-- Keep AGP/KGP integrations `compileOnly`; real consumer fixtures prove linkage.
-- Preserve unrelated working-tree changes and never commit generated credentials,
-  signing material, local SDK paths, recovery files, or build output.
-- Public APIs need accurate KDoc, README/FEATURES/CHANGELOG updates, and an
-  intentional Kotlin ABI baseline change.
+- Keep the integrations with AGP (the Android Gradle plugin) and KGP (the Kotlin
+  Gradle plugin) `compileOnly`. Real consumer fixtures prove that the plugin
+  loads AGP and KGP correctly.
+- Preserve unrelated working-tree changes. Never commit generated credentials,
+  signing material, local SDK paths, recovery files or build output.
+- A public API change needs accurate KDoc, updates to README, FEATURES and
+  CHANGELOG, and a deliberate change to the checked-in Kotlin ABI baseline. The
+  ABI is the binary shape of the public API.
 
-Run focused tests while iterating, then the release-sized local gate:
+Run focused tests while you iterate, then run the full local check that CI runs:
 
 ```shell
 ./gradlew test agpCompatibilityTest validatePlugins \
@@ -21,22 +24,47 @@ Run focused tests while iterating, then the release-sized local gate:
 ./gradlew checkKotlinAbi
 ```
 
-Run the identical configuration-cache command twice when changing plugin lifecycle
-or task wiring and confirm the second invocation reuses the cache. Release/build
-changes must also regenerate and review dependency locks, verification metadata,
-SBOMs, POMs, and publication artifacts as applicable.
+Run that same configuration-cache command twice when you change the plugin
+lifecycle, or when you change how tasks depend on each other. Confirm that the
+second run reuses the cache.
+
+A release or build change must also regenerate these, wherever they apply:
+
+- the dependency locks
+- the verification metadata
+- the SBOMs, which are the machine-readable lists of the build's dependencies
+- the POMs
+- the publication artifacts
+
+Review each regenerated file before you commit it.
 
 ## Safety requirements
 
-Source-tree mutations must be opt-in, target-selected, bounded, no-follow, and
-planned completely before commit. They must preserve unknown files, use durable
-recovery/provenance where ownership is taken, roll back without overwriting newer
-external edits, and provide actionable dry-run or diagnostic output. Add tests for
-malformed input, ambiguity, races/rollback, and idempotence, not only the happy path.
+Every source-tree mutation must meet all nine conditions below:
+
+- **Opt-in.** It runs only when the user turns it on.
+- **Target-selected.** It changes only the files the configuration names.
+- **Bounded.** It stays inside the directory it was given.
+- **No-follow.** It does not follow symlinks out of that directory.
+- **Fully planned before it writes.** It computes the whole plan first, then
+  writes.
+- **Safe for files it does not recognize.** It must leave them alone.
+- **Recoverable.** It must write durable recovery and provenance records wherever
+  it takes ownership of a file.
+- **Reversible.** It must roll back without overwriting a newer edit made outside
+  the build.
+- **Legible.** It must produce dry-run or diagnostic output that a reader can act
+  on.
+
+Add tests for malformed input, ambiguous input, races and rollback. Also test
+idempotence: running the task twice must give the same result. Do not test only
+the case where everything works.
 
 ## Pull requests
 
-Keep commits reviewable and explain the developer-facing outcome. Complete the PR
-template with exact commands and compatibility environments. Do not update ABI,
-locks, or verification metadata merely to silence a failing gate; review why every
-change is expected.
+Keep commits reviewable, and explain the outcome for the developer using the
+plugin. Complete the pull request template with the exact commands you ran and
+the compatibility environments you tested.
+
+Do not update the ABI, the locks or the verification metadata just to make a
+failing check pass. First work out why each of those files changed.

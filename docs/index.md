@@ -2,9 +2,9 @@
 
 # KiteSSOT
 
-One place to declare a Kotlin Multiplatform app's identity — name, version,
-bundle ID, locales, SDK levels — propagated to the Android, Xcode and Kotlin
-files that each normally keep their own copy of it.
+One place to declare a Kotlin Multiplatform app's identity: name, version, bundle
+ID, locales and SDK levels. KiteSSOT propagates it to the Android, Xcode and
+Kotlin files that each normally keep their own copy.
 
 <div class="kite-hero-actions" markdown>
 [Get started](#the-shortest-setup-that-does-something){ .kite-primary }
@@ -15,10 +15,15 @@ files that each normally keep their own copy of it.
 
 </div>
 
-A typical KMP repo writes its app name and version down four times: the Android
-module's `defaultConfig`, the Xcode project's build settings, the source
-`Info.plist`, and whatever constant the shared Kotlin code reads. Nothing keeps
-them in agreement, so eventually they disagree — usually the week you ship.
+A typical Kotlin Multiplatform repo records its app name and version in four
+places:
+
+- the Android module's `defaultConfig`
+- the Xcode project's build settings
+- the source `Info.plist`
+- whatever constant the shared Kotlin code reads
+
+Nothing keeps those four copies in agreement, so eventually they stop matching.
 
 ## The shortest setup that does something
 
@@ -50,45 +55,50 @@ Then:
 ./gradlew kiteSsotVerify
 ```
 
-That prints the resolved model and writes nothing. It is the right first
-command, and the right one to come back to whenever a value is not where you
-expected.
+That prints the resolved model and writes nothing. Run it again whenever a value
+is not where you expected it.
 
-!!! warning "Two preconditions that are easy to miss"
+!!! warning "Two required preconditions"
     **The plugin goes on the root project.** Applying it in a submodule throws
-    immediately — it aggregates across `allprojects` from the root.
+    immediately, because it aggregates across `allprojects` from the root.
 
-    **`apply false` on the Kotlin and Android lines is load-bearing.** KiteSSOT's
-    KGP- and AGP-typed integrations are guarded on those plugin classes being
-    loadable from KiteSSOT's own classloader. Declare
-    `kotlin("multiplatform")` only inside a subproject and KGP lands in a
-    sibling classloader that KiteSSOT cannot see.
+    **Add `apply false` to the Kotlin and Android plugin lines.** KiteSSOT
+    integrates with typed classes from KGP (the Kotlin Gradle plugin) and AGP
+    (the Android Gradle plugin). Those integrations run only when KiteSSOT can
+    load the plugin classes from its own classloader. Declare
+    `kotlin("multiplatform")` only inside a subproject and Gradle loads KGP with
+    a different classloader. KiteSSOT cannot read the plugin classes from there.
 
-## The one concept worth understanding first
+## Two tiers of switch
 
-KiteSSOT splits its work into two tiers, and the split is the whole design.
+KiteSSOT splits its work into two tiers.
 
-**Gradle configuration is automatic and continuous.** Android identity and SDK
-levels, Java and Kotlin JVM alignment, and generated Kotlin under `build/` are
-applied on every build. This happens inside AGP's `finalizeDsl` hook, which runs
-after a module's own `android { }` block — so a value set in `kiteSsot { }` wins
-over the same value set locally. Set the value, set the switch, done.
+**Gradle configuration is automatic and continuous.** On every build, KiteSSOT
+applies the Android identity and SDK levels, aligns the Java and Kotlin JVM
+targets, and generates Kotlin under `build/`. This happens inside AGP's
+`finalizeDsl` hook, which runs after a module's own `android { }` block. A value
+set in `kiteSsot { }` therefore replaces the same value set in the module. Set
+the value and set the switch. Nothing else is needed.
 
 **Edits to files you own are opt-in and manual.** `project.pbxproj`,
-`Info.plist`, `Podfile`, Swift imports and launcher icons are yours. Touching
-them needs an authorization gate (`syncIos`, `propagateLogo`, …), *and* an
-explicitly named task that you run yourself, *and* it passes containment,
-ownership, checksum, backup and rollback checks first.
+`Info.plist`, `Podfile`, Swift imports and launcher icons are yours. Editing them
+takes three things:
 
-The consequence people trip on: setting `propagateLogo = true` installs nothing.
-It unlocks `kiteSsotSyncIosLogo`; you still run that task. A plain
-`./gradlew build` never writes outside `build/`, and CI asserts it on every
+1. The switches that unlock the task. `syncIos` unlocks the Xcode tasks, and the
+   app icon task needs `propagateLogo` as well.
+2. An explicitly named task that you run yourself.
+3. A set of containment, ownership, checksum, backup and rollback checks, which
+   must all pass first.
+
+This surprises people. Setting `propagateLogo = true` installs nothing. It
+unlocks `kiteSsotSyncIosLogo` only when you also set `syncIos = true` and
+`ios { deploymentTarget }`, and you then run that task yourself. A plain
+`./gradlew build` never writes outside `build/`, and CI asserts that on every
 commit.
 
-Run `./gradlew kiteSsotPlan` to see exactly which mutations your current
-configuration authorizes, and the exact paths they would touch, before running
-any of them. Set `dryRun = true` to make the mutating tasks report without
-writing.
+Run `./gradlew kiteSsotPlan` before you run any mutating task. It lists which
+mutations your current configuration authorizes, and the exact paths they would
+change. Set `dryRun = true` to make the mutating tasks report without writing.
 
 ## Where things live
 
@@ -106,7 +116,7 @@ writing.
 
 <a class="kite-card" href="https://github.com/yuroyami/KiteSSOT/blob/main/FEATURES.md">
 <strong>FEATURES.md</strong>
-<span>Behaviour reference: what each switch does, and every default value.</span>
+<span>Behavior reference: what each switch does, and every default value.</span>
 </a>
 
 <a class="kite-card" href="https://github.com/yuroyami/KiteSSOT/blob/main/CHANGELOG.md">
@@ -119,8 +129,10 @@ writing.
 ## Compatibility
 
 Gradle 8.5 and newer, AGP 8.5.2 through 9.2.x, KGP 2.4.x, on a JDK 17 or 21
-daemon. A dedicated `agpCompatibilityTest` builds real consumer projects on
-Gradle 8.5, 8.9 and 9.5.1 against AGP 8.5.2 and 9.2.1. CI runs on Linux with
-JDK 17 and 21, macOS with JDK 21 and Windows with JDK 21, each twice, asserting
-the configuration cache entry is reused and the tracked working tree is
-unchanged afterwards.
+daemon.
+
+A dedicated `agpCompatibilityTest` builds real consumer projects on Gradle 8.5,
+8.9 and 9.5.1, against AGP 8.5.2 and 9.2.1. CI runs on Linux with JDK 17 and 21,
+on macOS with JDK 21, and on Windows with JDK 21. Each build runs twice. CI then
+checks that the second run reuses the configuration cache entry, and that no
+tracked file changed.

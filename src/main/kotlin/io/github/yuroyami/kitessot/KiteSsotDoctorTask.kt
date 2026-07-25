@@ -203,7 +203,7 @@ internal fun renderDiagnosticConsole(heading: String, findings: List<KiteSsotDia
             KiteSsotDiagnosticSeverity.WARNING -> "WARN"
             KiteSsotDiagnosticSeverity.ERROR -> "FAIL"
         }
-        append("  [$status] ${diagnosticSafeText(finding.id)} ${diagnosticSafeText(finding.title)} — ")
+        append("  [$status] ${diagnosticSafeText(finding.id)} ${diagnosticSafeText(finding.title)}: ")
         append(diagnosticSafeText(finding.detail))
         finding.remediation?.let { append(" Fix: ").append(diagnosticSafeText(it)) }
         appendLine()
