@@ -289,6 +289,17 @@ tasks.withType<BaseCyclonedxTask>().configureEach {
     )
 }
 
+// Shared Kite theme. Sources live in ../_kite-docs; ./_kite-docs/sync.sh copies
+// them here, so this repo still builds standalone from a fresh clone.
+dokka {
+    moduleName.set("KiteSSOT")
+    pluginsConfiguration.html {
+        customStyleSheets.from(layout.projectDirectory.file("docs/api-theme/kite.css"))
+        templatesDir.set(layout.projectDirectory.dir("dokka-templates"))
+        footerMessage.set("Apache-2.0 · KiteSSOT is part of the Kite family.")
+    }
+}
+
 // java-gradle-plugin publishes a javadoc artifact, but Java's Javadoc task does
 // not understand Kotlin. Fill that artifact with the actual Dokka HTML/KDoc.
 tasks.named<Jar>("javadocJar") {
