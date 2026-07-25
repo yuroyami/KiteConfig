@@ -1,4 +1,4 @@
-# kitessot — Fresh-Slate, Code-Truth Audit
+# kitessot: Fresh-Slate, Code-Truth Audit
 
 - **Audit date:** 2026-07-14
 - **Audited release:** `1.7.0`
@@ -8,12 +8,12 @@
 - **Authority:** implementation first; repository prose was used only after behavior was
   reconstructed from code
 
-## Post-audit remediation status — 2026-07-18 working tree
+## Post-audit remediation status: 2026-07-18 working tree
 
 > **How to read this document now:** Sections 1–14 below are the preserved,
 > point-in-time audit of release `1.7.0` at `cce499f`. Their “current” wording,
 > release decision, maturity scores, line references, and 86-test baseline describe
-> that audited snapshot—not this remediation worktree. This section is the only
+> that audited snapshot: not this remediation worktree. This section is the only
 > current-state overlay. The verification results in this overlay supersede the
 > historical release decision; no historical finding text was rewritten after the
 > implementation changed.
@@ -28,29 +28,29 @@ values it consumes, while a configured capability may not silently no-op.
 
 | Historical finding | Remedy present in the working tree | Current status |
 |---|---|---|
-| **P0-01 — non-monotonic Android version codes** | `VersionCode.kt` accepts exactly canonical `x.y.z`, uses fixed-width monotonic encoding, rejects aliases/out-of-range segments, validates overrides in `1..2_100_000_000`, and can compare against `android.publishedVersionCode`. | **Closed;** boundary, monotonicity, overflow, override, and store-baseline regressions pass. |
-| **P0-02 — inferred Pod/Swift rename** | Migration defaults off and requires explicit validated old/new Swift module identifiers. Podfile inference is removed; legacy properties are compatibility inputs to the same validated model, not a validation bypass. | **Closed;** explicit, legacy-fallback, malformed-input, and no-op cases pass. |
-| **P0-03 — fail-open pbxproj rewrite** | The parser validates the complete project/target/configuration graph once. Rewriting is limited to selected application targets (or one unambiguous app target) and rejects missing, duplicate, malformed, garbage, or ambiguous structure without writing. | **Closed in code and representative Xcode-project fixtures;** an actual signed Xcode/App Store build remains external validation. |
-| **P0-04 — cache restore bypasses AppIcon backup** | Logo tasks are non-cacheable source installers. No-follow containment, checksum manifests, verified first-contact takeover, locks, bounded snapshots, create-only commit, concurrent-change detection, and rollback protect every batch. Diagnostics also verify the Android manifest references and selected Xcode catalog setting that consume the installed assets. | **Closed;** ownership, takeover, tamper, symlink, race, rollback, and platform-consumption tests pass. |
-| **P0-05 — release tag/version split** | Publication version is explicit; `verifyReleaseMetadata` requires exact `v<version>` and changelog agreement; remote publication requires signing material. CI stages, byte-compares, signs, checksums, and attests the complete payload/SBOM set. | **Closed locally;** metadata passed and the six-payload candidate was inspected. Ephemeral encrypted and unencrypted signing rehearsals passed; no remote publication is claimed. |
-| **P0-06 — compilation mutates Xcode state** | Normal compilation has no dependency on plist, pbxproj, Podfile, Swift, or icon installers. Apple source changes require an explicit named task after opt-in. | **Closed;** task-graph and source-non-mutation fixtures pass. |
-| **P0-07 — unsafe recursive generated-output cleanup** | Generated and source-installed outputs use separate ownership domains. Paths are root-contained and no-follow checked; traversal, file count, file size, total size, manifests, snapshots, and previews are bounded. Mutation is transactional rather than recursive deletion. | **Closed on the local filesystem suite;** CI defines Linux, macOS, and Windows coverage. |
+| **P0-01: non-monotonic Android version codes** | `VersionCode.kt` accepts exactly canonical `x.y.z`, uses fixed-width monotonic encoding, rejects aliases/out-of-range segments, validates overrides in `1..2_100_000_000`, and can compare against `android.publishedVersionCode`. | **Closed;** boundary, monotonicity, overflow, override, and store-baseline regressions pass. |
+| **P0-02: inferred Pod/Swift rename** | Migration defaults off and requires explicit validated old/new Swift module identifiers. Podfile inference is removed; legacy properties are compatibility inputs to the same validated model, not a validation bypass. | **Closed;** explicit, legacy-fallback, malformed-input, and no-op cases pass. |
+| **P0-03: fail-open pbxproj rewrite** | The parser validates the complete project/target/configuration graph once. Rewriting is limited to selected application targets (or one unambiguous app target) and rejects missing, duplicate, malformed, garbage, or ambiguous structure without writing. | **Closed in code and representative Xcode-project fixtures;** an actual signed Xcode/App Store build remains external validation. |
+| **P0-04: cache restore bypasses AppIcon backup** | Logo tasks are non-cacheable source installers. No-follow containment, checksum manifests, verified first-contact takeover, locks, bounded snapshots, create-only commit, concurrent-change detection, and rollback protect every batch. Diagnostics also verify the Android manifest references and selected Xcode catalog setting that consume the installed assets. | **Closed;** ownership, takeover, tamper, symlink, race, rollback, and platform-consumption tests pass. |
+| **P0-05: release tag/version split** | Publication version is explicit; `verifyReleaseMetadata` requires exact `v<version>` and changelog agreement; remote publication requires signing material. CI stages, byte-compares, signs, checksums, and attests the complete payload/SBOM set. | **Closed locally;** metadata passed and the six-payload candidate was inspected. Ephemeral encrypted and unencrypted signing rehearsals passed; no remote publication is claimed. |
+| **P0-06: compilation mutates Xcode state** | Normal compilation has no dependency on plist, pbxproj, Podfile, Swift, or icon installers. Apple source changes require an explicit named task after opt-in. | **Closed;** task-graph and source-non-mutation fixtures pass. |
+| **P0-07: unsafe recursive generated-output cleanup** | Generated and source-installed outputs use separate ownership domains. Paths are root-contained and no-follow checked; traversal, file count, file size, total size, manifests, snapshots, and previews are bounded. Mutation is transactional rather than recursive deletion. | **Closed on the local filesystem suite;** CI defines Linux, macOS, and Windows coverage. |
 
 ### Broader P1/P2 remediation
 
 | Audit area | Current implementation | Status / remaining work |
 |---|---|---|
-| **P1-01/04/05 and P2-12 — model and selection** | Android and Apple build numbers are independent; identifiers, SDKs, paths, locale tags, opt-ins, worker packages, and BuildConfig fields have bounded centralized validation. Gradle projects, Android apps, Xcode targets, web targets, Native opt-in projects, resources, and Swift modules have separate selectors. The root project participates in discovery. | Closed for the current one-application model. Deprecated strings remain validated compatibility fallbacks; per-target identity overlays are a deliberate 2.0 boundary. |
-| **P1-02/07/08/20 — defaults and lifecycle** | Logo installation, iOS sync/sanitization, shared-module migration, compiler opt-ins, and Android locale filtering default off. The complete managed model is finalized after root configuration; late cross-project mutation cannot change behavior by evaluation order. BuildConfig cache reuse is explicit opt-in, while source installers always execute their safety checks. | Implemented. |
-| **P1-06/14/19 — AGP/KGP integration** | Compatibility is resolved before typed adapter access. Requested features fail with stable guidance when peer classes/versions are unavailable. App-scoped and global SDK/JVM policies are separated; AGP 8 uses a floor-compiled adapter and replaces only unambiguous locale entries while preserving density, ABI, and the locale-shaped `car` UI-mode qualifier (`car` locale emits as `b+car`); AGP 9 uses current typed APIs. | Closed for the advertised range by six real consumer builds: Gradle 8.5/9.5.1, AGP 8.5.2/9.1.1, and stable KGP 2.4.0. |
-| **P1-09/10/11/13/15 — mutation correctness** | One iOS config invocation plans plist, pbxproj, Podfile, and Swift changes before a single locked transaction; commit failure rolls prior files back. Missing configured inputs fail explicitly. Plist parsing is hardened, its 4 MiB budget is measured in UTF-8 bytes, and duplicate/conflicting values follow an explicit `FAIL`/`KEEP`/`REPLACE` policy. Swift comments, strings, raw strings, and extended regex literals are masked before exact import migration. Android cleanup and replacement share one rollback domain. Parked entries remain lexical, no-follow handles even under concurrent symlink substitution. Logo ownership prevents overwriting unknown or manually modified files. | Core safety remedy implemented. The plugin still edits source formats; generated xcconfig and syntax-tree migrations remain preferable future architecture. |
-| **P1-12 — locales** | Locale inputs use one bounded, duplicate-free platform-resource BCP-47 subset. Auto-discovery accepts only locale-only `values-en`, `values-pt-rBR`, and `values-b+sr+Latn` forms, never mixed qualifiers. Apple regions are additive; Android filtering is separate, exact, opt-in, and rejects an empty set. | Implemented and regression-tested; on-device language-picker behavior remains application integration testing. |
-| **P1-16/17 — worker and BuildConfig** | Both generators write only owned `build/generated` trees. BuildConfig uses validated Kotlin identifiers/literals, rejects duplicates/collisions/non-finite numbers, scopes identity inclusion, and warns against cache-backed secrets. The browser worker adds explicit target selection, startup/error normalization, timeout and coroutine-cancellation termination, and clearer browser/CSP contracts. | Hardened, but intentionally still generated convenience APIs. The worker remains browser-only and executes caller-supplied JavaScript text; BuildConfig is not a secret store. |
-| **P1-18 — diagnostics and UX** | `kiteSsotDoctor` is resilient and observational; `kiteSsotCheck` writes deterministic JSON or SARIF then fails on policy; `kiteSsotPlan` reports operations, targets, paths, policies, notes, and bounded reviewable unified-style previews without mutation. Stable IDs and structural inspections replace best-effort messages, including checksum-owned icon completeness, Android manifest consumption, and selected Xcode AppIcon alignment. | Implemented and covered for malformed providers, aliases/abbreviations, mixed invocations, report escaping, fail-after-report behavior, and installed-but-unused branding. |
-| **P2-01/02/10 — resource, error, and ownership hardening** | PNG and text inputs, traversal, generated fields, manifests, snapshots, and diff logs have explicit budgets. Errors sanitize hostile text and preserve useful root causes. Text/asset batches are lock-coordinated and rollback-capable. | Implemented with hostile-input, limit, symlink, concurrency, and recovery coverage. |
-| **P2-03/04/07 — publication and API discipline** | Dokka-backed javadocs, license/manifest metadata, complete POMs, ABI validation, locks, dependency verification, CycloneDX SBOMs, PGP signing, pinned actions, source-cleanliness checks, deterministic archives, and staged provenance are present. | Locally verified: ABI passes; six Maven payloads stage; all archive times/orders are normalized; the runtime SBOM has zero dependencies; signing and clean-build reproducibility rehearsals pass. |
-| **P2-05/06/08 — compatibility tests and documentation** | Coverage spans validation, ownership/rollback/races, parser ambiguity, diagnostics, generated-source compilation, source non-mutation, multi-project selection, real AGP/KGP consumers, and release tasks. README, FEATURES, CHANGELOG, DSL KDocs, and generated Dokka were reconciled against code. | Locally release-gated. Browser/CSP execution, Xcode signing/upload, and remote OS CI remain environment-level checks, not unimplemented code paths. |
-| **P2-09/11 — performance and public coupling** | Work is provider-backed, selected by capability/project, generated into owned directories, and source mutation is removed from normal task graphs. `KiteSsotAccess` documents the finalized read-only model. | Improved. The root aggregation plugin and convenience accessor remain public architectural coupling rather than a split adapter/runtime ecosystem. |
+| **P1-01/04/05 and P2-12: model and selection** | Android and Apple build numbers are independent; identifiers, SDKs, paths, locale tags, opt-ins, worker packages, and BuildConfig fields have bounded centralized validation. Gradle projects, Android apps, Xcode targets, web targets, Native opt-in projects, resources, and Swift modules have separate selectors. The root project participates in discovery. | Closed for the current one-application model. Deprecated strings remain validated compatibility fallbacks; per-target identity overlays are a deliberate 2.0 boundary. |
+| **P1-02/07/08/20: defaults and lifecycle** | Logo installation, iOS sync/sanitization, shared-module migration, compiler opt-ins, and Android locale filtering default off. The complete managed model is finalized after root configuration; late cross-project mutation cannot change behavior by evaluation order. BuildConfig cache reuse is explicit opt-in, while source installers always execute their safety checks. | Implemented. |
+| **P1-06/14/19: AGP/KGP integration** | Compatibility is resolved before typed adapter access. Requested features fail with stable guidance when peer classes/versions are unavailable. App-scoped and global SDK/JVM policies are separated; AGP 8 uses a floor-compiled adapter and replaces only unambiguous locale entries while preserving density, ABI, and the locale-shaped `car` UI-mode qualifier (`car` locale emits as `b+car`); AGP 9 uses current typed APIs. | Closed for the advertised range by six real consumer builds: Gradle 8.5/9.5.1, AGP 8.5.2/9.1.1, and stable KGP 2.4.0. |
+| **P1-09/10/11/13/15: mutation correctness** | One iOS config invocation plans plist, pbxproj, Podfile, and Swift changes before a single locked transaction; commit failure rolls prior files back. Missing configured inputs fail explicitly. Plist parsing is hardened, its 4 MiB budget is measured in UTF-8 bytes, and duplicate/conflicting values follow an explicit `FAIL`/`KEEP`/`REPLACE` policy. Swift comments, strings, raw strings, and extended regex literals are masked before exact import migration. Android cleanup and replacement share one rollback domain. Parked entries remain lexical, no-follow handles even under concurrent symlink substitution. Logo ownership prevents overwriting unknown or manually modified files. | Core safety remedy implemented. The plugin still edits source formats; generated xcconfig and syntax-tree migrations remain preferable future architecture. |
+| **P1-12: locales** | Locale inputs use one bounded, duplicate-free platform-resource BCP-47 subset. Auto-discovery accepts only locale-only `values-en`, `values-pt-rBR`, and `values-b+sr+Latn` forms, never mixed qualifiers. Apple regions are additive; Android filtering is separate, exact, opt-in, and rejects an empty set. | Implemented and regression-tested; on-device language-picker behavior remains application integration testing. |
+| **P1-16/17: worker and BuildConfig** | Both generators write only owned `build/generated` trees. BuildConfig uses validated Kotlin identifiers/literals, rejects duplicates/collisions/non-finite numbers, scopes identity inclusion, and warns against cache-backed secrets. The browser worker adds explicit target selection, startup/error normalization, timeout and coroutine-cancellation termination, and clearer browser/CSP contracts. | Hardened, but intentionally still generated convenience APIs. The worker remains browser-only and executes caller-supplied JavaScript text; BuildConfig is not a secret store. |
+| **P1-18: diagnostics and UX** | `kiteSsotDoctor` is resilient and observational; `kiteSsotCheck` writes deterministic JSON or SARIF then fails on policy; `kiteSsotPlan` reports operations, targets, paths, policies, notes, and bounded reviewable unified-style previews without mutation. Stable IDs and structural inspections replace best-effort messages, including checksum-owned icon completeness, Android manifest consumption, and selected Xcode AppIcon alignment. | Implemented and covered for malformed providers, aliases/abbreviations, mixed invocations, report escaping, fail-after-report behavior, and installed-but-unused branding. |
+| **P2-01/02/10: resource, error, and ownership hardening** | PNG and text inputs, traversal, generated fields, manifests, snapshots, and diff logs have explicit budgets. Errors sanitize hostile text and preserve useful root causes. Text/asset batches are lock-coordinated and rollback-capable. | Implemented with hostile-input, limit, symlink, concurrency, and recovery coverage. |
+| **P2-03/04/07: publication and API discipline** | Dokka-backed javadocs, license/manifest metadata, complete POMs, ABI validation, locks, dependency verification, CycloneDX SBOMs, PGP signing, pinned actions, source-cleanliness checks, deterministic archives, and staged provenance are present. | Locally verified: ABI passes; six Maven payloads stage; all archive times/orders are normalized; the runtime SBOM has zero dependencies; signing and clean-build reproducibility rehearsals pass. |
+| **P2-05/06/08: compatibility tests and documentation** | Coverage spans validation, ownership/rollback/races, parser ambiguity, diagnostics, generated-source compilation, source non-mutation, multi-project selection, real AGP/KGP consumers, and release tasks. README, FEATURES, CHANGELOG, DSL KDocs, and generated Dokka were reconciled against code. | Locally release-gated. Browser/CSP execution, Xcode signing/upload, and remote OS CI remain environment-level checks, not unimplemented code paths. |
+| **P2-09/11: performance and public coupling** | Work is provider-backed, selected by capability/project, generated into owned directories, and source mutation is removed from normal task graphs. `KiteSsotAccess` documents the finalized read-only model. | Improved. The root aggregation plugin and convenience accessor remain public architectural coupling rather than a split adapter/runtime ecosystem. |
 
 ### Intentional boundaries after remediation
 
@@ -214,7 +214,7 @@ The following checks were run against the inspected working tree:
   `kiteSsotVerify`, stored configuration cache, and correctly invalidated it when a
   new `values-fr` locale directory appeared;
 - a configured-but-missing logo input was tested: Gradle rejected the missing
-  `@InputFile` before task action, proving the task's “not found — skipping” branch
+  `@InputFile` before task action, proving the task's “not found: skipping” branch
   is unreachable for that state;
 - applying the plugin with app name and version unset, then running
   `sanitizeIosProject`, inserted all four identity references into Info.plist,
@@ -269,9 +269,9 @@ ownership model and safety defaults.
 
 ---
 
-## 5. P0 — release blockers
+## 5. P0: release blockers
 
-### P0-01 — Allowed versions can make Android `versionCode` go backwards
+### P0-01: Allowed versions can make Android `versionCode` go backwards
 
 **Evidence:** `VersionCode.kt:22-39`; the short forms are deliberately accepted by
 `VersionCodeTest.kt:17-20`.
@@ -301,7 +301,7 @@ migration note because changing a published app's version-code scheme is itself
 dangerous. Longer term, model a pluggable, explicitly named Android code strategy and
 offer a task that proves the next code is greater than a supplied/store baseline.
 
-### P0-02 — Automatic shared-module detection can rename an unrelated local Pod
+### P0-02: Automatic shared-module detection can rename an unrelated local Pod
 
 **Evidence:** `SharedModuleRewrite.kt:13-38`, `SyncIosConfigTask.kt:102-149`, and
 the default `propagateSharedModule = true` at `KiteSsotPlugin.kt:43`.
@@ -327,13 +327,13 @@ require an explicit apply mode, validate Swift/CocoaPods identifiers, refuse pat
 outside the selected tree, and never run from framework compilation. Ideally use
 SwiftSyntax/Ruby-aware parsing or narrowly edit a user-selected Pod declaration.
 
-### P0-03 — pbxproj parser uncertainty broadens writes instead of failing closed
+### P0-03: pbxproj parser uncertainty broadens writes instead of failing closed
 
 **Evidence:** `PbxprojRewrite.kt:73-91`; the fallback is explicitly cemented by
 `PbxprojRewriteTest.kt:192-201`.
 
-When `applicationBuildConfigSpans` returns no spans—whether because the project truly
-has no app target or because the minimal parser did not understand valid syntax—the
+When `applicationBuildConfigSpans` returns no spans: whether because the project truly
+has no app target or because the minimal parser did not understand valid syntax: the
 rewriter replaces matching settings globally. Test bundles, extensions, widgets,
 watch targets, and framework targets can receive the app's name and bundle ID. The
 warning is issued only after the mutated output has already been produced.
@@ -346,7 +346,7 @@ The durable solution is to stop editing pbxproj for continuous sync and emit a g
 xcconfig consumed by selected targets. If legacy pbx editing remains, use a real
 OpenStep tokenizer/parser, preserve formatting, and require exact target/config IDs.
 
-### P0-04 — Build-cache restore can bypass the promised AppIcon backup
+### P0-04: Build-cache restore can bypass the promised AppIcon backup
 
 **Evidence:** `SyncIosLogoTask.kt:33, 49, 53, 94-101` and
 `KiteSsotPluginFunctionalTest.kt:209-233`.
@@ -372,7 +372,7 @@ work into:
 3. preferably, an AGP/Xcode integration that consumes generated assets without copying
    over user-owned source files.
 
-### P0-05 — A release tag is unrelated to the version being published
+### P0-05: A release tag is unrelated to the version being published
 
 **Evidence:** `build.gradle.kts:12-13`, `gradle.properties:5`, and
 `.github/workflows/publish.yml:6-43`.
@@ -393,7 +393,7 @@ property is absent; local fallback should be `0.0.0-SNAPSHOT`, never a valid rel
 Build once, attest that artifact, then publish the same bytes to each channel with
 independent retry/recovery.
 
-### P0-06 — Normal compilation is the wrong place to mutate Xcode project state
+### P0-06: Normal compilation is the wrong place to mutate Xcode project state
 
 **Evidence:** `KiteSsotPlugin.kt:481-491`, `IosTaskMatching.kt:19-22`, and all
 in-place iOS task properties in `SyncIosConfigTask.kt:38-57`.
@@ -417,7 +417,7 @@ before build evaluation, and provide explicit `plan`, `apply`, and `checkDrift` 
 One-shot Podfile/Swift migration must be completely separate from continuous identity
 configuration.
 
-### P0-07 — generated-output cleanup can recursively delete handwritten source
+### P0-07: generated-output cleanup can recursively delete handwritten source
 
 **Evidence:** `GenerateBuildConfigTask.kt:42-45` and
 `GenerateIoWorkerTask.kt:49-59`.
@@ -444,9 +444,9 @@ junctions/reparse points.
 
 ---
 
-## 6. P1 — major correctness, API, and safety findings
+## 6. P1: major correctness, API, and safety findings
 
-### P1-01 — Cross-platform version and identifier types are missing
+### P1-01: Cross-platform version and identifier types are missing
 
 **Evidence:** `KiteSsotExtension.kt:25-41, 265-272`,
 `ClassicAndroidWiring.kt:34-42`, and `PbxprojRewrite.kt:51-70`.
@@ -472,9 +472,9 @@ setting.
 **Recommendation:** introduce validated value objects and independent platform
 overlays: canonical marketing version, Android display version/code, Apple short version/
 build string, Android application ID, and Apple bundle ID. Validate at model finalization,
-then render through platform-specific escaping—not string concatenation.
+then render through platform-specific escaping: not string concatenation.
 
-### P1-02 — Default application is not observational or opt-in
+### P1-02: Default application is not observational or opt-in
 
 **Evidence:** conventions at `KiteSsotPlugin.kt:38-52`, sanitizer logic at
 `SanitizeIosProjectTask.kt:65-83`, and the optional-field contract at
@@ -498,7 +498,7 @@ Compiler `@OptIn` is an acceptance of API instability, not an identity default.
 Adopt `mode = CHECK` as the safe default. A configured value can conventionally enable
 its non-destructive adapter, but migration/apply still requires an explicit command.
 
-### P1-03 — The root project can never be a target project
+### P1-03: The root project can never be a target project
 
 **Evidence:** `KiteSsotPlugin.kt:159-207` iterates only `target.subprojects`.
 
@@ -510,7 +510,7 @@ SDK, JVM target, native opt-ins, worker, BuildConfig, and task hooks.
 locally. At minimum include `target` in project discovery and add root-only functional
 fixtures, but the adapter architecture in section 11 is the real fix.
 
-### P1-04 — Multi-app and multi-target behavior cannot be represented safely
+### P1-04: Multi-app and multi-target behavior cannot be represented safely
 
 **Evidence:** `KiteSsotPlugin.kt:159-174, 402-420, 494-503` and
 `PbxprojTargetScope.kt:86-109`.
@@ -525,7 +525,7 @@ enterprise, Catalyst, and companion apps cannot have legitimate overlays.
 target names, build configurations, and variant overlays. Ambiguous discovery should be
 an error. Never continue after detecting duplicate application IDs.
 
-### P1-05 — `sharedModule` conflates four distinct identities
+### P1-05: `sharedModule` conflates four distinct identities
 
 **Evidence:** `KiteSsotExtension.kt:60-74`, `KiteSsotPlugin.kt:287-337`, and
 `SyncIosConfigTask.kt:102-115`.
@@ -545,7 +545,7 @@ generated in zero or multiple projects.
 `appleFrameworkName`, and optional `podName`. Prefer `Project.path` for Gradle identity,
 and typed `DirectoryProperty`/`RegularFileProperty` for paths.
 
-### P1-06 — Peer-plugin classloading is a documented workaround, not a robust API
+### P1-06: Peer-plugin classloading is a documented workaround, not a robust API
 
 **Evidence:** compile-only dependencies at `build.gradle.kts:35-42`, the KGP guard and
 warning at `KiteSsotPlugin.kt:182-205`, and unguarded Android adapter calls at
@@ -566,15 +566,15 @@ peer plugin is visible. If a requested adapter cannot load, fail with an actiona
 message; never silently drop requested behavior. Test plugin-only, root-shared KGP/AGP,
 and subproject-only peer-plugin classloaders independently.
 
-### P1-07 — Configuration order can permanently change installed behavior
+### P1-07: Configuration order can permanently change installed behavior
 
 **Evidence:** `KiteSsotPlugin.kt:217-226`, `KmpAndroidLibraryWiring.kt:31-49`,
 `ClassicAndroidWiring.kt:111-115`, and conditional provider binding at
 `KiteSsotPlugin.kt:369, 439-442`.
 
 Several callbacks branch on `.get()` or `.isPresent` when a peer plugin is applied. In
-unusual but legal evaluation orders—root logic applying/configuring children before a
-later `kiteSsot {}` block—an adapter can return permanently or install default behavior
+unusual but legal evaluation orders: root logic applying/configuring children before a
+later `kiteSsot {}` block: an adapter can return permanently or install default behavior
 that later DSL values cannot undo. A task realized before `bundleIdBase` is set can also
 omit the derived provider forever.
 
@@ -582,7 +582,7 @@ omit the derived provider forever.
 and read/finalize values only at sanctioned DSL-finalization or execution points. Replace
 target snapshots and `afterEvaluate` with lazy target/source-set `configureEach` hooks.
 
-### P1-08 — Global dry-run makes generated builds stale or incomplete
+### P1-08: Global dry-run makes generated builds stale or incomplete
 
 **Evidence:** `GenerateIoWorkerTask.kt:47-69`, `GenerateBuildConfigTask.kt:40-64`,
 `SyncAndroidLogoTask.kt:60-134`, and `SyncIosLogoTask.kt:55-103`.
@@ -594,7 +594,7 @@ declared outputs untouched. Consequences:
 - on a dirty build, compilation consumes yesterday's generated values;
 - changed inputs plus `dryRun = true` can snapshot/cache stale existing outputs under a
   new cache key;
-- a dry run does not show a diff—only the path that would be written.
+- a dry run does not show a diff: only the path that would be written.
 
 `kiteSsotVerify` nevertheless tells users they can “Preview exact edits.”
 
@@ -602,7 +602,7 @@ declared outputs untouched. Consequences:
 Build-owned generation should always produce deterministic outputs. `plan` should compute
 the same model as `apply` and emit a real unified diff plus a machine-readable plan.
 
-### P1-09 — File safety is per-file, not transactional or path-safe
+### P1-09: File safety is per-file, not transactional or path-safe
 
 **Evidence:** `RewriteSafety.kt:27-103`, recursive walks at
 `SyncIosConfigTask.kt:158-177`, and generator deletes at
@@ -643,21 +643,21 @@ asset/source directories; lock a whole migration; stage all outputs, validate th
 commit as one recoverable transaction. Add an explicit restore command and backup
 manifest/checksums.
 
-### P1-10 — Configured missing-image warnings can never run
+### P1-10: Configured missing-image warnings can never run
 
 **Evidence:** `SyncIosLogoTask.kt:41-65` and `SyncAndroidLogoTask.kt:45-70`.
 
 `@InputFile @Optional` makes the property optional; it does not allow a configured path
 to be missing. Gradle validates a present file before `@TaskAction`, so the friendly
-“not found — skipping” branches are unreachable. This was reproduced in the Gradle 8.9
+“not found: skipping” branches are unreachable. This was reproduced in the Gradle 8.9
 consumer smoke.
 
 **Recommendation:** choose one contract. Prefer a required input with Gradle's native,
 clear validation plus plugin-specific preflight context. If missing should genuinely
-skip, model it as an optional untracked path and validate deliberately—but silent skips
+skip, model it as an optional untracked path and validate deliberately: but silent skips
 are a poor default for authoritative branding.
 
-### P1-11 — pbxproj editing remains syntactically and semantically incomplete
+### P1-11: pbxproj editing remains syntactically and semantically incomplete
 
 **Evidence:** `PbxprojRewrite.kt:18-124` and `PbxprojTargetScope.kt:15-109`.
 
@@ -685,7 +685,7 @@ logic in an identity plugin.
 small formal tokenizer, count expected mutations per target/config, fail on missing or
 duplicate keys, and round-trip real Xcode fixtures across supported Xcode versions.
 
-### P1-12 — Locale sync overwrites project metadata and conflates metadata with filtering
+### P1-12: Locale sync overwrites project metadata and conflates metadata with filtering
 
 **Evidence:** `PbxprojRewrite.kt:95-121`, `LocaleTags.kt:11-33`,
 `KiteSsotPlugin.kt:326-337`, and `ClassicAndroidWiring.kt:46-80`.
@@ -714,7 +714,7 @@ locale metadata” from the dangerous optimization “filter packaged resources,
 filtering off, and generate Android 13 `localeConfig` plus Apple localization metadata.
 Report resource coverage and missing/extra translations before mutating anything.
 
-### P1-13 — plist handling is safer than regex, but not a faithful round-trip editor
+### P1-13: plist handling is safer than regex, but not a faithful round-trip editor
 
 **Evidence:** `PlistSanitize.kt:46-252` and `SanitizeIosProjectTask.kt:57-99`.
 
@@ -742,7 +742,7 @@ explicit (`FAIL`, `KEEP`, `REPLACE`). Mandatory XML hardening must fail closed; 
 internal subsets/entities and test XXE/expansion/oversized fixtures. Avoid legal/
 performance guarantees in KDoc; link to Apple's source material.
 
-### P1-14 — Android wiring is incomplete, ambiguous, and almost entirely untested
+### P1-14: Android wiring is incomplete, ambiguous, and almost entirely untested
 
 **Evidence:** `ClassicAndroidWiring.kt:29-115`, `KmpAndroidLibraryWiring.kt:31-57`,
 and the functional-test header at `KiteSsotPluginFunctionalTest.kt:9-12`.
@@ -767,7 +767,7 @@ applications/variants, generate resources through AGP's generated-source/resourc
 and test merged manifests, final variant IDs/versions, SDK values, resource filters, and
 Java/Kotlin compilation for AGP 8 and 9.
 
-### P1-15 — Branding output can be unused, destructive, or obsolete on day one
+### P1-15: Branding output can be unused, destructive, or obsolete on day one
 
 **Evidence:** `SyncAndroidLogoTask.kt:114-143, 172-228`,
 `CleanupLegacyAppLogoArtifactsTask.kt:36-60`, and
@@ -805,7 +805,7 @@ wire generated Android resources via AGP, and structurally merge or generate a s
 owned Apple asset set. Add manifest/target selection checks, monochrome/dark/tinted
 inputs, deterministic renderer versioning, and golden pixel/dimension/alpha/color tests.
 
-### P1-16 — the generated worker is not a safe or portable web API
+### P1-16: the generated worker is not a safe or portable web API
 
 **Evidence:** `IoWorkerGen.kt:35-119`, `GenerateIoWorkerTask.kt:47-69`, and
 `KiteSsotPlugin.kt:238-277`.
@@ -846,7 +846,7 @@ registered jobs or a serialization-based protocol, browser and Node implementati
 structured errors, transferables, a bounded reusable pool, timeout, and real cancellable
 cleanup. Test it in Chromium/Firefox/WebKit and Node under production bundling and CSP.
 
-### P1-17 — BuildConfig is a useful prototype with an unsafe source-level contract
+### P1-17: BuildConfig is a useful prototype with an unsafe source-level contract
 
 **Evidence:** `BuildConfigGen.kt:14-84`, `KiteSsotBuildConfigExtension.kt:36-80`,
 `GenerateBuildConfigTask.kt:40-65`, and `KiteSsotPlugin.kt:287-321`.
@@ -888,7 +888,7 @@ Strongly state that only public client configuration belongs there. Consider whe
 dedicated, mature BuildKonfig-style tool should remain the recommended solution instead
 of expanding this plugin's scope.
 
-### P1-18 — diagnostics describe problems but cannot enforce correctness
+### P1-18: diagnostics describe problems but cannot enforce correctness
 
 **Evidence:** `KiteSsotDoctorTask.kt:12-135` and `KiteSsotVerifyTask.kt:11-97`.
 
@@ -924,7 +924,7 @@ location, expected/actual values, remediation, and documentation URL. Offer:
 The strict check should validate final AGP variants and Xcode build settings, not source
 substrings, and should be safe to run even when optional configuration is incomplete.
 
-### P1-19 — the Gradle architecture is not ready for the advertised compatibility surface
+### P1-19: the Gradle architecture is not ready for the advertised compatibility surface
 
 **Evidence:** `KiteSsotPlugin.kt:15-207, 506-525`, the `compileOnly` dependencies at
 `build.gradle.kts:35-42`, and the single CI environment.
@@ -967,7 +967,7 @@ APIs behind version-specific adapters, fail clearly for unsupported ranges, pref
 task, and test a declared matrix. Configuration cache, isolated projects, parallel
 execution, and remote build cache should be release gates, not aspirational badges.
 
-### P1-20 — global experimental opt-ins should not be a default identity policy
+### P1-20: global experimental opt-ins should not be a default identity policy
 
 **Evidence:** the `propagateInteropOptIns = true` convention at
 `KiteSsotPlugin.kt:45` and the wiring at `InteropOptIns.kt` /
@@ -986,9 +986,9 @@ on unknown marker FQNs only when strict validation is requested.
 
 ---
 
-## 7. P2 — important design, quality, and maintenance findings
+## 7. P2: important design, quality, and maintenance findings
 
-### P2-01 — image processing has resource-exhaustion and reproducibility gaps
+### P2-01: image processing has resource-exhaustion and reproducibility gaps
 
 `ImageIO.read` fully decodes with no byte-size, dimension, pixel-count, or file-type
 limit anywhere in the task. A huge-dimension/compression-bomb image can exhaust the
@@ -1003,7 +1003,7 @@ and color-management versions as inputs. Golden tests should cover alpha, aspect
 safe zones, exact dimensions, deterministic hashes where supportable, malformed images,
 and memory limits.
 
-### P2-02 — the code handles errors inconsistently
+### P2-02: the code handles errors inconsistently
 
 Some invalid states throw during root `afterEvaluate`; some warn and skip; some mutate
 globally after warning; the doctor prints FAIL and succeeds; Android locale wiring
@@ -1020,7 +1020,7 @@ Adopt a documented policy:
 - migration conflict: emit plan, never partially apply;
 - internal error: preserve cause and file context; do not catch `Throwable`.
 
-### P2-03 — release metadata is too thin for a trusted public plugin
+### P2-03: release metadata is too thin for a trusted public plugin
 
 The POM has coordinates and Apache license only. Add project name, description, URL,
 inception year, SCM connection/tag, issue management, CI management, organization, and
@@ -1035,7 +1035,7 @@ coordinates in a clean consumer, and add API/ABI validation. The public task cla
 all public extension members are compatibility surface even if the intended API is only
 the DSL.
 
-### P2-04 — the release supply chain lacks provenance and artifact hardening
+### P2-04: the release supply chain lacks provenance and artifact hardening
 
 P0-05 covers the tag/version/channel correctness failure. Beyond that blocker, the
 workflow lacks protected-environment approval, concurrency control, signed/attested
@@ -1054,7 +1054,7 @@ routes automatic JDK provisioning through Foojay redirect URLs without a reposit
 archive checksum. Treat both Gradle and JDK distributions as release inputs: pin their
 expected digests/vendor, verify dependency metadata, and record them in provenance.
 
-### P2-05 — compatibility claims exceed the test matrix
+### P2-05: compatibility claims exceed the test matrix
 
 CI covers one Linux runner, JDK 21, the wrapper Gradle, and the compile-time AGP/KGP
 versions. The minimum Gradle 8.5 and Java 17 load target are not exercised. There is no
@@ -1066,7 +1066,7 @@ State a narrow, evidence-based compatibility table. Either test each advertised 
 label it unsupported/experimental. Binary compilation against current APIs is not proof
 that older or newer plugin implementations will supply the same symbols and behavior.
 
-### P2-06 — functional tests stop before the most important outcome: consumer compilation
+### P2-06: functional tests stop before the most important outcome: consumer compilation
 
 The suite has 86 tests, but only eight TestKit scenarios. Most functional assertions
 inspect generated text or task output. Generated BuildConfig and worker source are not
@@ -1079,7 +1079,7 @@ Pure parser/generator tests are valuable and should remain, but they cannot vali
 classloader boundaries, plugin ordering, Variant APIs, source-set dependencies, final
 manifests, runtime browser behavior, or Xcode semantics.
 
-### P2-07 — no public API/ABI or deprecation discipline is enforced
+### P2-07: no public API/ABI or deprecation discipline is enforced
 
 All extension types, properties, action methods, plugin class, and task classes are
 public JVM API. There is no binary compatibility validator, explicit API dump, semantic
@@ -1091,7 +1091,7 @@ Define the supported public surface, make implementation task types internal whe
 possible, use interfaces/spec types for the DSL, and add ABI dumps reviewed in pull
 requests. Publish migration recipes and keep deprecated aliases for an announced period.
 
-### P2-08 — documentation is broad but not executable or reliably current
+### P2-08: documentation is broad but not executable or reliably current
 
 README, FEATURES, CHANGELOG, and KDocs contain substantial effort, yet the duplicated
 claims drift. Examples and compatibility statements are not compiled as tests. There is
@@ -1105,7 +1105,7 @@ metadata used by diagnostics. Each feature page should state: default, ownership
 mutation behavior, lifecycle, supported platforms/topologies, inputs/outputs, security
 notes, cache semantics, and failure modes.
 
-### P2-09 — performance is acceptable for a prototype but scales poorly
+### P2-09: performance is acceptable for a prototype but scales poorly
 
 Positive: pure generators are small, task registration is mostly lazy, source dirs carry
 producer dependencies, and cacheable annotations exist where generation was intended.
@@ -1128,7 +1128,7 @@ Select participating projects explicitly, fingerprint plan inputs, use Worker AP
 isolation for images, avoid source-tree work during builds, and benchmark both plugin
 configuration time and task execution on a representative 50–200-module KMP build.
 
-### P2-10 — ownership and generated-file provenance are underspecified
+### P2-10: ownership and generated-file provenance are underspecified
 
 Some outputs are plugin-owned (`build/generated`), some are user-owned but overwritten
 (`project.pbxproj`, Podfile, Swift, Info.plist), and some are generated directly into
@@ -1142,7 +1142,7 @@ delete a file merely because its name matches. A `kiteSsotCleanGenerated` task s
 remove only manifest-owned build outputs; source migration rollback should use a
 separate journal.
 
-### P2-11 — the convenience accessor makes the architectural coupling public API
+### P2-11: the convenience accessor makes the architectural coupling public API
 
 **Evidence:** `KiteSsotAccess.kt:6-17`.
 
@@ -1150,7 +1150,7 @@ separate journal.
 `rootProject.extensions.getByType` and therefore encourages precisely the cross-project
 model access that blocks isolated projects. It also throws Gradle's generic missing-type
 exception when the root plugin was not applied, exposes mutable root properties to
-module build logic, and gives no resolved/finalized snapshot—subprojects can observe
+module build logic, and gives no resolved/finalized snapshot: subprojects can observe
 different values depending on evaluation timing.
 
 Deprecate it in favor of a module-local read-only model extension supplied by the adapter
@@ -1158,7 +1158,7 @@ plugin. That model should expose finalized providers and value provenance, not t
 mutable DSL object. If a compatibility accessor remains, make absence diagnostics
 plugin-specific and document its lifecycle/isolated-project limitation.
 
-### P2-12 — `sharedModule` is globally mandatory even when no selected feature needs it
+### P2-12: `sharedModule` is globally mandatory even when no selected feature needs it
 
 **Evidence:** unconditional validation at `KiteSsotPlugin.kt:103-109`.
 
@@ -1204,7 +1204,7 @@ Repository-level drift is already visible. `FEATURES.md` labels its current sect
 “v1.6.x working tree” while the build is 1.7.0, and its “honest limitations” still says
 plugin validation is red, bytecode is Java 21, classic Android is eager/module-wins,
 pbxproj rewriting is target-blind, region tags are unmapped, and `Contents.json` has no
-backup—all superseded by current code. It also refers to old `AUDIT` section numbers as
+backup: all superseded by current code. It also refers to old `AUDIT` section numbers as
 if they were maintained product documentation. Conversely, its proposed “graceful global
 fallback” is now implemented but is exactly the fail-open P0 in this audit.
 
@@ -1378,7 +1378,7 @@ smaller and allows each to become excellent.
    inheriting unrelated root toggles.
 6. **Policy and compliance checks.** Deployment targets, privacy manifests, required
    reason APIs, signing/team configuration presence, store metadata readiness, manifest
-   permissions, package visibility, and export settings—as opt-in, non-legal diagnostics.
+   permissions, package visibility, and export settings: as opt-in, non-legal diagnostics.
 7. **Machine-readable resolved model.** Export sanitized JSON for CI/release tooling,
    IDEs, custom platform generators, and third-party adapters, excluding secrets.
 8. **IDE/UX integration.** Rich Gradle Problems entries, clickable file/line locations,
@@ -1530,7 +1530,7 @@ support more formats over time without endangering every build.
 
 ## 12. Prioritized remediation roadmap
 
-### Phase 0 — stop dangerous behavior before another release
+### Phase 0: stop dangerous behavior before another release
 
 1. Fix version-code width, leading-zero handling, bounds, and regression tests.
 2. Default `propagateSharedModule`, `syncIos`, `sanitizeIosProject`, and experimental
@@ -1550,7 +1550,7 @@ input cannot broaden mutation; version upgrades cannot lower the code; no cache 
 overwrite user content without a recoverable operation; release version is provably the
 tag version.
 
-### Phase 1 — establish a trustworthy 1.x maintenance line
+### Phase 1: establish a trustworthy 1.x maintenance line
 
 1. Add typed aggregate validation and stable diagnostic IDs.
 2. Add strict `check` and read-only exact `plan` tasks.
@@ -1568,7 +1568,7 @@ tag version.
 can gate CI without mutation, and published compatibility/documentation matches the
 matrix.
 
-### Phase 2 — build the 2.0 model and adapters
+### Phase 2: build the 2.0 model and adapters
 
 1. Introduce named applications, platform target selectors, environments, and variants.
 2. Create immutable typed IDs/versions/locales and provenance-aware resolution.
@@ -1582,7 +1582,7 @@ matrix.
 **Exit criterion:** isolated projects works, no root cross-project mutation remains, all
 continuous outputs are generated/owned, and multi-app/target projects are first-class.
 
-### Phase 3 — category-leading KMP experience
+### Phase 3: category-leading KMP experience
 
 1. Localization coverage and store/platform metadata generation.
 2. Full deterministic brand pipeline and preview gallery.
@@ -1645,7 +1645,7 @@ Perfection is not the number of supported switches. The horizon is reached when:
 - ordinary builds never rewrite tracked source;
 - every mutation is explicit, target-selected, previewable, transactional, reversible,
   and contained;
-- Android and Apple final build states—not approximate source text—are verified;
+- Android and Apple final build states: not approximate source text: are verified;
 - multi-app, multi-target, variants, and modern branding/localization are first-class;
 - generated artifacts are deterministic, bounded, provenance-marked, and cache-correct;
 - failures are aggregated, precise, stable, machine-readable, and actionable;
