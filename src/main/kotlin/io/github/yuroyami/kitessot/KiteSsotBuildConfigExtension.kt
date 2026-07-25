@@ -42,7 +42,7 @@ import org.gradle.api.provider.Provider
  * }
  * ```
  *
- * **This is not a secret store.** Only put public client configuration here. A
+ * This is not a secret store. Only put public client configuration here. A
  * provider can keep a value out of the build script and version control, but the
  * resolved value still enters generated source and Gradle task inputs. It may
  * also appear in build scans, KLIBs, APKs, IPAs, decompiled binaries, and trusted

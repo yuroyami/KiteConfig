@@ -12,25 +12,29 @@ import org.gradle.api.tasks.TaskAction
 import org.gradle.work.DisableCachingByDefault
 
 /**
- * Conditionally ensures a source iOS `Info.plist` has the SSOT references enabled
- * by this task's propagation inputs. Each enabled entry points at its build
- * variable:
+ * Ensures a source iOS `Info.plist` holds the SSOT references that this task's
+ * propagation inputs enable. Each enabled entry points at its build variable:
  *
- *   CFBundleDisplayName        → $(PRODUCT_NAME)
- *   CFBundleName               → $(PRODUCT_NAME)
- *   CFBundleShortVersionString → $(MARKETING_VERSION)
- *   CFBundleVersion            → $(CURRENT_PROJECT_VERSION)
+ * ```
+ * CFBundleDisplayName        → $(PRODUCT_NAME)
+ * CFBundleName               → $(PRODUCT_NAME)
+ * CFBundleShortVersionString → $(MARKETING_VERSION)
+ * CFBundleVersion            → $(CURRENT_PROJECT_VERSION)
+ * ```
  *
- * App-name propagation enables the first two entries; marketing-version and
+ * App-name propagation enables the first two entries. Marketing-version and
  * build-number propagation independently enable the remaining entries. When no
  * string entry or optional Boolean flag is enabled, the task is a no-op.
- * Existing conflicts follow [conflictPolicy]. The default is fail-closed: one
- * conflict aborts the entire plan and leaves the plist byte-for-byte untouched.
+ * Existing conflicts follow [conflictPolicy], which defaults to fail-closed, so
+ * one conflict aborts the entire plan and leaves the plist byte-for-byte
+ * untouched.
  *
- * Also propagates DSL-driven boolean feature flags from `kiteSsot { ios { } }`:
+ * It also propagates the Boolean feature flags from `kiteSsot { ios { } }`:
  *
- *   ITSAppUsesNonExemptEncryption        ← ios.usesNonExemptEncryption
- *   CADisableMinimumFrameDurationOnPhone ← ios.proMotion120Hz
+ * ```
+ * ITSAppUsesNonExemptEncryption        ← ios.usesNonExemptEncryption
+ * CADisableMinimumFrameDurationOnPhone ← ios.proMotion120Hz
+ * ```
  *
  * The plist is parsed with mandatory XML hardening ([sanitizeInfoPlist]). Binary,
  * malformed, duplicate-key, unsafe-entity, and non-lossless inputs fail without

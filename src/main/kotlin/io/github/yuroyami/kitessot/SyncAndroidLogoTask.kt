@@ -25,7 +25,7 @@ import javax.imageio.ImageIO
  * tree. Source PNGs are treated as **the icon as designed** (fills the canvas
  * like an iOS marketing icon). Non-square sources are aspect-fit, never
  * stretched: the FG is *contained* (letterboxed) inside the safe zone, the BG
- * *covers* the canvas (centre-cropped).
+ * *covers* the canvas (center-cropped).
  *
  *  - Adaptive FG: source FG fit inside [safeZoneRatio] of the canvas.
  *  - Adaptive BG: source BG covers the 108dp canvas (parallax bleed).
@@ -123,7 +123,7 @@ abstract class SyncAndroidLogoTask : DefaultTask() {
             val decoded = decodeLogo(bgFile, "appLogoPngBackground")
             bgSnapshot = decoded
             if (decoded.image.width != decoded.image.height) {
-                logger.warn("[kiteSsot] appLogoPngBackground is not square (${decoded.image.width}×${decoded.image.height}) — it will be centre-cropped to fill the canvas.")
+                logger.warn("[kiteSsot] appLogoPngBackground is not square (${decoded.image.width}×${decoded.image.height}) — it will be center-cropped to fill the canvas.")
             }
             bgDescription = bgFile.name
             decoded.image
@@ -136,7 +136,7 @@ abstract class SyncAndroidLogoTask : DefaultTask() {
             logger.warn("[kiteSsot] appLogoPngForeground has no alpha channel — it will fully cover the background. Use a PNG with transparency for proper layering.")
         }
         if (fg.width < 432) {
-            logger.warn("[kiteSsot] appLogoPngForeground is ${fg.width}px wide — recommend ≥432px (xxxhdpi adaptive size) to avoid upscaling artefacts.")
+            logger.warn("[kiteSsot] appLogoPngForeground is ${fg.width}px wide — recommend ≥432px (xxxhdpi adaptive size) to avoid upscaling artifacts.")
         }
 
         val ratio = validateLogoSafeZoneRatio(safeZoneRatio.get())
@@ -231,14 +231,14 @@ abstract class SyncAndroidLogoTask : DefaultTask() {
         |</adaptive-icon>
         |""".trimMargin()
 
-    /** Foreground fit (aspect-preserving) inside the safe zone, centred on a transparent canvas. */
+    /** Foreground fit (aspect-preserving) inside the safe zone, centered on a transparent canvas. */
     private fun padToSafeZone(fg: BufferedImage, canvasSize: Int, ratio: Double): BufferedImage {
         val safe = (canvasSize * ratio).toInt().coerceAtLeast(1)
         val offset = (canvasSize - safe) / 2
         return newArgb(canvasSize).withGraphics { drawContain(fg, offset, offset, safe, safe) }
     }
 
-    /** Background scaled to cover the full canvas, preserving aspect (centre-cropped). */
+    /** Background scaled to cover the full canvas, preserving aspect (center-cropped). */
     private fun coverCanvas(bg: BufferedImage, size: Int): BufferedImage =
         BufferedImage(size, size, BufferedImage.TYPE_INT_RGB).withGraphics {
             color = java.awt.Color.WHITE

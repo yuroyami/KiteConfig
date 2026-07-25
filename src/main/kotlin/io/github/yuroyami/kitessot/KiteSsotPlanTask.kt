@@ -11,11 +11,16 @@ import java.nio.file.Files
 import java.nio.file.LinkOption.NOFOLLOW_LINKS
 
 /**
- * Read-only mutation-plan report. Central wiring supplies stable operation names,
- * configured source-tree mutation roots plus deterministic backup, ownership,
- * recovery, and coordination paths, the selected targets, and effective safety
- * policies. A directory entry can contain dynamically discovered Swift files;
- * [exactChanges] exposes available summaries without executing an installer.
+ * Read-only report of the source-tree mutations the current configuration
+ * authorizes.
+ *
+ * Central wiring supplies the stable operation names, the selected targets, and
+ * the effective safety policies. It also supplies the configured mutation roots,
+ * together with the deterministic backup, ownership, recovery, and coordination
+ * paths derived from them.
+ *
+ * A directory entry can hold dynamically discovered Swift files. [exactChanges]
+ * exposes the available summaries without running an installer.
  */
 @DisableCachingByDefault(because = "Reports current filesystem state and is intentionally always run.")
 abstract class KiteSsotPlanTask : DefaultTask() {

@@ -121,7 +121,7 @@ abstract class KiteSsotVerifyTask : DefaultTask() {
     }
 
     private fun logoBackgroundDescription(): String = when {
-        runCatching { logoBackgroundColor.isPresent }.getOrElse { false } -> "colour ${showSafely(logoBackgroundColor)}"
+        runCatching { logoBackgroundColor.isPresent }.getOrElse { false } -> "color ${showSafely(logoBackgroundColor)}"
         runCatching { logoBackground.getOrElse(false) }.getOrElse { false } -> "PNG"
         else -> "[unset]"
     }

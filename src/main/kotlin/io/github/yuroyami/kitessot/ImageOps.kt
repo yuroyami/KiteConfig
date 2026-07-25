@@ -222,7 +222,7 @@ internal fun resize(src: BufferedImage, w: Int, h: Int): BufferedImage {
     return BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB).withGraphics { drawImage(src, 0, 0, w, h, null) }
 }
 
-/** Draw [img] scaled to fit *inside* the box, preserving aspect ratio, centred. Never stretches. */
+/** Draw [img] scaled to fit *inside* the box, preserving aspect ratio, centered. Never stretches. */
 internal fun Graphics2D.drawContain(img: BufferedImage, x: Int, y: Int, w: Int, h: Int) {
     val scale = minOf(w.toDouble() / img.width, h.toDouble() / img.height)
     val dw = (img.width * scale).toInt().coerceAtLeast(1)
@@ -230,7 +230,7 @@ internal fun Graphics2D.drawContain(img: BufferedImage, x: Int, y: Int, w: Int, 
     drawImage(img, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh, null)
 }
 
-/** Draw [img] scaled to *cover* the box, preserving aspect ratio, centred; overflow is clipped. */
+/** Draw [img] scaled to *cover* the box, preserving aspect ratio, centered; overflow is clipped. */
 internal fun Graphics2D.drawCover(img: BufferedImage, x: Int, y: Int, w: Int, h: Int) {
     val scale = maxOf(w.toDouble() / img.width, h.toDouble() / img.height)
     val dw = (img.width * scale).toInt().coerceAtLeast(1)

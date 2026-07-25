@@ -33,7 +33,7 @@ internal fun parseLogoBackgroundColor(hex: String): Color {
 
 /**
  * Composite a (possibly translucent) [c] over opaque white, returning an opaque
- * colour. Used so a semi-transparent `appLogoBackgroundColor` renders the same
+ * color. Used so a semi-transparent `appLogoBackgroundColor` renders the same
  * on Android (which would otherwise keep the alpha) as on iOS (which flattens
  * against white because the App Store rejects alpha icons).
  */

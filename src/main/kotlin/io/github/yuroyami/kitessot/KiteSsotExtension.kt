@@ -18,7 +18,7 @@ import org.gradle.api.provider.Provider
  * project configuration alone. [iosMarketingVersion] can inherit [versionName],
  * [locales] can be discovered, and enabled features may require related inputs.
  *
- * Present identity, locale, and Android SDK values are applied by default.
+ * Identity, locale, and Android SDK values you set are applied by default.
  * Source changes, logo installation, Native compiler opt-ins, and Android
  * resource filtering require explicit switches.
  *
@@ -270,46 +270,48 @@ abstract class KiteSsotExtension {
 
     // --- Capability toggles --------------------------------------------------
 
-    /** Apply a present [appName]. Default is `true`. */
+    /** Whether a set [appName] is applied. The default is `true`. */
     abstract val propagateAppName: Property<Boolean>
 
-    /** Apply resolved platform identifiers. Default is `true`. */
+    /** Whether the resolved platform identifiers are applied. The default is `true`. */
     abstract val propagateBundleId: Property<Boolean>
 
-    /** Apply present platform versions and build numbers. Default is `true`. */
+    /** Whether set platform versions and build numbers are applied. The default is `true`. */
     abstract val propagateVersion: Property<Boolean>
 
-    /** Add locale metadata to enabled consumers. Default is `true`. */
+    /** Whether locale metadata reaches enabled consumers. The default is `true`. */
     abstract val propagateLocaleList: Property<Boolean>
 
     /**
-     * Replace the selected Android app's locale filters with [locales].
+     * Whether the selected Android app's locale filters are replaced with [locales].
      *
-     * This changes packaged resources. Default is `false`.
+     * This changes packaged resources. The default is `false`.
      */
     abstract val filterAndroidResources: Property<Boolean>
 
     /**
-     * Enable explicitly invoked logo installers. Default is `false`.
+     * Whether the explicitly invoked logo installer tasks are authorized. The
+     * default is `false`.
      *
-     * Set [appLogoPngForeground] and exactly one background. Apple installation
-     * also requires [syncIos].
+     * This unlocks the tasks; it does not run them. Set [appLogoPngForeground]
+     * and exactly one background. Apple installation also requires [syncIos].
      */
     abstract val propagateLogo: Property<Boolean>
 
     /**
-     * Enable explicit Podfile and Swift shared-module migration under [syncIos].
-     * Default is `false`.
+     * Whether explicit Podfile and Swift shared-module migration is authorized
+     * under [syncIos]. The default is `false`.
      */
     abstract val propagateSharedModule: Property<Boolean>
 
-    /** Apply values from `android {}` to compatible modules. Default is `true`. */
+    /** Whether values from `android { }` reach compatible modules. The default is `true`. */
     abstract val propagateAndroidSdk: Property<Boolean>
 
     /**
-     * Add KiteSSOT's built-in interop markers to selected Native compilations.
+     * Whether KiteSSOT's built-in interop markers are added to selected Native
+     * compilations.
      *
-     * Default is `false`. Use [extraOptIns] for additional markers.
+     * The default is `false`. Use [extraOptIns] for additional markers.
      */
     abstract val propagateInteropOptIns: Property<Boolean>
 
@@ -326,39 +328,42 @@ abstract class KiteSsotExtension {
     abstract val interopProjectPaths: ListProperty<String>
 
     /**
-     * Authorize explicitly invoked Apple source tasks. Default is `false`.
+     * Whether the explicitly invoked Apple source tasks are authorized. The
+     * default is `false`.
      *
      * Ordinary builds never invoke these tasks.
      */
     abstract val syncIos: Property<Boolean>
 
     /**
-     * Maintain KiteSSOT references in a source XML Info.plist.
+     * Whether KiteSSOT maintains its references in a source XML Info.plist.
      *
-     * Default is `false` and [syncIos] is also required.
+     * The default is `false`, and [syncIos] is also required.
      */
     abstract val sanitizeIosProject: Property<Boolean>
 
     /**
-     * Allow Android logo installation to take over known legacy icon files.
+     * Whether Android logo installation may take over known legacy icon files.
      *
-     * Default is `false`. A complete enabled replacement logo is required.
+     * The default is `false`. A complete enabled replacement logo is required.
      * KiteSSOT backs up candidates before replacing them.
      */
     abstract val cleanupLegacyLogoArtifacts: Property<Boolean>
 
     /**
-     * Preview explicitly invoked source-changing tasks. Default is `false`.
+     * Whether explicitly invoked source-changing tasks only preview their work.
+     * The default is `false`.
      *
      * Generated Kotlin source ignores this flag because it is a build input.
      */
     abstract val dryRun: Property<Boolean>
 
     /**
-     * Keep first-contact recovery copies for source rewrites and Apple icons.
+     * Whether first-contact recovery copies are kept for source rewrites and
+     * Apple icons.
      *
-     * Default is `true`. Android legacy takeover always keeps its own recovery
-     * record when [cleanupLegacyLogoArtifacts] is enabled.
+     * The default is `true`. Android legacy takeover always keeps its own
+     * recovery record when [cleanupLegacyLogoArtifacts] is enabled.
      */
     abstract val backupBeforeRewrite: Property<Boolean>
 

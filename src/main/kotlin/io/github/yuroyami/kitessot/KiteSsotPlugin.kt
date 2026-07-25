@@ -257,7 +257,7 @@ class KiteSsotPlugin : Plugin<Project> {
             if (ext.propagateLogo.get() && ext.appLogoAndroidSafeZoneRatio.isPresent) {
                 validateLogoSafeZoneRatio(ext.appLogoAndroidSafeZoneRatio.get())
             }
-            // Logo: FG must be paired with exactly one BG source (PNG or colour).
+            // Logo: FG must be paired with exactly one BG source (PNG or color).
             // Only validate when logo propagation is on — otherwise a stray FG with
             // propagateLogo = false shouldn't fail the build.
             if (ext.propagateLogo.get()) {
