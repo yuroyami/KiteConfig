@@ -326,6 +326,6 @@ class PbxprojRewriteTest {
         val r = rewritePbxproj(multiTarget, "1.2-beta", "0", "Probe", "bad id", null)
         assertEquals(multiTarget, r.text)
         assertTrue(r.errors.size >= 3, r.errors.toString())
-        assertTrue(r.errors.any { it.contains("positive first component") }, r.errors.toString())
+        assertTrue(r.errors.any { it.contains("first component that is not zero") }, r.errors.toString())
     }
 }

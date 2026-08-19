@@ -39,14 +39,17 @@ class SsotValidationTest {
         assertEquals("42.1", validateAppleBuildNumber("42.1"))
         assertEquals("9999.99.99", validateAppleBuildNumber("9999.99.99"))
         assertEquals("0001.00.00", validateAppleBuildNumber("0001.00.00"))
+        // 3.0 follows the shared scheme, whose ordinal is ten digits wide.
+        assertEquals("1001004000", validateAppleBuildNumber("1001004000"))
+        assertEquals("1001004000.7", validateAppleBuildNumber("1001004000.7"))
+        assertEquals("20260819.1.2", validateAppleBuildNumber("20260819.1.2"))
         assertThrows(GradleException::class.java) { validateAppleMarketingVersion("1.2") }
         assertThrows(GradleException::class.java) { validateAppleMarketingVersion("1.2.3-rc1") }
         assertThrows(GradleException::class.java) { validateAppleBuildNumber("1.2.3.4") }
         assertThrows(GradleException::class.java) { validateAppleBuildNumber("0") }
         assertThrows(GradleException::class.java) { validateAppleBuildNumber("0000") }
-        assertThrows(GradleException::class.java) { validateAppleBuildNumber("10000") }
-        assertThrows(GradleException::class.java) { validateAppleBuildNumber("1.100") }
-        assertThrows(GradleException::class.java) { validateAppleBuildNumber("1.2.100") }
+        assertThrows(GradleException::class.java) { validateAppleBuildNumber("12345678901") }
+        assertThrows(GradleException::class.java) { validateAppleBuildNumber("1.2.3.4") }
         val hostileBuildNumber = assertThrows(GradleException::class.java) {
             validateAppleBuildNumber("1\n" + "9".repeat(10_000))
         }

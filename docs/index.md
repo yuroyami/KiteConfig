@@ -33,13 +33,13 @@ In the **root** `build.gradle.kts`:
 plugins {
     kotlin("multiplatform") version "2.4.10" apply false
     id("com.android.application") version "9.3.1" apply false
-    id("io.github.yuroyami.kitessot") version "2.0.3"
+    id("io.github.yuroyami.kitessot") version "3.0.0"
 }
 
 kiteSsot {
     appName = "Jetzy"
-    versionName = "1.4.0"
-    bundleIdBase = "com.example.jetzy"
+    version = "1.4.0"
+    appId = "com.example.jetzy"
 
     android {
         compileSdk = 36
@@ -78,20 +78,23 @@ applies the Android identity and SDK levels, aligns the Java and Kotlin JVM
 targets, and generates Kotlin under `build/`. This happens inside AGP's
 `finalizeDsl` hook, which runs after a module's own `android { }` block. A value
 set in `kiteSsot { }` therefore replaces the same value set in the module. Set
-the value and set the switch. Nothing else is needed.
+the value. Nothing else is needed.
 
 **Edits to files you own are opt-in and manual.** `project.pbxproj`,
 `Info.plist`, `Podfile`, Swift imports and launcher icons are yours. Editing them
 takes three things:
 
-1. The switches that unlock the task. `syncIos` unlocks the Xcode tasks, and the
-   app icon task needs `propagateLogo` as well.
+1. The block that unlocks the task. Writing `ios { sync { } }` unlocks the Xcode
+   tasks, and the app icon task needs a `logo { }` block as well.
 2. An explicitly named task that you run yourself.
 3. A set of containment, ownership, checksum, backup and rollback checks, which
    must all pass first.
 
-This surprises people. Setting `propagateLogo = true` installs nothing. It
-unlocks `kiteSsotSyncIosLogo` only when you also set `syncIos = true` and
+In 3.0 the block **is** the switch. There is no separate `= true` flag: an empty
+`logo { }` counts as on, and leaving the block out counts as off.
+
+This surprises people. Adding `logo { }` installs nothing. It unlocks
+`kiteSsotSyncIosLogo` only when you also add `ios { sync { } }` and set
 `ios { deploymentTarget }`, and you then run that task yourself. A plain
 `./gradlew build` never writes outside `build/`, and CI asserts that on every
 commit.
@@ -121,7 +124,7 @@ change. Set `dryRun = true` to make the mutating tasks report without writing.
 
 <a class="kite-card" href="https://github.com/yuroyami/KiteSSOT/blob/main/CHANGELOG.md">
 <strong>Changelog</strong>
-<span>Release history, including the 1.x to 2.x migration.</span>
+<span>Release history, including the 2.x to 3.0 migration.</span>
 </a>
 
 </div>

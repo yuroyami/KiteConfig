@@ -1,0 +1,182 @@
+package io.github.yuroyami.kitessot
+
+import org.gradle.api.GradleException
+
+private const val PLAY_VERSION_CODE_CEILING = 2_100_000_000
+
+private const val DEFAULT_MAX_MAJOR = 999
+private const val DEFAULT_MAX_MINOR = 999
+private const val DEFAULT_MAX_PATCH = 99
+private const val DEFAULT_MAX_REBUILD = 9
+
+private const val LEGACY_SCHEME_SNIPPET =
+    "scheme { v -> (\"1\" + listOf(v.major, v.minor, v.patch)" +
+        ".joinToString(\"\") { it.toString().padStart(3, '0') }).toInt() }"
+
+/**
+ * The four numbers KiteSSOT hands to a build-number scheme.
+ *
+ * `version = "1.4.0"` splits into [major], [minor], and [patch]. [rebuild] is the
+ * extra dial you turn when a store burns an upload. A scheme reads all four and
+ * returns one build number.
+ *
+ * ```kotlin
+ * kiteSsot {
+ *     version = "1.4.0"
+ *     scheme { v -> 1_000_000 * v.major + 10_000 * v.minor + 100 * v.patch + v.rebuild }
+ * }
+ * ```
+ *
+ * You never construct one. KiteSSOT parses `version`, adds the platform `rebuild`
+ * dial, and passes the result into your lambda.
+ */
+class SsotVersion(
+    /** First number of `version`, so `1` in `1.4.0`. Range 0..999 in the default scheme. */
+    val major: Int,
+    /** Second number of `version`, so `4` in `1.4.0`. Range 0..999 in the default scheme. */
+    val minor: Int,
+    /** Third number of `version`, so `0` in `1.4.0`. Range 0..99 in the default scheme. */
+    val patch: Int,
+    /**
+     * How many times this same version was rebuilt for a store. Default: `0`.
+     *
+     * Comes from `android { rebuild = 1 }` or `ios { rebuild = 3 }`, whichever
+     * platform is asking. Range 0..9 in the default scheme.
+     */
+    val rebuild: Int,
+) {
+    /** Diagnostic form only, such as `1.4.0+2`. No store ever sees this text. */
+    override fun toString(): String = "$major.$minor.$patch+$rebuild"
+}
+
+/**
+ * The one formula that turns a version into a build number.
+ *
+ * You write it once at root, as `scheme { }`. Android takes the result as
+ * `versionCode`. Apple takes the same number, as text, for
+ * `CURRENT_PROJECT_VERSION`. One number, two field types, no drift between the
+ * platforms.
+ *
+ * ```kotlin
+ * kiteSsot {
+ *     version = "1.4.0"
+ *
+ *     // 1.4.0 -> 1040000, 1.4.1 -> 1040100
+ *     scheme { v -> 1_000_000 * v.major + 10_000 * v.minor + 100 * v.patch + v.rebuild }
+ * }
+ * ```
+ *
+ * Write nothing and [VersionSchemes.DEFAULT] does the work. Both platforms can
+ * still override the formula for themselves, and both can skip formulas entirely
+ * by assigning `android { versionCode = ... }` or `ios { buildNumber = ... }`.
+ *
+ * Google Play compares codes as integers and remembers every upload, so a code can
+ * never shrink. Changing the formula of a shipped app is safe only when the new
+ * number is bigger than every number you have already published.
+ */
+fun interface VersionCodeScheme {
+
+    /** Returns the build number for [version]. Must land in `1..2100000000`, the Play limit. */
+    fun compute(version: SsotVersion): Int
+}
+
+/**
+ * The build-number formulas KiteSSOT ships with.
+ *
+ * ```kotlin
+ * kiteSsot {
+ *     version = "1.4.0"    // no scheme { } block: DEFAULT is used
+ * }
+ * ```
+ */
+object VersionSchemes {
+
+    /**
+     * The formula used when no `scheme { }` is present.
+     *
+     * Layout: `1 | major(3) | minor(3) | patch(2) | rebuild(1)`.
+     *
+     * ```
+     * 1.4.0            ->  1001004000
+     * 1.4.0 rebuild 1  ->  1001004001
+     * 1.4.1            ->  1001004010
+     * 1.5.0            ->  1001005000
+     * ```
+     *
+     * Ten codes per version. The ceiling is `1999999999`, comfortably under Play's
+     * `2100000000` cap. A version bump always outranks every rebuild of the version
+     * before it, so `rebuild` never needs resetting.
+     *
+     * Limits: `major` and `minor` 0..999, `patch` 0..99, `rebuild` 0..9. Going over
+     * fails the build instead of producing a silently wrong number, and the message
+     * shows you how to bring your own formula.
+     *
+     * Need 100 rebuilds per version? Move a digit, at the cost of capping `major`
+     * at 99:
+     *
+     * ```kotlin
+     * // 1.4.0 -> 1010040000, 1.4.0 rebuild 42 -> 1010040042
+     * scheme { v ->
+     *     fun pad(value: Int, width: Int) = value.toString().padStart(width, '0')
+     *     "1${pad(v.major, 2)}${pad(v.minor, 3)}${pad(v.patch, 2)}${pad(v.rebuild, 2)}".toInt()
+     * }
+     * ```
+     */
+    val DEFAULT: VersionCodeScheme = VersionCodeScheme { version ->
+        validateSchemeInput(version)
+        (
+            "1" +
+                version.major.padTo(3) +
+                version.minor.padTo(3) +
+                version.patch.padTo(2) +
+                version.rebuild.padTo(1)
+            ).toInt()
+    }
+}
+
+/**
+ * Check that [version] fits the digit budget of [VersionSchemes.DEFAULT].
+ *
+ * Custom schemes are never checked here. They own their own layout, and only their
+ * result is validated, by [validateResolvedVersionCode].
+ */
+internal fun validateSchemeInput(version: SsotVersion) {
+    requireSegment(version, "major", version.major, DEFAULT_MAX_MAJOR)
+    requireSegment(version, "minor", version.minor, DEFAULT_MAX_MINOR)
+    requireSegment(version, "patch", version.patch, DEFAULT_MAX_PATCH)
+    requireSegment(version, "rebuild", version.rebuild, DEFAULT_MAX_REBUILD)
+}
+
+/**
+ * Check a resolved build number against the Google Play ceiling and return it
+ * unchanged, so it can sit inside a provider chain.
+ */
+internal fun validateResolvedVersionCode(value: Int): Int {
+    if (value !in 1..PLAY_VERSION_CODE_CEILING) {
+        throw GradleException(
+            "kiteSsot: the resolved build number $value is outside 1..$PLAY_VERSION_CODE_CEILING, " +
+                "the Google Play versionCode limit. Fix the formula in " +
+                "kiteSsot { scheme { v -> ... } }, or set the number yourself with " +
+                "android { versionCode = ... } or ios { buildNumber = ... }.",
+        )
+    }
+    return value
+}
+
+private fun requireSegment(version: SsotVersion, property: String, value: Int, max: Int) {
+    if (value in 0..max) return
+    throw GradleException(
+        "kiteSsot: the default build-number scheme cannot encode $property=$value " +
+            "(version $version). Its layout allows $property in 0..$max. Supply your own formula " +
+            "with kiteSsot { scheme { v -> ... } }, or set the number yourself with " +
+            "android { versionCode = ... } or ios { buildNumber = ... }." + segmentAdvice(property),
+    )
+}
+
+private fun segmentAdvice(property: String): String = when (property) {
+    "patch" -> " The pre-3.0 formula fits as one line: $LEGACY_SCHEME_SNIPPET"
+    "rebuild" -> " Bumping the version also frees the rebuild dial."
+    else -> ""
+}
+
+private fun Int.padTo(width: Int): String = toString().padStart(width, '0')

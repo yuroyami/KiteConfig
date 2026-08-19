@@ -5,86 +5,93 @@ import org.gradle.api.provider.Property
 import org.gradle.api.provider.Provider
 
 /**
- * Generates a Kotlin object with public runtime configuration.
- *
- * Configure it inside `kiteSsot { buildConfig { ... } }`. KiteSSOT adds the
- * generated object to the selected shared project's `commonMain`. Production
- * source sets that depend on `commonMain` can read the same constants without
- * `expect` and `actual` declarations.
- *
- * By default, the object includes app name, version name, version code, Android
- * application ID, iOS bundle ID, and locales. Set [includeIdentity] to `false`
- * when you only want custom fields. Generated source stays in a plugin-owned
- * build directory and never enters your hand-written source tree. Every package,
- * object, and custom field name must be a valid Kotlin name.
- *
- * Android SDK and toolchain values are not included automatically. If runtime
- * code needs one, declare a custom field from the same root value that configures
- * the Android block.
+ * Generated Kotlin constants for your shared code, inside
+ * `kiteSsot { buildConfig { ... } }`.
  *
  * ```kotlin
  * kiteSsot {
- *     sharedProjectPath = ":shared"
+ *     appName = "Jetzy"
+ *     version = "1.4.0"
+ *     appId = "com.example.jetzy"
+ *     modules { shared = ":shared" }
  *
  *     buildConfig {
- *         enabled = true
- *         className = "BuildConfig"       // default
- *         packageName = "com.acme.app"    // default: kitessot.generated
+ *         packageName = "com.example.jetzy.generated"
  *
  *         stringField("BASE_URL", "https://api.acme.com")
  *         intField("API_TIMEOUT_MS", 30_000)
  *         booleanField("ANALYTICS_ENABLED", true)
- *         stringField(
- *             "PUBLIC_CHANNEL",
- *             providers.gradleProperty("publicChannel"),
- *         )
  *     }
  * }
  * ```
  *
- * This is not a secret store. Only put public client configuration here. A
- * provider can keep a value out of the build script and version control, but the
- * resolved value still enters generated source and Gradle task inputs. It may
- * also appear in build scans, KLIBs, APKs, IPAs, decompiled binaries, and trusted
- * build caches when [allowBuildCache] is enabled. Never add passwords, private
- * API keys, signing material, or other credentials.
+ * Opening this block turns generation on. KiteSSOT writes one Kotlin object into
+ * the shared project's `commonMain`, so every platform reads the same constants
+ * without an `expect` and `actual` pair.
+ *
+ * App identity rides along by default: app name, version, version code, Android
+ * application ID, iOS bundle ID, and locales. See [includeIdentity] to turn that
+ * off. Android SDK and toolchain values are never included; declare a custom
+ * field when runtime code needs one.
+ *
+ * The generated file lives in a plugin-owned build directory and never enters
+ * your hand-written source tree. Package, object, and field names must be valid
+ * Kotlin names.
+ *
+ * This is not a secret store. Only public client configuration belongs here. A
+ * provider can keep a value out of the build script and out of version control,
+ * but the resolved value still reaches generated source and Gradle task inputs.
+ * It can also surface in build scans, KLIBs, APKs, IPAs, decompiled binaries,
+ * and a trusted build cache when [allowBuildCache] is on. Never add passwords,
+ * private API keys, signing material, or other credentials.
  */
 abstract class KiteSsotBuildConfigExtension {
 
     /**
-     * Whether to generate the object. The default is `false`.
+     * Whether the object is generated.
      *
-     * Enabling generation requires `sharedProjectPath` or its legacy fallback.
-     * The selected project must apply Kotlin Multiplatform and contain
-     * `commonMain`.
+     * Default: `true` once this block is configured. Set it to `false` to keep
+     * the configuration in place and skip the work, for example from CI. `false`
+     * always wins.
+     *
+     * Generation needs `modules.shared`, and that project must apply Kotlin
+     * Multiplatform and contain `commonMain`.
      */
     abstract val enabled: Property<Boolean>
 
-    /** Valid Kotlin package for the generated object. The default is `kitessot.generated`. */
+    /**
+     * Kotlin package of the generated object, written as dot-separated
+     * identifiers such as `com.acme.app.generated`.
+     *
+     * Default: `kitessot.generated`.
+     */
     abstract val packageName: Property<String>
 
-    /** Valid Kotlin identifier for the generated object. The default is `BuildConfig`. */
+    /**
+     * Name of the generated object. It must be a valid Kotlin identifier.
+     *
+     * Default: `BuildConfig`.
+     */
     abstract val className: Property<String>
 
     /**
-     * Whether to include KiteSSOT app identity in the generated object.
+     * Whether KiteSSOT app identity is baked into the object: app name, version,
+     * version code, the resolved Android and iOS IDs, and the canonical locales.
      *
-     * The default is `true`. When generation is enabled, this requires `appName`,
-     * `versionName`, a derived version code or `versionCodeOverride`, and
-     * `bundleIdBase`. The generated object also includes the resolved Android and
-     * iOS IDs and canonical locales.
+     * Default: `true`, which requires `appName`, `version`, and `appId` while
+     * generation is on.
      *
-     * Set this to `false` for a custom-fields-only object. In that mode, generation
-     * does not read any identity provider.
+     * Set it to `false` for a custom-fields-only object. In that mode, generation
+     * reads no identity provider at all.
      */
     abstract val includeIdentity: Property<Boolean>
 
     /**
      * Whether Gradle may store the generated source in a build cache.
      *
-     * The default is `false` because every generated value becomes part of the
-     * cache entry. Enable this only when all fields are public client
-     * configuration and every local or remote cache is trusted.
+     * Default: `false`, because every generated value becomes part of the cache
+     * entry. Turn it on only when all fields are public client configuration and
+     * every local and remote cache is trusted.
      */
     abstract val allowBuildCache: Property<Boolean>
 
@@ -96,8 +103,8 @@ abstract class KiteSsotBuildConfigExtension {
      * grammar. Arbitrary Kotlin source, duplicate names, and names that collide
      * with generated identity fields are rejected.
      *
-     * The list accepts at most 512 entries, 65,536 characters per entry, and
-     * 1,048,576 characters in total.
+     * Limits: 512 entries, 65,536 characters per entry, and 1,048,576 characters
+     * in total.
      */
     abstract val fields: ListProperty<String>
 

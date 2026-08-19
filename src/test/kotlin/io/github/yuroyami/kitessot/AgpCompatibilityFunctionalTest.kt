@@ -53,14 +53,14 @@ class AgpCompatibilityFunctionalTest {
 
             kiteSsot {
                 appName = 'Gradle Floor App'
-                versionName = '1.2.3'
-                bundleIdBase = 'dev.matrix.gradlefloor'
+                version = '1.2.3'
+                appId = 'dev.matrix.gradlefloor'
             }
 
             tasks.register('verifyGradleFloor') {
                 doLast {
                     assert kiteSsot.appName.get() == 'Gradle Floor App'
-                    assert kiteSsot.versionName.get() == '1.2.3'
+                    assert kiteSsot.version.get() == '1.2.3'
                     println 'GRADLE_FLOOR_OK 8.5'
                 }
             }
@@ -171,8 +171,8 @@ class AgpCompatibilityFunctionalTest {
 
             kiteSsot {
                 appName = 'KMP Native Android Fixture'
-                versionName = '3.4.5'
-                bundleIdBase = 'dev.matrix.kmpnative'
+                version = '3.4.5'
+                appId = 'dev.matrix.kmpnative'
                 android {
                     compileSdk = 35
                     minSdk = 24
@@ -298,16 +298,18 @@ class AgpCompatibilityFunctionalTest {
 
             kiteSsot {
                 appName = 'Matrix App'
-                versionName = '2.3.4'
-                bundleIdBase = 'dev.matrix.ssot'
+                version = '2.3.4'
+                appId = 'dev.matrix.ssot'
                 locales.addAll(['en', 'pt-BR'])
-                filterAndroidResources = true
-                javaVersion = 17
-                androidApplicationProjects.add(':app')
+                jvmTarget = 17
+                modules {
+                    androidApps(':app')
+                }
                 android {
                     compileSdk = 35
                     minSdk = 24
                     targetSdk = 35
+                    filterResourcesToLocales = true
                 }
             }
 
@@ -349,7 +351,7 @@ class AgpCompatibilityFunctionalTest {
                     assert androidExt.compileSdk == 35 : androidExt.compileSdk
                     assert dc.applicationId == 'dev.matrix.ssot' : dc.applicationId
                     assert dc.versionName == '2.3.4' : dc.versionName
-                    assert dc.versionCode == 1002003004 : dc.versionCode
+                    assert dc.versionCode == 1002003040 : dc.versionCode
                     assert dc.minSdk == 24 : dc.minSdk
                     assert dc.targetSdk == 35 : dc.targetSdk
                     assert dc.manifestPlaceholders.appName == 'Matrix App' : dc.manifestPlaceholders
@@ -475,10 +477,10 @@ class AgpCompatibilityFunctionalTest {
             }
 
             kiteSsot {
-                sharedProjectPath = ':shared'
-                propagateInteropOptIns = false
+                modules {
+                    shared = ':shared'
+                }
                 buildConfig {
-                    enabled = true
                     includeIdentity = false
                     packageName = 'fixture.generated'
                     stringField('API_ORIGIN', 'https://fixture.invalid')

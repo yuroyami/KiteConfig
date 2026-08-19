@@ -42,6 +42,7 @@ abstract class KiteSsotDiagnosticTaskBase : DefaultTask() {
     @get:Internal abstract val propagateVersion: Property<Boolean>
     @get:Internal abstract val versionName: Property<String>
     @get:Internal abstract val hasVersionCodeOverride: Property<Boolean>
+    @get:Internal abstract val resolvedVersionCode: Property<Int>
     @get:Internal abstract val propagateLocaleList: Property<Boolean>
     @get:Internal abstract val locales: ListProperty<String>
     @get:Internal abstract val filterAndroidResources: Property<Boolean>
@@ -101,6 +102,7 @@ abstract class KiteSsotDiagnosticTaskBase : DefaultTask() {
             propagateVersion = resolve("KMPS903", "propagateVersion", false) { propagateVersion.getOrElse(false) },
             versionName = resolve<String?>("KMPS904", "versionName", null) { versionName.orNull },
             hasVersionCodeOverride = resolve("KMPS905", "versionCodeOverride", false) { hasVersionCodeOverride.getOrElse(false) },
+            resolvedVersionCode = resolve<Int?>("KMPS905", "versionCode", null) { resolvedVersionCode.orNull },
             propagateLocaleList = resolve("KMPS906", "propagateLocaleList", false) { propagateLocaleList.getOrElse(false) },
             locales = resolve("KMPS907", "locales", emptyList()) { locales.getOrElse(emptyList()) },
             filterAndroidResources = resolve("KMPS938", "filterAndroidResources", false) {

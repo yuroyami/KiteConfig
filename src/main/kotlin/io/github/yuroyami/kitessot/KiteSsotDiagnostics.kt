@@ -45,6 +45,7 @@ internal data class KiteSsotDiagnosticContext(
     val propagateVersion: Boolean = true,
     val versionName: String? = null,
     val hasVersionCodeOverride: Boolean = false,
+    val resolvedVersionCode: Int? = null,
     val propagateLocaleList: Boolean = true,
     val locales: List<String> = emptyList(),
     val filterAndroidResources: Boolean = false,
@@ -858,19 +859,28 @@ internal object KiteSsotDiagnosticEngine {
             add(diagnostic("KMPS050", KiteSsotDiagnosticSeverity.SKIPPED, "Android versionCode", "versionName is unset; identity values are optional until configured."))
             return
         }
-        runCatching { deriveVersionCode(version) }
-            .onSuccess { add(diagnostic("KMPS050", KiteSsotDiagnosticSeverity.PASS, "Android versionCode", "$version derives monotonically to $it.")) }
-            .onFailure { failure ->
-                add(
-                    diagnostic(
-                        "KMPS050",
-                        KiteSsotDiagnosticSeverity.ERROR,
-                        "Android versionCode",
-                        diagnosticExceptionSummary(failure),
-                        "Use exactly three 0..999 components without leading zeroes, or set versionCodeOverride.",
-                    ),
-                )
-            }
+        val resolved = context.resolvedVersionCode
+        if (resolved != null) {
+            add(
+                diagnostic(
+                    "KMPS050",
+                    KiteSsotDiagnosticSeverity.PASS,
+                    "Android versionCode",
+                    "$version derives monotonically to $resolved.",
+                ),
+            )
+        } else {
+            add(
+                diagnostic(
+                    "KMPS050",
+                    KiteSsotDiagnosticSeverity.ERROR,
+                    "Android versionCode",
+                    "No Android versionCode could be derived from version \"$version\".",
+                    "Use three numeric segments (x.y.z), supply kiteSsot { scheme { } }, " +
+                        "or set android { versionCode }.",
+                ),
+            )
+        }
     }
 
     private fun MutableList<KiteSsotDiagnostic>.diagnoseKgp(context: KiteSsotDiagnosticContext) {

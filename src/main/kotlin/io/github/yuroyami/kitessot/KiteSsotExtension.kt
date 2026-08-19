@@ -11,432 +11,621 @@ import org.gradle.api.provider.Property
 import org.gradle.api.provider.Provider
 
 /**
- * Root configuration for KiteSSOT.
+ * The single source of truth for your app's identity.
  *
- * Apply the plugin and configure this model in the root project. Set only the
- * values that KiteSSOT should own. Most unset scalar values leave existing
- * project configuration alone. [iosMarketingVersion] can inherit [versionName],
- * [locales] can be discovered, and enabled features may require related inputs.
+ * Apply the plugin to the **root** project and describe your app once. KiteSSOT
+ * carries those values out to Android and Apple for you, so the same name,
+ * version, and bundle id cannot drift apart across platforms.
  *
- * Identity, locale, and Android SDK values you set are applied by default.
- * Source changes, logo installation, Native compiler opt-ins, and Android
- * resource filtering require explicit switches.
- *
- * A small setup looks like this:
+ * Three lines are a complete setup:
  *
  * ```kotlin
  * kiteSsot {
  *     appName = "Jetzy"
- *     versionName = "1.4.0"
- *     bundleIdBase = "com.example.jetzy"
- *     sharedProjectPath = ":shared"
- *
- *     android {
- *         compileSdk = 36
- *         minSdk = 26
- *         targetSdk = 36
- *     }
+ *     version = "1.4.0"
+ *     appId   = "com.example.jetzy"
  * }
  * ```
  *
- * Scalar and list inputs use Gradle `Property` and `ListProperty`. Typed paths
- * use `DirectoryProperty` and `RegularFileProperty`. Build logic can keep a
- * value lazy, for example `val minSdk = ssot.android.minSdk`, and pass that
- * provider to another Gradle property. The derived read-only providers are
- * [versionCode], [androidApplicationId], [iosBundleId], [canonicalLocales], and
- * [resolvedSharedProjectPath].
+ * Everything else is optional. Locales are discovered from your Compose
+ * resources, the shared module is detected when there is only one, and the
+ * Android application project is found the same way.
+ *
+ * ## How the blocks work
+ *
+ * Shared facts live here at the top. Anything that is genuinely Android-only or
+ * Apple-only lives in [android] or [ios]. Feature blocks such as [logo] and
+ * [buildConfig] switch themselves on simply by being configured, so there is no
+ * second flag to remember.
+ *
+ * ## What runs, and when
+ *
+ * Applying identity happens during an ordinary build. Changing files on disk
+ * never does. Logo installation and the Apple source tasks only run when you
+ * invoke them by name, and [dryRun], [backups], and the conflict policy still
+ * apply when you do.
+ *
+ * ## Wiring values into your own build logic
+ *
+ * Every input is a lazy Gradle `Property`, so you can hand one to another task
+ * without resolving it early:
+ *
+ * ```kotlin
+ * val minSdk = kiteSsot.android.minSdk   // Provider<Int>, still lazy
+ * ```
  */
 abstract class KiteSsotExtension {
 
-    // --- Identity -------------------------------------------------------------
+    // ---------------------------------------------------------------- Identity
 
     /**
-     * Optional app display name.
+     * The display name users see on their home screen.
      *
-     * Android receives the `appName` manifest placeholder. Explicit Apple sync
-     * can use it for `PRODUCT_NAME`, `CFBundleName`, and `CFBundleDisplayName`.
+     * Android receives it as the `appName` manifest placeholder. The explicit
+     * Apple sync tasks use it for `PRODUCT_NAME`, `CFBundleName`, and
+     * `CFBundleDisplayName`.
      */
     abstract val appName: Property<String>
 
     /**
-     * Optional release version shown to users.
+     * The release version you show to users, as `x.y.z`.
      *
-     * Android uses it as `versionName`. [iosMarketingVersion] uses it by
-     * default. A plain `x.y.z` value can also produce [versionCode].
+     * Android uses it for `versionName`, Apple for the marketing version, and
+     * the build-number [scheme] derives every store counter from it.
      */
-    abstract val versionName: Property<String>
+    abstract val version: Property<String>
 
     /**
-     * Optional reverse-DNS base for Android and Apple identifiers.
+     * Reverse-DNS base for both platform identifiers, for example
+     * `com.example.jetzy`.
      *
-     * KiteSSOT appends [androidApplicationIdSuffix] and [iosBundleSuffix] to
-     * produce the platform IDs.
+     * KiteSSOT appends [KiteSsotAndroidExtension.idSuffix] for the Android
+     * application id and [KiteSsotIosExtension.bundleIdSuffix] for the Apple
+     * bundle id, so the two can differ without being declared twice.
      */
-    abstract val bundleIdBase: Property<String>
+    abstract val appId: Property<String>
 
     /**
-     * Optional Apple marketing version.
+     * Locale tags such as `en`, `en-US`, or `sr-Latn`.
      *
-     * The default is [versionName]. Explicit Apple sync writes it as
-     * `MARKETING_VERSION`.
-     */
-    abstract val iosMarketingVersion: Property<String>
-
-    /**
-     * Optional Apple build number for `CURRENT_PROJECT_VERSION`.
-     *
-     * It is independent from Android's [versionCodeOverride].
-     */
-    abstract val iosBuildNumber: Property<String>
-
-    /** Optional suffix appended to [bundleIdBase] for the Apple bundle ID. */
-    abstract val iosBundleSuffix: Property<String>
-
-    /** Optional suffix appended to [bundleIdBase] for the Android application ID. */
-    abstract val androidApplicationIdSuffix: Property<String>
-
-    /**
-     * Optional explicit Android `versionCode`.
-     *
-     * Use it for prerelease names or a custom numbering scheme. When omitted,
-     * KiteSSOT derives the code from a plain `x.y.z` [versionName].
-     */
-    abstract val versionCodeOverride: Property<Int>
-
-    // --- Shared toolchain (cross-platform) -----------------------------------
-
-    /**
-     * Optional Java and Kotlin JVM level.
-     *
-     * It configures Java compatibility in classic Android modules and aligns
-     * compatible Kotlin JVM compile tasks across the build. Project selectors
-     * do not limit this shared toolchain policy.
-     */
-    abstract val javaVersion: Property<Int>
-
-    // --- Localization ---------------------------------------------------------
-
-    /**
-     * Optional locale tags such as `en`, `en-US`, and `sr-Latn`.
-     *
-     * When omitted, KiteSSOT can discover exact locale-only directories such as
-     * `values-en`, `values-pt-rBR`, and `values-b+sr+Latn` from the selected
-     * Compose resources directory.
+     * Default: discovered from the Compose resources directory by reading
+     * locale-only folders like `values-en`, `values-pt-rBR`, and
+     * `values-b+sr+Latn`. Set this when you want the list pinned by hand.
      */
     abstract val locales: ListProperty<String>
 
-    // --- Module structure ----------------------------------------------------
-
-    /** Legacy shared module name. Prefer the specific selectors below. */
-    @Deprecated(
-        "Conflates a Gradle project, directory, and Swift module; use sharedProjectPath, " +
-            "composeResourcesDirectory, and iosSharedModuleName.",
-    )
-    abstract val sharedModule: Property<String>
-
     /**
-     * Absolute Gradle path of the KMP project that owns generated `commonMain`
-     * source, for example `:shared`.
-     */
-    abstract val sharedProjectPath: Property<String>
-
-    /**
-     * New CocoaPods and Swift module name for an explicit reference migration.
-     * Set it with [iosPreviousSharedModuleName].
-     */
-    abstract val iosSharedModuleName: Property<String>
-
-    /**
-     * Previous CocoaPods and Swift module name for an explicit reference
-     * migration. Set it with [iosSharedModuleName].
-     */
-    abstract val iosPreviousSharedModuleName: Property<String>
-
-    /** Optional Compose resources directory used for locale discovery. */
-    abstract val composeResourcesDirectory: DirectoryProperty
-
-    /** Legacy Android app directory. Prefer [androidApplicationProjects]. */
-    @Deprecated("Use androidApplicationProjects or the typed androidAppDirectory property.")
-    abstract val androidAppModule: Property<String>
-
-    /**
-     * Optional Android app directory.
+     * Java and Kotlin JVM level for the whole build, for example `21`.
      *
-     * KiteSSOT normally finds it from the selected Android application project.
+     * This sets Java compatibility in classic Android modules and aligns
+     * Kotlin JVM compile tasks. It is a build-wide policy, so project
+     * selectors do not narrow it.
      */
-    abstract val androidAppDirectory: DirectoryProperty
+    abstract val jvmTarget: Property<Int>
+
+    // ---------------------------------------------------------- Build numbers
 
     /**
-     * Exact Android application project paths for app identity, versions, name,
-     * locale filters, and logo output.
+     * The one formula that turns [version] into a store build number.
      *
-     * Leave this empty when the build has one clear application. Android SDK
-     * and JVM values still apply to every compatible module.
-     */
-    abstract val androidApplicationProjects: ListProperty<String>
-
-    /** Legacy input for [iosPreviousSharedModuleName]. */
-    @Deprecated("Use iosPreviousSharedModuleName.")
-    abstract val oldSharedModuleName: Property<String>
-
-    // --- App logo -------------------------------------------------------------
-
-    /**
-     * Foreground PNG used by both logo installers.
+     * Both platforms use it. You write it once. Android takes the result as
+     * `versionCode`; Apple takes the same number, as text, for
+     * `CURRENT_PROJECT_VERSION`.
      *
-     * A square 1024 by 1024 image with transparency works best. KiteSSOT keeps
-     * its aspect ratio and applies Android's adaptive icon safe zone.
-     */
-    abstract val appLogoPngForeground: RegularFileProperty
-
-    /**
-     * Background PNG used by both logo installers.
+     * Default: [VersionSchemes.DEFAULT], which packs the version as
+     * `1 | major(3) | minor(3) | patch(2) | rebuild(1)`, so `1.4.0` becomes
+     * `1001004000` and `1.4.1` becomes `1001004010`. That reserves ten codes
+     * per version for re-uploads.
      *
-     * Set this or [appLogoBackgroundColor], never both.
-     */
-    abstract val appLogoPngBackground: RegularFileProperty
-
-    /**
-     * Solid logo background in `#RRGGBB` or `#AARRGGBB` form.
+     * ```kotlin
+     * scheme { v -> 1_000_000 * v.major + 10_000 * v.minor + 100 * v.patch + v.rebuild }
+     * ```
      *
-     * Set this or [appLogoPngBackground], never both.
+     * Google Play compares codes as plain integers and remembers every one you
+     * have ever uploaded, so a new formula must always produce a **larger**
+     * number than your highest shipped code. Guard that with
+     * [KiteSsotAndroidExtension.publishedVersionCode].
      */
-    abstract val appLogoBackgroundColor: Property<String>
+    abstract val scheme: Property<VersionCodeScheme>
+
+    /** Set the shared build-number formula. See [scheme]. */
+    fun scheme(scheme: VersionCodeScheme) {
+        this.scheme.set(scheme)
+    }
+
+    // ----------------------------------------------------------------- Safety
 
     /**
-     * Fraction of Android's adaptive icon canvas used by the foreground.
+     * Make the explicit source-changing tasks report what they would do and
+     * write nothing.
      *
-     * The default is `66.0 / 108.0`. A smaller value adds more padding. Valid
-     * values are greater than zero and at most one.
-     */
-    abstract val appLogoAndroidSafeZoneRatio: Property<Double>
-
-    // --- File paths -----------------------------------------------------------
-
-    /** Legacy relative path. Prefer [iosPbxprojFile]. */
-    @Deprecated("Use the typed iosPbxprojFile property.")
-    abstract val iosProjectPath: Property<String>
-
-    /** Legacy relative path. Prefer [iosPodfileFile]. */
-    @Deprecated("Use the typed iosPodfileFile property.")
-    abstract val iosPodfilePath: Property<String>
-
-    /** Legacy relative path. Prefer [iosInfoPlistFile]. */
-    @Deprecated("Use the typed iosInfoPlistFile property.")
-    abstract val iosInfoPlistPath: Property<String>
-
-    /** Legacy relative path. Prefer [iosAppDirectory]. */
-    @Deprecated("Use the typed iosAppDirectory property.")
-    abstract val iosAppDir: Property<String>
-
-    /** Legacy Apple AppIcon directory. Prefer [iosAppIconDirectory]. */
-    @Deprecated("Use the typed iosAppIconDirectory property.")
-    abstract val iosAppiconsetPath: Property<String>
-
-    /**
-     * Xcode `project.pbxproj` used by explicit Apple tasks.
-     *
-     * The default is `iosApp/iosApp.xcodeproj/project.pbxproj`.
-     */
-    abstract val iosPbxprojFile: RegularFileProperty
-
-    /**
-     * Podfile used by explicit shared-module migration.
-     *
-     * The default is `iosApp/Podfile`.
-     */
-    abstract val iosPodfileFile: RegularFileProperty
-
-    /**
-     * Source XML Info.plist used by explicit sanitization.
-     *
-     * The default is `iosApp/iosApp/Info.plist`.
-     */
-    abstract val iosInfoPlistFile: RegularFileProperty
-
-    /**
-     * Apple source tree searched by explicit Swift import migration.
-     *
-     * The default is `iosApp`.
-     */
-    abstract val iosAppDirectory: DirectoryProperty
-
-    /**
-     * Destination for Apple AppIcon installation.
-     *
-     * The default is `iosApp/iosApp/Assets.xcassets/AppIcon.appiconset`.
-     */
-    abstract val iosAppIconDirectory: DirectoryProperty
-
-    // --- Capability toggles --------------------------------------------------
-
-    /** Whether a set [appName] is applied. The default is `true`. */
-    abstract val propagateAppName: Property<Boolean>
-
-    /** Whether the resolved platform identifiers are applied. The default is `true`. */
-    abstract val propagateBundleId: Property<Boolean>
-
-    /** Whether set platform versions and build numbers are applied. The default is `true`. */
-    abstract val propagateVersion: Property<Boolean>
-
-    /** Whether locale metadata reaches enabled consumers. The default is `true`. */
-    abstract val propagateLocaleList: Property<Boolean>
-
-    /**
-     * Whether the selected Android app's locale filters are replaced with [locales].
-     *
-     * This changes packaged resources. The default is `false`.
-     */
-    abstract val filterAndroidResources: Property<Boolean>
-
-    /**
-     * Whether the explicitly invoked logo installer tasks are authorized. The
-     * default is `false`.
-     *
-     * This unlocks the tasks; it does not run them. Set [appLogoPngForeground]
-     * and exactly one background. Apple installation also requires [syncIos].
-     */
-    abstract val propagateLogo: Property<Boolean>
-
-    /**
-     * Whether explicit Podfile and Swift shared-module migration is authorized
-     * under [syncIos]. The default is `false`.
-     */
-    abstract val propagateSharedModule: Property<Boolean>
-
-    /** Whether values from `android { }` reach compatible modules. The default is `true`. */
-    abstract val propagateAndroidSdk: Property<Boolean>
-
-    /**
-     * Whether KiteSSOT's built-in interop markers are added to selected Native
-     * compilations.
-     *
-     * The default is `false`. Use [extraOptIns] for additional markers.
-     */
-    abstract val propagateInteropOptIns: Property<Boolean>
-
-    /**
-     * Additional fully qualified opt-in markers for the selected Native scope.
-     */
-    abstract val extraOptIns: ListProperty<String>
-
-    /**
-     * Exact KMP project paths for Native opt-ins.
-     *
-     * An empty list uses [resolvedSharedProjectPath].
-     */
-    abstract val interopProjectPaths: ListProperty<String>
-
-    /**
-     * Whether the explicitly invoked Apple source tasks are authorized. The
-     * default is `false`.
-     *
-     * Ordinary builds never invoke these tasks.
-     */
-    abstract val syncIos: Property<Boolean>
-
-    /**
-     * Whether KiteSSOT maintains its references in a source XML Info.plist.
-     *
-     * The default is `false`, and [syncIos] is also required.
-     */
-    abstract val sanitizeIosProject: Property<Boolean>
-
-    /**
-     * Whether Android logo installation may take over known legacy icon files.
-     *
-     * The default is `false`. A complete enabled replacement logo is required.
-     * KiteSSOT backs up candidates before replacing them.
-     */
-    abstract val cleanupLegacyLogoArtifacts: Property<Boolean>
-
-    /**
-     * Whether explicitly invoked source-changing tasks only preview their work.
-     * The default is `false`.
-     *
-     * Generated Kotlin source ignores this flag because it is a build input.
+     * Default: `false`. Override per invocation with `-Pkitessot.dryRun=true`.
+     * Generated Kotlin ignores this, because it is a build input rather than a
+     * change to your source tree.
      */
     abstract val dryRun: Property<Boolean>
 
     /**
-     * Whether first-contact recovery copies are kept for source rewrites and
-     * Apple icons.
+     * Keep a first-contact recovery copy before rewriting a file.
      *
-     * The default is `true`. Android legacy takeover always keeps its own
-     * recovery record when [cleanupLegacyLogoArtifacts] is enabled.
+     * Default: `true`. Override with `-Pkitessot.backups=false`. Android legacy
+     * icon takeover always records its own recovery data regardless of this.
      */
-    abstract val backupBeforeRewrite: Property<Boolean>
+    abstract val backups: Property<Boolean>
 
-    // --- Platform-specific blocks --------------------------------------------
+    // ----------------------------------------------------------------- Blocks
 
-    /** Apple-only options. Configure them with `kiteSsot { ios { ... } }`. */
-    val ios: KiteSsotIosExtension
-        get() = (this as ExtensionAware).extensions.getByType(KiteSsotIosExtension::class.java)
+    /** Where your modules live. Configure with `kiteSsot { modules { } }`. */
+    val modules: KiteSsotModulesExtension
+        get() = nested()
 
-    /** Configure the nested Apple-specific model. */
-    fun ios(action: Action<in KiteSsotIosExtension>) {
-        action.execute(ios)
-    }
+    /** Tell KiteSSOT where the shared and Android application projects are. */
+    fun modules(action: Action<in KiteSsotModulesExtension>) = action.execute(modules)
 
-    /** Android SDK options. Configure them with `kiteSsot { android { ... } }`. */
+    /** Which values KiteSSOT is allowed to apply. Configure with `kiteSsot { propagate { } }`. */
+    val propagate: KiteSsotPropagateExtension
+        get() = nested()
+
+    /** Turn individual value categories off without deleting their configuration. */
+    fun propagate(action: Action<in KiteSsotPropagateExtension>) = action.execute(propagate)
+
+    /** Android-only settings. Configure with `kiteSsot { android { } }`. */
     val android: KiteSsotAndroidExtension
-        get() = (this as ExtensionAware).extensions.getByType(KiteSsotAndroidExtension::class.java)
+        get() = nested()
 
-    /** Configure the nested Android SDK/release model. */
-    fun android(action: Action<in KiteSsotAndroidExtension>) {
-        action.execute(android)
+    /** Configure SDK levels, the Android id suffix, and the Play re-upload dial. */
+    fun android(action: Action<in KiteSsotAndroidExtension>) = action.execute(android)
+
+    /** Apple-only settings. Configure with `kiteSsot { ios { } }`. */
+    val ios: KiteSsotIosExtension
+        get() = nested()
+
+    /** Configure the Apple bundle suffix, build number, paths, and source sync. */
+    fun ios(action: Action<in KiteSsotIosExtension>) = action.execute(ios)
+
+    /**
+     * App icon installation. Configure with `kiteSsot { logo { } }`.
+     *
+     * Configuring this block authorizes the logo tasks. It does not run them.
+     */
+    val logo: KiteSsotLogoExtension
+        get() = nested()
+
+    /** Point KiteSSOT at your foreground and background art. */
+    fun logo(action: Action<in KiteSsotLogoExtension>) {
+        logoConfigured.set(true)
+        action.execute(logo)
     }
 
-    /** Browser Kotlin/JS options. Node.js and wasm targets are unsupported. */
+    /**
+     * Kotlin/Native interop opt-in markers. Configure with
+     * `kiteSsot { nativeOptIns { } }`.
+     */
+    val nativeOptIns: KiteSsotNativeOptInsExtension
+        get() = nested()
+
+    /** Add opt-in markers to the selected Kotlin/Native compilations. */
+    fun nativeOptIns(action: Action<in KiteSsotNativeOptInsExtension>) {
+        nativeOptInsConfigured.set(true)
+        action.execute(nativeOptIns)
+    }
+
+    /** Browser Kotlin/JS helpers. Configure with `kiteSsot { web { } }`. */
     val web: KiteSsotWebExtension
-        get() = (this as ExtensionAware).extensions.getByType(KiteSsotWebExtension::class.java)
+        get() = nested()
 
     /** Configure optional browser Kotlin/JS source generation. */
-    fun web(action: Action<in KiteSsotWebExtension>) {
-        action.execute(web)
-    }
+    fun web(action: Action<in KiteSsotWebExtension>) = action.execute(web)
 
-    /** Generated runtime constants for the selected KMP project's `commonMain`. */
+    /**
+     * Generated runtime constants for `commonMain`. Configure with
+     * `kiteSsot { buildConfig { } }`.
+     *
+     * Configuring this block turns generation on.
+     */
     val buildConfig: KiteSsotBuildConfigExtension
-        get() = (this as ExtensionAware).extensions.getByType(KiteSsotBuildConfigExtension::class.java)
+        get() = nested()
 
-    /** Configure optional common Kotlin constants generation. */
+    /** Generate a Kotlin object of public runtime configuration. */
     fun buildConfig(action: Action<in KiteSsotBuildConfigExtension>) {
+        buildConfigConfigured.set(true)
         action.execute(buildConfig)
     }
 
-    // --- Derived values (read-only) ------------------------------------------
+    private inline fun <reified T : Any> nested(): T =
+        (this as ExtensionAware).extensions.getByType(T::class.java)
 
-    /**
-     * Resolved Android version code.
-     *
-     * This uses [versionCodeOverride] when present. Otherwise it derives a code
-     * from a plain three-part [versionName].
-     */
-    val versionCode: Provider<Int>
-        get() = versionCodeOverride.map(::validateVersionCode).orElse(versionName.map { deriveVersionCode(it) })
+    // ------------------------------------------------------ Derived, read-only
 
-    /** Read-only Android ID: [bundleIdBase] plus [androidApplicationIdSuffix]. */
+    /** Android application id: [appId] plus [KiteSsotAndroidExtension.idSuffix]. */
     val androidApplicationId: Provider<String>
-        get() = bundleIdBase.zip(androidApplicationIdSuffix.orElse("")) { base, suffix -> base + suffix }
+        get() = effectiveAppId.zip(android.idSuffix.orElse("")) { base, suffix -> base + suffix }
 
-    /** Read-only Apple ID: [bundleIdBase] plus [iosBundleSuffix]. */
+    /** Apple bundle id: [appId] plus [KiteSsotIosExtension.bundleIdSuffix]. */
     val iosBundleId: Provider<String>
-        get() = bundleIdBase.zip(iosBundleSuffix.orElse("")) { base, suffix -> base + suffix }
+        get() = effectiveAppId.zip(effectiveIosBundleSuffix.orElse("")) { base, suffix -> base + suffix }
 
-    /** Read-only normalized and de-duplicated locale list. */
+    /** The resolved Android `versionCode` for this build. */
+    val versionCode: Provider<Int>
+        get() = effectiveAndroidVersionCode
+
+    /** Normalized, de-duplicated locale tags. */
     val canonicalLocales: Provider<List<String>>
-        get() = locales.map(::canonicalizeLocales)
+        get() = effectiveLocales.map(::canonicalizeLocales)
 
-    /** Read-only shared project path, including the legacy fallback. */
+    /** The selected shared KMP project path. */
     val resolvedSharedProjectPath: Provider<String>
-        get() = sharedProjectPath.orElse(sharedModule.map { if (it.startsWith(':')) it else ":$it" })
+        get() = effectiveSharedProjectPath
 
-    /** Effective new iOS module name, with the pre-2.0 conflated property as a compatibility fallback. */
-    internal val resolvedIosSharedModuleName: Provider<String>
-        get() = iosSharedModuleName.orElse(sharedModule)
+    // ============================================================ INTERNAL MODEL
+    // The engine reads these, never the public properties, so that a value set
+    // through a 3.0 block and the same value set through a deprecated 2.x
+    // property resolve identically.
 
-    /** Effective old iOS module name, with the pre-2.0 property as a compatibility fallback. */
-    internal val resolvedIosPreviousSharedModuleName: Provider<String>
-        get() = iosPreviousSharedModuleName.orElse(oldSharedModuleName)
+    internal abstract val logoConfigured: Property<Boolean>
+    internal abstract val nativeOptInsConfigured: Property<Boolean>
+    internal abstract val buildConfigConfigured: Property<Boolean>
+
+    internal val effectiveAppName: Provider<String>
+        get() = appName
+
+    internal val effectiveVersion: Provider<String>
+        get() = version.orElse(versionName)
+
+    internal val effectiveAppId: Provider<String>
+        get() = appId.orElse(bundleIdBase)
+
+    internal val effectiveJvmTarget: Provider<Int>
+        get() = jvmTarget.orElse(javaVersion)
+
+    internal val effectiveLocales: Provider<List<String>>
+        get() = locales
+
+    internal val effectiveDryRun: Provider<Boolean>
+        get() = dryRun.orElse(false)
+
+    internal val effectiveBackups: Provider<Boolean>
+        get() = backups.orElse(backupBeforeRewrite).orElse(true)
+
+    // --- structure ---
+
+    internal val effectiveSharedProjectPath: Provider<String>
+        get() = modules.shared.orElse(sharedProjectPath)
+
+    internal val effectiveComposeResources: Provider<org.gradle.api.file.Directory>
+        get() = modules.composeResources.orElse(composeResourcesDirectory)
+
+    internal val effectiveAndroidApps: Provider<List<String>>
+        get() = modules.androidApps
+            .map { it.ifEmpty { androidApplicationProjects.getOrElse(emptyList()) } }
+
+    internal val effectiveAndroidAppDirectory: Provider<org.gradle.api.file.Directory>
+        get() = modules.androidAppDirectory.orElse(androidAppDirectory)
+
+    // --- apply gates ---
+
+    internal val effectivePropagateAppName: Provider<Boolean>
+        get() = propagate.appName.orElse(propagateAppName).orElse(true)
+
+    internal val effectivePropagateBundleId: Provider<Boolean>
+        get() = propagate.bundleId.orElse(propagateBundleId).orElse(true)
+
+    internal val effectivePropagateVersion: Provider<Boolean>
+        get() = propagate.version.orElse(propagateVersion).orElse(true)
+
+    internal val effectivePropagateLocales: Provider<Boolean>
+        get() = propagate.locales.orElse(propagateLocaleList).orElse(true)
+
+    internal val effectiveApplySdkLevels: Provider<Boolean>
+        get() = android.applySdkLevels.orElse(propagateAndroidSdk).orElse(true)
+
+    internal val effectiveFilterAndroidResources: Provider<Boolean>
+        get() = android.filterResourcesToLocales.orElse(filterAndroidResources).orElse(false)
+
+    // --- version numbers ---
+
+    internal val effectiveAndroidVersionCode: Provider<Int>
+        get() = android.versionCode
+            .orElse(versionCodeOverride)
+            .orElse(
+                effectiveVersion.zip(
+                    android.rebuild.orElse(0).zip(android.scheme.orElse(schemeOrDefault)) { r, s -> r to s },
+                ) { version, (rebuild, activeScheme) ->
+                    computeVersionCode(activeScheme, version, rebuild, "android")
+                },
+            )
+
+    /** True only when a code was pinned by hand, so no scheme was consulted. */
+    internal val effectiveHasExplicitVersionCode: Provider<Boolean>
+        get() = android.versionCode.orElse(versionCodeOverride).map { true }.orElse(false)
+
+    internal val effectiveIosBuildNumber: Provider<String>
+        get() = ios.buildNumber
+            .orElse(iosBuildNumber)
+            .orElse(
+                effectiveVersion.zip(
+                    ios.rebuild.orElse(0).zip(ios.scheme.orElse(schemeOrDefault)) { r, s -> r to s },
+                ) { version, (rebuild, activeScheme) ->
+                    computeVersionCode(activeScheme, version, rebuild, "ios").toString()
+                },
+            )
+
+    internal val effectiveIosMarketingVersion: Provider<String>
+        get() = ios.marketingVersion.orElse(iosMarketingVersion).orElse(effectiveVersion)
+
+    private val schemeOrDefault: Provider<VersionCodeScheme>
+        get() = scheme.orElse(VersionSchemes.DEFAULT)
+
+    // --- ios ---
+
+    internal val effectiveIosBundleSuffix: Provider<String>
+        get() = ios.bundleIdSuffix.orElse(iosBundleSuffix)
+
+    internal val effectiveIosPbxproj: Provider<org.gradle.api.file.RegularFile>
+        get() = ios.pbxproj.orElse(iosPbxprojFile)
+
+    internal val effectiveIosPodfile: Provider<org.gradle.api.file.RegularFile>
+        get() = ios.podfile.orElse(iosPodfileFile)
+
+    internal val effectiveIosInfoPlist: Provider<org.gradle.api.file.RegularFile>
+        get() = ios.infoPlist.orElse(iosInfoPlistFile)
+
+    internal val effectiveIosAppDirectory: Provider<org.gradle.api.file.Directory>
+        get() = ios.appDirectory.orElse(iosAppDirectory)
+
+    internal val effectiveIosAppIconDirectory: Provider<org.gradle.api.file.Directory>
+        get() = ios.appIconDirectory.orElse(iosAppIconDirectory)
+
+    internal val effectiveSyncIos: Provider<Boolean>
+        get() = ios.sync.configured.orElse(false)
+            .zip(ios.sync.enabled.orElse(true)) { configured, enabled -> configured && enabled }
+            .zip(syncIos.orElse(false)) { block, legacy -> block || legacy }
+
+    internal val effectiveSanitizeIosProject: Provider<Boolean>
+        get() = ios.sync.sanitizePlist.orElse(sanitizeIosProject).orElse(false)
+
+    internal val effectiveIosTargets: Provider<List<String>>
+        get() = ios.sync.targets
+
+    internal val effectivePlistConflictPolicy: Provider<PlistConflictPolicy>
+        get() = ios.sync.onConflict.orElse(PlistConflictPolicy.FAIL)
+
+    internal val effectiveNonExemptEncryption: Provider<Boolean>
+        get() = ios.sync.nonExemptEncryption
+
+    internal val effectiveProMotion: Provider<Boolean>
+        get() = ios.sync.proMotion
+
+    internal val effectiveIosSharedModuleName: Provider<String>
+        get() = ios.sync.newSharedModuleName.orElse(iosSharedModuleName)
+
+    internal val effectiveIosPreviousSharedModuleName: Provider<String>
+        get() = ios.sync.previousSharedModuleName.orElse(iosPreviousSharedModuleName)
+
+    internal val effectivePropagateSharedModule: Provider<Boolean>
+        get() = ios.sync.newSharedModuleName.map { true }.orElse(false)
+            .zip(propagateSharedModule.orElse(false)) { block, legacy -> block || legacy }
+
+    // --- logo ---
+
+    internal val effectivePropagateLogo: Provider<Boolean>
+        get() = logoConfigured.orElse(false)
+            .zip(logo.enabled.orElse(true)) { configured, enabled -> configured && enabled }
+            .zip(propagateLogo.orElse(false)) { block, legacy -> block || legacy }
+
+    internal val effectiveLogoForeground: Provider<org.gradle.api.file.RegularFile>
+        get() = logo.foreground.orElse(appLogoPngForeground)
+
+    internal val effectiveLogoBackground: Provider<org.gradle.api.file.RegularFile>
+        get() = logo.background.orElse(appLogoPngBackground)
+
+    internal val effectiveLogoBackgroundColor: Provider<String>
+        get() = logo.backgroundColor.orElse(appLogoBackgroundColor)
+
+    internal val effectiveLogoSafeZone: Provider<Double>
+        get() = logo.androidSafeZone.orElse(appLogoAndroidSafeZoneRatio).orElse(DEFAULT_ANDROID_SAFE_ZONE)
+
+    internal val effectiveTakeOverLegacyIcons: Provider<Boolean>
+        get() = logo.takeOverLegacyIcons.orElse(cleanupLegacyLogoArtifacts).orElse(false)
+
+    // --- native opt-ins ---
+
+    internal val effectiveNativeOptInsEnabled: Provider<Boolean>
+        get() = nativeOptInsConfigured.orElse(false)
+            .zip(nativeOptIns.enabled.orElse(true)) { configured, enabled -> configured && enabled }
+            .zip(propagateInteropOptIns.orElse(false)) { block, legacy -> block || legacy }
+
+    internal val effectiveNativeOptInBuiltIns: Provider<Boolean>
+        get() = nativeOptIns.builtIns.orElse(true)
+
+    internal val effectiveNativeOptInMarkers: Provider<List<String>>
+        get() = nativeOptIns.markers.map { it.ifEmpty { extraOptIns.getOrElse(emptyList()) } }
+
+    internal val effectiveNativeOptInProjects: Provider<List<String>>
+        get() = nativeOptIns.projects.map { it.ifEmpty { interopProjectPaths.getOrElse(emptyList()) } }
+
+    // --- web ---
+
+    internal val effectiveIoWorkerEnabled: Provider<Boolean>
+        get() = web.ioWorker.configured.orElse(false)
+            .zip(web.ioWorker.enabled.orElse(true)) { configured, enabled -> configured && enabled }
+
+    internal val effectiveIoWorkerTargets: Provider<List<String>>
+        get() = web.ioWorker.targets
+
+    internal val effectiveIoWorkerProjects: Provider<List<String>>
+        get() = web.ioWorker.projects
+
+    internal val effectiveIoWorkerPackage: Provider<String>
+        get() = web.ioWorker.packageName.orElse(DEFAULT_GENERATED_PACKAGE)
+
+    // --- build config ---
+
+    internal val effectiveBuildConfigEnabled: Provider<Boolean>
+        get() = buildConfigConfigured.orElse(false)
+            .zip(buildConfig.enabled.orElse(true)) { configured, enabled -> configured && enabled }
+
+    internal companion object {
+        internal const val DEFAULT_ANDROID_SAFE_ZONE: Double = 66.0 / 108.0
+        internal const val DEFAULT_GENERATED_PACKAGE: String = "kitessot.generated"
+    }
+
+    // ========================================================== DEPRECATED 2.x
+    // Kept so a 2.x build keeps working while you migrate. Each one feeds the
+    // same internal model as its 3.0 replacement. They are removed in 4.0.
+
+    /** Use [version]. */
+    @Deprecated("Renamed to version.", ReplaceWith("version"))
+    abstract val versionName: Property<String>
+
+    /** Use [appId]. */
+    @Deprecated("Renamed to appId.", ReplaceWith("appId"))
+    abstract val bundleIdBase: Property<String>
+
+    /** Use [jvmTarget]. */
+    @Deprecated("Renamed to jvmTarget.", ReplaceWith("jvmTarget"))
+    abstract val javaVersion: Property<Int>
+
+    /** Use `android { versionCode = ... }`. */
+    @Deprecated("Moved to android { versionCode }.", ReplaceWith("android.versionCode"))
+    abstract val versionCodeOverride: Property<Int>
+
+    /** Use `ios { marketingVersion = ... }`. */
+    @Deprecated("Moved to ios { marketingVersion }.", ReplaceWith("ios.marketingVersion"))
+    abstract val iosMarketingVersion: Property<String>
+
+    /** Use `ios { buildNumber = ... }`. */
+    @Deprecated("Moved to ios { buildNumber }.", ReplaceWith("ios.buildNumber"))
+    abstract val iosBuildNumber: Property<String>
+
+    /** Use `ios { bundleIdSuffix = ... }`. */
+    @Deprecated("Moved to ios { bundleIdSuffix }.", ReplaceWith("ios.bundleIdSuffix"))
+    abstract val iosBundleSuffix: Property<String>
+
+    /** Use `android { idSuffix = ... }`. */
+    @Deprecated("Moved to android { idSuffix }.", ReplaceWith("android.idSuffix"))
+    abstract val androidApplicationIdSuffix: Property<String>
+
+    /** Use `modules { shared = ... }`. */
+    @Deprecated("Moved to modules { shared }.", ReplaceWith("modules.shared"))
+    abstract val sharedProjectPath: Property<String>
+
+    /** Use `modules { androidApps(...) }`. */
+    @Deprecated("Moved to modules { androidApps }.", ReplaceWith("modules.androidApps"))
+    abstract val androidApplicationProjects: ListProperty<String>
+
+    /** Use `modules { androidAppDirectory = ... }`. */
+    @Deprecated("Moved to modules { androidAppDirectory }.", ReplaceWith("modules.androidAppDirectory"))
+    abstract val androidAppDirectory: DirectoryProperty
+
+    /** Use `modules { composeResources = ... }`. */
+    @Deprecated("Moved to modules { composeResources }.", ReplaceWith("modules.composeResources"))
+    abstract val composeResourcesDirectory: DirectoryProperty
+
+    /** Use `ios { sync { renameSharedModule(from, to) } }`. */
+    @Deprecated("Moved to ios { sync { renameSharedModule() } }.")
+    abstract val iosSharedModuleName: Property<String>
+
+    /** Use `ios { sync { renameSharedModule(from, to) } }`. */
+    @Deprecated("Moved to ios { sync { renameSharedModule() } }.")
+    abstract val iosPreviousSharedModuleName: Property<String>
+
+    /** Use `ios { pbxproj = ... }`. */
+    @Deprecated("Moved to ios { pbxproj }.", ReplaceWith("ios.pbxproj"))
+    abstract val iosPbxprojFile: RegularFileProperty
+
+    /** Use `ios { podfile = ... }`. */
+    @Deprecated("Moved to ios { podfile }.", ReplaceWith("ios.podfile"))
+    abstract val iosPodfileFile: RegularFileProperty
+
+    /** Use `ios { infoPlist = ... }`. */
+    @Deprecated("Moved to ios { infoPlist }.", ReplaceWith("ios.infoPlist"))
+    abstract val iosInfoPlistFile: RegularFileProperty
+
+    /** Use `ios { appDirectory = ... }`. */
+    @Deprecated("Moved to ios { appDirectory }.", ReplaceWith("ios.appDirectory"))
+    abstract val iosAppDirectory: DirectoryProperty
+
+    /** Use `ios { appIconDirectory = ... }`. */
+    @Deprecated("Moved to ios { appIconDirectory }.", ReplaceWith("ios.appIconDirectory"))
+    abstract val iosAppIconDirectory: DirectoryProperty
+
+    /** Use `logo { foreground = ... }`. */
+    @Deprecated("Moved to logo { foreground }.", ReplaceWith("logo.foreground"))
+    abstract val appLogoPngForeground: RegularFileProperty
+
+    /** Use `logo { background = ... }`. */
+    @Deprecated("Moved to logo { background }.", ReplaceWith("logo.background"))
+    abstract val appLogoPngBackground: RegularFileProperty
+
+    /** Use `logo { backgroundColor = ... }`. */
+    @Deprecated("Moved to logo { backgroundColor }.", ReplaceWith("logo.backgroundColor"))
+    abstract val appLogoBackgroundColor: Property<String>
+
+    /** Use `logo { androidSafeZone = ... }`. */
+    @Deprecated("Moved to logo { androidSafeZone }.", ReplaceWith("logo.androidSafeZone"))
+    abstract val appLogoAndroidSafeZoneRatio: Property<Double>
+
+    /** Use `logo { takeOverLegacyIcons = ... }`. */
+    @Deprecated("Moved to logo { takeOverLegacyIcons }.", ReplaceWith("logo.takeOverLegacyIcons"))
+    abstract val cleanupLegacyLogoArtifacts: Property<Boolean>
+
+    /** Use `propagate { appName = ... }`. */
+    @Deprecated("Moved to propagate { appName }.", ReplaceWith("propagate.appName"))
+    abstract val propagateAppName: Property<Boolean>
+
+    /** Use `propagate { bundleId = ... }`. */
+    @Deprecated("Moved to propagate { bundleId }.", ReplaceWith("propagate.bundleId"))
+    abstract val propagateBundleId: Property<Boolean>
+
+    /** Use `propagate { version = ... }`. */
+    @Deprecated("Moved to propagate { version }.", ReplaceWith("propagate.version"))
+    abstract val propagateVersion: Property<Boolean>
+
+    /** Use `propagate { locales = ... }`. */
+    @Deprecated("Moved to propagate { locales }.", ReplaceWith("propagate.locales"))
+    abstract val propagateLocaleList: Property<Boolean>
+
+    /** Use `android { applySdkLevels = ... }`. */
+    @Deprecated("Moved to android { applySdkLevels }.", ReplaceWith("android.applySdkLevels"))
+    abstract val propagateAndroidSdk: Property<Boolean>
+
+    /** Use `android { filterResourcesToLocales = ... }`. */
+    @Deprecated(
+        "Moved to android { filterResourcesToLocales }.",
+        ReplaceWith("android.filterResourcesToLocales"),
+    )
+    abstract val filterAndroidResources: Property<Boolean>
+
+    /** Configure `logo { }` instead. Configuring the block is the opt-in. */
+    @Deprecated("Configure the logo { } block instead.")
+    abstract val propagateLogo: Property<Boolean>
+
+    /** Configure `ios { sync { } }` instead. Configuring the block is the opt-in. */
+    @Deprecated("Configure the ios { sync { } } block instead.")
+    abstract val syncIos: Property<Boolean>
+
+    /** Use `ios { sync { sanitizePlist = ... } }`. */
+    @Deprecated("Moved to ios { sync { sanitizePlist } }.")
+    abstract val sanitizeIosProject: Property<Boolean>
+
+    /** Call `ios { sync { renameSharedModule(from, to) } }` instead. */
+    @Deprecated("Call ios { sync { renameSharedModule() } } instead.")
+    abstract val propagateSharedModule: Property<Boolean>
+
+    /** Configure `nativeOptIns { }` instead. Configuring the block is the opt-in. */
+    @Deprecated("Configure the nativeOptIns { } block instead.")
+    abstract val propagateInteropOptIns: Property<Boolean>
+
+    /** Use `nativeOptIns { add(...) }`. */
+    @Deprecated("Moved to nativeOptIns { add() }.", ReplaceWith("nativeOptIns.markers"))
+    abstract val extraOptIns: ListProperty<String>
+
+    /** Use `nativeOptIns { projects(...) }`. */
+    @Deprecated("Moved to nativeOptIns { projects() }.", ReplaceWith("nativeOptIns.projects"))
+    abstract val interopProjectPaths: ListProperty<String>
+
+    /** Use [backups]. */
+    @Deprecated("Renamed to backups.", ReplaceWith("backups"))
+    abstract val backupBeforeRewrite: Property<Boolean>
 }

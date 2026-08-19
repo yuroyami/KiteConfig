@@ -11,7 +11,8 @@ private val WINDOWS_ABSOLUTE_PATH = Regex("""^[A-Za-z]:[\\/].*""")
 private val CANONICAL_NONNEGATIVE_INTEGER = Regex("(?:0|[1-9]\\d*)")
 private const val MAX_VERSION_NAME_CHARS = 255
 private const val MAX_APPLE_MARKETING_VERSION_CHARS = 64
-private const val MAX_APPLE_BUILD_NUMBER_CHARS = 10
+private const val MAX_APPLE_BUILD_NUMBER_CHARS = 32
+private const val MAX_APPLE_BUILD_COMPONENT_DIGITS = 10
 private const val MAX_DEPLOYMENT_TARGET_CHARS = 64
 private const val MAX_GRADLE_PROJECT_PATH_CHARS = 1_024
 private const val MAX_RELATIVE_PROJECT_PATH_CHARS = 4_096
@@ -52,7 +53,7 @@ internal fun validateAppleBundleId(value: String): String {
 internal fun validateVersionName(value: String): String {
     if (value.isBlank() || value.length > MAX_VERSION_NAME_CHARS || value.any(Char::isISOControl)) {
         throw GradleException(
-            "kiteSsot { versionName } must be non-blank, at most $MAX_VERSION_NAME_CHARS characters, " +
+            "kiteSsot { version } must be non-blank, at most $MAX_VERSION_NAME_CHARS characters, " +
                 "and contain no controls.",
         )
     }
@@ -74,10 +75,9 @@ internal fun validateAppleMarketingVersion(value: String): String {
 internal fun validateAppleBuildNumber(value: String): String {
     if (!isValidAppleBuildNumber(value)) {
         throw GradleException(
-            "kiteSsot { iosBuildNumber } \"${diagnosticSafeText(value, 32)}\" is invalid. " +
-                "CFBundleVersion requires one to three " +
-                "numeric components: a positive first component of at most four digits, followed by " +
-                "optional components of at most two digits each."
+            "kiteSsot { ios { buildNumber } } \"${diagnosticSafeText(value, 32)}\" is invalid. " +
+                "CFBundleVersion requires one to three numeric components, each at most " +
+                "$MAX_APPLE_BUILD_COMPONENT_DIGITS digits, and a first component that is not zero."
         )
     }
     return value
@@ -108,14 +108,34 @@ internal fun validateUniversalAppIconDeploymentTarget(value: String): String {
     return value
 }
 
+/**
+ * Whether [value] is a usable `CFBundleVersion`.
+ *
+ * Apple asks for one to three period-separated integers, and compares them
+ * componentwise. KiteSSOT deliberately does NOT narrow that further: an earlier
+ * four-digit cap on the first component was this plugin being cautious rather
+ * than App Store enforcement, and it would reject the ten-digit ordinal that the
+ * shared build-number scheme produces.
+ *
+ * The only real rules kept here: numeric components, at most three of them, each
+ * short enough to stay an integer, and a first component that is not all zeros
+ * (Apple treats build 0 as absent, and it would collide with an unsuffixed
+ * upload).
+ */
 internal fun isValidAppleBuildNumber(value: String): Boolean {
-    if (value.length > MAX_APPLE_BUILD_NUMBER_CHARS) return false
+    if (value.isEmpty() || value.length > MAX_APPLE_BUILD_NUMBER_CHARS) return false
     val components = value.split('.')
-    if (components.size !in 1..3 || components.any { it.isEmpty() || it.any { c -> !c.isDigit() } }) {
+    if (components.size !in 1..3) return false
+    if (components.any {
+            it.isEmpty() ||
+                it.length > MAX_APPLE_BUILD_COMPONENT_DIGITS ||
+                it.any { c -> !c.isDigit() } ||
+                it.toLongOrNull() == null
+        }
+    ) {
         return false
     }
-    if (components[0].length > 4 || components[0].all { it == '0' }) return false
-    return components.drop(1).all { it.length <= 2 }
+    return !components[0].all { it == '0' }
 }
 
 internal fun validateGradleProjectPath(value: String, property: String): String {

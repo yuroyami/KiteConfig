@@ -3,6 +3,7 @@ package io.github.yuroyami.kitessot
 import org.gradle.api.GradleException
 import org.gradle.api.Project
 import java.lang.reflect.InvocationTargetException
+import java.util.function.Supplier
 
 /** Loads the floor-compiled adapter without linking AGP-8-only descriptors here. */
 internal object Agp8ClassicAndroidWiringBridge {
@@ -29,16 +30,19 @@ internal object Agp8ClassicAndroidWiringBridge {
         invoke("wireLibrary", project, ext)
 
     private fun invoke(methodName: String, project: Project, ext: KiteSsotExtension) {
+        // Resolved lazily: the adapter calls this from inside finalizeDsl, so the
+        // model is read at the same point the AGP 9 adapter reads it.
+        val inputs = Supplier { ext.resolveAgp8Inputs(project.path) }
         try {
             val method = adapterClass.getDeclaredMethod(
                 methodName,
                 Project::class.java,
-                KiteSsotExtension::class.java,
+                Supplier::class.java,
             )
             if (!method.trySetAccessible()) {
                 throw ReflectiveOperationException("AGP 8 adapter method is not accessible")
             }
-            method.invoke(null, project, ext)
+            method.invoke(null, project, inputs)
         } catch (failure: InvocationTargetException) {
             val cause = failure.targetException
             if (cause is RuntimeException) throw cause

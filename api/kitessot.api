@@ -1,3 +1,22 @@
+public final class io/github/yuroyami/kitessot/Agp8AndroidInputs {
+	public final field appName Ljava/lang/String;
+	public final field applicationId Ljava/lang/String;
+	public final field applyAppName Z
+	public final field applyApplicationId Z
+	public final field applySdkLevels Z
+	public final field applyVersion Z
+	public final field compileSdk Ljava/lang/Integer;
+	public final field filterResources Z
+	public final field javaVersion Ljava/lang/Integer;
+	public final field localeFilters Ljava/util/List;
+	public final field minSdk Ljava/lang/Integer;
+	public final field ndk Ljava/lang/String;
+	public final field selectedApplications Ljava/util/List;
+	public final field targetSdk Ljava/lang/Integer;
+	public final field versionCode Ljava/lang/Integer;
+	public final field versionName Ljava/lang/String;
+}
+
 public abstract class io/github/yuroyami/kitessot/CleanupLegacyAppLogoArtifactsTask : org/gradle/api/DefaultTask {
 	public fun <init> ()V
 	public final fun cleanup ()V
@@ -42,11 +61,18 @@ public final class io/github/yuroyami/kitessot/KiteSsotAccessKt {
 
 public abstract class io/github/yuroyami/kitessot/KiteSsotAndroidExtension {
 	public fun <init> ()V
+	public abstract fun getApplySdkLevels ()Lorg/gradle/api/provider/Property;
 	public abstract fun getCompileSdk ()Lorg/gradle/api/provider/Property;
+	public abstract fun getFilterResourcesToLocales ()Lorg/gradle/api/provider/Property;
+	public abstract fun getIdSuffix ()Lorg/gradle/api/provider/Property;
 	public abstract fun getMinSdk ()Lorg/gradle/api/provider/Property;
-	public abstract fun getNdkVersion ()Lorg/gradle/api/provider/Property;
+	public abstract fun getNdk ()Lorg/gradle/api/provider/Property;
 	public abstract fun getPublishedVersionCode ()Lorg/gradle/api/provider/Property;
+	public abstract fun getRebuild ()Lorg/gradle/api/provider/Property;
+	public abstract fun getScheme ()Lorg/gradle/api/provider/Property;
 	public abstract fun getTargetSdk ()Lorg/gradle/api/provider/Property;
+	public abstract fun getVersionCode ()Lorg/gradle/api/provider/Property;
+	public final fun scheme (Lio/github/yuroyami/kitessot/VersionCodeScheme;)V
 }
 
 public abstract class io/github/yuroyami/kitessot/KiteSsotBuildConfigExtension {
@@ -119,6 +145,7 @@ public abstract class io/github/yuroyami/kitessot/KiteSsotDiagnosticTaskBase : o
 	public abstract fun getPropagateLocaleList ()Lorg/gradle/api/provider/Property;
 	public abstract fun getPropagateLogo ()Lorg/gradle/api/provider/Property;
 	public abstract fun getPropagateVersion ()Lorg/gradle/api/provider/Property;
+	public abstract fun getResolvedVersionCode ()Lorg/gradle/api/provider/Property;
 	public abstract fun getSanitizeIosProject ()Lorg/gradle/api/provider/Property;
 	public abstract fun getSyncIos ()Lorg/gradle/api/provider/Property;
 	public abstract fun getUsesNonExemptEncryption ()Lorg/gradle/api/provider/Property;
@@ -136,16 +163,17 @@ public abstract class io/github/yuroyami/kitessot/KiteSsotExtension {
 	public final fun buildConfig (Lorg/gradle/api/Action;)V
 	public final fun getAndroid ()Lio/github/yuroyami/kitessot/KiteSsotAndroidExtension;
 	public abstract fun getAndroidAppDirectory ()Lorg/gradle/api/file/DirectoryProperty;
-	public abstract fun getAndroidAppModule ()Lorg/gradle/api/provider/Property;
 	public final fun getAndroidApplicationId ()Lorg/gradle/api/provider/Provider;
 	public abstract fun getAndroidApplicationIdSuffix ()Lorg/gradle/api/provider/Property;
 	public abstract fun getAndroidApplicationProjects ()Lorg/gradle/api/provider/ListProperty;
+	public abstract fun getAppId ()Lorg/gradle/api/provider/Property;
 	public abstract fun getAppLogoAndroidSafeZoneRatio ()Lorg/gradle/api/provider/Property;
 	public abstract fun getAppLogoBackgroundColor ()Lorg/gradle/api/provider/Property;
 	public abstract fun getAppLogoPngBackground ()Lorg/gradle/api/file/RegularFileProperty;
 	public abstract fun getAppLogoPngForeground ()Lorg/gradle/api/file/RegularFileProperty;
 	public abstract fun getAppName ()Lorg/gradle/api/provider/Property;
 	public abstract fun getBackupBeforeRewrite ()Lorg/gradle/api/provider/Property;
+	public abstract fun getBackups ()Lorg/gradle/api/provider/Property;
 	public final fun getBuildConfig ()Lio/github/yuroyami/kitessot/KiteSsotBuildConfigExtension;
 	public abstract fun getBundleIdBase ()Lorg/gradle/api/provider/Property;
 	public final fun getCanonicalLocales ()Lorg/gradle/api/provider/Provider;
@@ -156,25 +184,24 @@ public abstract class io/github/yuroyami/kitessot/KiteSsotExtension {
 	public abstract fun getFilterAndroidResources ()Lorg/gradle/api/provider/Property;
 	public abstract fun getInteropProjectPaths ()Lorg/gradle/api/provider/ListProperty;
 	public final fun getIos ()Lio/github/yuroyami/kitessot/KiteSsotIosExtension;
-	public abstract fun getIosAppDir ()Lorg/gradle/api/provider/Property;
 	public abstract fun getIosAppDirectory ()Lorg/gradle/api/file/DirectoryProperty;
 	public abstract fun getIosAppIconDirectory ()Lorg/gradle/api/file/DirectoryProperty;
-	public abstract fun getIosAppiconsetPath ()Lorg/gradle/api/provider/Property;
 	public abstract fun getIosBuildNumber ()Lorg/gradle/api/provider/Property;
 	public final fun getIosBundleId ()Lorg/gradle/api/provider/Provider;
 	public abstract fun getIosBundleSuffix ()Lorg/gradle/api/provider/Property;
 	public abstract fun getIosInfoPlistFile ()Lorg/gradle/api/file/RegularFileProperty;
-	public abstract fun getIosInfoPlistPath ()Lorg/gradle/api/provider/Property;
 	public abstract fun getIosMarketingVersion ()Lorg/gradle/api/provider/Property;
 	public abstract fun getIosPbxprojFile ()Lorg/gradle/api/file/RegularFileProperty;
 	public abstract fun getIosPodfileFile ()Lorg/gradle/api/file/RegularFileProperty;
-	public abstract fun getIosPodfilePath ()Lorg/gradle/api/provider/Property;
 	public abstract fun getIosPreviousSharedModuleName ()Lorg/gradle/api/provider/Property;
-	public abstract fun getIosProjectPath ()Lorg/gradle/api/provider/Property;
 	public abstract fun getIosSharedModuleName ()Lorg/gradle/api/provider/Property;
 	public abstract fun getJavaVersion ()Lorg/gradle/api/provider/Property;
+	public abstract fun getJvmTarget ()Lorg/gradle/api/provider/Property;
 	public abstract fun getLocales ()Lorg/gradle/api/provider/ListProperty;
-	public abstract fun getOldSharedModuleName ()Lorg/gradle/api/provider/Property;
+	public final fun getLogo ()Lio/github/yuroyami/kitessot/KiteSsotLogoExtension;
+	public final fun getModules ()Lio/github/yuroyami/kitessot/KiteSsotModulesExtension;
+	public final fun getNativeOptIns ()Lio/github/yuroyami/kitessot/KiteSsotNativeOptInsExtension;
+	public final fun getPropagate ()Lio/github/yuroyami/kitessot/KiteSsotPropagateExtension;
 	public abstract fun getPropagateAndroidSdk ()Lorg/gradle/api/provider/Property;
 	public abstract fun getPropagateAppName ()Lorg/gradle/api/provider/Property;
 	public abstract fun getPropagateBundleId ()Lorg/gradle/api/provider/Property;
@@ -185,24 +212,91 @@ public abstract class io/github/yuroyami/kitessot/KiteSsotExtension {
 	public abstract fun getPropagateVersion ()Lorg/gradle/api/provider/Property;
 	public final fun getResolvedSharedProjectPath ()Lorg/gradle/api/provider/Provider;
 	public abstract fun getSanitizeIosProject ()Lorg/gradle/api/provider/Property;
-	public abstract fun getSharedModule ()Lorg/gradle/api/provider/Property;
+	public abstract fun getScheme ()Lorg/gradle/api/provider/Property;
 	public abstract fun getSharedProjectPath ()Lorg/gradle/api/provider/Property;
 	public abstract fun getSyncIos ()Lorg/gradle/api/provider/Property;
+	public abstract fun getVersion ()Lorg/gradle/api/provider/Property;
 	public final fun getVersionCode ()Lorg/gradle/api/provider/Provider;
 	public abstract fun getVersionCodeOverride ()Lorg/gradle/api/provider/Property;
 	public abstract fun getVersionName ()Lorg/gradle/api/provider/Property;
 	public final fun getWeb ()Lio/github/yuroyami/kitessot/KiteSsotWebExtension;
 	public final fun ios (Lorg/gradle/api/Action;)V
+	public final fun logo (Lorg/gradle/api/Action;)V
+	public final fun modules (Lorg/gradle/api/Action;)V
+	public final fun nativeOptIns (Lorg/gradle/api/Action;)V
+	public final fun propagate (Lorg/gradle/api/Action;)V
+	public final fun scheme (Lio/github/yuroyami/kitessot/VersionCodeScheme;)V
 	public final fun web (Lorg/gradle/api/Action;)V
+}
+
+public abstract class io/github/yuroyami/kitessot/KiteSsotIoWorkerExtension {
+	public fun <init> ()V
+	public abstract fun getEnabled ()Lorg/gradle/api/provider/Property;
+	public abstract fun getPackageName ()Lorg/gradle/api/provider/Property;
+	public abstract fun getProjects ()Lorg/gradle/api/provider/ListProperty;
+	public abstract fun getTargets ()Lorg/gradle/api/provider/ListProperty;
+	public final fun projects ([Ljava/lang/String;)V
+	public final fun targets ([Ljava/lang/String;)V
 }
 
 public abstract class io/github/yuroyami/kitessot/KiteSsotIosExtension {
 	public fun <init> ()V
+	public abstract fun getAppDirectory ()Lorg/gradle/api/file/DirectoryProperty;
+	public abstract fun getAppIconDirectory ()Lorg/gradle/api/file/DirectoryProperty;
+	public abstract fun getBuildNumber ()Lorg/gradle/api/provider/Property;
+	public abstract fun getBundleIdSuffix ()Lorg/gradle/api/provider/Property;
 	public abstract fun getDeploymentTarget ()Lorg/gradle/api/provider/Property;
-	public abstract fun getPlistConflictPolicy ()Lorg/gradle/api/provider/Property;
-	public abstract fun getProMotion120Hz ()Lorg/gradle/api/provider/Property;
-	public abstract fun getTargetNames ()Lorg/gradle/api/provider/ListProperty;
-	public abstract fun getUsesNonExemptEncryption ()Lorg/gradle/api/provider/Property;
+	public abstract fun getInfoPlist ()Lorg/gradle/api/file/RegularFileProperty;
+	public abstract fun getMarketingVersion ()Lorg/gradle/api/provider/Property;
+	public abstract fun getPbxproj ()Lorg/gradle/api/file/RegularFileProperty;
+	public abstract fun getPodfile ()Lorg/gradle/api/file/RegularFileProperty;
+	public abstract fun getPublishedBuildNumber ()Lorg/gradle/api/provider/Property;
+	public abstract fun getRebuild ()Lorg/gradle/api/provider/Property;
+	public abstract fun getScheme ()Lorg/gradle/api/provider/Property;
+	public final fun getSync ()Lio/github/yuroyami/kitessot/KiteSsotIosSyncExtension;
+	public final fun scheme (Lio/github/yuroyami/kitessot/VersionCodeScheme;)V
+	public final fun sync (Lorg/gradle/api/Action;)V
+}
+
+public abstract class io/github/yuroyami/kitessot/KiteSsotIosSyncExtension {
+	public fun <init> ()V
+	public abstract fun getEnabled ()Lorg/gradle/api/provider/Property;
+	public abstract fun getNonExemptEncryption ()Lorg/gradle/api/provider/Property;
+	public abstract fun getOnConflict ()Lorg/gradle/api/provider/Property;
+	public abstract fun getProMotion ()Lorg/gradle/api/provider/Property;
+	public abstract fun getSanitizePlist ()Lorg/gradle/api/provider/Property;
+	public abstract fun getTargets ()Lorg/gradle/api/provider/ListProperty;
+	public final fun renameSharedModule (Ljava/lang/String;Ljava/lang/String;)V
+	public final fun targets ([Ljava/lang/String;)V
+}
+
+public abstract class io/github/yuroyami/kitessot/KiteSsotLogoExtension {
+	public fun <init> ()V
+	public abstract fun getAndroidSafeZone ()Lorg/gradle/api/provider/Property;
+	public abstract fun getBackground ()Lorg/gradle/api/file/RegularFileProperty;
+	public abstract fun getBackgroundColor ()Lorg/gradle/api/provider/Property;
+	public abstract fun getEnabled ()Lorg/gradle/api/provider/Property;
+	public abstract fun getForeground ()Lorg/gradle/api/file/RegularFileProperty;
+	public abstract fun getTakeOverLegacyIcons ()Lorg/gradle/api/provider/Property;
+}
+
+public abstract class io/github/yuroyami/kitessot/KiteSsotModulesExtension {
+	public fun <init> ()V
+	public final fun androidApps ([Ljava/lang/String;)V
+	public abstract fun getAndroidAppDirectory ()Lorg/gradle/api/file/DirectoryProperty;
+	public abstract fun getAndroidApps ()Lorg/gradle/api/provider/ListProperty;
+	public abstract fun getComposeResources ()Lorg/gradle/api/file/DirectoryProperty;
+	public abstract fun getShared ()Lorg/gradle/api/provider/Property;
+}
+
+public abstract class io/github/yuroyami/kitessot/KiteSsotNativeOptInsExtension {
+	public fun <init> ()V
+	public final fun add ([Ljava/lang/String;)V
+	public abstract fun getBuiltIns ()Lorg/gradle/api/provider/Property;
+	public abstract fun getEnabled ()Lorg/gradle/api/provider/Property;
+	public abstract fun getMarkers ()Lorg/gradle/api/provider/ListProperty;
+	public abstract fun getProjects ()Lorg/gradle/api/provider/ListProperty;
+	public final fun projects ([Ljava/lang/String;)V
 }
 
 public abstract class io/github/yuroyami/kitessot/KiteSsotPlanTask : org/gradle/api/DefaultTask {
@@ -225,6 +319,14 @@ public final class io/github/yuroyami/kitessot/KiteSsotPlugin : org/gradle/api/P
 }
 
 public final class io/github/yuroyami/kitessot/KiteSsotPlugin$Companion {
+}
+
+public abstract class io/github/yuroyami/kitessot/KiteSsotPropagateExtension {
+	public fun <init> ()V
+	public abstract fun getAppName ()Lorg/gradle/api/provider/Property;
+	public abstract fun getBundleId ()Lorg/gradle/api/provider/Property;
+	public abstract fun getLocales ()Lorg/gradle/api/provider/Property;
+	public abstract fun getVersion ()Lorg/gradle/api/provider/Property;
 }
 
 public abstract class io/github/yuroyami/kitessot/KiteSsotVerifyTask : org/gradle/api/DefaultTask {
@@ -256,10 +358,8 @@ public abstract class io/github/yuroyami/kitessot/KiteSsotVerifyTask : org/gradl
 
 public abstract class io/github/yuroyami/kitessot/KiteSsotWebExtension {
 	public fun <init> ()V
-	public abstract fun getBrowserTargetNames ()Lorg/gradle/api/provider/ListProperty;
-	public abstract fun getGenerateIoWorker ()Lorg/gradle/api/provider/Property;
-	public abstract fun getIoWorkerPackage ()Lorg/gradle/api/provider/Property;
-	public abstract fun getProjectPaths ()Lorg/gradle/api/provider/ListProperty;
+	public final fun getIoWorker ()Lio/github/yuroyami/kitessot/KiteSsotIoWorkerExtension;
+	public final fun ioWorker (Lorg/gradle/api/Action;)V
 }
 
 public final class io/github/yuroyami/kitessot/PlistConflictPolicy : java/lang/Enum {
@@ -284,6 +384,15 @@ public abstract class io/github/yuroyami/kitessot/SanitizeIosProjectTask : org/g
 	public abstract fun getPropagateMarketingVersion ()Lorg/gradle/api/provider/Property;
 	public abstract fun getUsesNonExemptEncryption ()Lorg/gradle/api/provider/Property;
 	public final fun sanitize ()V
+}
+
+public final class io/github/yuroyami/kitessot/SsotVersion {
+	public fun <init> (IIII)V
+	public final fun getMajor ()I
+	public final fun getMinor ()I
+	public final fun getPatch ()I
+	public final fun getRebuild ()I
+	public fun toString ()Ljava/lang/String;
 }
 
 public abstract class io/github/yuroyami/kitessot/SyncAndroidLogoTask : org/gradle/api/DefaultTask {
@@ -353,5 +462,14 @@ public abstract class io/github/yuroyami/kitessot/SyncIosLogoTask : org/gradle/a
 }
 
 public final class io/github/yuroyami/kitessot/SyncIosLogoTask$Companion {
+}
+
+public abstract interface class io/github/yuroyami/kitessot/VersionCodeScheme {
+	public abstract fun compute (Lio/github/yuroyami/kitessot/SsotVersion;)I
+}
+
+public final class io/github/yuroyami/kitessot/VersionSchemes {
+	public static final field INSTANCE Lio/github/yuroyami/kitessot/VersionSchemes;
+	public final fun getDEFAULT ()Lio/github/yuroyami/kitessot/VersionCodeScheme;
 }
 

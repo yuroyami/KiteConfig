@@ -55,62 +55,59 @@ class KiteSsotPlugin : Plugin<Project> {
             ?.let(::parseToolVersion)
             ?.major == 8
 
-        val ext = target.extensions.create<KiteSsotExtension>("kiteSsot").apply {
-            iosProjectPath.convention("iosApp/iosApp.xcodeproj/project.pbxproj")
-            iosPodfilePath.convention("iosApp/Podfile")
-            iosInfoPlistPath.convention("iosApp/iosApp/Info.plist")
-            iosAppDir.convention("iosApp")
-            iosAppiconsetPath.convention("iosApp/iosApp/Assets.xcassets/AppIcon.appiconset")
-            iosPbxprojFile.convention(target.layout.projectDirectory.file(iosProjectPath))
-            iosPodfileFile.convention(target.layout.projectDirectory.file(iosPodfilePath))
-            iosInfoPlistFile.convention(target.layout.projectDirectory.file(iosInfoPlistPath))
-            iosAppDirectory.convention(target.layout.projectDirectory.dir(iosAppDir))
-            iosAppIconDirectory.convention(target.layout.projectDirectory.dir(iosAppiconsetPath))
-            androidAppModule.convention("androidApp")
-            androidApplicationProjects.convention(emptyList())
-            propagateAppName.convention(true)
-            propagateBundleId.convention(true)
-            propagateVersion.convention(true)
-            propagateLocaleList.convention(true)
-            filterAndroidResources.convention(false)
-            propagateLogo.convention(false)
-            propagateSharedModule.convention(false)
-            propagateAndroidSdk.convention(true)
-            propagateInteropOptIns.convention(false)
-            extraOptIns.convention(emptyList())
-            interopProjectPaths.convention(emptyList())
-            syncIos.convention(false)
-            sanitizeIosProject.convention(false)
-            cleanupLegacyLogoArtifacts.convention(false)
-            dryRun.convention(false)
-            backupBeforeRewrite.convention(true)
-            appLogoAndroidSafeZoneRatio.convention(66.0 / 108.0)
-            iosMarketingVersion.convention(versionName)
-
-            // Auto-detect locales from the selected Compose resources directory's values-* children.
-            locales.convention(target.provider { autoDetectLocales(target, this) })
-        }
+        val ext = target.extensions.create<KiteSsotExtension>("kiteSsot")
 
         // Nested DSL blocks. Gradle can't decorate an abstract property of a
         // non-managed type on KiteSsotExtension, so we create them explicitly and
         // expose them via getters on the parent.
         val extAware = ext as ExtensionAware
-        extAware.extensions.create<KiteSsotIosExtension>("ios").apply {
-            targetNames.convention(emptyList())
-            plistConflictPolicy.convention(PlistConflictPolicy.FAIL)
+        extAware.extensions.create<KiteSsotModulesExtension>("modules").apply {
+            androidApps.convention(emptyList())
         }
-        extAware.extensions.create<KiteSsotAndroidExtension>("android")
-        extAware.extensions.create<KiteSsotWebExtension>("web").apply {
-            generateIoWorker.convention(false)
-            ioWorkerPackage.convention("kitessot.generated")
+        extAware.extensions.create<KiteSsotPropagateExtension>("propagate")
+        extAware.extensions.create<KiteSsotAndroidExtension>("android").apply {
+            rebuild.convention(0)
+        }
+        val iosExtension = extAware.extensions.create<KiteSsotIosExtension>("ios").apply {
+            rebuild.convention(0)
+        }
+        (iosExtension as ExtensionAware).extensions.create<KiteSsotIosSyncExtension>("sync").apply {
+            targets.convention(emptyList())
+        }
+        extAware.extensions.create<KiteSsotLogoExtension>("logo")
+        extAware.extensions.create<KiteSsotNativeOptInsExtension>("nativeOptIns").apply {
+            builtIns.convention(true)
+            markers.convention(emptyList())
+            projects.convention(emptyList())
+        }
+        val webExtension = extAware.extensions.create<KiteSsotWebExtension>("web")
+        (webExtension as ExtensionAware).extensions.create<KiteSsotIoWorkerExtension>("ioWorker").apply {
+            targets.convention(emptyList())
+            projects.convention(emptyList())
         }
         extAware.extensions.create<KiteSsotBuildConfigExtension>("buildConfig").apply {
-            enabled.convention(false)
-            packageName.convention("kitessot.generated")
+            packageName.convention(KiteSsotExtension.DEFAULT_GENERATED_PACKAGE)
             className.convention("BuildConfig")
             includeIdentity.convention(true)
             allowBuildCache.convention(false)
             fields.convention(emptyList())
+        }
+
+        // Path and locale defaults are set on the pre-3.0 properties on purpose:
+        // each resolution chain reads the 3.0 block first and only falls through
+        // to these, so a convention here can never shadow a 3.0 value.
+        ext.apply {
+            iosPbxprojFile.convention(
+                target.layout.projectDirectory.file("iosApp/iosApp.xcodeproj/project.pbxproj"),
+            )
+            iosPodfileFile.convention(target.layout.projectDirectory.file("iosApp/Podfile"))
+            iosInfoPlistFile.convention(target.layout.projectDirectory.file("iosApp/iosApp/Info.plist"))
+            iosAppDirectory.convention(target.layout.projectDirectory.dir("iosApp"))
+            iosAppIconDirectory.convention(
+                target.layout.projectDirectory.dir("iosApp/iosApp/Assets.xcassets/AppIcon.appiconset"),
+            )
+            // Auto-detect locales from the selected Compose resources directory's values-* children.
+            locales.convention(target.provider { autoDetectLocales(target, ext) })
         }
 
         // Keep the public DSL input immutable after root evaluation while still
@@ -137,100 +134,90 @@ class KiteSsotPlugin : Plugin<Project> {
                 return@afterEvaluate
             }
             // Validate the resolved model once, before any explicit mutation task runs.
-            val buildConfigIdentity = ext.buildConfig.enabled.get() && ext.buildConfig.includeIdentity.get()
-            val usesAppName = ext.propagateAppName.get() || buildConfigIdentity
-            val usesBundleId = ext.propagateBundleId.get() || buildConfigIdentity
-            val usesVersion = ext.propagateVersion.get() || buildConfigIdentity
-            val usesLocaleModel = ext.propagateLocaleList.get() || ext.filterAndroidResources.get() || buildConfigIdentity
-            val usesSharedSelection = ext.buildConfig.enabled.get() || ext.propagateInteropOptIns.get() ||
-                ext.web.generateIoWorker.get() || usesLocaleModel
+            val buildConfigIdentity = ext.effectiveBuildConfigEnabled.get() && ext.buildConfig.includeIdentity.get()
+            val usesAppName = ext.effectivePropagateAppName.get() || buildConfigIdentity
+            val usesBundleId = ext.effectivePropagateBundleId.get() || buildConfigIdentity
+            val usesVersion = ext.effectivePropagateVersion.get() || buildConfigIdentity
+            val usesLocaleModel = ext.effectivePropagateLocales.get() || ext.effectiveFilterAndroidResources.get() || buildConfigIdentity
+            val usesSharedSelection = ext.effectiveBuildConfigEnabled.get() || ext.effectiveNativeOptInsEnabled.get() ||
+                ext.effectiveIoWorkerEnabled.get() || usesLocaleModel
             val usesAndroidApplicationSelection =
-                (ext.propagateAppName.get() && ext.appName.isPresent) ||
-                    (ext.propagateBundleId.get() && ext.bundleIdBase.isPresent) ||
-                    (ext.propagateVersion.get() &&
-                        (ext.versionName.isPresent || ext.versionCodeOverride.isPresent)) ||
-                    ext.filterAndroidResources.get() || ext.propagateLogo.get() ||
-                    ext.cleanupLegacyLogoArtifacts.get()
-            if (usesAppName) ext.appName.orNull?.let(::validateAppName)
-            if (usesVersion) ext.versionName.orNull?.let(::validateVersionName)
-            if ((ext.propagateVersion.get() || buildConfigIdentity) &&
-                ext.versionName.isPresent && !ext.versionCodeOverride.isPresent
+                (ext.effectivePropagateAppName.get() && ext.effectiveAppName.isPresent) ||
+                    (ext.effectivePropagateBundleId.get() && ext.effectiveAppId.isPresent) ||
+                    (ext.effectivePropagateVersion.get() &&
+                        (ext.effectiveVersion.isPresent || ext.effectiveAndroidVersionCode.isPresent)) ||
+                    ext.effectiveFilterAndroidResources.get() || ext.effectivePropagateLogo.get() ||
+                    ext.effectiveTakeOverLegacyIcons.get()
+            if (usesAppName) ext.effectiveAppName.orNull?.let(::validateAppName)
+            if (usesVersion) ext.effectiveVersion.orNull?.let(::validateVersionName)
+            if ((ext.effectivePropagateVersion.get() || buildConfigIdentity) &&
+                ext.effectiveVersion.isPresent && !ext.effectiveAndroidVersionCode.isPresent
             ) {
-                deriveVersionCode(ext.versionName.get())
+                ext.effectiveAndroidVersionCode.get()
             }
-            if (usesVersion) ext.versionCodeOverride.orNull?.let(::validateVersionCode)
-            if (usesBundleId && ext.bundleIdBase.isPresent) {
+            if (usesVersion) ext.effectiveAndroidVersionCode.orNull?.let(::validateVersionCode)
+            if (usesBundleId && ext.effectiveAppId.isPresent) {
                 validateAndroidApplicationId(ext.androidApplicationId.get())
                 validateAppleBundleId(ext.iosBundleId.get())
             }
-            if (ext.syncIos.get() && ext.propagateVersion.get()) {
-                ext.iosMarketingVersion.orNull?.let(::validateAppleMarketingVersion)
-                ext.iosBuildNumber.orNull?.let(::validateAppleBuildNumber)
+            if (ext.effectiveSyncIos.get() && ext.effectivePropagateVersion.get()) {
+                ext.effectiveIosMarketingVersion.orNull?.let(::validateAppleMarketingVersion)
+                ext.effectiveIosBuildNumber.orNull?.let(::validateAppleBuildNumber)
             }
             if (usesSharedSelection) {
-                ext.resolvedSharedProjectPath.orNull?.let {
-                    validateGradleProjectPath(it, "sharedProjectPath/sharedModule")
+                ext.effectiveSharedProjectPath.orNull?.let {
+                    validateGradleProjectPath(it, "modules { shared }")
                 }
             }
             if (usesAndroidApplicationSelection) {
-                val selectedApplications = ext.androidApplicationProjects.get()
-                selectedApplications.forEach { validateGradleProjectPath(it, "androidApplicationProjects") }
+                val selectedApplications = ext.effectiveAndroidApps.get()
+                selectedApplications.forEach { validateGradleProjectPath(it, "modules { androidApps }") }
                 if (selectedApplications.distinct().size != selectedApplications.size) {
-                    throw GradleException("kiteSsot { androidApplicationProjects } contains duplicate project paths.")
+                    throw GradleException("kiteSsot { modules { androidApps } } contains duplicate project paths.")
                 }
             }
-            if (usesAndroidApplicationSelection) {
-                validateRelativeProjectPath(ext.androidAppModule.get(), "androidAppModule")
-            }
-            if (ext.syncIos.get()) {
-                listOf(
-                    "iosProjectPath" to ext.iosProjectPath.get(),
-                    "iosPodfilePath" to ext.iosPodfilePath.get(),
-                    "iosInfoPlistPath" to ext.iosInfoPlistPath.get(),
-                    "iosAppDir" to ext.iosAppDir.get(),
-                    "iosAppiconsetPath" to ext.iosAppiconsetPath.get(),
-                ).forEach { (name, path) -> validateRelativeProjectPath(path, name) }
-                val iosTargetNames = ext.ios.targetNames.get()
+            if (ext.effectiveSyncIos.get()) {
+                val iosTargetNames = ext.effectiveIosTargets.get()
                 if (iosTargetNames.distinct().size != iosTargetNames.size ||
                     iosTargetNames.any { it.isBlank() || it.any(Char::isISOControl) }
                 ) {
-                    throw GradleException("kiteSsot { ios { targetNames } } must contain unique, non-blank names without controls.")
+                    throw GradleException("kiteSsot { ios { sync { targets } } } must contain unique, non-blank names without controls.")
                 }
-                if (iosTargetNames.size > 1 && ext.propagateBundleId.get() && ext.bundleIdBase.isPresent) {
+                if (iosTargetNames.size > 1 && ext.effectivePropagateBundleId.get() && ext.effectiveAppId.isPresent) {
                     throw GradleException(
                         "kiteSsot refuses to assign one Apple bundle identifier to multiple application targets " +
-                            "(${iosTargetNames.joinToString()}). Select one target or disable propagateBundleId."
+                            "(${iosTargetNames.joinToString()}). Select one target, or set propagate { bundleId = false }."
                     )
                 }
             }
-            ext.javaVersion.orNull?.let(::validateJavaVersion)
-            if (ext.propagateInteropOptIns.get()) {
-                val interopProjects = ext.interopProjectPaths.get()
-                ext.extraOptIns.get().forEach(::validateOptInMarker)
-                interopProjects.forEach { validateGradleProjectPath(it, "interopProjectPaths") }
+            ext.effectiveJvmTarget.orNull?.let(::validateJavaVersion)
+            if (ext.effectiveNativeOptInsEnabled.get()) {
+                val interopProjects = ext.effectiveNativeOptInProjects.get()
+                ext.effectiveNativeOptInMarkers.get().forEach(::validateOptInMarker)
+                interopProjects.forEach { validateGradleProjectPath(it, "nativeOptIns { projects }") }
                 if (interopProjects.distinct().size != interopProjects.size) {
-                    throw GradleException("kiteSsot { interopProjectPaths } contains duplicate project paths.")
+                    throw GradleException("kiteSsot { nativeOptIns { projects } } contains duplicate project paths.")
                 }
             }
             val canonicalLocales = if (usesLocaleModel) ext.canonicalLocales.get() else emptyList()
-            if (ext.filterAndroidResources.get() && canonicalLocales.isEmpty()) {
+            if (ext.effectiveFilterAndroidResources.get() && canonicalLocales.isEmpty()) {
                 throw GradleException(
-                    "kiteSsot filterAndroidResources=true requires at least one locale. " +
+                    "kiteSsot { android { filterResourcesToLocales } } requires at least one locale. " +
                         "Configure locales explicitly or add a supported values-<locale> resource directory."
                 )
             }
-            if (ext.buildConfig.enabled.get() && !ext.resolvedSharedProjectPath.isPresent) {
+            if (ext.effectiveBuildConfigEnabled.get() && !ext.effectiveSharedProjectPath.isPresent) {
                 throw GradleException(
                     "kiteSsot buildConfig is enabled but no shared project is selected. Set " +
-                        "sharedProjectPath = \":shared\" (preferred) or legacy sharedModule = \"shared\"."
+                        "modules { shared = \":shared\" }."
                 )
             }
-            if (ext.buildConfig.enabled.get() && ext.buildConfig.includeIdentity.get()) {
+            if (ext.effectiveBuildConfigEnabled.get() && ext.buildConfig.includeIdentity.get()) {
                 val missing = buildList {
-                    if (!ext.appName.isPresent) add("appName")
-                    if (!ext.versionName.isPresent) add("versionName")
-                    if (!ext.versionCode.isPresent) add("versionName or versionCodeOverride")
-                    if (!ext.bundleIdBase.isPresent) add("bundleIdBase")
+                    if (!ext.effectiveAppName.isPresent) add("appName")
+                    if (!ext.effectiveVersion.isPresent) add("version")
+                    if (!ext.effectiveAndroidVersionCode.isPresent) add("version or android { versionCode }")
+                    if (!ext.effectiveAppId.isPresent) add("appId")
                 }
                 if (missing.isNotEmpty()) {
                     throw GradleException(
@@ -239,57 +226,58 @@ class KiteSsotPlugin : Plugin<Project> {
                     )
                 }
             }
-            if (ext.syncIos.get() && ext.propagateSharedModule.get()) {
-                if (!ext.resolvedIosSharedModuleName.isPresent || !ext.resolvedIosPreviousSharedModuleName.isPresent) {
+            if (ext.effectiveSyncIos.get() && ext.effectivePropagateSharedModule.get()) {
+                if (!ext.effectiveIosSharedModuleName.isPresent || !ext.effectiveIosPreviousSharedModuleName.isPresent) {
                     throw GradleException(
-                        "kiteSsot shared-module migration requires both iosSharedModuleName (new) and " +
-                            "iosPreviousSharedModuleName (old). Automatic Pod/Swift rename inference is disabled."
+                        "kiteSsot shared-module migration needs both names. Call " +
+                            "ios { sync { renameSharedModule(from = \"old\", to = \"new\") } }. " +
+                            "Automatic Pod/Swift rename inference is disabled."
                     )
                 }
                 runCatching {
-                    requireSwiftModuleIdentifier(ext.resolvedIosSharedModuleName.get(), "iosSharedModuleName")
-                    requireSwiftModuleIdentifier(ext.resolvedIosPreviousSharedModuleName.get(), "iosPreviousSharedModuleName")
+                    requireSwiftModuleIdentifier(ext.effectiveIosSharedModuleName.get(), "renameSharedModule(to)")
+                    requireSwiftModuleIdentifier(ext.effectiveIosPreviousSharedModuleName.get(), "renameSharedModule(from)")
                 }.getOrElse { failure ->
                     throw GradleException(failure.message ?: "Invalid iOS shared-module migration identifier", failure)
                 }
             }
             // Safe-zone ratio sanity.
-            if (ext.propagateLogo.get() && ext.appLogoAndroidSafeZoneRatio.isPresent) {
-                validateLogoSafeZoneRatio(ext.appLogoAndroidSafeZoneRatio.get())
+            if (ext.effectivePropagateLogo.get() && ext.effectiveLogoSafeZone.isPresent) {
+                validateLogoSafeZoneRatio(ext.effectiveLogoSafeZone.get())
             }
             // Logo: FG must be paired with exactly one BG source (PNG or color).
             // Only validate when logo propagation is on, otherwise a stray FG with
             // propagateLogo = false shouldn't fail the build.
-            if (ext.propagateLogo.get()) {
-                val fgSet = ext.appLogoPngForeground.isPresent
-                val bgSet = ext.appLogoPngBackground.isPresent
-                val bgColorSet = ext.appLogoBackgroundColor.isPresent
+            if (ext.effectivePropagateLogo.get()) {
+                val fgSet = ext.effectiveLogoForeground.isPresent
+                val bgSet = ext.effectiveLogoBackground.isPresent
+                val bgColorSet = ext.effectiveLogoBackgroundColor.isPresent
                 if (!fgSet && !bgSet && !bgColorSet) {
                     throw GradleException(
-                        "kiteSsot propagateLogo=true requires appLogoPngForeground plus exactly one of " +
-                            "appLogoPngBackground or appLogoBackgroundColor."
+                        "kiteSsot { logo { } } requires foreground plus exactly one of " +
+                            "background or backgroundColor."
                     )
                 }
                 if (bgSet && bgColorSet) {
                     throw GradleException(
-                        "kiteSsot { appLogoPngBackground } and { appLogoBackgroundColor } are mutually " +
-                                "exclusive. Set exactly one."
+                        "kiteSsot { logo { background } } and { logo { backgroundColor } } are " +
+                                "mutually exclusive. Set exactly one."
                     )
                 }
                 if (fgSet && !bgSet && !bgColorSet) {
                     throw GradleException(
-                        "kiteSsot { appLogoPngForeground } is set but no background. Set either " +
-                                "appLogoPngBackground or appLogoBackgroundColor."
+                        "kiteSsot { logo { foreground } } is set but no background. Set either " +
+                                "logo { background } or logo { backgroundColor }."
                     )
                 }
                 if (!fgSet && (bgSet || bgColorSet)) {
                     throw GradleException(
-                        "kiteSsot background is set without a foreground. Set appLogoPngForeground, " +
-                                "or remove the background."
+                        "kiteSsot { logo } has a background but no foreground. Set " +
+                                "logo { foreground }, or remove the background."
                     )
                 }
-                if (bgColorSet) validateLogoBackgroundColorHex(ext.appLogoBackgroundColor.get())
-                if (ext.syncIos.get()) {
+                if (bgColorSet) validateLogoBackgroundColorHex(ext.effectiveLogoBackgroundColor.get())
+                if (ext.effectiveSyncIos.get()) {
                     val deploymentTarget = ext.ios.deploymentTarget.orNull ?: throw GradleException(
                         "kiteSsot universal iOS AppIcon propagation requires ios.deploymentTarget >= 12.0 " +
                             "and Xcode 14 or newer."
@@ -301,13 +289,13 @@ class KiteSsotPlugin : Plugin<Project> {
             // Legacy takeover is validated as part of the Android installer's
             // transaction. The standalone cleanup task remains available for an
             // explicitly requested one-shot recovery workflow.
-            if (ext.cleanupLegacyLogoArtifacts.get()) {
-                if (!ext.propagateLogo.get() || !ext.appLogoPngForeground.isPresent ||
-                    (!ext.appLogoPngBackground.isPresent && !ext.appLogoBackgroundColor.isPresent)
+            if (ext.effectiveTakeOverLegacyIcons.get()) {
+                if (!ext.effectivePropagateLogo.get() || !ext.effectiveLogoForeground.isPresent ||
+                    (!ext.effectiveLogoBackground.isPresent && !ext.effectiveLogoBackgroundColor.isPresent)
                 ) {
                     throw GradleException(
-                        "cleanupLegacyLogoArtifacts requires an enabled, complete replacement logo plan. " +
-                            "Set propagateLogo=true plus foreground and exactly one background."
+                        "kiteSsot { logo { takeOverLegacyIcons } } requires a complete replacement " +
+                            "logo plan: a foreground plus exactly one background."
                     )
                 }
             }
@@ -384,7 +372,7 @@ class KiteSsotPlugin : Plugin<Project> {
                     // there. wireWebIoWorker snapshots targets (unlike the lazy matching{}
                     // hooks above), so defer it to afterEvaluate.
                     consumerProject.afterEvaluate {
-                        ext.javaVersion.orNull?.let { javaVersion ->
+                        ext.effectiveJvmTarget.orNull?.let { javaVersion ->
                             val targetVersion = org.gradle.api.JavaVersion
                                 .toVersion(validateJavaVersion(javaVersion))
                                 .toString()
@@ -404,7 +392,7 @@ class KiteSsotPlugin : Plugin<Project> {
                         // See the KMP branch above.
                     } else if (kgpAdaptersUsable) {
                         consumerProject.afterEvaluate {
-                            ext.javaVersion.orNull?.let { javaVersion ->
+                            ext.effectiveJvmTarget.orNull?.let { javaVersion ->
                                 val targetVersion = org.gradle.api.JavaVersion
                                     .toVersion(validateJavaVersion(javaVersion))
                                     .toString()
@@ -419,20 +407,18 @@ class KiteSsotPlugin : Plugin<Project> {
         }
 
         target.gradle.projectsEvaluated {
-            val diagnosticSelection = runCatching { ext.androidApplicationProjects.get() }.getOrDefault(emptyList())
+            val diagnosticSelection = runCatching { ext.effectiveAndroidApps.get() }.getOrDefault(emptyList())
             val diagnosticApplications = diagnosticSelection.ifEmpty { detectedAndroidApplications.toList() }
             val detectedDirectories = diagnosticApplications.mapNotNull { path ->
                 target.findProject(path)?.layout?.projectDirectory?.asFile
             }
-            val explicitAndroidDirectory = runCatching { ext.androidAppDirectory.asFile.orNull }.getOrNull()
-            val legacyDirectory = runCatching {
-                target.layout.projectDirectory.dir(ext.androidAppModule.get()).asFile
-            }.getOrNull()
+            val explicitAndroidDirectory =
+                runCatching { ext.effectiveAndroidAppDirectory.orNull?.asFile }.getOrNull()
             val manifestDirectories = detectedDirectories.ifEmpty {
-                listOfNotNull(explicitAndroidDirectory ?: legacyDirectory)
+                listOfNotNull(explicitAndroidDirectory)
             }
             val resourceDirectories = listOfNotNull(explicitAndroidDirectory).ifEmpty {
-                detectedDirectories.ifEmpty { listOfNotNull(legacyDirectory) }
+                detectedDirectories
             }
             verifyTask.configure {
                 androidApplicationProjects.set(diagnosticApplications)
@@ -440,26 +426,26 @@ class KiteSsotPlugin : Plugin<Project> {
             }
             fun diagnosticBoolean(value: () -> Boolean): Boolean = runCatching(value).getOrDefault(false)
             val diagnosticNeedsAndroidIntegration = detectedAndroidProjects.isNotEmpty() && (
-                diagnosticBoolean { ext.propagateAppName.get() && ext.appName.isPresent } ||
-                    diagnosticBoolean { ext.propagateBundleId.get() && ext.bundleIdBase.isPresent } ||
+                diagnosticBoolean { ext.effectivePropagateAppName.get() && ext.effectiveAppName.isPresent } ||
+                    diagnosticBoolean { ext.effectivePropagateBundleId.get() && ext.effectiveAppId.isPresent } ||
                     diagnosticBoolean {
-                        ext.propagateVersion.get() &&
-                            (ext.versionName.isPresent || ext.versionCodeOverride.isPresent)
+                        ext.effectivePropagateVersion.get() &&
+                            (ext.effectiveVersion.isPresent || ext.effectiveAndroidVersionCode.isPresent)
                     } ||
-                    diagnosticBoolean { ext.propagateAndroidSdk.get() && listOf(
+                    diagnosticBoolean { ext.effectiveApplySdkLevels.get() && listOf(
                         ext.android.compileSdk,
                         ext.android.minSdk,
                         ext.android.targetSdk,
-                        ext.android.ndkVersion,
+                        ext.android.ndk,
                     ).any { it.isPresent } } ||
-                    diagnosticBoolean { ext.javaVersion.isPresent } ||
-                    diagnosticBoolean { ext.filterAndroidResources.get() }
+                    diagnosticBoolean { ext.effectiveJvmTarget.isPresent } ||
+                    diagnosticBoolean { ext.effectiveFilterAndroidResources.get() }
                 )
             val diagnosticNeedsKgpIntegration =
-                diagnosticBoolean { ext.propagateInteropOptIns.get() } ||
-                    diagnosticBoolean { ext.web.generateIoWorker.get() } ||
-                    diagnosticBoolean { ext.buildConfig.enabled.get() } ||
-                    (diagnosticBoolean { ext.javaVersion.isPresent } &&
+                diagnosticBoolean { ext.effectiveNativeOptInsEnabled.get() } ||
+                    diagnosticBoolean { ext.effectiveIoWorkerEnabled.get() } ||
+                    diagnosticBoolean { ext.effectiveBuildConfigEnabled.get() } ||
+                    (diagnosticBoolean { ext.effectiveJvmTarget.isPresent } &&
                         (detectedKmpProjects.isNotEmpty() || detectedKotlinJvmProjects.isNotEmpty()))
             listOf(doctorTask, checkTask).forEach { diagnosticTask ->
                 diagnosticTask.configure {
@@ -482,29 +468,29 @@ class KiteSsotPlugin : Plugin<Project> {
             if (isResilientDiagnosticInvocation(target)) {
                 return@projectsEvaluated
             }
-            if (detectedAndroidProjects.isNotEmpty() && ext.propagateAndroidSdk.get()) {
+            if (detectedAndroidProjects.isNotEmpty() && ext.effectiveApplySdkLevels.get()) {
                 validateSdkLevels(
                     ext.android.compileSdk.orNull,
                     ext.android.minSdk.orNull,
                     ext.android.targetSdk.orNull,
                 )
-                ext.android.ndkVersion.orNull?.let(::validateNdkVersion)
+                ext.android.ndk.orNull?.let(::validateNdkVersion)
             }
-            if (detectedAndroidApplications.isNotEmpty() && ext.propagateVersion.get()) {
+            if (detectedAndroidApplications.isNotEmpty() && ext.effectivePropagateVersion.get()) {
                 ext.android.publishedVersionCode.orNull?.let { published ->
-                    validatePublishedVersionCode(ext.versionCode.orNull, published)
+                    validatePublishedVersionCode(ext.effectiveAndroidVersionCode.orNull, published)
                 }
             }
             val needsApplicationSelection =
-                (ext.propagateAppName.get() && ext.appName.isPresent) ||
-                    (ext.propagateBundleId.get() && ext.bundleIdBase.isPresent) ||
-                    (ext.propagateVersion.get() &&
-                        (ext.versionName.isPresent || ext.versionCodeOverride.isPresent)) ||
-                    ext.filterAndroidResources.get()
-            val usesApplicationSelection = needsApplicationSelection || ext.propagateLogo.get() ||
-                ext.cleanupLegacyLogoArtifacts.get()
+                (ext.effectivePropagateAppName.get() && ext.effectiveAppName.isPresent) ||
+                    (ext.effectivePropagateBundleId.get() && ext.effectiveAppId.isPresent) ||
+                    (ext.effectivePropagateVersion.get() &&
+                        (ext.effectiveVersion.isPresent || ext.effectiveAndroidVersionCode.isPresent)) ||
+                    ext.effectiveFilterAndroidResources.get()
+            val usesApplicationSelection = needsApplicationSelection || ext.effectivePropagateLogo.get() ||
+                ext.effectiveTakeOverLegacyIcons.get()
             val selectedApplications = if (usesApplicationSelection) {
-                ext.androidApplicationProjects.get()
+                ext.effectiveAndroidApps.get()
             } else {
                 emptyList()
             }
@@ -513,55 +499,53 @@ class KiteSsotPlugin : Plugin<Project> {
                     throw GradleException(
                         "kiteSsot found multiple Android application projects while app-scoped values are enabled: " +
                             "${detectedAndroidApplications.joinToString()}. Select the intended targets " +
-                            "explicitly with androidApplicationProjects.add(\":app\")."
+                            "explicitly with modules { androidApps(\":app\")."
                     )
 
                 selectedApplications.isNotEmpty() -> {
                     val unknown = selectedApplications.toSet() - detectedAndroidApplications
                     if (unknown.isNotEmpty()) {
                         throw GradleException(
-                            "kiteSsot { androidApplicationProjects } contains project paths that do not " +
+                            "kiteSsot { modules { androidApps } } contains project paths that do not " +
                                 "apply com.android.application: ${unknown.sorted().joinToString()}."
                         )
                     }
-                    if (selectedApplications.size > 1 && ext.propagateBundleId.get() && ext.bundleIdBase.isPresent) {
+                    if (selectedApplications.size > 1 && ext.effectivePropagateBundleId.get() && ext.effectiveAppId.isPresent) {
                         throw GradleException(
                             "kiteSsot refuses to assign one Android applicationId to multiple selected apps " +
-                                "(${selectedApplications.joinToString()}). Select one app or disable " +
-                                "propagateBundleId and configure unique ids in each app module."
+                                "(${selectedApplications.joinToString()}). Select one app, or set " +
+                                "propagate { bundleId = false } and give each app module its own id."
                         )
                     }
                 }
             }
 
             val effectiveApplications = selectedApplications.ifEmpty { detectedAndroidApplications.toList() }
-            if ((ext.propagateLogo.get() || ext.cleanupLegacyLogoArtifacts.get()) &&
+            if ((ext.effectivePropagateLogo.get() || ext.effectiveTakeOverLegacyIcons.get()) &&
                 effectiveApplications.size > 1
             ) {
                 throw GradleException(
                     "kiteSsot Android logo installation has one output sink but resolved multiple " +
                         "Android application projects: ${effectiveApplications.joinToString()}. " +
-                        "Select exactly one with androidApplicationProjects.add(\":app\")."
+                        "Select exactly one with modules { androidApps(\":app\")."
                 )
             }
 
             val resolvedApplicationPath = selectedApplications.singleOrNull()
                 ?: detectedAndroidApplications.singleOrNull()
-            val detectedOrLegacyDirectory = resolvedApplicationPath
+            // Fall back to the root directory rather than guessing a folder name:
+            // 3.0 detects the application project instead of assuming "androidApp".
+            val detectedDirectory = resolvedApplicationPath
                 ?.let(target::findProject)
                 ?.layout
                 ?.projectDirectory
-                ?: if (usesApplicationSelection) {
-                    target.layout.projectDirectory.dir(ext.androidAppModule.get())
-                } else {
-                    target.layout.projectDirectory
-                }
-            resolvedAndroidAppDirectory.set(ext.androidAppDirectory.orElse(detectedOrLegacyDirectory))
+                ?: target.layout.projectDirectory
+            resolvedAndroidAppDirectory.set(ext.effectiveAndroidAppDirectory.orElse(detectedDirectory))
             resolvedAndroidAppDirectory.finalizeValue()
 
-            val needsKgpIntegration = ext.propagateInteropOptIns.get() ||
-                ext.web.generateIoWorker.get() || ext.buildConfig.enabled.get() ||
-                (ext.javaVersion.isPresent &&
+            val needsKgpIntegration = ext.effectiveNativeOptInsEnabled.get() ||
+                ext.effectiveIoWorkerEnabled.get() || ext.effectiveBuildConfigEnabled.get() ||
+                (ext.effectiveJvmTarget.isPresent &&
                     (detectedKmpProjects.isNotEmpty() || detectedKotlinJvmProjects.isNotEmpty()))
             doctorTask.configure { kgpRequired.set(needsKgpIntegration) }
             checkTask.configure { kgpRequired.set(needsKgpIntegration) }
@@ -576,17 +560,17 @@ class KiteSsotPlugin : Plugin<Project> {
             }
 
             val needsAndroidIntegration = detectedAndroidProjects.isNotEmpty() && (
-                (ext.propagateAppName.get() && ext.appName.isPresent) ||
-                    (ext.propagateBundleId.get() && ext.bundleIdBase.isPresent) ||
-                    (ext.propagateVersion.get() &&
-                        (ext.versionName.isPresent || ext.versionCodeOverride.isPresent)) ||
-                    (ext.propagateAndroidSdk.get() && listOf(
+                (ext.effectivePropagateAppName.get() && ext.effectiveAppName.isPresent) ||
+                    (ext.effectivePropagateBundleId.get() && ext.effectiveAppId.isPresent) ||
+                    (ext.effectivePropagateVersion.get() &&
+                        (ext.effectiveVersion.isPresent || ext.effectiveAndroidVersionCode.isPresent)) ||
+                    (ext.effectiveApplySdkLevels.get() && listOf(
                         ext.android.compileSdk,
                         ext.android.minSdk,
                         ext.android.targetSdk,
-                        ext.android.ndkVersion,
+                        ext.android.ndk,
                     ).any { it.isPresent }) ||
-                    ext.javaVersion.isPresent || ext.filterAndroidResources.get()
+                    ext.effectiveJvmTarget.isPresent || ext.effectiveFilterAndroidResources.get()
                 )
             if (needsAndroidIntegration && androidProjectsWithoutSharedClassloader.isNotEmpty()) {
                 throw GradleException(
@@ -609,7 +593,7 @@ class KiteSsotPlugin : Plugin<Project> {
                     )
                 }
             }
-            val needsKmpAndroidSdk = ext.propagateAndroidSdk.get() &&
+            val needsKmpAndroidSdk = ext.effectiveApplySdkLevels.get() &&
                 (ext.android.compileSdk.isPresent || ext.android.minSdk.isPresent)
             if (needsKmpAndroidSdk && kmpAndroidProjectsWithoutComponents.isNotEmpty()) {
                 throw GradleException(
@@ -632,21 +616,21 @@ class KiteSsotPlugin : Plugin<Project> {
                 }
             }
 
-            val selectedSharedProject = ext.resolvedSharedProjectPath.orNull
-            if (ext.buildConfig.enabled.get() && selectedSharedProject !in detectedKmpProjects) {
+            val selectedSharedProject = ext.effectiveSharedProjectPath.orNull
+            if (ext.effectiveBuildConfigEnabled.get() && selectedSharedProject !in detectedKmpProjects) {
                 throw GradleException(
                     "kiteSsot buildConfig project '$selectedSharedProject' does not apply " +
                         "org.jetbrains.kotlin.multiplatform."
                 )
             }
-            if (ext.propagateInteropOptIns.get()) {
-                val interopProjects = ext.interopProjectPaths.get().ifEmpty {
+            if (ext.effectiveNativeOptInsEnabled.get()) {
+                val interopProjects = ext.effectiveNativeOptInProjects.get().ifEmpty {
                     listOfNotNull(selectedSharedProject)
                 }
                 if (interopProjects.isEmpty()) {
                     throw GradleException(
                         "kiteSsot interop opt-ins need an explicit KMP scope. Set " +
-                            "interopProjectPaths.add(\":shared\") or sharedProjectPath."
+                            "nativeOptIns { projects(\":shared\") or sharedProjectPath."
                     )
                 }
                 val invalid = interopProjects.toSet() - detectedKmpProjects
@@ -657,8 +641,8 @@ class KiteSsotPlugin : Plugin<Project> {
                     )
                 }
             }
-            if (ext.web.generateIoWorker.get()) {
-                val webProjects = ext.web.projectPaths.get()
+            if (ext.effectiveIoWorkerEnabled.get()) {
+                val webProjects = ext.effectiveIoWorkerProjects.get()
                 webProjects.forEach { validateGradleProjectPath(it, "web.projectPaths") }
                 if (webProjects.distinct().size != webProjects.size) {
                     throw GradleException("kiteSsot { web { projectPaths } } contains duplicate project paths.")
@@ -694,11 +678,11 @@ class KiteSsotPlugin : Plugin<Project> {
     private fun propagateInteropOptIns(project: Project, ext: KiteSsotExtension) {
         val kmp = project.extensions.findByType(KotlinMultiplatformExtension::class.java) ?: return
         val markers = project.provider {
-            val selectedProjects = ext.interopProjectPaths.get().ifEmpty {
-                listOfNotNull(ext.resolvedSharedProjectPath.orNull)
+            val selectedProjects = ext.effectiveNativeOptInProjects.get().ifEmpty {
+                listOfNotNull(ext.effectiveSharedProjectPath.orNull)
             }
-            if (ext.propagateInteropOptIns.get() && project.path in selectedProjects) {
-                interopOptIns(ext.extraOptIns.get())
+            if (ext.effectiveNativeOptInsEnabled.get() && project.path in selectedProjects) {
+                interopOptIns(ext.effectiveNativeOptInMarkers.get())
             } else {
                 emptyList()
             }
@@ -721,13 +705,13 @@ class KiteSsotPlugin : Plugin<Project> {
      * are rejected.
      */
     private fun wireWebIoWorker(project: Project, ext: KiteSsotExtension) {
-        if (!ext.web.generateIoWorker.get()) return
-        val selectedProjects = ext.web.projectPaths.get().ifEmpty {
-            listOfNotNull(ext.resolvedSharedProjectPath.orNull)
+        if (!ext.effectiveIoWorkerEnabled.get()) return
+        val selectedProjects = ext.effectiveIoWorkerProjects.get().ifEmpty {
+            listOfNotNull(ext.effectiveSharedProjectPath.orNull)
         }
         if (project.path !in selectedProjects) return
         val kmp = project.extensions.findByType(KotlinMultiplatformExtension::class.java) ?: return
-        val requestedNames = ext.web.browserTargetNames.get()
+        val requestedNames = ext.effectiveIoWorkerTargets.get()
         if (requestedNames.isEmpty()) {
             throw GradleException(
                 "kiteSsot web worker generation is enabled for ${project.path}, but no browser target " +
@@ -752,7 +736,7 @@ class KiteSsotPlugin : Plugin<Project> {
 
         // Validate the destination package early. A malformed value would otherwise
         // appear as a confusing compile error inside the generated file.
-        val pkg = ext.web.ioWorkerPackage.get()
+        val pkg = ext.effectiveIoWorkerPackage.get()
         invalidWorkerPackageReason(pkg)?.let {
             throw GradleException("kiteSsot { web { ioWorkerPackage } } \"$pkg\" $it")
         }
@@ -765,9 +749,9 @@ class KiteSsotPlugin : Plugin<Project> {
             val capital = name.replaceFirstChar { it.uppercase() }
             val genDir = project.layout.buildDirectory.dir("generated/kitessot/${name}Main/kotlin")
             val genTask = project.tasks.register<GenerateIoWorkerTask>("generateKiteSsotIoWorker$capital") {
-                workerPackage.set(ext.web.ioWorkerPackage)
+                workerPackage.set(ext.effectiveIoWorkerPackage)
                 outputDir.set(genDir)
-                dryRun.set(ext.dryRun)
+                dryRun.set(ext.effectiveDryRun)
             }
             // srcDir(taskProvider.flatMap { output }) carries the task dependency to
             // EVERY consumer of the source set (compile, sourcesJar, dokka, IDE
@@ -788,8 +772,8 @@ class KiteSsotPlugin : Plugin<Project> {
      */
     private fun wireBuildConfig(project: Project, ext: KiteSsotExtension) {
         val cfg = ext.buildConfig
-        if (!cfg.enabled.get()) return
-        if (!ext.resolvedSharedProjectPath.isPresent || project.path != ext.resolvedSharedProjectPath.get()) return
+        if (!ext.effectiveBuildConfigEnabled.get()) return
+        if (!ext.effectiveSharedProjectPath.isPresent || project.path != ext.effectiveSharedProjectPath.get()) return
         val kmp = project.extensions.findByType(KotlinMultiplatformExtension::class.java) ?: return
 
         val pkg = cfg.packageName.get()
@@ -809,9 +793,9 @@ class KiteSsotPlugin : Plugin<Project> {
             className.set(cfg.className)
             includeIdentity.set(cfg.includeIdentity)
             allowBuildCache.set(cfg.allowBuildCache)
-            appName.set(ext.appName.orElse(""))
-            versionName.set(ext.versionName.orElse(""))
-            versionCode.set(ext.versionCode.orElse(0))
+            appName.set(ext.effectiveAppName.orElse(""))
+            versionName.set(ext.effectiveVersion.orElse(""))
+            versionCode.set(ext.effectiveAndroidVersionCode.orElse(0))
             androidApplicationId.set(ext.androidApplicationId.orElse(""))
             iosBundleId.set(ext.iosBundleId.orElse(""))
             locales.set(ext.canonicalLocales)
@@ -820,9 +804,9 @@ class KiteSsotPlugin : Plugin<Project> {
                     emptyList()
                 } else {
                     listOf(
-                        ext.appName.orNull.orEmpty(),
-                        ext.versionName.orNull.orEmpty(),
-                        ext.versionCode.orNull?.toString().orEmpty(),
+                        ext.effectiveAppName.orNull.orEmpty(),
+                        ext.effectiveVersion.orNull.orEmpty(),
+                        ext.effectiveAndroidVersionCode.orNull?.toString().orEmpty(),
                         ext.androidApplicationId.orNull.orEmpty(),
                         ext.iosBundleId.orNull.orEmpty(),
                     ) + ext.canonicalLocales.get()
@@ -830,7 +814,7 @@ class KiteSsotPlugin : Plugin<Project> {
             })
             customFields.set(cfg.fields)
             outputDir.set(genDir)
-            dryRun.set(ext.dryRun)
+            dryRun.set(ext.effectiveDryRun)
         }
         kmp.sourceSets.matching { it.name == "commonMain" }.configureEach {
             kotlin.srcDir(genTask.flatMap { it.outputDir })
@@ -841,9 +825,9 @@ class KiteSsotPlugin : Plugin<Project> {
 
     private fun autoDetectLocales(root: Project, ext: KiteSsotExtension): List<String> {
         val composeRes = when {
-            ext.composeResourcesDirectory.isPresent -> ext.composeResourcesDirectory.get().asFile
-            ext.resolvedSharedProjectPath.isPresent -> {
-                val sharedProject = root.findProject(ext.resolvedSharedProjectPath.get()) ?: return emptyList()
+            ext.effectiveComposeResources.isPresent -> ext.effectiveComposeResources.get().asFile
+            ext.effectiveSharedProjectPath.isPresent -> {
+                val sharedProject = root.findProject(ext.effectiveSharedProjectPath.get()) ?: return emptyList()
                 sharedProject.projectDir.resolve("src/commonMain/composeResources")
             }
             else -> return emptyList()
@@ -858,21 +842,21 @@ class KiteSsotPlugin : Plugin<Project> {
         ext: KiteSsotExtension,
     ): TaskProvider<SanitizeIosProjectTask> =
         root.tasks.register<SanitizeIosProjectTask>("kiteSsotSanitizeIosProject") {
-            onlyIf { ext.syncIos.get() && ext.sanitizeIosProject.get() }
+            onlyIf { ext.effectiveSyncIos.get() && ext.effectiveSanitizeIosProject.get() }
             projectRootDir.set(root.layout.projectDirectory)
-            infoPlistFile.set(ext.iosInfoPlistFile)
-            propagateAppName.set(ext.appName.map { ext.propagateAppName.get() }.orElse(false))
+            infoPlistFile.set(ext.effectiveIosInfoPlist)
+            propagateAppName.set(ext.effectiveAppName.map { ext.effectivePropagateAppName.get() }.orElse(false))
             propagateMarketingVersion.set(
-                ext.iosMarketingVersion.map { ext.propagateVersion.get() }.orElse(false)
+                ext.effectiveIosMarketingVersion.map { ext.effectivePropagateVersion.get() }.orElse(false)
             )
             propagateBuildNumber.set(
-                ext.iosBuildNumber.map { ext.propagateVersion.get() }.orElse(false)
+                ext.effectiveIosBuildNumber.map { ext.effectivePropagateVersion.get() }.orElse(false)
             )
-            usesNonExemptEncryption.set(ext.ios.usesNonExemptEncryption)
-            proMotion120Hz.set(ext.ios.proMotion120Hz)
-            conflictPolicy.set(ext.ios.plistConflictPolicy)
-            dryRun.set(ext.dryRun)
-            backup.set(ext.backupBeforeRewrite)
+            usesNonExemptEncryption.set(ext.effectiveNonExemptEncryption)
+            proMotion120Hz.set(ext.effectiveProMotion)
+            conflictPolicy.set(ext.effectivePlistConflictPolicy)
+            dryRun.set(ext.effectiveDryRun)
+            backup.set(ext.effectiveBackups)
         }
 
     private fun registerSyncIosTask(
@@ -880,35 +864,35 @@ class KiteSsotPlugin : Plugin<Project> {
         ext: KiteSsotExtension,
     ): TaskProvider<SyncIosConfigTask> =
         root.tasks.register<SyncIosConfigTask>("kiteSsotSyncIosConfig") {
-            onlyIf { ext.syncIos.get() }
+            onlyIf { ext.effectiveSyncIos.get() }
             projectRootDir.set(root.layout.projectDirectory)
-            pbxprojFile.set(ext.iosPbxprojFile)
-            infoPlistFile.set(ext.iosInfoPlistFile)
-            podfile.set(ext.iosPodfileFile)
-            iosAppDir.set(ext.iosAppDirectory)
-            appiconsetDir.set(ext.iosAppIconDirectory)
-            marketingVersion.set(ext.iosMarketingVersion)
-            buildNumber.set(ext.iosBuildNumber)
-            appName.set(ext.appName)
+            pbxprojFile.set(ext.effectiveIosPbxproj)
+            infoPlistFile.set(ext.effectiveIosInfoPlist)
+            podfile.set(ext.effectiveIosPodfile)
+            iosAppDir.set(ext.effectiveIosAppDirectory)
+            appiconsetDir.set(ext.effectiveIosAppIconDirectory)
+            marketingVersion.set(ext.effectiveIosMarketingVersion)
+            buildNumber.set(ext.effectiveIosBuildNumber)
+            appName.set(ext.effectiveAppName)
             bundleId.set(ext.iosBundleId)
             locales.set(ext.canonicalLocales)
-            targetNames.set(ext.ios.targetNames)
-            iosSharedModuleName.set(ext.resolvedIosSharedModuleName)
-            iosPreviousSharedModuleName.set(ext.resolvedIosPreviousSharedModuleName)
-            propagateVersion.set(ext.propagateVersion)
-            propagateAppName.set(ext.appName.map { ext.propagateAppName.get() }.orElse(false))
-            propagateBundleId.set(ext.bundleIdBase.map { ext.propagateBundleId.get() }.orElse(false))
+            targetNames.set(ext.effectiveIosTargets)
+            iosSharedModuleName.set(ext.effectiveIosSharedModuleName)
+            iosPreviousSharedModuleName.set(ext.effectiveIosPreviousSharedModuleName)
+            propagateVersion.set(ext.effectivePropagateVersion)
+            propagateAppName.set(ext.effectiveAppName.map { ext.effectivePropagateAppName.get() }.orElse(false))
+            propagateBundleId.set(ext.effectiveAppId.map { ext.effectivePropagateBundleId.get() }.orElse(false))
             propagateLocaleList.set(
-                ext.canonicalLocales.map { it.isNotEmpty() && ext.propagateLocaleList.get() }
+                ext.canonicalLocales.map { it.isNotEmpty() && ext.effectivePropagateLocales.get() }
             )
-            propagateSharedModule.set(ext.propagateSharedModule)
-            propagateLogo.set(ext.propagateLogo)
-            sanitizeSourcePlist.set(ext.sanitizeIosProject)
-            usesNonExemptEncryption.set(ext.ios.usesNonExemptEncryption)
-            proMotion120Hz.set(ext.ios.proMotion120Hz)
-            plistConflictPolicy.set(ext.ios.plistConflictPolicy)
-            dryRun.set(ext.dryRun)
-            backup.set(ext.backupBeforeRewrite)
+            propagateSharedModule.set(ext.effectivePropagateSharedModule)
+            propagateLogo.set(ext.effectivePropagateLogo)
+            sanitizeSourcePlist.set(ext.effectiveSanitizeIosProject)
+            usesNonExemptEncryption.set(ext.effectiveNonExemptEncryption)
+            proMotion120Hz.set(ext.effectiveProMotion)
+            plistConflictPolicy.set(ext.effectivePlistConflictPolicy)
+            dryRun.set(ext.effectiveDryRun)
+            backup.set(ext.effectiveBackups)
         }
 
     private fun registerSyncIosLogoTask(
@@ -916,15 +900,15 @@ class KiteSsotPlugin : Plugin<Project> {
         ext: KiteSsotExtension,
     ): TaskProvider<SyncIosLogoTask> =
         root.tasks.register<SyncIosLogoTask>("kiteSsotSyncIosLogo") {
-            onlyIf { ext.syncIos.get() && ext.propagateLogo.get() }
-            foregroundPng.set(ext.appLogoPngForeground)
+            onlyIf { ext.effectiveSyncIos.get() && ext.effectivePropagateLogo.get() }
+            foregroundPng.set(ext.effectiveLogoForeground)
             projectRootDir.set(root.layout.projectDirectory)
-            backgroundPng.set(ext.appLogoPngBackground)
-            backgroundColorHex.set(ext.appLogoBackgroundColor)
-            appiconsetDir.set(ext.iosAppIconDirectory)
-            outputFiles.from(ext.iosAppIconDirectory.map { dir -> SyncIosLogoTask.OUTPUT_FILE_NAMES.map { dir.file(it) } })
-            dryRun.set(ext.dryRun)
-            backup.set(ext.backupBeforeRewrite)
+            backgroundPng.set(ext.effectiveLogoBackground)
+            backgroundColorHex.set(ext.effectiveLogoBackgroundColor)
+            appiconsetDir.set(ext.effectiveIosAppIconDirectory)
+            outputFiles.from(ext.effectiveIosAppIconDirectory.map { dir -> SyncIosLogoTask.OUTPUT_FILE_NAMES.map { dir.file(it) } })
+            dryRun.set(ext.effectiveDryRun)
+            backup.set(ext.effectiveBackups)
         }
 
     private fun registerSyncAndroidLogoTask(
@@ -933,15 +917,15 @@ class KiteSsotPlugin : Plugin<Project> {
         resolvedAndroidAppDirectory: org.gradle.api.file.DirectoryProperty,
     ): TaskProvider<SyncAndroidLogoTask> =
         root.tasks.register<SyncAndroidLogoTask>("kiteSsotSyncAndroidLogo") {
-            onlyIf { ext.propagateLogo.get() }
-            foregroundPng.set(ext.appLogoPngForeground)
+            onlyIf { ext.effectivePropagateLogo.get() }
+            foregroundPng.set(ext.effectiveLogoForeground)
             projectRootDir.set(root.layout.projectDirectory)
-            backgroundPng.set(ext.appLogoPngBackground)
-            backgroundColorHex.set(ext.appLogoBackgroundColor)
-            safeZoneRatio.set(ext.appLogoAndroidSafeZoneRatio)
+            backgroundPng.set(ext.effectiveLogoBackground)
+            backgroundColorHex.set(ext.effectiveLogoBackgroundColor)
+            safeZoneRatio.set(ext.effectiveLogoSafeZone)
             emitMonochrome.set(ext.android.compileSdk.map { it >= 33 }.orElse(false))
-            cleanupLegacyArtifacts.set(ext.cleanupLegacyLogoArtifacts)
-            dryRun.set(ext.dryRun)
+            cleanupLegacyArtifacts.set(ext.effectiveTakeOverLegacyIcons)
+            dryRun.set(ext.effectiveDryRun)
             // Resolve lazily: androidAppModule may not be set yet at register time.
             val resDir = resolvedAndroidAppDirectory.dir("src/main/res")
             androidResDir.set(resDir)
@@ -954,34 +938,34 @@ class KiteSsotPlugin : Plugin<Project> {
         resolvedAndroidAppDirectory: org.gradle.api.file.DirectoryProperty,
     ): TaskProvider<CleanupLegacyAppLogoArtifactsTask> =
         root.tasks.register<CleanupLegacyAppLogoArtifactsTask>("kiteSsotCleanupLegacyAppLogoArtifacts") {
-            onlyIf { ext.cleanupLegacyLogoArtifacts.get() }
+            onlyIf { ext.effectiveTakeOverLegacyIcons.get() }
             projectRootDir.set(root.layout.projectDirectory)
-            dryRun.set(ext.dryRun)
+            dryRun.set(ext.effectiveDryRun)
             androidResDir.set(resolvedAndroidAppDirectory.dir("src/main/res"))
         }
 
     private fun registerVerifyTask(root: Project, ext: KiteSsotExtension): TaskProvider<KiteSsotVerifyTask> =
         root.tasks.register<KiteSsotVerifyTask>("kiteSsotVerify") {
-            appName.set(ext.appName)
-            versionName.set(ext.versionName)
-            versionCode.set(ext.versionCode)
+            appName.set(ext.effectiveAppName)
+            versionName.set(ext.effectiveVersion)
+            versionCode.set(ext.effectiveAndroidVersionCode)
             androidApplicationId.set(ext.androidApplicationId)
             iosBundleId.set(ext.iosBundleId)
             locales.set(ext.canonicalLocales)
-            iosSharedModuleName.set(ext.resolvedIosSharedModuleName)
-            pbxprojFile.set(ext.iosPbxprojFile)
-            infoPlistFile.set(ext.iosInfoPlistFile)
-            podfile.set(ext.iosPodfileFile)
+            iosSharedModuleName.set(ext.effectiveIosSharedModuleName)
+            pbxprojFile.set(ext.effectiveIosPbxproj)
+            infoPlistFile.set(ext.effectiveIosInfoPlist)
+            podfile.set(ext.effectiveIosPodfile)
             compileSdk.set(ext.android.compileSdk)
             minSdk.set(ext.android.minSdk)
             targetSdk.set(ext.android.targetSdk)
-            ndkVersion.set(ext.android.ndkVersion)
-            javaVersion.set(ext.javaVersion)
-            propagateInteropOptIns.set(ext.propagateInteropOptIns)
-            generateIoWorker.set(ext.web.generateIoWorker)
-            logoForeground.set(ext.appLogoPngForeground.map { true }.orElse(false))
-            logoBackground.set(ext.appLogoPngBackground.map { true }.orElse(false))
-            logoBackgroundColor.set(ext.appLogoBackgroundColor)
+            ndkVersion.set(ext.android.ndk)
+            javaVersion.set(ext.effectiveJvmTarget)
+            propagateInteropOptIns.set(ext.effectiveNativeOptInsEnabled)
+            generateIoWorker.set(ext.effectiveIoWorkerEnabled)
+            logoForeground.set(ext.effectiveLogoForeground.map { true }.orElse(false))
+            logoBackground.set(ext.effectiveLogoBackground.map { true }.orElse(false))
+            logoBackgroundColor.set(ext.effectiveLogoBackgroundColor)
         }
 
     private fun registerDoctorTask(
@@ -1015,16 +999,16 @@ class KiteSsotPlugin : Plugin<Project> {
         planTask.configure {
             operations.set(root.provider {
                 buildList {
-                    if (ext.syncIos.get() && ext.sanitizeIosProject.get()) {
+                    if (ext.effectiveSyncIos.get() && ext.effectiveSanitizeIosProject.get()) {
                         add("sanitize source Info.plist in the iOS text transaction")
                     }
-                    if (ext.syncIos.get()) add("migrate selected Xcode build settings")
-                    if (ext.syncIos.get() && ext.propagateSharedModule.get()) {
+                    if (ext.effectiveSyncIos.get()) add("migrate selected Xcode build settings")
+                    if (ext.effectiveSyncIos.get() && ext.effectivePropagateSharedModule.get()) {
                         add("migrate explicit Pod/Swift module references")
                     }
-                    if (ext.syncIos.get() && ext.propagateLogo.get()) add("install iOS AppIcon assets")
-                    if (ext.propagateLogo.get()) add("install Android launcher assets")
-                    if (ext.cleanupLegacyLogoArtifacts.get()) {
+                    if (ext.effectiveSyncIos.get() && ext.effectivePropagateLogo.get()) add("install iOS AppIcon assets")
+                    if (ext.effectivePropagateLogo.get()) add("install Android launcher assets")
+                    if (ext.effectiveTakeOverLegacyIcons.get()) {
                         add("transactionally take over legacy Android logo artifacts")
                     }
                 }
@@ -1033,21 +1017,21 @@ class KiteSsotPlugin : Plugin<Project> {
                 buildList {
                     fun addTextTarget(file: java.io.File) {
                         add(file.path)
-                        if (ext.backupBeforeRewrite.get()) add(file.path + BACKUP_SUFFIX)
+                        if (ext.effectiveBackups.get()) add(file.path + BACKUP_SUFFIX)
                     }
-                    if (ext.syncIos.get()) {
-                        addTextTarget(ext.iosPbxprojFile.get().asFile)
+                    if (ext.effectiveSyncIos.get()) {
+                        addTextTarget(ext.effectiveIosPbxproj.get().asFile)
                         add(root.layout.projectDirectory.file(".gradle/kitessot/rewrite.lock").asFile.path)
                     }
-                    if (ext.syncIos.get() && ext.sanitizeIosProject.get()) {
-                        addTextTarget(ext.iosInfoPlistFile.get().asFile)
+                    if (ext.effectiveSyncIos.get() && ext.effectiveSanitizeIosProject.get()) {
+                        addTextTarget(ext.effectiveIosInfoPlist.get().asFile)
                     }
-                    if (ext.syncIos.get() && ext.propagateSharedModule.get()) {
-                        addTextTarget(ext.iosPodfileFile.get().asFile)
-                        add(ext.iosAppDirectory.get().asFile.path)
+                    if (ext.effectiveSyncIos.get() && ext.effectivePropagateSharedModule.get()) {
+                        addTextTarget(ext.effectiveIosPodfile.get().asFile)
+                        add(ext.effectiveIosAppDirectory.get().asFile.path)
                     }
-                    if (ext.syncIos.get() && ext.propagateLogo.get()) {
-                        val icons = ext.iosAppIconDirectory.get().asFile
+                    if (ext.effectiveSyncIos.get() && ext.effectivePropagateLogo.get()) {
+                        val icons = ext.effectiveIosAppIconDirectory.get().asFile
                         add(icons.path)
                         val identity = SyncIosLogoTask.catalogIdentity(root.projectDir, icons)
                         val metadata = (icons.parentFile?.parentFile ?: icons.parentFile ?: icons)
@@ -1055,11 +1039,11 @@ class KiteSsotPlugin : Plugin<Project> {
                         val manifest = metadata.resolve("owned-files-v1")
                         add(manifest.path)
                         add(manifest.path + ".lock")
-                        if (ext.backupBeforeRewrite.get()) {
+                        if (ext.effectiveBackups.get()) {
                             add(root.projectDir.resolve(".kitessot/recovery/ios-appicon/$identity").path)
                         }
                     }
-                    if (ext.propagateLogo.get() || ext.cleanupLegacyLogoArtifacts.get()) {
+                    if (ext.effectivePropagateLogo.get() || ext.effectiveTakeOverLegacyIcons.get()) {
                         androidResourceDirectories.forEach { res ->
                             add(res.path)
                             val manifest = res.parentFile.resolve(".kitessot/android-logo-owned-files-v1")
@@ -1067,7 +1051,7 @@ class KiteSsotPlugin : Plugin<Project> {
                             add(manifest.path + ".lock")
                         }
                     }
-                    if (ext.cleanupLegacyLogoArtifacts.get()) {
+                    if (ext.effectiveTakeOverLegacyIcons.get()) {
                         val recovery = root.projectDir.resolve(".kitessot/recovery/android-logo")
                         add(recovery.path)
                         add(recovery.resolve("removal-provenance.tsv").path)
@@ -1076,17 +1060,17 @@ class KiteSsotPlugin : Plugin<Project> {
                 }
             })
             selectedTargets.set(root.provider {
-                ext.androidApplicationProjects.get().ifEmpty { detectedApplications }
+                ext.effectiveAndroidApps.get().ifEmpty { detectedApplications }
                     .map { "Android project $it" } +
-                    ext.ios.targetNames.get().map { "Xcode target $it" }
+                    ext.effectiveIosTargets.get().map { "Xcode target $it" }
             })
             policies.set(root.provider {
                 mapOf(
-                    "backupBeforeRewrite" to ext.backupBeforeRewrite.get().toString(),
-                    "dryRun" to ext.dryRun.get().toString(),
-                    "plistConflictPolicy" to ext.ios.plistConflictPolicy.get().name,
-                    "iosDeploymentTarget" to ext.ios.deploymentTarget.orNull.orEmpty(),
-                    "pbxprojScope" to if (ext.ios.targetNames.get().isEmpty()) {
+                    "backups" to ext.effectiveBackups.get().toString(),
+                    "dryRun" to ext.effectiveDryRun.get().toString(),
+                    "ios.sync.onConflict" to ext.effectivePlistConflictPolicy.get().name,
+                    "ios.deploymentTarget" to ext.ios.deploymentTarget.orNull.orEmpty(),
+                    "pbxprojScope" to if (ext.effectiveIosTargets.get().isEmpty()) {
                         "sole application target only"
                     } else {
                         "explicit targets"
@@ -1096,25 +1080,25 @@ class KiteSsotPlugin : Plugin<Project> {
             })
             exactChanges.set(root.provider {
                 buildList {
-                    if (ext.syncIos.get()) {
+                    if (ext.effectiveSyncIos.get()) {
                         add(
                             "iOS text transaction: calculate target-scoped unified diffs from " +
-                                ext.iosPbxprojFile.get().asFile.path,
+                                ext.effectiveIosPbxproj.get().asFile.path,
                         )
                     }
-                    if (ext.syncIos.get() && ext.sanitizeIosProject.get()) {
+                    if (ext.effectiveSyncIos.get() && ext.effectiveSanitizeIosProject.get()) {
                         add(
                             "Info.plist: include the configured SSOT references/flags under " +
-                                "${ext.ios.plistConflictPolicy.get()} policy",
+                                "${ext.effectivePlistConflictPolicy.get()} policy",
                         )
                     }
-                    if (ext.syncIos.get() && ext.propagateLogo.get()) {
+                    if (ext.effectiveSyncIos.get() && ext.effectivePropagateLogo.get()) {
                         add(
                             "iOS AppIcon: align the selected target's existing catalog setting, then render " +
                                 "AppIcon-1024.png and Contents.json after ownership validation",
                         )
                     }
-                    if (ext.propagateLogo.get()) {
+                    if (ext.effectivePropagateLogo.get()) {
                         val versionQualifier = if (ext.android.compileSdk.orNull?.let { it >= 33 } == true) {
                             "/v33"
                         } else {
@@ -1144,60 +1128,61 @@ class KiteSsotPlugin : Plugin<Project> {
         ext: KiteSsotExtension,
         resolvedAndroidAppDirectory: org.gradle.api.file.DirectoryProperty,
     ) {
-        propagateAppName.set(ext.propagateAppName)
-        appName.set(ext.appName)
-        propagateBundleId.set(ext.propagateBundleId)
+        propagateAppName.set(ext.effectivePropagateAppName)
+        appName.set(ext.effectiveAppName)
+        propagateBundleId.set(ext.effectivePropagateBundleId)
         iosBundleId.set(ext.iosBundleId)
-        propagateVersion.set(ext.propagateVersion)
-        versionName.set(ext.versionName)
-        hasVersionCodeOverride.set(ext.versionCodeOverride.map { true }.orElse(false))
-        propagateLocaleList.set(ext.propagateLocaleList)
+        propagateVersion.set(ext.effectivePropagateVersion)
+        versionName.set(ext.effectiveVersion)
+        hasVersionCodeOverride.set(ext.effectiveHasExplicitVersionCode)
+        resolvedVersionCode.set(ext.effectiveAndroidVersionCode)
+        propagateLocaleList.set(ext.effectivePropagateLocales)
         locales.set(ext.locales)
-        filterAndroidResources.set(ext.filterAndroidResources)
-        syncIos.set(ext.syncIos)
-        sanitizeIosProject.set(ext.sanitizeIosProject)
-        propagateLogo.set(ext.propagateLogo)
-        cleanupLegacyLogoArtifacts.set(ext.cleanupLegacyLogoArtifacts)
-        iosMarketingVersion.set(ext.iosMarketingVersion)
-        iosBuildNumber.set(ext.iosBuildNumber)
+        filterAndroidResources.set(ext.effectiveFilterAndroidResources)
+        syncIos.set(ext.effectiveSyncIos)
+        sanitizeIosProject.set(ext.effectiveSanitizeIosProject)
+        propagateLogo.set(ext.effectivePropagateLogo)
+        cleanupLegacyLogoArtifacts.set(ext.effectiveTakeOverLegacyIcons)
+        iosMarketingVersion.set(ext.effectiveIosMarketingVersion)
+        iosBuildNumber.set(ext.effectiveIosBuildNumber)
         iosDeploymentTarget.set(ext.ios.deploymentTarget)
-        usesNonExemptEncryption.set(ext.ios.usesNonExemptEncryption)
-        proMotion120Hz.set(ext.ios.proMotion120Hz)
-        plistConflictPolicy.set(ext.ios.plistConflictPolicy)
-        iosTargetNames.set(ext.ios.targetNames)
-        androidApplicationProjects.set(ext.androidApplicationProjects)
+        usesNonExemptEncryption.set(ext.effectiveNonExemptEncryption)
+        proMotion120Hz.set(ext.effectiveProMotion)
+        plistConflictPolicy.set(ext.effectivePlistConflictPolicy)
+        iosTargetNames.set(ext.effectiveIosTargets)
+        androidApplicationProjects.set(ext.effectiveAndroidApps)
         manifestFile.set(resolvedAndroidAppDirectory.file("src/main/AndroidManifest.xml"))
-        infoPlistFile.set(ext.iosInfoPlistFile)
-        pbxprojFile.set(ext.iosPbxprojFile)
-        appiconsetDir.set(ext.iosAppIconDirectory)
+        infoPlistFile.set(ext.effectiveIosInfoPlist)
+        pbxprojFile.set(ext.effectiveIosPbxproj)
+        appiconsetDir.set(ext.effectiveIosAppIconDirectory)
         androidResDir.set(resolvedAndroidAppDirectory.dir("src/main/res"))
         projectRootDir.set(root.layout.projectDirectory)
         androidEmitMonochrome.set(ext.android.compileSdk.map { it >= 33 }.orElse(false))
         androidLogoInputFingerprint.set(root.provider {
-            if (!ext.propagateLogo.get()) {
+            if (!ext.effectivePropagateLogo.get()) {
                 "disabled"
             } else {
                 logoInputFingerprintForFiles(
                     rendererVersion = SyncAndroidLogoTask.RENDERER_FINGERPRINT_VERSION,
-                    foreground = ext.appLogoPngForeground.asFile.get(),
-                    background = ext.appLogoPngBackground.asFile.orNull,
-                    backgroundColor = ext.appLogoBackgroundColor.orNull,
+                    foreground = ext.effectiveLogoForeground.get().asFile,
+                    background = ext.effectiveLogoBackground.orNull?.asFile,
+                    backgroundColor = ext.effectiveLogoBackgroundColor.orNull,
                     parameters = mapOf(
                         "emitMonochrome" to (ext.android.compileSdk.orNull?.let { it >= 33 } == true).toString(),
-                        "safeZoneRatio" to ext.appLogoAndroidSafeZoneRatio.get().toString(),
+                        "safeZoneRatio" to ext.effectiveLogoSafeZone.get().toString(),
                     ),
                 )
             }
         })
         iosLogoInputFingerprint.set(root.provider {
-            if (!ext.syncIos.get() || !ext.propagateLogo.get()) {
+            if (!ext.effectiveSyncIos.get() || !ext.effectivePropagateLogo.get()) {
                 "disabled"
             } else {
                 logoInputFingerprintForFiles(
                     rendererVersion = SyncIosLogoTask.RENDERER_FINGERPRINT_VERSION,
-                    foreground = ext.appLogoPngForeground.asFile.get(),
-                    background = ext.appLogoPngBackground.asFile.orNull,
-                    backgroundColor = ext.appLogoBackgroundColor.orNull,
+                    foreground = ext.effectiveLogoForeground.get().asFile,
+                    background = ext.effectiveLogoBackground.orNull?.asFile,
+                    backgroundColor = ext.effectiveLogoBackgroundColor.orNull,
                 )
             }
         })
@@ -1207,8 +1192,8 @@ class KiteSsotPlugin : Plugin<Project> {
         if (KGP_ON_CLASSPATH) runtimeKgpVersion()?.let(this.activeKgpVersion::set)
         kgpRequired.set(
             root.provider {
-                ext.propagateInteropOptIns.get() || ext.web.generateIoWorker.get() ||
-                    ext.buildConfig.enabled.get()
+                ext.effectiveNativeOptInsEnabled.get() || ext.effectiveIoWorkerEnabled.get() ||
+                    ext.effectiveBuildConfigEnabled.get()
             }
         )
     }
@@ -1269,77 +1254,70 @@ class KiteSsotPlugin : Plugin<Project> {
         modelValues(ext).forEach { it.disallowChanges() }
     }
 
+    /**
+     * Every configurable input behind the DSL, new and pre-3.0 alike.
+     *
+     * Derived `effective*` views are deliberately absent: they are read-only
+     * providers over these values, so locking the sources locks the views too.
+     */
     private fun modelValues(ext: KiteSsotExtension): List<HasConfigurableValue> =
         listOf(
-            ext.appName,
-            ext.versionName,
-            ext.bundleIdBase,
-            ext.iosMarketingVersion,
-            ext.iosBuildNumber,
-            ext.iosBundleSuffix,
-            ext.androidApplicationIdSuffix,
-            ext.versionCodeOverride,
-            ext.javaVersion,
-            ext.locales,
-            ext.sharedModule,
-            ext.sharedProjectPath,
-            ext.iosSharedModuleName,
+            ext.appName, ext.version, ext.appId, ext.locales, ext.jvmTarget,
+            ext.scheme, ext.dryRun, ext.backups,
+            ext.logoConfigured, ext.nativeOptInsConfigured, ext.buildConfigConfigured,
+        ) + listOf(
+            ext.modules.shared, ext.modules.androidApps,
+            ext.modules.androidAppDirectory, ext.modules.composeResources,
+            ext.propagate.appName, ext.propagate.bundleId,
+            ext.propagate.version, ext.propagate.locales,
+        ) + listOf(
+            ext.android.idSuffix, ext.android.versionCode, ext.android.rebuild,
+            ext.android.scheme, ext.android.compileSdk, ext.android.minSdk,
+            ext.android.targetSdk, ext.android.ndk, ext.android.publishedVersionCode,
+            ext.android.applySdkLevels, ext.android.filterResourcesToLocales,
+        ) + listOf(
+            ext.ios.bundleIdSuffix, ext.ios.marketingVersion, ext.ios.buildNumber,
+            ext.ios.rebuild, ext.ios.scheme, ext.ios.publishedBuildNumber,
+            ext.ios.deploymentTarget, ext.ios.pbxproj, ext.ios.podfile,
+            ext.ios.infoPlist, ext.ios.appDirectory, ext.ios.appIconDirectory,
+        ) + listOf(
+            ext.ios.sync.enabled, ext.ios.sync.configured, ext.ios.sync.targets,
+            ext.ios.sync.sanitizePlist, ext.ios.sync.onConflict,
+            ext.ios.sync.nonExemptEncryption, ext.ios.sync.proMotion,
+            ext.ios.sync.previousSharedModuleName, ext.ios.sync.newSharedModuleName,
+        ) + listOf(
+            ext.logo.enabled, ext.logo.foreground, ext.logo.background,
+            ext.logo.backgroundColor, ext.logo.androidSafeZone, ext.logo.takeOverLegacyIcons,
+            ext.nativeOptIns.enabled, ext.nativeOptIns.builtIns,
+            ext.nativeOptIns.markers, ext.nativeOptIns.projects,
+        ) + listOf(
+            ext.web.ioWorker.enabled, ext.web.ioWorker.configured,
+            ext.web.ioWorker.targets, ext.web.ioWorker.projects, ext.web.ioWorker.packageName,
+            ext.buildConfig.enabled, ext.buildConfig.packageName, ext.buildConfig.className,
+            ext.buildConfig.includeIdentity, ext.buildConfig.allowBuildCache, ext.buildConfig.fields,
+        ) + legacyModelValues(ext)
+
+    /** Pre-3.0 inputs, still honoured until 4.0 removes them. */
+    private fun legacyModelValues(ext: KiteSsotExtension): List<HasConfigurableValue> =
+        listOf(
+            ext.versionName, ext.bundleIdBase, ext.javaVersion, ext.versionCodeOverride,
+            ext.iosMarketingVersion, ext.iosBuildNumber, ext.iosBundleSuffix,
+            ext.androidApplicationIdSuffix, ext.sharedProjectPath,
+            ext.androidApplicationProjects, ext.androidAppDirectory,
+            ext.composeResourcesDirectory, ext.iosSharedModuleName,
             ext.iosPreviousSharedModuleName,
-            ext.composeResourcesDirectory,
-            ext.androidAppDirectory,
-            ext.androidAppModule,
-            ext.androidApplicationProjects,
-            ext.oldSharedModuleName,
-            ext.appLogoPngForeground,
-            ext.appLogoPngBackground,
-            ext.appLogoBackgroundColor,
-            ext.appLogoAndroidSafeZoneRatio,
-            ext.iosProjectPath,
-            ext.iosPodfilePath,
-            ext.iosInfoPlistPath,
-            ext.iosAppDir,
-            ext.iosAppiconsetPath,
-            ext.iosPbxprojFile,
-            ext.iosPodfileFile,
-            ext.iosInfoPlistFile,
-            ext.iosAppDirectory,
-            ext.iosAppIconDirectory,
-            ext.propagateAppName,
-            ext.propagateBundleId,
-            ext.propagateVersion,
-            ext.propagateLocaleList,
-            ext.filterAndroidResources,
-            ext.propagateLogo,
-            ext.propagateSharedModule,
-            ext.propagateAndroidSdk,
-            ext.propagateInteropOptIns,
-            ext.extraOptIns,
-            ext.interopProjectPaths,
-            ext.syncIos,
-            ext.sanitizeIosProject,
+        ) + listOf(
+            ext.iosPbxprojFile, ext.iosPodfileFile, ext.iosInfoPlistFile,
+            ext.iosAppDirectory, ext.iosAppIconDirectory,
+            ext.appLogoPngForeground, ext.appLogoPngBackground,
+            ext.appLogoBackgroundColor, ext.appLogoAndroidSafeZoneRatio,
             ext.cleanupLegacyLogoArtifacts,
-            ext.dryRun,
-            ext.backupBeforeRewrite,
-            ext.ios.targetNames,
-            ext.ios.deploymentTarget,
-            ext.ios.plistConflictPolicy,
-            ext.ios.usesNonExemptEncryption,
-            ext.ios.proMotion120Hz,
-            ext.android.publishedVersionCode,
-            ext.android.compileSdk,
-            ext.android.minSdk,
-            ext.android.targetSdk,
-            ext.android.ndkVersion,
-            ext.web.generateIoWorker,
-            ext.web.browserTargetNames,
-            ext.web.projectPaths,
-            ext.web.ioWorkerPackage,
-            ext.buildConfig.enabled,
-            ext.buildConfig.packageName,
-            ext.buildConfig.className,
-            ext.buildConfig.includeIdentity,
-            ext.buildConfig.allowBuildCache,
-            ext.buildConfig.fields,
+        ) + listOf(
+            ext.propagateAppName, ext.propagateBundleId, ext.propagateVersion,
+            ext.propagateLocaleList, ext.propagateAndroidSdk, ext.filterAndroidResources,
+            ext.propagateLogo, ext.syncIos, ext.sanitizeIosProject,
+            ext.propagateSharedModule, ext.propagateInteropOptIns,
+            ext.extraOptIns, ext.interopProjectPaths, ext.backupBeforeRewrite,
         )
 
     companion object {

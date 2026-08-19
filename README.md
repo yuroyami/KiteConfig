@@ -28,7 +28,7 @@ same value set in the module.
 
 Edits to files you own never happen during a build. That covers
 `project.pbxproj`, `Info.plist`, `Podfile`, Swift imports and launcher icons.
-Each one needs an opt-in flag and an explicitly named task. A plain
+Each one needs its own block configured, plus an explicitly named task. A plain
 `./gradlew build` writes nothing outside `build/`, and CI asserts that on every
 commit.
 
@@ -39,13 +39,13 @@ commit.
 plugins {
     kotlin("multiplatform") version "2.4.10" apply false
     id("com.android.application") version "9.3.1" apply false
-    id("io.github.yuroyami.kitessot") version "2.0.3"
+    id("io.github.yuroyami.kitessot") version "3.0.0"
 }
 
 kiteSsot {
     appName = "Jetzy"
-    versionName = "1.4.0"
-    bundleIdBase = "com.example.jetzy"
+    version = "1.4.0"
+    appId = "com.example.jetzy"
 
     android {
         compileSdk = 36
@@ -60,9 +60,9 @@ nothing.
 
 The Android application module then receives four values:
 
-- the application ID
-- the `versionName`
-- a version code derived from `1.4.0`
+- the application ID, from `appId`
+- the `versionName`, from `version`
+- a version code derived from `1.4.0`, so `1001004000`
 - an `appName` manifest placeholder, for `android:label="${appName}"`
 
 Every Android module receives the SDK levels.
@@ -70,7 +70,7 @@ Every Android module receives the SDK levels.
 ## Install
 
 Published on the Gradle Plugin Portal as `io.github.yuroyami.kitessot`, current
-version 2.0.3. Two preconditions:
+version 3.0.0. Two preconditions:
 
 **Apply it to the root project.** Applying it in a submodule throws immediately;
 the plugin aggregates across `allprojects` from the root.
@@ -85,27 +85,49 @@ and Gradle loads KGP with a different classloader. KiteSSOT cannot read the
 plugin classes from there, so the affected features cannot run. The plugin fails
 with that explanation, rather than skipping them quietly.
 
+## Upgrading from 2.x
+
+Your 2.x build still compiles on 3.0.
+
+**Old root properties still work.** They warn as deprecated and name their
+replacement, so the IDE can rename them for you. The common ones:
+
+| 2.x | 3.0 |
+| --- | --- |
+| `versionName` | `version` |
+| `bundleIdBase` | `appId` |
+| `javaVersion` | `jvmTarget` |
+| `sharedProjectPath` | `modules { shared }` |
+| `versionCodeOverride` | `android { versionCode }` |
+| `iosBundleSuffix` | `ios { bundleIdSuffix }` |
+
+**A block is its own switch.** Writing `logo { }` or `ios { sync { } }` turns
+that feature on, so drop `propagateLogo = true` and `syncIos = true`. To force a
+configured feature off, set `enabled = false` inside its block.
+
+**Derived version codes grow.** `1.4.1` gave `1001004001` and now gives
+`1001004010`. Bigger is safe: Play only rejects a code that shrinks.
+
+[CHANGELOG.md](CHANGELOG.md) lists every rename.
+
 ## Two tiers of switch
 
-Some switches act on every build. Others only unlock a task that you run
-yourself. Setting one to `true` therefore does not always make something happen.
+Some settings act on every build. Others only unlock a task that you run
+yourself. Configuring a block therefore does not always make something happen.
 
-**Gradle configuration is automatic and continuous.** Seven of the eight
-`propagate*` Booleans, plus `filterAndroidResources`, `buildConfig { enabled }`
-and `web { generateIoWorker }`, govern the values KiteSSOT applies on every
-build: Android identity and SDK levels, Java and Kotlin JVM alignment, and Kotlin
-source generated into `build/`.
+**Gradle configuration is automatic and continuous.** The four `propagate { }`
+switches, plus `android { applySdkLevels }`, `android { filterResourcesToLocales }`,
+`buildConfig { }` and `web { ioWorker { } }`, govern the values KiteSSOT applies
+on every build: Android identity and SDK levels, Java and Kotlin JVM alignment,
+and Kotlin source generated into `build/`.
 
-**Source-tree edits are opt-in and manual.** `syncIos`, `sanitizeIosProject`,
-`propagateLogo` and `cleanupLegacyLogoArtifacts` are authorization gates. They
-unlock tasks and never run them. `propagateLogo` is the eighth `propagate*`
-Boolean, and it is the exception to the paragraph above: its name suggests
-automatic behavior, but it only unlocks a task.
+**Source-tree edits are opt-in and manual.** `ios { sync { } }` and `logo { }`
+are authorization gates. They unlock tasks and never run them. `logo { }` is the
+one that surprises people: it looks automatic, but on its own it writes nothing.
 
-Installing the Apple app icon needs three settings: `propagateLogo = true`,
-`syncIos = true`, and `ios { deploymentTarget }`. You then still run
-`./gradlew kiteSsotSyncIosLogo` yourself. `propagateLogo = true` alone changes no
-files.
+Installing the Apple app icon needs three things: a `logo { }` block, an
+`ios { sync { } }` block, and `ios { deploymentTarget }`. You then still run
+`./gradlew kiteSsotSyncIosLogo` yourself.
 
 When one of the tasks they unlock does write an edit, it first passes
 containment, ownership, checksum, backup and rollback checks.
@@ -139,53 +161,80 @@ is a build input.
 
 ## The DSL
 
-`kiteSsot { }` holds three kinds of thing.
+`kiteSsot { }` has a small root and a block per concern.
 
-Scalars and typed paths: `appName`, `versionName`, `bundleIdBase`,
-`versionCodeOverride`, `javaVersion`, `locales`, `sharedProjectPath`,
-`androidApplicationProjects`, `iosPbxprojFile`, `appLogoPngForeground`,
-`appLogoBackgroundColor` and their siblings.
+**The root holds shared truth only:** `appName`, `version`, `appId`, `locales`,
+`jvmTarget`, `scheme { }`, plus `dryRun` and `backups`. Eight entries, and the
+first three are usually all you need.
 
-Fourteen Boolean switches: the eight `propagate*` values, plus
-`filterAndroidResources`, `syncIos`, `sanitizeIosProject`,
-`cleanupLegacyLogoArtifacts`, `backupBeforeRewrite` and `dryRun`.
-
-Four nested blocks, summarized here rather than listed in full:
+**Blocks hold everything else:**
 
 ```
-android     { compileSdk, minSdk, targetSdk, ndkVersion, publishedVersionCode }
-ios         { deploymentTarget, targetNames, plistConflictPolicy, … }
-web         { generateIoWorker, browserTargetNames, projectPaths, ioWorkerPackage }
-buildConfig { enabled, packageName, className, stringField(), intField(), … }
+modules      { shared, androidApps(), androidAppDirectory, composeResources }
+propagate    { appName, bundleId, version, locales }
+android      { idSuffix, versionCode, rebuild, compileSdk, minSdk, targetSdk,
+               ndk, publishedVersionCode, applySdkLevels, filterResourcesToLocales }
+ios          { bundleIdSuffix, marketingVersion, buildNumber, rebuild,
+               deploymentTarget, publishedBuildNumber, pbxproj, podfile,
+               infoPlist, appDirectory, appIconDirectory }
+ios.sync     { targets(), sanitizePlist, onConflict, nonExemptEncryption,
+               proMotion, renameSharedModule(from, to) }
+logo         { foreground, background, backgroundColor, androidSafeZone,
+               takeOverLegacyIcons }
+nativeOptIns { builtIns, add(), projects() }
+web.ioWorker { targets(), projects(), packageName }
+buildConfig  { packageName, className, includeIdentity, allowBuildCache,
+               stringField(), intField(), … }
 ```
 
-You can pass five read-only derived providers (`versionCode`,
-`androidApplicationId`, `iosBundleId`, `canonicalLocales` and
-`resolvedSharedProjectPath`) directly into another plugin's `Property`. You do
-not need to call `.get()`.
+**Configuring a block is the opt-in.** Writing `logo { }` authorizes the logo
+tasks. Writing `ios { sync { } }` authorizes the Apple source tasks. Neither
+runs anything: you still invoke the task yourself, and `dryRun`, `backups`, and
+the conflict policy still apply.
 
-Every property carries KDoc. The KDoc says whether the property is optional, what
-its default is, and which other values it needs. The IDE shows that on
-autocomplete, and the published javadoc jar carries it as Dokka HTML.
-[FEATURES.md](FEATURES.md) is the prose reference for behavior and safety rules.
+Five blocks work this way: `ios.sync`, `logo`, `nativeOptIns`, `web.ioWorker`
+and `buildConfig`. Each also takes `enabled`, so `logo { enabled = false }`
+forces a feature off without deleting its configuration.
 
-### Deprecated 1.x properties
+### One formula for both stores
 
-These are still in the DSL and in the committed ABI dump, so autocomplete still
-offers them. KiteSSOT derives the 2.x typed defaults from them. An old value
-therefore still changes the resolved paths.
+`scheme { }` turns your version into a build number. Write it once at the root
+and both platforms use it:
 
-| Deprecated | Replacement |
-| --- | --- |
-| `sharedModule` | `sharedProjectPath`, `composeResourcesDirectory`, `iosSharedModuleName` |
-| `oldSharedModuleName` | `iosPreviousSharedModuleName` |
-| `androidAppModule` | `androidApplicationProjects` or `androidAppDirectory` |
-| `iosProjectPath` | `iosPbxprojFile` |
-| `iosPodfilePath` | `iosPodfileFile` |
-| `iosInfoPlistPath` | `iosInfoPlistFile` |
-| `iosAppDir` | `iosAppDirectory` |
-| `iosAppiconsetPath` | `iosAppIconDirectory` |
-| `buildConfig { fields }` | `stringField`, `intField`, `longField`, `booleanField`, `doubleField` |
+```kotlin
+kiteSsot {
+    version = "1.4.0"
+    scheme { v -> 1_000_000 * v.major + 10_000 * v.minor + 100 * v.patch + v.rebuild }
+}
+```
+
+Write nothing and the default packs `1 | major(3) | minor(3) | patch(2) |
+rebuild(1)`, so `1.4.0` becomes `1001004000` and `1.4.1` becomes `1001004010`.
+That leaves ten codes per version for re-uploads.
+
+`rebuild` is the dial for the day a store eats an upload. Play Console keeps
+every uploaded `versionCode` forever, even if you discard the release draft,
+and TestFlight refuses a reused build number. Bump `rebuild` rather than faking
+a patch release:
+
+```kotlin
+android { rebuild = 1 }   // 1001004000 -> 1001004001
+ios     { rebuild = 3 }   // 1001004000 -> 1001004003
+```
+
+Two dials, because the two stores burn numbers on different days. Nothing needs
+resetting: a version bump always outranks every rebuild before it.
+
+### Reading values back
+
+Five read-only derived providers (`versionCode`, `androidApplicationId`,
+`iosBundleId`, `canonicalLocales`, `resolvedSharedProjectPath`) can be passed
+straight into another plugin's `Property`. No `.get()` needed.
+
+Every property carries KDoc saying whether it is optional, what its default is,
+and which other values it needs. The IDE shows it on autocomplete, and the
+published javadoc jar carries it as Dokka HTML. [FEATURES.md](FEATURES.md) is
+the prose reference for behavior and safety rules.
 
 ## Compatibility
 
@@ -219,8 +268,8 @@ unchanged.
 - KiteSSOT edits `project.pbxproj`, `Info.plist`, `Podfile` and Swift files as
   text. It does not generate xcconfig files and does not parse a syntax tree. It
   rejects binary and generated plists instead of converting them.
-- The 1.x properties above are still present, so two properties can set the same
-  value.
+- The deprecated 2.x root properties are still present, so an old name and its
+  3.0 block can set the same value. The block wins, and the old name warns.
 - The browser worker is Kotlin/JS browser only. It does not run on Node and it
   does not run on wasm. It executes caller-supplied JavaScript text, so that text
   must never come from user input. The deployed Content Security Policy, the HTTP

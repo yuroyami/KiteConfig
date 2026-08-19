@@ -31,23 +31,23 @@ internal object ClassicAndroidWiring {
             .findByType(ApplicationAndroidComponentsExtension::class.java) ?: return
         components.finalizeDsl { android ->
             val dc = android.defaultConfig
-            val selectedApplications = ext.androidApplicationProjects.get()
+            val selectedApplications = ext.effectiveAndroidApps.get()
             val receivesAppScopedValues =
                 selectedApplications.isEmpty() || project.path in selectedApplications
             if (receivesAppScopedValues) {
-                if (ext.propagateBundleId.get() && ext.bundleIdBase.isPresent) {
+                if (ext.effectivePropagateBundleId.get() && ext.effectiveAppId.isPresent) {
                     dc.applicationId = ext.androidApplicationId.get()
                 }
-                if (ext.propagateVersion.get()) {
+                if (ext.effectivePropagateVersion.get()) {
                     // versionName and versionCode are independent. A lone
                     // versionCodeOverride still increments the build number.
-                    if (ext.versionName.isPresent) dc.versionName = ext.versionName.get()
-                    ext.versionCode.orNull?.let { dc.versionCode = it }
+                    if (ext.effectiveVersion.isPresent) dc.versionName = ext.effectiveVersion.get()
+                    ext.effectiveAndroidVersionCode.orNull?.let { dc.versionCode = it }
                 }
-                if (ext.propagateAppName.get() && ext.appName.isPresent) {
-                    dc.manifestPlaceholders["appName"] = ext.appName.get()
+                if (ext.effectivePropagateAppName.get() && ext.effectiveAppName.isPresent) {
+                    dc.manifestPlaceholders["appName"] = ext.effectiveAppName.get()
                 }
-                if (ext.filterAndroidResources.get()) {
+                if (ext.effectiveFilterAndroidResources.get()) {
                     val l = ext.canonicalLocales.get().map(::bcp47ToAndroidQualifier)
                     require(l.isNotEmpty()) {
                         "[kiteSsot] filterAndroidResources=true requires at least one canonical locale."
@@ -56,15 +56,15 @@ internal object ClassicAndroidWiring {
                     android.androidResources.localeFilters.addAll(l)
                 }
             }
-            if (ext.propagateAndroidSdk.get()) {
+            if (ext.effectiveApplySdkLevels.get()) {
                 val sdk = ext.android
                 if (sdk.compileSdk.isPresent) android.compileSdk = sdk.compileSdk.get()
-                if (sdk.ndkVersion.isPresent) android.ndkVersion = sdk.ndkVersion.get()
+                if (sdk.ndk.isPresent) android.ndkVersion = sdk.ndk.get()
                 if (sdk.minSdk.isPresent) dc.minSdk = sdk.minSdk.get()
                 if (sdk.targetSdk.isPresent) dc.targetSdk = sdk.targetSdk.get()
             }
-            if (ext.javaVersion.isPresent) {
-                val jv = JavaVersion.toVersion(validateJavaVersion(ext.javaVersion.get()))
+            if (ext.effectiveJvmTarget.isPresent) {
+                val jv = JavaVersion.toVersion(validateJavaVersion(ext.effectiveJvmTarget.get()))
                 android.compileOptions.sourceCompatibility = jv
                 android.compileOptions.targetCompatibility = jv
             }
@@ -76,15 +76,15 @@ internal object ClassicAndroidWiring {
             .findByType(LibraryAndroidComponentsExtension::class.java) ?: return
         components.finalizeDsl { android ->
             val dc = android.defaultConfig
-            if (ext.propagateAndroidSdk.get()) {
+            if (ext.effectiveApplySdkLevels.get()) {
                 val sdk = ext.android
                 if (sdk.compileSdk.isPresent) android.compileSdk = sdk.compileSdk.get()
-                if (sdk.ndkVersion.isPresent) android.ndkVersion = sdk.ndkVersion.get()
+                if (sdk.ndk.isPresent) android.ndkVersion = sdk.ndk.get()
                 if (sdk.minSdk.isPresent) dc.minSdk = sdk.minSdk.get()
                 // Library modules have no targetSdk (AGP removed it).
             }
-            if (ext.javaVersion.isPresent) {
-                val jv = JavaVersion.toVersion(validateJavaVersion(ext.javaVersion.get()))
+            if (ext.effectiveJvmTarget.isPresent) {
+                val jv = JavaVersion.toVersion(validateJavaVersion(ext.effectiveJvmTarget.get()))
                 android.compileOptions.sourceCompatibility = jv
                 android.compileOptions.targetCompatibility = jv
             }

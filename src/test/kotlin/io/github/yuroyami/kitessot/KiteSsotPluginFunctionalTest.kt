@@ -150,13 +150,14 @@ class KiteSsotPluginFunctionalTest {
             plugins { id("io.github.yuroyami.kitessot") }
             kiteSsot {
                 appName = "Demo App"
-                versionName = "1.2.3"
-                iosMarketingVersion = "1.2.3"
-                iosBuildNumber = "42"
-                bundleIdBase = "com.demo.app"
+                version = "1.2.3"
+                appId = "com.demo.app"
                 locales.addAll(listOf("fr", "pt-BR"))
-                syncIos = true
-                sanitizeIosProject = true
+                ios {
+                    marketingVersion = "1.2.3"
+                    buildNumber = "42"
+                    sync { sanitizePlist = true }
+                }
             }
             """.trimIndent(),
         )
@@ -188,12 +189,15 @@ class KiteSsotPluginFunctionalTest {
             plugins { id("io.github.yuroyami.kitessot") }
             kiteSsot {
                 appName = "Demo"
-                versionName = "1.2.3"
-                iosMarketingVersion = "1.2.3"
-                iosBuildNumber = "7"
-                bundleIdBase = "com.demo.app"
-                syncIos = true
-                $targetSelector
+                version = "1.2.3"
+                appId = "com.demo.app"
+                ios {
+                    marketingVersion = "1.2.3"
+                    buildNumber = "7"
+                    sync {
+                        $targetSelector
+                    }
+                }
             }
         """.trimIndent()
         write("build.gradle.kts", build(""))
@@ -207,7 +211,7 @@ class KiteSsotPluginFunctionalTest {
             "ambiguous migration changed the pbxproj",
         )
 
-        write("build.gradle.kts", build("ios { targetNames.add(\"Phone\") }"))
+        write("build.gradle.kts", build("targets(\"Phone\")"))
         run("kiteSsotSyncIosConfig")
         val selected = File(projectDir, "iosApp/iosApp.xcodeproj/project.pbxproj").readText()
         assertTrue(selected.contains("PRODUCT_NAME = \"Demo\";"), selected)
@@ -224,10 +228,12 @@ class KiteSsotPluginFunctionalTest {
             plugins { id("io.github.yuroyami.kitessot") }
             kiteSsot {
                 appName = "Demo"
-                versionName = "1.2.3"
-                iosMarketingVersion = "1.2.3"
-                iosBuildNumber = "7"
-                syncIos = true
+                version = "1.2.3"
+                ios {
+                    marketingVersion = "1.2.3"
+                    buildNumber = "7"
+                    sync { }
+                }
             }
             """.trimIndent(),
         )
@@ -245,14 +251,17 @@ class KiteSsotPluginFunctionalTest {
             """
             plugins { id("io.github.yuroyami.kitessot") }
             kiteSsot {
-                syncIos = true
-                propagateVersion = false
-                propagateAppName = false
-                propagateBundleId = false
-                propagateLocaleList = false
-                propagateSharedModule = true
-                iosPreviousSharedModuleName = "shared"
-                iosSharedModuleName = "composeApp"
+                propagate {
+                    version = false
+                    appName = false
+                    bundleId = false
+                    locales = false
+                }
+                ios {
+                    sync {
+                        renameSharedModule(from = "shared", to = "composeApp")
+                    }
+                }
             }
             """.trimIndent(),
         )
@@ -280,14 +289,17 @@ class KiteSsotPluginFunctionalTest {
             plugins { id("io.github.yuroyami.kitessot") }
             kiteSsot {
                 appName = "Migrated"
-                syncIos = true
-                propagateVersion = false
-                propagateAppName = true
-                propagateBundleId = false
-                propagateLocaleList = false
-                propagateSharedModule = true
-                iosPreviousSharedModuleName = "shared"
-                iosSharedModuleName = "composeApp"
+                propagate {
+                    version = false
+                    appName = true
+                    bundleId = false
+                    locales = false
+                }
+                ios {
+                    sync {
+                        renameSharedModule(from = "shared", to = "composeApp")
+                    }
+                }
             }
             """.trimIndent(),
         )
@@ -323,11 +335,14 @@ class KiteSsotPluginFunctionalTest {
             """
             plugins { id("io.github.yuroyami.kitessot") }
             kiteSsot {
-                syncIos = true
-                propagateLogo = true
-                ios { deploymentTarget = "12.0" }
-                appLogoPngForeground = file("art/fg.png")
-                appLogoBackgroundColor = "#80FF5500"
+                ios {
+                    deploymentTarget = "12.0"
+                    sync { }
+                }
+                logo {
+                    foreground = file("art/fg.png")
+                    backgroundColor = "#80FF5500"
+                }
             }
             """.trimIndent(),
         )
@@ -364,13 +379,14 @@ class KiteSsotPluginFunctionalTest {
                 id("io.github.yuroyami.kitessot")
             }
             kiteSsot {
-                sharedProjectPath = ":shared"
+                modules { shared = ":shared" }
                 dryRun = true
                 web {
-                    generateIoWorker = true
-                    projectPaths.add(":shared")
-                    browserTargetNames.add("js")
-                    ioWorkerPackage = "$workerPackage"
+                    ioWorker {
+                        projects(":shared")
+                        targets("js")
+                        packageName = "$workerPackage"
+                    }
                 }
             }
         """.trimIndent()
@@ -431,10 +447,11 @@ class KiteSsotPluginFunctionalTest {
                 id("io.github.yuroyami.kitessot")
             }
             kiteSsot {
-                sharedProjectPath = ":shared"
+                modules { shared = ":shared" }
                 web {
-                    generateIoWorker = true
-                    projectPaths.add(":shared")
+                    ioWorker {
+                        projects(":shared")
+                    }
                 }
             }
             """.trimIndent(),
@@ -462,14 +479,13 @@ class KiteSsotPluginFunctionalTest {
                 id("io.github.yuroyami.kitessot")
             }
             kiteSsot {
-                sharedProjectPath = ":shared"
+                modules { shared = ":shared" }
                 appName = "Demo"
-                versionName = "1.2.3"
-                bundleIdBase = "com.acme.app"
+                version = "1.2.3"
+                appId = "com.acme.app"
                 locales.addAll(listOf("en", "pt-BR"))
                 dryRun = true
                 buildConfig {
-                    enabled = true
                     packageName = "com.acme.gen"
                     className = "AppConfig"
                     stringField("BASE_URL", "https://api.acme.com")
@@ -509,7 +525,7 @@ class KiteSsotPluginFunctionalTest {
         val source = generated.readText()
         assertTrue(source.contains("public const val appName: String = \"Demo\""), source)
         assertTrue(source.contains("public const val versionName: String = \"1.2.3\""), source)
-        assertTrue(source.contains("public const val versionCode: Int = 1001002003"), source)
+        assertTrue(source.contains("public const val versionCode: Int = 1001002030"), source)
         assertTrue(source.contains("public const val androidApplicationId: String = \"com.acme.app\""), source)
         assertTrue(source.contains("public const val iosBundleId: String = \"com.acme.app\""), source)
         assertTrue(source.contains("public val locales: List<String> = listOf(\"en\", \"pt-BR\")"), source)
@@ -529,12 +545,11 @@ class KiteSsotPluginFunctionalTest {
                 id("io.github.yuroyami.kitessot")
             }
             kiteSsot {
-                sharedProjectPath = ":shared"
+                modules { shared = ":shared" }
                 appName = "Demo"
-                versionName = "1.2.3"
-                bundleIdBase = "com.acme.app"
+                version = "1.2.3"
+                appId = "com.acme.app"
                 buildConfig {
-                    enabled = true
                     packageName = "com.acme.gen"
                     className = "AppConfig"
                 }
@@ -561,9 +576,8 @@ class KiteSsotPluginFunctionalTest {
                 id("io.github.yuroyami.kitessot")
             }
             kiteSsot {
-                sharedProjectPath = ":shared"
+                modules { shared = ":shared" }
                 buildConfig {
-                    enabled = true
                     includeIdentity = false
                     packageName = "com.acme.fields"
                     className = "PublicConfig"
@@ -620,11 +634,13 @@ class KiteSsotPluginFunctionalTest {
             """
             plugins { id("io.github.yuroyami.kitessot") }
             kiteSsot {
-                propagateLogo = true
-                cleanupLegacyLogoArtifacts = true
+                modules { androidAppDirectory.set(layout.projectDirectory.dir("androidApp")) }
                 android { compileSdk = 33 }
-                appLogoPngForeground = file("art/fg.png")
-                appLogoBackgroundColor = "#FF5500"
+                logo {
+                    takeOverLegacyIcons = true
+                    foreground = file("art/fg.png")
+                    backgroundColor = "#FF5500"
+                }
             }
             """.trimIndent(),
         )
@@ -683,13 +699,13 @@ class KiteSsotPluginFunctionalTest {
             "build.gradle.kts",
             """
             plugins { id("io.github.yuroyami.kitessot") }
-            kiteSsot { propagateLogo = true }
+            kiteSsot { logo { } }
             """.trimIndent(),
         )
 
         val failure = runAndFail("kiteSsotSyncAndroidLogo")
 
-        assertTrue(failure.output.contains("propagateLogo=true requires appLogoPngForeground"), failure.output)
+        assertTrue(failure.output.contains("logo { } } requires foreground"), failure.output)
         assertTrue(!failure.output.contains("SKIPPED"), failure.output)
     }
 
@@ -701,10 +717,11 @@ class KiteSsotPluginFunctionalTest {
             """
             plugins { id("io.github.yuroyami.kitessot") }
             kiteSsot {
-                syncIos = true
-                propagateLogo = true
-                appLogoPngForeground = file("art/fg.png")
-                appLogoBackgroundColor = "#FF5500"
+                ios { sync { } }
+                logo {
+                    foreground = file("art/fg.png")
+                    backgroundColor = "#FF5500"
+                }
             }
             """.trimIndent(),
         )
@@ -724,16 +741,17 @@ class KiteSsotPluginFunctionalTest {
             """
             plugins { id("io.github.yuroyami.kitessot") }
             kiteSsot {
-                propagateLogo = true
-                appLogoPngForeground = file("art/missing.png")
-                appLogoBackgroundColor = "#FF5500"
+                logo {
+                    foreground = file("art/missing.png")
+                    backgroundColor = "#FF5500"
+                }
             }
             """.trimIndent(),
         )
 
         val failure = runAndFail("kiteSsotSyncAndroidLogo")
 
-        assertTrue(failure.output.contains("appLogoPngForeground points to a missing file"), failure.output)
+        assertTrue(failure.output.contains("points to a missing file"), failure.output)
         assertTrue(failure.output.contains("art/missing.png"), failure.output)
     }
 
@@ -770,9 +788,10 @@ class KiteSsotPluginFunctionalTest {
             kiteSsot {
                 $selector
                 ${if (requestAppSink) """
-                propagateLogo = true
-                appLogoPngForeground = file("art/fg.png")
-                appLogoBackgroundColor = "#112233"
+                logo {
+                    foreground = file("art/fg.png")
+                    backgroundColor = "#112233"
+                }
                 """.trimIndent() else ""}
             }
         """.trimIndent()
@@ -785,8 +804,10 @@ class KiteSsotPluginFunctionalTest {
             rootBuild(
                 """
                 appName = "Demo"
-                propagateBundleId = false
-                propagateVersion = false
+                propagate {
+                    bundleId = false
+                    version = false
+                }
                 """.trimIndent(),
                 requestAppSink = false,
             ),
@@ -802,13 +823,13 @@ class KiteSsotPluginFunctionalTest {
         val ambiguous = runAndFail("help")
         assertTrue(ambiguous.output.contains("multiple Android application projects"), ambiguous.output)
 
-        write("build.gradle.kts", rootBuild("androidApplicationProjects.add(\":missing\")"))
+        write("build.gradle.kts", rootBuild("modules { androidApps(\":missing\") }"))
         val missing = runAndFail("help")
         assertTrue(missing.output.contains("do not apply com.android.application: :missing"), missing.output)
 
         write(
             "build.gradle.kts",
-            rootBuild("androidApplicationProjects.add(\":missing\")", requestAppSink = false),
+            rootBuild("modules { androidApps(\":missing\") }", requestAppSink = false),
         )
         val missingDiagnostic = run("kiteSsotDoctor")
         assertTrue(missingDiagnostic.output.contains("[FAIL] KMPS070"), missingDiagnostic.output)
@@ -816,13 +837,13 @@ class KiteSsotPluginFunctionalTest {
 
         write(
             "build.gradle.kts",
-            rootBuild("androidApplicationProjects.add(\"phone\")", requestAppSink = false),
+            rootBuild("modules { androidApps(\"phone\") }", requestAppSink = false),
         )
         val invalidDiagnostic = run("kiteSsotDoctor")
         assertTrue(invalidDiagnostic.output.contains("[FAIL] KMPS070"), invalidDiagnostic.output)
         assertTrue(invalidDiagnostic.output.contains("invalid absolute Gradle project path"), invalidDiagnostic.output)
 
-        write("build.gradle.kts", rootBuild("androidApplicationProjects.add(\":phone\")"))
+        write("build.gradle.kts", rootBuild("modules { androidApps(\":phone\") }"))
         val selected = run("help")
         assertTrue(selected.output.contains("BUILD SUCCESSFUL"), selected.output)
 
@@ -830,8 +851,10 @@ class KiteSsotPluginFunctionalTest {
             "build.gradle.kts",
             rootBuild(
                 """
-                androidApplicationProjects.addAll(":phone", ":tablet")
-                androidAppDirectory.set(layout.projectDirectory.dir("phone"))
+                modules {
+                    androidApps(":phone", ":tablet")
+                    androidAppDirectory.set(layout.projectDirectory.dir("phone"))
+                }
                 """.trimIndent(),
             ),
         )
@@ -853,8 +876,8 @@ class KiteSsotPluginFunctionalTest {
             plugins { id("io.github.yuroyami.kitessot") }
             kiteSsot {
                 appName = "Demo"
-                propagateBundleId = false
-                androidApplicationProjects.addAll(":phone", ":tablet")
+                propagate { bundleId = false }
+                modules { androidApps(":phone", ":tablet") }
             }
             """.trimIndent(),
         )
@@ -864,86 +887,22 @@ class KiteSsotPluginFunctionalTest {
     }
 
     @Test
-    fun `source migration paths cannot escape the root project`() {
+    fun `version remains validated when an explicit versionCode bypasses derivation`() {
         write("settings.gradle.kts", "rootProject.name = \"fixture\"")
         write(
             "build.gradle.kts",
             """
             plugins { id("io.github.yuroyami.kitessot") }
             kiteSsot {
-                syncIos = true
-                iosProjectPath = "../outside/project.pbxproj"
-            }
-            """.trimIndent(),
-        )
-
-        val failure = runAndFail("kiteSsotSyncIosConfig")
-        assertTrue(failure.output.contains("iosProjectPath"), failure.output)
-        assertTrue(failure.output.contains("contained by the root project"), failure.output)
-    }
-
-    @Test
-    fun `versionName remains validated when versionCodeOverride bypasses derivation`() {
-        write("settings.gradle.kts", "rootProject.name = \"fixture\"")
-        write(
-            "build.gradle.kts",
-            """
-            plugins { id("io.github.yuroyami.kitessot") }
-            kiteSsot {
-                versionName = "x".repeat(256)
-                versionCodeOverride = 42
+                version = "x".repeat(256)
+                android { versionCode = 42 }
             }
             """.trimIndent(),
         )
 
         val failure = runAndFail("help")
-        assertTrue(failure.output.contains("versionName"), failure.output)
+        assertTrue(failure.output.contains("kiteSsot { version }"), failure.output)
         assertTrue(failure.output.contains("at most 255 characters"), failure.output)
-    }
-
-    @Test
-    fun `active shared selection validates the legacy sharedModule fallback`() {
-        write("settings.gradle.kts", "rootProject.name = \"fixture\"")
-        write(
-            "build.gradle.kts",
-            """
-            plugins { id("io.github.yuroyami.kitessot") }
-            kiteSsot {
-                propagateLocaleList = false
-                sharedModule = "bad/path"
-                buildConfig {
-                    enabled = true
-                    includeIdentity = false
-                }
-            }
-            """.trimIndent(),
-        )
-
-        val failure = runAndFail("help")
-        assertTrue(failure.output.contains("sharedProjectPath/sharedModule"), failure.output)
-        assertTrue(failure.output.contains("not a valid absolute Gradle project path"), failure.output)
-    }
-
-    @Test
-    fun `active iOS migration validates legacy module-name fallbacks`() {
-        write("settings.gradle.kts", "rootProject.name = \"fixture\"")
-        write(
-            "build.gradle.kts",
-            """
-            plugins { id("io.github.yuroyami.kitessot") }
-            kiteSsot {
-                propagateLocaleList = false
-                syncIos = true
-                propagateSharedModule = true
-                sharedModule = "SharedKit"
-                oldSharedModuleName = "old-module"
-            }
-            """.trimIndent(),
-        )
-
-        val failure = runAndFail("help")
-        assertTrue(failure.output.contains("iosPreviousSharedModuleName"), failure.output)
-        assertTrue(failure.output.contains("Swift module identifier"), failure.output)
     }
 
     @Test
@@ -954,13 +913,15 @@ class KiteSsotPluginFunctionalTest {
             """
             plugins { id("io.github.yuroyami.kitessot") }
             kiteSsot {
-                syncIos = false
-                sanitizeIosProject = true
-                propagateSharedModule = true
-                iosProjectPath = "../dormant/project.pbxproj"
-                iosSharedModuleName = "not a Swift identifier"
-                iosPreviousSharedModuleName = "also invalid"
-                ios { targetNames.addAll("", "") }
+                ios {
+                    pbxproj = file("../dormant/project.pbxproj")
+                    sync {
+                        enabled = false
+                        sanitizePlist = true
+                        renameSharedModule(from = "also invalid", to = "not a Swift identifier")
+                        targets("", "")
+                    }
+                }
             }
             """.trimIndent(),
         )
@@ -977,12 +938,14 @@ class KiteSsotPluginFunctionalTest {
             """
             plugins { id("io.github.yuroyami.kitessot") }
             kiteSsot {
-                propagateLocaleList = false
+                propagate { locales = false }
                 web {
-                    generateIoWorker = false
-                    projectPaths.add("not-an-absolute-project-path")
-                    browserTargetNames.add("")
-                    ioWorkerPackage = "not-a-kotlin-package"
+                    ioWorker {
+                        enabled = false
+                        projects("not-an-absolute-project-path")
+                        targets("")
+                        packageName = "not-a-kotlin-package"
+                    }
                 }
             }
             """.trimIndent(),
@@ -1028,7 +991,7 @@ class KiteSsotPluginFunctionalTest {
         write(
             "late/build.gradle",
             """
-            rootProject.extensions.getByName('kiteSsot').androidAppDirectory.set(
+            rootProject.extensions.getByName('kiteSsot').modules.androidAppDirectory.set(
                 rootProject.layout.projectDirectory.dir('lateOverride')
             )
             """.trimIndent(),
@@ -1051,8 +1014,8 @@ class KiteSsotPluginFunctionalTest {
             plugins { id("io.github.yuroyami.kitessot") }
             kiteSsot {
                 appName = "Demo"
-                versionName = "1.0.0"
-                syncIos = true
+                version = "1.0.0"
+                ios { sync { } }
             }
             """.trimIndent(),
         )
@@ -1079,13 +1042,16 @@ class KiteSsotPluginFunctionalTest {
             plugins { id("io.github.yuroyami.kitessot") }
             kiteSsot {
                 appName = "Demo"
-                propagateVersion = false
-                propagateBundleId = false
-                propagateLocaleList = false
-                syncIos = true
-                sanitizeIosProject = true
+                propagate {
+                    version = false
+                    bundleId = false
+                    locales = false
+                }
                 ios {
-                    plistConflictPolicy = io.github.yuroyami.kitessot.PlistConflictPolicy.KEEP
+                    sync {
+                        sanitizePlist = true
+                        onConflict = io.github.yuroyami.kitessot.PlistConflictPolicy.KEEP
+                    }
                 }
             }
             """.trimIndent(),
@@ -1112,8 +1078,8 @@ class KiteSsotPluginFunctionalTest {
             """
             plugins { id("io.github.yuroyami.kitessot") }
             kiteSsot {
-                propagateAppName = false
-                versionName = "1.2"
+                propagate { appName = false }
+                version = "1.2"
                 locales.add("not_a_locale")
             }
             tasks.register("inspectSsot") {
@@ -1145,7 +1111,7 @@ class KiteSsotPluginFunctionalTest {
         assertTrue(report.readText().contains("\"id\": \"KMPS040\""), report.readText())
 
         val normal = runAndFail("help")
-        assertTrue(normal.output.contains("exactly three numeric segments"), normal.output)
+        assertTrue(normal.output.contains("numeric segments (x.y.z) are required"), normal.output)
     }
 
     @Test
@@ -1159,9 +1125,11 @@ class KiteSsotPluginFunctionalTest {
                 appName.set(providers.provider<String> {
                     error("deliberate appName provider failure")
                 })
-                propagateVersion = false
-                propagateBundleId = false
-                propagateLocaleList = false
+                propagate {
+                    version = false
+                    bundleId = false
+                    locales = false
+                }
             }
             tasks.register("inspectSsot") {
                 dependsOn("kiteSsotDoctor", "kiteSsotVerify", "kiteSsotPlan")
@@ -1193,8 +1161,7 @@ class KiteSsotPluginFunctionalTest {
             """
             plugins { id("io.github.yuroyami.kitessot") }
             kiteSsot {
-                syncIos = true
-                ios { targetNames.addAll("Phone", "Phone") }
+                ios { sync { targets("Phone", "Phone") } }
             }
             """.trimIndent(),
         )
@@ -1221,9 +1188,12 @@ class KiteSsotPluginFunctionalTest {
             """
             plugins { id("io.github.yuroyami.kitessot") }
             kiteSsot {
-                syncIos = true
-                sanitizeIosProject = true
-                ios { targetNames.add("DemoApp") }
+                ios {
+                    sync {
+                        sanitizePlist = true
+                        targets("DemoApp")
+                    }
+                }
             }
             """.trimIndent(),
         )
@@ -1236,7 +1206,7 @@ class KiteSsotPluginFunctionalTest {
         assertTrue(result.output.contains("project.pbxproj$BACKUP_SUFFIX"), result.output)
         assertTrue(result.output.contains(".gradle/kitessot/rewrite.lock"), result.output)
         assertTrue(result.output.contains("Xcode target DemoApp"), result.output)
-        assertTrue(result.output.contains("plistConflictPolicy = FAIL"), result.output)
+        assertTrue(result.output.contains("ios.sync.onConflict = FAIL"), result.output)
         assertTrue(result.output.contains("pbxprojScope = explicit targets"), result.output)
         assertTrue(result.output.contains("No files were changed."), result.output)
         assertFalse(File(projectDir, "iosApp/iosApp.xcodeproj/project.pbxproj").exists())
@@ -1251,10 +1221,14 @@ class KiteSsotPluginFunctionalTest {
             plugins { id("io.github.yuroyami.kitessot") }
             kiteSsot {
                 appName = "Cache Probe"
-                versionName = "1.0.0"
+                version = "1.0.0"
                 locales.addAll("en-us", "en-US", "fr")
-                iosSharedModuleName = "SharedKit"
-                androidAppDirectory.set(layout.projectDirectory.dir("customAndroidApp"))
+                ios {
+                    sync { renameSharedModule(from = "shared", to = "SharedKit") }
+                }
+                modules {
+                    androidAppDirectory.set(layout.projectDirectory.dir("customAndroidApp"))
+                }
             }
             """.trimIndent(),
         )
@@ -1272,7 +1246,7 @@ class KiteSsotPluginFunctionalTest {
         assertTrue(second.output.contains("Resolved single source of truth"), second.output)
         assertTrue(second.output.contains("Mutation plan (read-only)"), second.output)
         assertTrue(second.output.contains("locales              = en-US, fr"), second.output)
-        assertTrue(second.output.contains("iosSharedModuleName  = SharedKit"), second.output)
+        assertTrue(second.output.contains("ios.sync renameTo    = SharedKit"), second.output)
         assertTrue(second.output.contains("customAndroidApp"), second.output)
     }
 }

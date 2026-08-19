@@ -37,11 +37,11 @@ internal object KmpAndroidLibraryWiring {
         }
 
         components.finalizeDsl { dsl ->
-            if (!ext.propagateAndroidSdk.get()) return@finalizeDsl
+            if (!ext.effectiveApplySdkLevels.get()) return@finalizeDsl
             val sdk = ext.android
             if (sdk.compileSdk.isPresent) dsl.compileSdk = sdk.compileSdk.get()
             if (sdk.minSdk.isPresent) dsl.minSdk = sdk.minSdk.get()
-            if (sdk.targetSdk.isPresent || sdk.ndkVersion.isPresent) {
+            if (sdk.targetSdk.isPresent || sdk.ndk.isPresent) {
                 project.logger.info(
                     "[kiteSsot] ${project.path}: targetSdk/ndkVersion ignored: the KMP Android library " +
                         "DSL exposes neither."

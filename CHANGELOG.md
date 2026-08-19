@@ -6,6 +6,86 @@ Gradle Plugin Portal releases.
 
 ## [Unreleased]
 
+## [3.0.0]
+
+The DSL is reshaped. The engine, the safety charter, and every task name are
+unchanged: ordinary builds still never touch your source, and the mutation
+tasks are still explicit-only, fail-closed, backed up, and dry-runnable.
+
+### The shape
+
+Shared facts stay at the root. Anything Android-only or Apple-only moved into
+`android { }` or `ios { }`. Feature blocks switch themselves on by being
+configured, so the second flag is gone. The root went from 40 properties to 7.
+
+```kotlin
+kiteSsot {
+    appName = "Jetzy"
+    version = "1.4.0"
+    appId   = "com.example.jetzy"
+}
+```
+
+That is a complete setup. Locales, the shared module, and the Android
+application project are all detected.
+
+### Added
+- `scheme { v -> ... }` at the root: one build-number formula for **both**
+  platforms. It reads `v.major`, `v.minor`, `v.patch`, `v.rebuild` and returns
+  an `Int`. Android uses it for `versionCode`, Apple for
+  `CURRENT_PROJECT_VERSION`.
+- `android { rebuild = 1 }` and `ios { rebuild = 3 }`: the re-upload dial.
+  Play Console keeps every uploaded `versionCode` forever, even when you
+  discard the release draft, and TestFlight refuses a reused build number.
+  Bump `rebuild` instead of faking a patch release.
+- `ios { publishedBuildNumber }`: an offline TestFlight monotonicity guard,
+  matching the existing `android { publishedVersionCode }`.
+- `modules { }`, `propagate { }`, `logo { }`, `nativeOptIns { }`, and
+  `ios { sync { } }` blocks.
+- `ios { sync { renameSharedModule(from, to) } }` replaces a flag plus two
+  properties with one call.
+
+### Changed
+- **The derived `versionCode` formula.** It is now
+  `1 | major(3) | minor(3) | patch(2) | rebuild(1)`, so every version owns ten
+  codes. `1.4.0` still resolves to `1001004000`, but `1.4.1` moves from
+  `1001004001` to `1001004010`. Every new code is **larger** than the code the
+  old formula produced for the same version, so Play monotonicity survives the
+  change. `patch` is now capped at 99 and `rebuild` at 9; going over fails the
+  build with a message that prints the pre-3.0 formula as a one-line
+  `scheme { }`.
+- **iOS build numbers are written by default.** 2.x only wrote
+  `CURRENT_PROJECT_VERSION` when `iosBuildNumber` was set. It now follows the
+  scheme like Android does. The write still only happens inside an explicitly
+  invoked sync task.
+- The Apple build-number validator no longer caps the first component at four
+  digits. That limit was KiteSSOT being cautious, not App Store enforcement,
+  and it blocked the shared scheme.
+- The AGP 8 adapter now receives an already-resolved snapshot instead of the
+  extension, so both AGP lines share exactly one resolution path.
+- `kiteSsotDoctor` reports the `versionCode` the build will really use,
+  including a custom `scheme { }`, instead of recomputing it.
+
+### Deprecated
+Every pre-3.0 **root** property still works and still feeds the same model, now
+with a deprecation warning naming its replacement. They are removed in 4.0.
+Highlights: `versionName` to `version`, `bundleIdBase` to `appId`,
+`javaVersion` to `jvmTarget`, `backupBeforeRewrite` to `backups`,
+`propagateLogo` to configuring `logo { }`, `syncIos` to configuring
+`ios { sync { } }`.
+
+### Removed
+- The pre-2.0 properties, which carried a deprecation warning for a full major:
+  `sharedModule`, `oldSharedModuleName`, `androidAppModule`, `iosProjectPath`,
+  `iosPodfilePath`, `iosInfoPlistPath`, `iosAppDir`, `iosAppiconsetPath`.
+- Properties **inside** the nested blocks moved without a bridge, because you
+  are already editing that block when you meet them:
+  `ios { targetNames }` to `ios { sync { targets(...) } }`,
+  `ios { plistConflictPolicy }` to `ios { sync { onConflict } }`,
+  `ios { usesNonExemptEncryption }` and `ios { proMotion120Hz }` into
+  `sync { }`, `android { ndkVersion }` to `android { ndk }`, and the four
+  `web { }` worker properties into `web { ioWorker { } }`.
+
 ## [2.0.3]
 
 ### Changed
