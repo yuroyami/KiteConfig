@@ -24,6 +24,21 @@ import org.gradle.api.provider.Property
  * a shared-scoped feature such as `buildConfig` needs one, or two projects are
  * Android applications, the build stops and names the candidates instead of
  * guessing. One line here ends the ambiguity for good.
+ *
+ * ## What each selector controls
+ *
+ * | Property | Selects | Detected when you say nothing |
+ * |---|---|---|
+ * | [shared] | where generated `commonMain` source lands | the sole project applying Kotlin Multiplatform |
+ * | [androidApps] | which apps receive identity, versions, and logo output | the sole Android application project |
+ * | [androidAppDirectory] | where launcher resources are written | the selected application's own directory |
+ * | [composeResources] | where locale discovery reads | the shared project's `commonMain/composeResources` |
+ *
+ * Detection reports rather than guesses. Zero or several candidates fails with
+ * the list of what it found and the one line that settles it.
+ *
+ * @see KiteSsotExtension.locales for what [composeResources] feeds.
+ * @see KiteSsotBuildConfigExtension for the feature that most often needs [shared].
  */
 abstract class KiteSsotModulesExtension {
 
@@ -33,6 +48,13 @@ abstract class KiteSsotModulesExtension {
      *
      * Default: the single project that applies Kotlin Multiplatform. Two or more
      * candidates is a hard error that lists them and asks for this value.
+     *
+     * Detection resolves once every project has been evaluated, which is the
+     * earliest point the count is known.
+     *
+     * @throws org.gradle.api.GradleException during configuration when a
+     *   shared-scoped feature is enabled and the path is missing, names a project
+     *   that does not exist, or names one that does not apply Kotlin Multiplatform.
      */
     abstract val shared: Property<String>
 

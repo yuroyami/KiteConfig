@@ -156,6 +156,20 @@ internal fun discoverIosSwiftFiles(
  * disconnected from the application. Shared-module migration requires both
  * [iosPreviousSharedModuleName] and [iosSharedModuleName]; it never guesses from
  * a Podfile.
+ *
+ * ## Safety rails on every source-writing task
+ *
+ * | Rail | Behaviour |
+ * |---|---|
+ * | Explicit only | never runs as part of an ordinary build; you invoke it by name |
+ * | Authorized | the matching DSL block must be configured, or the task is skipped |
+ * | `-Pkitessot.dryRun=true` | reports what it would write **and remove**, changes nothing |
+ * | `-Pkitessot.backups=true` | keeps a recovery copy before replacing anything (default) |
+ * | Ownership | refuses to overwrite or delete a file it does not own |
+ * | Atomic | staged then swapped, so an interrupted run leaves the tree intact |
+ *
+ * Both `-P` switches accept exactly `true` or `false`; anything else fails the
+ * build rather than being read as `false`.
  */
 @DisableCachingByDefault(because = "Explicit migration mutates user-owned source files and must execute its safety checks.")
 abstract class SyncIosConfigTask : DefaultTask() {

@@ -42,6 +42,20 @@ failing test first in every case.
   the 3.0.0 notes now really does discover locales on its own. An explicit
   `modules { shared }` still beats detection.
 
+### Changed
+- **The API reference is scannable.** Every public DSL block, task, and type now
+  carries a table of what it actually does: which module types receive each
+  Android SDK setting, which of the two Apple version fields must change on a
+  re-upload, which task each authorization block unlocks, what happens on a
+  plist conflict, and the safety rails shared by every source-writing task.
+  Cross-links (`@see`) and documented failure conditions (`@throws`) were added
+  alongside them. 28 tables across 22 reference pages, all verified in the
+  generated Dokka HTML.
+- The logo block no longer claims it renders "every Apple AppIcon slot". It
+  writes one `AppIcon-1024.png` plus a single-image universal `Contents.json`,
+  which is what Xcode 14 and newer expand from. The old wording described a
+  per-slot set the task has never produced.
+
 ## [3.0.0]
 
 The DSL is reshaped. The engine, the safety charter, and every task name are

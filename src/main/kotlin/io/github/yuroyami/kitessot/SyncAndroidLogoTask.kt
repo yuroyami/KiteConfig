@@ -34,6 +34,20 @@ import javax.imageio.ImageIO
  * This is an installer into a user-owned Android source tree, so it is deliberately
  * non-cacheable and always performs its validation. A checksum ownership manifest
  * prevents overwriting or deleting user-authored files at generated paths.
+ *
+ * ## Safety rails on every source-writing task
+ *
+ * | Rail | Behaviour |
+ * |---|---|
+ * | Explicit only | never runs as part of an ordinary build; you invoke it by name |
+ * | Authorized | the matching DSL block must be configured, or the task is skipped |
+ * | `-Pkitessot.dryRun=true` | reports what it would write **and remove**, changes nothing |
+ * | `-Pkitessot.backups=true` | keeps a recovery copy before replacing anything (default) |
+ * | Ownership | refuses to overwrite or delete a file it does not own |
+ * | Atomic | staged then swapped, so an interrupted run leaves the tree intact |
+ *
+ * Both `-P` switches accept exactly `true` or `false`; anything else fails the
+ * build rather than being read as `false`.
  */
 @DisableCachingByDefault(because = "Installs and validates files in a user-owned Android resource tree.")
 abstract class SyncAndroidLogoTask : DefaultTask() {

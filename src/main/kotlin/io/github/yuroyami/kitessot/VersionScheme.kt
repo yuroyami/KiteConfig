@@ -29,6 +29,15 @@ private const val LEGACY_SCHEME_SNIPPET =
  *
  * You never construct one. KiteSSOT parses `version`, adds the platform `rebuild`
  * dial, and passes the result into your lambda.
+ *
+ * | From | Field | `1.4.0` with `rebuild = 2` |
+ * |---|---|---|
+ * | `version` | [major] | `1` |
+ * | `version` | [minor] | `4` |
+ * | `version` | [patch] | `0` |
+ * | `android { rebuild }` or `ios { rebuild }` | [rebuild] | `2` |
+ *
+ * @see VersionCodeScheme for the formula that consumes these.
  */
 class SsotVersion(
     /** First number of `version`, so `1` in `1.4.0`. Range 0..999 in the default scheme. */
@@ -56,6 +65,11 @@ class SsotVersion(
  * `versionCode`. Apple takes the same number, as text, for
  * `CURRENT_PROJECT_VERSION`. One number, two field types, no drift between the
  * platforms.
+ *
+ * The result must land in `1..2100000000`, the range Google Play accepts, and it
+ * has to grow with every upload: Play compares codes as plain integers and never
+ * forgets one. Apple is looser, but sharing one number keeps the platforms
+ * honest with each other.
  *
  * ```kotlin
  * kiteSsot {

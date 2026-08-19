@@ -21,6 +21,20 @@ import org.gradle.api.provider.Property
  *
  * An empty `nativeOptIns { }` already does useful work. Opening the block turns
  * the feature on, and the built-in set covers the usual interop cases.
+ *
+ * ## What ends up on the compiler command line
+ *
+ * | You write | Markers applied |
+ * |---|---|
+ * | no block at all | none, the feature is off |
+ * | `nativeOptIns { }` | the built-in interop set |
+ * | `nativeOptIns { add("x") }` | the built-in set plus `x` |
+ * | `nativeOptIns { builtIns = false; add("x") }` | only `x` |
+ *
+ * Markers reach Kotlin/Native compilations only, in the shared project or in
+ * whatever [projects] names. They are never written into your source.
+ *
+ * @see KiteSsotModulesExtension.shared for the project used when [projects] is empty.
  */
 abstract class KiteSsotNativeOptInsExtension {
 

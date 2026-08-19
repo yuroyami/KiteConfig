@@ -19,6 +19,10 @@ import java.nio.charset.StandardCharsets
  * ownership manifest removes only outputs from the previous successful generation.
  * Unknown, modified, escaping, or symlinked content fails closed instead of being
  * deleted.
+ *
+ * Output lands in the plugin-owned build directory and never in your
+ * hand-written source tree, so this task needs no ownership or backup rails.
+ * It is a normal cacheable Gradle task with declared inputs and outputs.
  */
 @CacheableTask
 abstract class GenerateBuildConfigTask : DefaultTask() {

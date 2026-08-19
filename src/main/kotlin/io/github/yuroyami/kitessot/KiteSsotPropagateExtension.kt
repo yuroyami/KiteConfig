@@ -23,6 +23,22 @@ import org.gradle.api.provider.Property
  * resolves it and prints it, so you can see what would have been applied. These
  * are not safety switches either: no ordinary build mutates source, with or
  * without them.
+ *
+ * ## What each switch stops
+ *
+ * | Off | Android keeps | Apple keeps |
+ * |---|---|---|
+ * | [appName] | its manifest `appName` placeholder | its `PRODUCT_NAME` and bundle name keys |
+ * | [bundleId] | its `applicationId` | its `PRODUCT_BUNDLE_IDENTIFIER` |
+ * | [version] | its `versionName` and `versionCode` | its `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` |
+ * | [locales] | its resource configuration | its `knownRegions` |
+ *
+ * These govern **propagation**, not mutation. Apple values are written only by
+ * an explicit sync task in the first place, so turning one off narrows what
+ * that task would write; it does not decide whether it runs.
+ *
+ * @see KiteSsotExtension.dryRun to preview writes instead of performing them.
+ * @see KiteSsotIosSyncExtension for the gate that authorizes Apple writes at all.
  */
 abstract class KiteSsotPropagateExtension {
 

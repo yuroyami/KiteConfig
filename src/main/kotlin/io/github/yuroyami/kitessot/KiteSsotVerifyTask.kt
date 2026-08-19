@@ -14,6 +14,19 @@ import org.gradle.work.DisableCachingByDefault
  * paths. Provider and filesystem inspection failures are rendered inline rather
  * than aborting the report. Use [KiteSsotPlanTask] to inspect mutation policies
  * and [KiteSsotCheckTask] to gate CI on diagnostics.
+ *
+ * ## The four read-only tasks
+ *
+ * | Task | Answers | Fails the build |
+ * |---|---|---|
+ * | `kiteSsotVerify` | which values did KiteSSOT resolve? | no |
+ * | `kiteSsotDoctor` | what is wrong with my setup? | no |
+ * | `kiteSsotCheck` | the same, for CI | yes, on ERROR findings |
+ * | `kiteSsotPlan` | what would the mutation tasks write? | no |
+ *
+ * None of the four writes to your source tree, and none of them needs `dryRun`.
+ * Colour is added when a real terminal is attached; `NO_COLOR`, `TERM=dumb`, and
+ * `--console=plain` each turn it off, and `-Pkitessot.color=true|false` forces it.
  */
 @DisableCachingByDefault(because = "Reporting task; prints current state.")
 abstract class KiteSsotVerifyTask : DefaultTask() {

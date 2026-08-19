@@ -13,7 +13,19 @@ import javax.xml.transform.TransformerFactory
 import javax.xml.transform.dom.DOMSource
 import javax.xml.transform.stream.StreamResult
 
-/** Policy for an existing plist key whose value differs from the requested SSOT value. */
+/**
+ * Policy for an existing plist key whose value differs from the requested SSOT value.
+ *
+ * | Value | Existing value | Build |
+ * |---|---|---|
+ * | [FAIL] | untouched | fails, and the whole plist plan is abandoned |
+ * | [KEEP] | kept | continues, with a warning naming the key |
+ * | [REPLACE] | overwritten | continues |
+ *
+ * Default: [FAIL], so nothing you did not agree to lose is ever replaced.
+ *
+ * @see KiteSsotIosSyncExtension.onConflict for where this is selected.
+ */
 enum class PlistConflictPolicy {
     /** Abort the entire plist plan and leave the file byte-for-byte untouched. */
     FAIL,

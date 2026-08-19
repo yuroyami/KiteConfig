@@ -27,6 +27,33 @@ import org.gradle.api.provider.Property
  * The plugin also exposes a read-only `applicationId: Provider<String>` here.
  * It is the root `appId` joined with [idSuffix]. Read it to wire other build
  * logic, for example into a manifest placeholder. You cannot set it.
+ *
+ * ## Which module types receive each SDK setting
+ *
+ * A library DSL simply has no `targetSdk`, and the KMP-native Android library
+ * DSL has neither `targetSdk` nor `ndkVersion`, so those are skipped there and
+ * reported rather than applied silently.
+ *
+ * | Setting | Application | Classic library | KMP-native library |
+ * |---|---|---|---|
+ * | [compileSdk] | yes | yes | yes |
+ * | [minSdk] | yes | yes | yes |
+ * | [targetSdk] | yes | not in the DSL | not in the DSL |
+ * | [ndk] | yes | yes | not in the DSL |
+ *
+ * ## Picking the right version-code dial
+ *
+ * | You want | Set | Effect |
+ * |---|---|---|
+ * | The usual: one code per release | nothing | root [KiteSsotExtension.scheme] applies |
+ * | To re-upload the same app version | [rebuild] | bumps the low digits only |
+ * | A different formula on Android only | [scheme] | replaces the root formula here |
+ * | One exact number, no formula | [versionCode] | bypasses the scheme and [rebuild] |
+ * | To be told before Play rejects you | [publishedVersionCode] | fails the build if the code did not grow |
+ *
+ * @see KiteSsotExtension.scheme for the formula both platforms share.
+ * @see KiteSsotIosExtension for the Apple half of the same identity.
+ * @see KiteSsotModulesExtension.androidApps when more than one module is an application.
  */
 abstract class KiteSsotAndroidExtension {
 
@@ -51,6 +78,9 @@ abstract class KiteSsotAndroidExtension {
      *
      * Default: the root scheme, applied with this block's [rebuild].
      * Assigning a value bypasses the scheme entirely, [rebuild] included.
+     *
+     * @throws org.gradle.api.GradleException during configuration when the value
+     *   falls outside `1..2100000000`.
      */
     abstract val versionCode: Property<Int>
 
@@ -65,6 +95,10 @@ abstract class KiteSsotAndroidExtension {
      * release draft, so a second upload of the same app version needs a fresh
      * number. Turn this dial instead of faking a patch release. It never needs
      * resetting: the next version bump moves a higher digit.
+     *
+     * @throws org.gradle.api.GradleException during configuration when the
+     *   built-in scheme is in use and this exceeds `9`, which would overflow into
+     *   the patch digits. A custom [scheme] sets its own range.
      */
     abstract val rebuild: Property<Int>
 
@@ -117,6 +151,9 @@ abstract class KiteSsotAndroidExtension {
      *
      * Default: unset. The KMP-native Android library DSL has no such setting, so
      * those modules ignore it.
+     *
+     * @throws org.gradle.api.GradleException during configuration when the value
+     *   is not in Android's `major.minor.build` form.
      */
     abstract val ndk: Property<String>
 
@@ -131,6 +168,10 @@ abstract class KiteSsotAndroidExtension {
      *
      * This check is offline. KiteSSOT never contacts a store, never guesses this
      * value, and never writes it into any DSL, manifest, or generated file.
+     *
+     * @throws org.gradle.api.GradleException during configuration when the
+     *   resolved code is not greater than this baseline.
+     * @see KiteSsotIosExtension.publishedBuildNumber for the TestFlight equivalent.
      */
     abstract val publishedVersionCode: Property<Int>
 
@@ -152,6 +193,10 @@ abstract class KiteSsotAndroidExtension {
      * This one changes what ships: languages outside the list are dropped from
      * packaged resources in the APK or AAB. Enable it only when the list is
      * complete, or users will see untranslated strings.
+     *
+     * @throws org.gradle.api.GradleException during configuration when enabled
+     *   with an empty locale list, which would strip every language.
+     * @see KiteSsotExtension.locales for the list this filters to.
      */
     abstract val filterResourcesToLocales: Property<Boolean>
 }

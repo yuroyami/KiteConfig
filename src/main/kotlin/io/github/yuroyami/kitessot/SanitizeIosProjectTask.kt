@@ -39,6 +39,20 @@ import org.gradle.work.DisableCachingByDefault
  * The plist is parsed with mandatory XML hardening ([sanitizeInfoPlist]). Binary,
  * malformed, duplicate-key, unsafe-entity, and non-lossless inputs fail without
  * writing. Generated plists are unsupported by this source-file migration task.
+ *
+ * ## Safety rails on every source-writing task
+ *
+ * | Rail | Behaviour |
+ * |---|---|
+ * | Explicit only | never runs as part of an ordinary build; you invoke it by name |
+ * | Authorized | the matching DSL block must be configured, or the task is skipped |
+ * | `-Pkitessot.dryRun=true` | reports what it would write **and remove**, changes nothing |
+ * | `-Pkitessot.backups=true` | keeps a recovery copy before replacing anything (default) |
+ * | Ownership | refuses to overwrite or delete a file it does not own |
+ * | Atomic | staged then swapped, so an interrupted run leaves the tree intact |
+ *
+ * Both `-P` switches accept exactly `true` or `false`; anything else fails the
+ * build rather than being read as `false`.
  */
 @DisableCachingByDefault(because = "Mutates user-owned source files and must execute current safety checks.")
 abstract class SanitizeIosProjectTask : DefaultTask() {

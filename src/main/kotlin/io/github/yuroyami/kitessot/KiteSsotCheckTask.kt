@@ -25,6 +25,19 @@ enum class KiteSsotDiagnosticReportFormat {
  * Strict counterpart to [KiteSsotDoctorTask]. It runs the identical aggregate,
  * read-only checks, always writes a deterministic report, and fails after report
  * creation when ERROR findings (or optionally warnings) exist.
+ *
+ * ## The four read-only tasks
+ *
+ * | Task | Answers | Fails the build |
+ * |---|---|---|
+ * | `kiteSsotVerify` | which values did KiteSSOT resolve? | no |
+ * | `kiteSsotDoctor` | what is wrong with my setup? | no |
+ * | `kiteSsotCheck` | the same, for CI | yes, on ERROR findings |
+ * | `kiteSsotPlan` | what would the mutation tasks write? | no |
+ *
+ * None of the four writes to your source tree, and none of them needs `dryRun`.
+ * Colour is added when a real terminal is attached; `NO_COLOR`, `TERM=dumb`, and
+ * `--console=plain` each turn it off, and `-Pkitessot.color=true|false` forces it.
  */
 @DisableCachingByDefault(because = "Reads mutable source-tree state; diagnostics must reflect the current checkout.")
 abstract class KiteSsotCheckTask : KiteSsotDiagnosticTaskBase() {

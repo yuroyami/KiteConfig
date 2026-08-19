@@ -47,6 +47,33 @@ import javax.inject.Inject
  * It can also surface in build scans, KLIBs, APKs, IPAs, decompiled binaries,
  * and a trusted build cache when [allowBuildCache] is on. Never add passwords,
  * private API keys, signing material, or other credentials.
+ *
+ * ## Field helpers
+ *
+ * | Helper | Generates |
+ * |---|---|
+ * | `stringField(name, value)` | `public const val name: String` |
+ * | `intField` / `longField` / `doubleField` | the matching numeric `const val` |
+ * | `booleanField(name, value)` | `public const val name: Boolean` |
+ * | `stringField(name, provider)` | same, resolved lazily at task time |
+ *
+ * Only `stringField` accepts a `Provider`. Give it a fallback: an absent
+ * provider fails the build naming the field, rather than emptying the whole set.
+ *
+ * ```kotlin
+ * stringField("CHANNEL", providers.gradleProperty("channel").orElse("stable"))
+ * ```
+ *
+ * ## What generation requires
+ *
+ * | Requirement | Why |
+ * |---|---|
+ * | a shared module | that is where `commonMain` lives |
+ * | that module applies Kotlin Multiplatform | the object is generated into a KMP source set |
+ * | complete identity, when [includeIdentity] is on | the object would otherwise emit half an identity |
+ *
+ * @see KiteSsotModulesExtension.shared for selecting the module explicitly.
+ * @see includeIdentity to generate fields only.
  */
 abstract class KiteSsotBuildConfigExtension {
 

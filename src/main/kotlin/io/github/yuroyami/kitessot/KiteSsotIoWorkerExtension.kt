@@ -32,6 +32,24 @@ import org.gradle.api.provider.Property
  * and trust, never anything built from user-controlled data. The deployed
  * Content Security Policy must allow Blob workers too, normally with
  * `worker-src blob:`.
+ *
+ * ## Before this compiles in your app
+ *
+ * | You must | Because |
+ * |---|---|
+ * | name a browser target with [targets] | browser capability is never inferred |
+ * | add `kotlinx-coroutines-core` yourself | the generated code suspends, and KiteSSOT adds no dependencies |
+ * | allow `worker-src blob:` in your CSP | the worker is created from a Blob URL |
+ *
+ * ## What it is not
+ *
+ * | Not | Instead |
+ * |---|---|
+ * | `Dispatchers.IO` | one job, one throwaway worker, no pool |
+ * | a cross-platform API | browser Kotlin/JS only |
+ * | a typed transport | strings in, strings out |
+ *
+ * @see KiteSsotWebExtension for the enclosing block.
  */
 abstract class KiteSsotIoWorkerExtension {
 

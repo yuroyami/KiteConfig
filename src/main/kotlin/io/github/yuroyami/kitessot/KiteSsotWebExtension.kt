@@ -21,6 +21,14 @@ import org.gradle.api.plugins.ExtensionAware
  *
  * The block itself holds no settings. It is the address where browser features
  * live, and [ioWorker] is the only tenant today.
+ *
+ * | Target kind | Supported |
+ * |---|---|
+ * | Kotlin/JS with `browser()` | yes |
+ * | Kotlin/JS with `nodejs()` only | no, the generated code needs `Blob` and `Worker` |
+ * | `wasmJs` | no |
+ *
+ * @see KiteSsotIoWorkerExtension for the only feature this block currently holds.
  */
 abstract class KiteSsotWebExtension {
 

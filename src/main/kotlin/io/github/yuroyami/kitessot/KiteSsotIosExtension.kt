@@ -38,6 +38,31 @@ import org.gradle.api.provider.Property
  *
  * There is one derived read-only value, `bundleId: Provider<String>`: the root
  * `appId` followed by [bundleIdSuffix].
+ *
+ * ## The two Apple version fields
+ *
+ * Apple splits what Android keeps in one place. Getting them confused is the
+ * usual cause of a rejected TestFlight upload.
+ *
+ * | Field | Xcode setting | Who sees it | Rule |
+ * |---|---|---|---|
+ * | [marketingVersion] | `MARKETING_VERSION` | App Store customers | may repeat across uploads |
+ * | [buildNumber] | `CURRENT_PROJECT_VERSION` | TestFlight testers | must be new for each upload of the same version |
+ *
+ * So a re-upload of `1.4.0` keeps the marketing version and needs a fresh build
+ * number. Turn [rebuild] rather than inventing a version nobody shipped.
+ *
+ * ## What this block does and does not touch
+ *
+ * | Property | Written into your Xcode project |
+ * |---|---|
+ * | [bundleIdSuffix], [marketingVersion], [buildNumber] | yes, by an explicit [sync] task |
+ * | [deploymentTarget] | **no**, it only validates the AppIcon catalog |
+ * | [pbxproj], [podfile], [infoPlist], [appDirectory], [appIconDirectory] | no, they say where to look |
+ *
+ * @see KiteSsotIosSyncExtension for the gate that authorizes those writes.
+ * @see KiteSsotAndroidExtension for the Android half of the same identity.
+ * @see KiteSsotExtension.scheme for the formula both platforms share.
  */
 abstract class KiteSsotIosExtension {
 
@@ -58,6 +83,9 @@ abstract class KiteSsotIosExtension {
      * `CFBundleShortVersionString` and `MARKETING_VERSION`.
      *
      * Default: the root `version`. It needs three numeric parts, like `1.4.0`.
+     *
+     * @throws org.gradle.api.GradleException during configuration when the value
+     *   is not three numeric dot-separated parts.
      */
     abstract val marketingVersion: Property<String>
 
@@ -67,6 +95,9 @@ abstract class KiteSsotIosExtension {
      *
      * Default: the result of the root `scheme`, rendered as a string. Assigning
      * a value bypasses the scheme, so [rebuild] stops having any effect.
+     *
+     * @throws org.gradle.api.GradleException during configuration when the value
+     *   is not one to three numeric dot-separated parts.
      */
     abstract val buildNumber: Property<String>
 
@@ -110,6 +141,10 @@ abstract class KiteSsotIosExtension {
      *
      * The check is offline. KiteSSOT never contacts App Store Connect, and it
      * never writes this value into any file.
+     *
+     * @throws org.gradle.api.GradleException during configuration when the
+     *   resolved build number does not beat this baseline.
+     * @see KiteSsotAndroidExtension.publishedVersionCode for the Play equivalent.
      */
     abstract val publishedBuildNumber: Property<String>
 
@@ -122,6 +157,12 @@ abstract class KiteSsotIosExtension {
      * KiteSSOT reads it only to check that the universal AppIcon asset is valid
      * for that version. It does NOT change Xcode's `IPHONEOS_DEPLOYMENT_TARGET`.
      * The single-size universal catalog also needs Xcode 14 or newer.
+     *
+     * Required before the Apple icon installer will run.
+     *
+     * @throws org.gradle.api.GradleException during configuration when the value
+     *   is below `12.0` or is not a valid version string.
+     * @see KiteSsotLogoExtension for the icon source this validates against.
      */
     abstract val deploymentTarget: Property<String>
 

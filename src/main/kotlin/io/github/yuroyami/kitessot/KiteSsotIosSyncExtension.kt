@@ -29,6 +29,25 @@ import org.gradle.api.provider.Property
  * safety rail still applies: the root `dryRun` previews instead of writing, the
  * root `backups` keeps recovery copies, and [onConflict] decides what happens
  * when an existing plist value disagrees with yours.
+ *
+ * ## Which task this block unlocks
+ *
+ * | Task | Writes | Also needs |
+ * |---|---|---|
+ * | `kiteSsotSyncIosConfig` | `project.pbxproj`, Podfile, Swift imports | nothing else |
+ * | `kiteSsotSanitizeIosProject` | source `Info.plist` | [sanitizePlist] |
+ * | `kiteSsotSyncIosLogo` | `AppIcon.appiconset` | a `logo { }` block and [KiteSsotIosExtension.deploymentTarget] |
+ *
+ * ## What happens on a plist conflict
+ *
+ * | [onConflict] | Existing value | Build |
+ * |---|---|---|
+ * | [PlistConflictPolicy.FAIL] (default) | untouched | fails, nothing is written |
+ * | [PlistConflictPolicy.KEEP] | kept | continues with a warning |
+ * | [PlistConflictPolicy.REPLACE] | overwritten | continues |
+ *
+ * @see KiteSsotIosExtension for the values these tasks propagate.
+ * @see PlistConflictPolicy for the policy this block selects.
  */
 abstract class KiteSsotIosSyncExtension {
 
@@ -49,6 +68,10 @@ abstract class KiteSsotIosSyncExtension {
      *
      * Default: empty. An empty list can still select a sole application target
      * when an enabled update needs one.
+     *
+     * @throws org.gradle.api.GradleException at task time when a named target is
+     *   missing, or when the list is empty and the project holds more than one
+     *   application target, which would make the choice a guess.
      */
     abstract val targets: ListProperty<String>
 
@@ -62,6 +85,10 @@ abstract class KiteSsotIosSyncExtension {
      *
      * Default: `false`. Turn it on before setting [nonExemptEncryption] or
      * [proMotion], since those keys live in that file.
+     *
+     * @throws org.gradle.api.GradleException at task time when the project
+     *   generates its `Info.plist` (`GENERATE_INFOPLIST_FILE`), because there is
+     *   no source file to maintain.
      */
     abstract val sanitizePlist: Property<Boolean>
 

@@ -27,6 +27,20 @@ import org.gradle.work.DisableCachingByDefault
  * candidate is copied to a checksummed durable `.kitessot/recovery` backup and recorded in a
  * provenance manifest before the original is removed. Honors `dryRun` (lists what
  * it would migrate, writes/removes nothing).
+ *
+ * ## Safety rails on every source-writing task
+ *
+ * | Rail | Behaviour |
+ * |---|---|
+ * | Explicit only | never runs as part of an ordinary build; you invoke it by name |
+ * | Authorized | the matching DSL block must be configured, or the task is skipped |
+ * | `-Pkitessot.dryRun=true` | reports what it would write **and remove**, changes nothing |
+ * | `-Pkitessot.backups=true` | keeps a recovery copy before replacing anything (default) |
+ * | Ownership | refuses to overwrite or delete a file it does not own |
+ * | Atomic | staged then swapped, so an interrupted run leaves the tree intact |
+ *
+ * Both `-P` switches accept exactly `true` or `false`; anything else fails the
+ * build rather than being read as `false`.
  */
 @DisableCachingByDefault(because = "One-shot source migration with backups and provenance side effects.")
 abstract class CleanupLegacyAppLogoArtifactsTask : DefaultTask() {

@@ -24,6 +24,10 @@ import java.nio.charset.StandardCharsets
  * Cacheable: pure codegen with a declared `@Input` package and an
  * `@OutputDirectory`, so Gradle skips it when nothing changed and restores the
  * output from the build cache otherwise.
+ *
+ * Output lands in the plugin-owned build directory and never in your
+ * hand-written source tree, so this task needs no ownership or backup rails.
+ * It is a normal cacheable Gradle task with declared inputs and outputs.
  */
 @CacheableTask
 abstract class GenerateIoWorkerTask : DefaultTask() {

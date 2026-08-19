@@ -22,6 +22,19 @@ import java.nio.file.LinkOption.NOFOLLOW_LINKS
  *
  * A directory entry can hold dynamically discovered Swift files. [exactChanges]
  * exposes the available summaries without running an installer.
+ *
+ * ## The four read-only tasks
+ *
+ * | Task | Answers | Fails the build |
+ * |---|---|---|
+ * | `kiteSsotVerify` | which values did KiteSSOT resolve? | no |
+ * | `kiteSsotDoctor` | what is wrong with my setup? | no |
+ * | `kiteSsotCheck` | the same, for CI | yes, on ERROR findings |
+ * | `kiteSsotPlan` | what would the mutation tasks write? | no |
+ *
+ * None of the four writes to your source tree, and none of them needs `dryRun`.
+ * Colour is added when a real terminal is attached; `NO_COLOR`, `TERM=dumb`, and
+ * `--console=plain` each turn it off, and `-Pkitessot.color=true|false` forces it.
  */
 @DisableCachingByDefault(because = "Reports current filesystem state and is intentionally always run.")
 abstract class KiteSsotPlanTask : DefaultTask() {
