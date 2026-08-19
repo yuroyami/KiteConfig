@@ -1266,6 +1266,7 @@ class KiteSsotPluginFunctionalTest {
             kiteSsot {
                 appName = "CacheProbe"
                 version = "1.0.0"
+                modules { androidAppDirectory = file("androidApp") }
                 logo {
                     foreground = file("art/fg.png")
                     backgroundColor = "#102A43"
@@ -1412,6 +1413,7 @@ class KiteSsotPluginFunctionalTest {
             kiteSsot {
                 appName = "CliMirror"
                 version = "1.0.0"
+                modules { androidAppDirectory = file("androidApp") }
                 logo {
                     foreground = file("art/fg.png")
                     backgroundColor = "#102A43"
@@ -1422,10 +1424,127 @@ class KiteSsotPluginFunctionalTest {
 
         val previewed = run("kiteSsotSyncAndroidLogo", "-Pkitessot.dryRun=true")
         assertTrue(previewed.output.contains("dry-run"), previewed.output)
-        assertFalse(File(projectDir, "src/main/res").exists())
+        assertFalse(File(projectDir, "androidApp/src/main/res").exists())
 
         val written = run("kiteSsotSyncAndroidLogo")
         assertFalse(written.output.contains("dry-run"), written.output)
-        assertTrue(File(projectDir, "src/main/res").exists())
+        assertTrue(File(projectDir, "androidApp/src/main/res").exists())
+    }
+
+    @Test
+    fun `a shared-scoped feature says which module to name when none is selected`() {
+        // modules { shared } is NOT auto-detected: the shared project must be known
+        // while KMP source sets are wired, which is before "exactly one KMP project"
+        // can be established. The docs say so; this proves the error says so too.
+        write("settings.gradle.kts", "rootProject.name = \"fixture\"")
+        write(
+            "build.gradle.kts",
+            """
+            plugins { id("io.github.yuroyami.kitessot") }
+            kiteSsot {
+                appName = "NoShared"
+                version = "1.0.0"
+                buildConfig { packageName = "demo.build" }
+            }
+            """.trimIndent(),
+        )
+
+        val failure = runAndFail("help")
+
+        assertTrue(failure.output.contains("no shared project is selected"), failure.output)
+        assertTrue(failure.output.contains("modules { shared"), failure.output)
+    }
+
+    @Test
+    fun `logo installation fails closed instead of writing into the root source tree`() {
+        writePng("art/fg.png", 8)
+        write("settings.gradle.kts", "rootProject.name = \"fixture\"")
+        // No Android application anywhere, and no explicit output directory.
+        write(
+            "build.gradle.kts",
+            """
+            plugins { id("io.github.yuroyami.kitessot") }
+            kiteSsot {
+                appName = "NoAndroidApp"
+                version = "1.0.0"
+                logo {
+                    foreground = file("art/fg.png")
+                    backgroundColor = "#102A43"
+                }
+            }
+            """.trimIndent(),
+        )
+
+        val failure = runAndFail("kiteSsotSyncAndroidLogo")
+
+        assertTrue(failure.output.contains("Android application"), failure.output)
+        assertFalse(
+            File(projectDir, "src/main/res").exists(),
+            "the root project is not an Android app, so nothing may be written there",
+        )
+    }
+
+    @Test
+    fun `the logo dry-run previews the deletions it would perform, not only the writes`() {
+        writePng("art/fg.png", 8)
+        write("settings.gradle.kts", "rootProject.name = \"fixture\"")
+        write("androidApp/build.gradle.kts", "")
+        // A template icon that collides with a generated PNG: the real run deletes it.
+        write("androidApp/src/main/res/mipmap-hdpi/ic_launcher.webp", "x")
+        write(
+            "build.gradle.kts",
+            """
+            plugins { id("io.github.yuroyami.kitessot") }
+            kiteSsot {
+                appName = "PreviewTruth"
+                version = "1.0.0"
+                modules { androidAppDirectory = file("androidApp") }
+                logo {
+                    foreground = file("art/fg.png")
+                    backgroundColor = "#102A43"
+                    takeOverLegacyIcons = true
+                }
+            }
+            """.trimIndent(),
+        )
+
+        val preview = run("kiteSsotSyncAndroidLogo", "-Pkitessot.dryRun=true")
+
+        // The write half was always previewed.
+        assertTrue(preview.output.contains("would write Android logo"), preview.output)
+        // The destructive half must be previewed too, naming the file it removes.
+        assertTrue(preview.output.contains("ic_launcher.webp"), preview.output)
+        assertTrue(File(projectDir, "androidApp/src/main/res/mipmap-hdpi/ic_launcher.webp").exists())
+    }
+
+    @Test
+    fun `a misspelled safety flag fails the build and mutates nothing`() {
+        writePng("art/fg.png", 8)
+        write("settings.gradle.kts", "rootProject.name = \"fixture\"")
+        write(
+            "build.gradle.kts",
+            """
+            plugins { id("io.github.yuroyami.kitessot") }
+            kiteSsot {
+                appName = "CliMirror"
+                version = "1.0.0"
+                logo {
+                    foreground = file("art/fg.png")
+                    backgroundColor = "#102A43"
+                }
+            }
+            """.trimIndent(),
+        )
+
+        // "treu" used to parse as false, turning a requested preview into a real write.
+        val failure = runAndFail("kiteSsotSyncAndroidLogo", "-Pkitessot.dryRun=treu")
+        assertTrue(failure.output.contains("kitessot.dryRun"), failure.output)
+        assertTrue(failure.output.contains("treu"), failure.output)
+        assertFalse(File(projectDir, "src/main/res").exists(), "no source may be written")
+
+        // Same for backups, where the default is ON, so a typo would silently remove protection.
+        val backupsFailure = runAndFail("kiteSsotSyncAndroidLogo", "-Pkitessot.backups=treu")
+        assertTrue(backupsFailure.output.contains("kitessot.backups"), backupsFailure.output)
+        assertFalse(File(projectDir, "src/main/res").exists(), "no source may be written")
     }
 }

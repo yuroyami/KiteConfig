@@ -16,13 +16,15 @@ import org.gradle.api.provider.Property
  * }
  * ```
  *
- * Most builds never open this block. KiteSSOT finds the shared KMP project and
- * the Android app by itself, so a standard template repo configures nothing
- * here.
+ * KiteSSOT finds the Android application by itself, and fails closed when two
+ * projects are Android applications: it stops and names the candidates instead
+ * of guessing.
  *
- * Auto-detection fails closed. When two projects apply Kotlin Multiplatform, or
- * two projects are Android applications, the build stops and names the
- * candidates instead of guessing. One line here ends the ambiguity for good.
+ * [shared] is different. It is not detected, because the shared project must be
+ * known while KMP source sets are still being wired, and that is earlier than
+ * the point where "exactly one KMP project" can be established. Name it whenever
+ * you use a shared-scoped feature: `buildConfig`, `nativeOptIns`, `web`, or
+ * locale auto-detection.
  */
 abstract class KiteSsotModulesExtension {
 

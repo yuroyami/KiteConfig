@@ -61,7 +61,7 @@ kiteSsot {
     appName = "Jetzy"                  // display name; Android manifest + Apple Info.plist
     version = "1.4.0"                  // versionName / marketing version; feeds scheme below
     appId = "com.example.jetzy"        // reverse-DNS base; android.idSuffix / ios.bundleIdSuffix extend it
-    locales = listOf("en", "pt-BR")    // default: auto-detected from Compose resources' values-* folders
+    locales = listOf("en", "pt-BR")    // default: auto-detected from modules.shared's composeResources values-* folders
     jvmTarget = 21                     // Java + Kotlin JVM compatibility across every module
 
     // ---- the one formula that turns `version` into a store build number ----
@@ -76,7 +76,7 @@ kiteSsot {
 
     // ---- where your modules live ----
     modules {
-        shared = ":shared"                          // default: the sole module applying Kotlin Multiplatform
+        shared = ":shared"                          // REQUIRED for buildConfig, nativeOptIns, web, and locale auto-detection
         androidApps(":androidApp")                   // default: the sole Android application module
         androidAppDirectory = layout.projectDirectory.dir("androidApp") // default: found from the app above
         composeResources = layout.projectDirectory.dir("shared/src/commonMain/composeResources") // default: shared's own

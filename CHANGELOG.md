@@ -4,6 +4,42 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions track the
 Gradle Plugin Portal releases.
 
+## [3.0.1]
+
+An external audit (SOLAUDIT.md) reviewed the 3.0.0 source. These are the
+safety-critical findings from it, with the reported behaviour reproduced as a
+failing test first in every case.
+
+### Fixed
+- **`-Pkitessot.dryRun` and `-Pkitessot.backups` no longer accept a typo as
+  `false`.** Both went through `String.toBoolean()`, which answers `true` only
+  for `"true"`, so `-Pkitessot.dryRun=treu` turned a requested preview into a
+  real source rewrite, and `-Pkitessot.backups=treu` silently switched backups
+  off. Both now accept exactly `true` or `false` and fail the build otherwise.
+  Validation happens when the flag is supplied rather than when it is read:
+  only some tasks read `backups`, so a lazy parse accepted the typo on one
+  invocation and dropped protection on the next. `-Pkitessot.color` uses the
+  same parser.
+- **The Android logo dry-run previews its deletions.** It listed the files it
+  would write, then returned before the legacy and colliding-icon takeover set
+  was assembled, so the destructive half of the operation being approved was
+  invisible. Preview and transaction now read one shared list.
+- **Android logo installation fails closed when no application module is
+  found.** The output directory fell back to the root project, so a discovery
+  or configuration mistake wrote launcher resources into the repository root,
+  where nothing packages them. `kiteSsotSyncAndroidLogo` and
+  `kiteSsotCleanupLegacyAppLogoArtifacts` now refuse to run unless the sink is
+  a real Android application module or a directory the build named outright.
+
+### Changed
+- Documentation now matches the code on `modules { shared }`. The README, the
+  changelog, and the KDoc said the shared module was auto-detected like the
+  Android application is. It is not, and cannot be at that point in the build:
+  the shared project has to be known while KMP source sets are still being
+  wired, which is earlier than the point where "exactly one KMP project" can be
+  established. Name it whenever you use `buildConfig`, `nativeOptIns`, `web`,
+  or locale auto-detection.
+
 ## [3.0.0]
 
 The DSL is reshaped. The engine, the safety charter, and every task name are
@@ -24,8 +60,12 @@ kiteSsot {
 }
 ```
 
-That is a complete setup. Locales, the shared module, and the Android
-application project are all detected.
+That is a complete setup for identity propagation, and the Android application
+project is detected. Shared-scoped features (`buildConfig`, `nativeOptIns`,
+`web`, and locale auto-detection) additionally need `modules { shared }`, which
+is not detected: the shared project has to be known while KMP source sets are
+still being wired, which is earlier than the point where "exactly one KMP
+project" can be established.
 
 ### Added
 - `scheme { v -> ... }` at the root: one build-number formula for **both**

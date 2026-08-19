@@ -61,6 +61,9 @@ abstract class SyncAndroidLogoTask : DefaultTask() {
     @get:Input abstract val cleanupLegacyArtifacts: Property<Boolean>
     @get:Internal abstract val dryRun: Property<Boolean>
 
+    /** False when no Android application module was selected or detected. */
+    @get:Internal abstract val outputSinkApproved: Property<Boolean>
+
     @get:Internal abstract val androidResDir: DirectoryProperty
     @get:Internal abstract val projectRootDir: DirectoryProperty
     @get:Internal abstract val backupDir: DirectoryProperty
@@ -81,6 +84,14 @@ abstract class SyncAndroidLogoTask : DefaultTask() {
                 "[kiteSsot] logo { foreground } points to a missing file: " +
                     "${displayProjectPath(projectRootDir.asFile.get(), fgFile)}. " +
                     "Fix the path or disable logo propagation.",
+            )
+        }
+        if (!outputSinkApproved.getOrElse(false)) {
+            throw GradleException(
+                "[kiteSsot] No Android application project was found, so there is no directory " +
+                    "to install launcher icons into. Installing into the root project would create " +
+                    "resources nothing packages. Apply com.android.application to a module, or name " +
+                    "the sink with modules { androidApps(\":app\") } or modules { androidAppDirectory }.",
             )
         }
         val resDir = androidResDir.asFile.get()
@@ -181,17 +192,33 @@ abstract class SyncAndroidLogoTask : DefaultTask() {
             ),
         )
 
+        // Built before the dry-run branch and reused by the transaction below, so the
+        // preview and the real run can never describe different operations. Listing
+        // only the writes used to hide the deletion half of what the user approves.
+        val takeoverFiles = if (cleanupLegacyArtifacts.get()) {
+            listOf(
+                resDir.resolve("drawable/ic_launcher.xml"),
+                resDir.resolve("values/ic_launcher_background.xml"),
+            ) + templateCollisions
+        } else {
+            emptyList()
+        }
+
         if (dry) {
             rendered.keys.forEach { logger.lifecycle("[kiteSsot][dry-run] would write Android logo: $it") }
+            val projectRoot = projectRootDir.asFile.get().toPath()
+            takeoverFiles.filter(File::exists).forEach { file ->
+                logger.lifecycle(
+                    "[kiteSsot][dry-run] would take over Android logo (backed up, then removed): " +
+                        relativeDisplayPath(projectRoot, file.toPath()),
+                )
+            }
             return
         }
 
         val manifest = resDir.parentFile.resolve(".kitessot/android-logo-owned-files-v1")
         if (cleanupLegacyArtifacts.get()) {
-            val legacy = listOf(
-                resDir.resolve("drawable/ic_launcher.xml"),
-                resDir.resolve("values/ic_launcher_background.xml"),
-            ) + templateCollisions
+            val legacy = takeoverFiles
             OwnedOutputSafety.replaceInstalledFilesWithBackup(
                 installationRoot = resDir,
                 manifestFile = manifest,

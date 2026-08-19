@@ -49,7 +49,9 @@ class MessageHygieneTest {
                 val pardoned = allowed[file.name].orEmpty()
                 file.readLines().withIndex().flatMap { (index, line) ->
                     retiredNames.filter { name ->
-                        name !in pardoned && line.namesInsideAString(name)
+                        name !in pardoned &&
+                            line.namesInsideAString(name) &&
+                            !line.qualifiesWithModulesBlock(name)
                     }.map { name -> "${file.name}:${index + 1} says \"$name\"" }
                 }
             }
@@ -57,6 +59,13 @@ class MessageHygieneTest {
 
         assertEquals(emptyList<String>(), offences, offences.joinToString("\n"))
     }
+
+    /**
+     * `androidAppDirectory` is a retired root property but a current `modules { }`
+     * member, so the qualified spelling is correct 3.0 advice, not a stale name.
+     */
+    private fun String.qualifiesWithModulesBlock(name: String): Boolean =
+        name == "androidAppDirectory" && contains("modules {")
 
     /** True when [name] sits after an odd number of quotes, i.e. inside a literal. */
     private fun String.namesInsideAString(name: String): Boolean {

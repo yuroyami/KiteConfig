@@ -276,3 +276,22 @@ internal fun validateOptInMarker(value: String): String {
     }
     return value
 }
+
+/**
+ * Parse a `-P` switch that guards destructive work.
+ *
+ * `String.toBoolean()` answers `false` for everything that is not `"true"`, so
+ * `-Pkitessot.dryRun=treu` would quietly turn a requested preview into a real
+ * source rewrite, and `-Pkitessot.backups=treu` would turn backups off. A flag
+ * whose whole job is protection has to refuse what it does not understand.
+ */
+internal fun strictBooleanProperty(property: String, raw: String): Boolean =
+    when (raw.trim().lowercase()) {
+        "true" -> true
+        "false" -> false
+        else -> throw GradleException(
+            "kiteSsot -P$property must be exactly 'true' or 'false'; got '$raw'. " +
+                "This switch guards source mutation, so an unrecognised value is refused " +
+                "instead of being treated as 'false'.",
+        )
+    }

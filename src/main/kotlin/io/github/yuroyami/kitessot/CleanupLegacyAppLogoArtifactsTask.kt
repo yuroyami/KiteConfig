@@ -1,6 +1,7 @@
 package io.github.yuroyami.kitessot
 
 import org.gradle.api.DefaultTask
+import org.gradle.api.GradleException
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Internal
@@ -43,8 +44,19 @@ abstract class CleanupLegacyAppLogoArtifactsTask : DefaultTask() {
     @get:Internal abstract val projectRootDir: DirectoryProperty
     @get:Internal abstract val dryRun: Property<Boolean>
 
+    /** False when no Android application module was selected or detected. */
+    @get:Internal abstract val outputSinkApproved: Property<Boolean>
+
     @TaskAction
     fun cleanup() {
+        if (!outputSinkApproved.getOrElse(false)) {
+            throw GradleException(
+                "[kiteSsot] No Android application project was found, so there is no directory " +
+                    "to clean legacy launcher icons from. Apply com.android.application to a module, " +
+                    "or name the sink with modules { androidApps(\":app\") } or " +
+                    "modules { androidAppDirectory }.",
+            )
+        }
         val dry = dryRun.getOrElse(false)
         val resDir = androidResDir.asFile.get()
         OwnedOutputSafety.requireInstallerInsideProject(

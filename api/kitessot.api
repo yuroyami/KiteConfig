@@ -23,6 +23,7 @@ public abstract class io/github/yuroyami/kitessot/CleanupLegacyAppLogoArtifactsT
 	public abstract fun getAndroidResDir ()Lorg/gradle/api/file/DirectoryProperty;
 	public abstract fun getBackupDir ()Lorg/gradle/api/file/DirectoryProperty;
 	public abstract fun getDryRun ()Lorg/gradle/api/provider/Property;
+	public abstract fun getOutputSinkApproved ()Lorg/gradle/api/provider/Property;
 	public abstract fun getProjectRootDir ()Lorg/gradle/api/file/DirectoryProperty;
 }
 
@@ -412,6 +413,7 @@ public abstract class io/github/yuroyami/kitessot/SyncAndroidLogoTask : org/grad
 	public abstract fun getEmitMonochrome ()Lorg/gradle/api/provider/Property;
 	public abstract fun getForegroundPng ()Lorg/gradle/api/file/RegularFileProperty;
 	public abstract fun getOutputFiles ()Lorg/gradle/api/file/ConfigurableFileCollection;
+	public abstract fun getOutputSinkApproved ()Lorg/gradle/api/provider/Property;
 	public abstract fun getProjectRootDir ()Lorg/gradle/api/file/DirectoryProperty;
 	public abstract fun getSafeZoneRatio ()Lorg/gradle/api/provider/Property;
 	public final fun sync ()V

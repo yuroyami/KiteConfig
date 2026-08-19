@@ -99,7 +99,8 @@ class KiteSsotPlugin : Plugin<Project> {
         // them configuration-cache safe and stops every task action re-detecting.
         val colorSupported = target.provider {
             resolveColorSupport(
-                explicit = target.providers.gradleProperty("kitessot.color").orNull?.toBoolean(),
+                explicit = target.providers.gradleProperty("kitessot.color").orNull
+                    ?.let { strictBooleanProperty("kitessot.color", it) },
                 noColorEnv = target.providers.environmentVariable("NO_COLOR").orNull,
                 term = target.providers.environmentVariable("TERM").orNull,
                 console = when (target.gradle.startParameter.consoleOutput) {
@@ -114,12 +115,14 @@ class KiteSsotPlugin : Plugin<Project> {
         // Command-line mirrors: an invocation-level override always wins over
         // whatever the build script says, since their whole point is a CI run
         // overriding a checked-in build without editing it.
-        ext.dryRunOverride.set(
-            target.providers.gradleProperty("kitessot.dryRun").map(String::toBoolean),
-        )
-        ext.backupsOverride.set(
-            target.providers.gradleProperty("kitessot.backups").map(String::toBoolean),
-        )
+        // Validated eagerly, not through a lazy map: only some tasks read these,
+        // so a lazy parse would accept "-Pkitessot.backups=treu" on one invocation
+        // and silently drop backups on the next. A protection switch has to reject
+        // a value it does not understand the moment it is supplied.
+        target.providers.gradleProperty("kitessot.dryRun").orNull
+            ?.let { ext.dryRunOverride.set(strictBooleanProperty("kitessot.dryRun", it)) }
+        target.providers.gradleProperty("kitessot.backups").orNull
+            ?.let { ext.backupsOverride.set(strictBooleanProperty("kitessot.backups", it)) }
 
         // Path and locale defaults are set on the pre-3.0 properties on purpose:
         // each resolution chain reads the 3.0 block first and only falls through
@@ -142,12 +145,16 @@ class KiteSsotPlugin : Plugin<Project> {
         // allowing the plugin to resolve a uniquely detected application later.
         // Tasks consume this internal sink, never a mutable public property.
         val resolvedAndroidAppDirectory = target.objects.directoryProperty()
+        // Whether the Android output sink is a real, chosen application module.
+        // Defaults to false so an unresolved sink refuses to install rather than
+        // quietly filling the root project with launcher resources nothing packages.
+        val androidOutputApproved = target.objects.property(Boolean::class.java).convention(false)
 
         registerSanitizeIosTask(target, ext)
         registerSyncIosTask(target, ext)
         registerSyncIosLogoTask(target, ext)
-        registerSyncAndroidLogoTask(target, ext, resolvedAndroidAppDirectory)
-        registerCleanupLegacyLogoTask(target, ext, resolvedAndroidAppDirectory)
+        registerSyncAndroidLogoTask(target, ext, resolvedAndroidAppDirectory, androidOutputApproved)
+        registerCleanupLegacyLogoTask(target, ext, resolvedAndroidAppDirectory, androidOutputApproved)
         val verifyTask = registerVerifyTask(target, ext, colorSupported)
         val doctorTask = registerDoctorTask(target, ext, resolvedAndroidAppDirectory, colorSupported)
         val checkTask = registerCheckTask(target, ext, resolvedAndroidAppDirectory, colorSupported)
@@ -575,6 +582,14 @@ class KiteSsotPlugin : Plugin<Project> {
                 ?: target.layout.projectDirectory
             resolvedAndroidAppDirectory.set(ext.effectiveAndroidAppDirectory.orElse(detectedDirectory))
             resolvedAndroidAppDirectory.finalizeValue()
+            // The root directory is only a legitimate sink when the root really is the
+            // Android application, or when the build named a directory outright.
+            androidOutputApproved.set(
+                ext.effectiveAndroidAppDirectory.isPresent ||
+                    resolvedApplicationPath != null ||
+                    target.plugins.hasPlugin("com.android.application"),
+            )
+            androidOutputApproved.finalizeValue()
 
             val needsKgpIntegration = ext.effectiveNativeOptInsEnabled.get() ||
                 ext.effectiveIoWorkerEnabled.get() || ext.effectiveBuildConfigEnabled.get() ||
@@ -951,6 +966,7 @@ class KiteSsotPlugin : Plugin<Project> {
         root: Project,
         ext: KiteSsotExtension,
         resolvedAndroidAppDirectory: org.gradle.api.file.DirectoryProperty,
+        androidOutputApproved: Provider<Boolean>,
     ): TaskProvider<SyncAndroidLogoTask> =
         root.tasks.register<SyncAndroidLogoTask>("kiteSsotSyncAndroidLogo") {
             val runCondition = ext.effectivePropagateLogo
@@ -962,6 +978,7 @@ class KiteSsotPlugin : Plugin<Project> {
             safeZoneRatio.set(ext.effectiveLogoSafeZone)
             emitMonochrome.set(ext.android.compileSdk.map { it >= 33 }.orElse(false))
             cleanupLegacyArtifacts.set(ext.effectiveTakeOverLegacyIcons)
+            outputSinkApproved.set(androidOutputApproved)
             dryRun.set(ext.effectiveDryRun)
             // Resolve lazily: androidAppModule may not be set yet at register time.
             val resDir = resolvedAndroidAppDirectory.dir("src/main/res")
@@ -973,12 +990,14 @@ class KiteSsotPlugin : Plugin<Project> {
         root: Project,
         ext: KiteSsotExtension,
         resolvedAndroidAppDirectory: org.gradle.api.file.DirectoryProperty,
+        androidOutputApproved: Provider<Boolean>,
     ): TaskProvider<CleanupLegacyAppLogoArtifactsTask> =
         root.tasks.register<CleanupLegacyAppLogoArtifactsTask>("kiteSsotCleanupLegacyAppLogoArtifacts") {
             val runCondition = ext.effectiveTakeOverLegacyIcons
             onlyIf { runCondition.get() }
             projectRootDir.set(root.layout.projectDirectory)
             dryRun.set(ext.effectiveDryRun)
+            outputSinkApproved.set(androidOutputApproved)
             androidResDir.set(resolvedAndroidAppDirectory.dir("src/main/res"))
         }
 
