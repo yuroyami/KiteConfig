@@ -32,58 +32,165 @@ Each one needs its own block configured, plus an explicitly named task. A plain
 `./gradlew build` writes nothing outside `build/`, and CI asserts that on every
 commit.
 
-## A working setup
+## Usage
+
+Add the plugin to the **root** `build.gradle.kts`, alongside Kotlin and AGP.
+Both stay `apply false`: KiteSSOT reads their typed classes from its own
+classloader, and that only works when they are declared at the root, not
+inside a subproject's `plugins { }` block.
 
 ```kotlin
-// Root build.gradle.kts
+// <repo-root>/build.gradle.kts
 plugins {
     kotlin("multiplatform") version "2.4.10" apply false
     id("com.android.application") version "9.3.1" apply false
     id("io.github.yuroyami.kitessot") version "3.0.0"
 }
+```
 
+Applying it anywhere but the root throws immediately: the plugin aggregates
+across every module from there, so a submodule apply can't do its job.
+
+Below is every DSL entry that exists, each with its real default. Nothing
+here is required beyond `appName`, `version`, and `appId` on the root; every
+block, dial, and file path is opt-in on top of that.
+
+```kotlin
 kiteSsot {
-    appName = "Jetzy"
-    version = "1.4.0"
-    appId = "com.example.jetzy"
+    // ---- the shared truth, declared once, read by both platforms ----
+    appName = "Jetzy"                  // display name; Android manifest + Apple Info.plist
+    version = "1.4.0"                  // versionName / marketing version; feeds scheme below
+    appId = "com.example.jetzy"        // reverse-DNS base; android.idSuffix / ios.bundleIdSuffix extend it
+    locales = listOf("en", "pt-BR")    // default: auto-detected from Compose resources' values-* folders
+    jvmTarget = 21                     // Java + Kotlin JVM compatibility across every module
 
+    // ---- the one formula that turns `version` into a store build number ----
+    // default: packs 1|major(3)|minor(3)|patch(2)|rebuild(1), so 1.4.0 -> 1001004000.
+    // Android reads the Int as versionCode; Apple reads the same number, as text,
+    // for CURRENT_PROJECT_VERSION. Write your own to replace the layout entirely:
+    scheme { v -> 1_000_000 * v.major + 10_000 * v.minor + 100 * v.patch + v.rebuild }
+
+    // ---- safety, both overridable per invocation ----
+    dryRun = false                     // true: mutating tasks report, write nothing. -Pkitessot.dryRun=true
+    backups = true                     // recovery copy before a rewrite. -Pkitessot.backups=false
+
+    // ---- where your modules live ----
+    modules {
+        shared = ":shared"                          // default: the sole module applying Kotlin Multiplatform
+        androidApps(":androidApp")                   // default: the sole Android application module
+        androidAppDirectory = layout.projectDirectory.dir("androidApp") // default: found from the app above
+        composeResources = layout.projectDirectory.dir("shared/src/commonMain/composeResources") // default: shared's own
+    }
+
+    // ---- which values KiteSSOT is allowed to apply, all on by default ----
+    propagate {
+        appName = true                 // off: the manifest placeholder and Apple name stay untouched
+        bundleId = true                // off: applicationId / bundle ID stay untouched
+        version = true                 // off: beats every version setting below, including an explicit versionCode
+        locales = true                 // off: locale metadata is still computed and reported, just not written
+    }
+
+    // ---- Android-only: identity suffix, SDK levels, the Play re-upload dial ----
     android {
-        compileSdk = 36
-        minSdk = 26
-        targetSdk = 36
+        idSuffix = ".debug"            // default: empty, so applicationId == appId
+        versionCode = 140              // default: the root scheme; assign to bypass it entirely
+        rebuild = 1                    // default: 0. Play keeps every uploaded versionCode forever; bump this to re-upload
+        // scheme { v -> ... }          // rare: override the root scheme for Android alone
+        compileSdk = 36                // default: unset, leaves each module's own value alone
+        minSdk = 26                    // default: unset, leaves each module's own value alone
+        targetSdk = 36                 // default: unset. Applications only; AGP removed it from libraries
+        ndk = "27.0.12077973"          // default: unset. Classic Android modules only
+        publishedVersionCode = 139     // default: unset, no check. When set, the next code must exceed it
+        applySdkLevels = true          // off: compileSdk/minSdk/targetSdk/ndk above are computed, not written
+        filterResourcesToLocales = false // true: narrows packaged resources to `locales`. Changes shipped output
+    }
+
+    // ---- Apple-only: identity suffix, build number, paths, and explicit source sync ----
+    ios {
+        bundleIdSuffix = ".iosApp"     // default: empty, so the bundle ID equals appId
+        marketingVersion = "1.4.0"     // default: the root version; needs three numeric parts
+        // buildNumber = "42"           // default: the root scheme, rendered as text; assign to bypass it
+        rebuild = 3                    // default: 0. TestFlight refuses a build number it already saw for this version
+        // scheme { v -> ... }          // rare: override the root scheme for iOS alone
+        // publishedBuildNumber = "1001004000" // release-time guard: the next resolved number must beat this, componentwise
+        deploymentTarget = "14.0"      // required by the universal AppIcon installer; asset check only, not IPHONEOS_DEPLOYMENT_TARGET
+
+        // typed paths, defaults shown; only set the ones your tree actually moved
+        pbxproj = file("iosApp/iosApp.xcodeproj/project.pbxproj")
+        podfile = file("iosApp/Podfile")
+        infoPlist = file("iosApp/iosApp/Info.plist")
+        appDirectory = layout.projectDirectory.dir("iosApp")
+        appIconDirectory = layout.projectDirectory.dir("iosApp/iosApp/Assets.xcassets/AppIcon.appiconset")
+
+        // configuring this block IS the opt-in for the explicit Apple source tasks.
+        // it authorizes them; you still run kiteSsotSyncIosConfig / kiteSsotSanitizeIosProject yourself.
+        sync {
+            enabled = true              // false always wins, even over a configured block
+            targets("iosApp")           // default: empty, which can still select a sole application target
+            sanitizePlist = false       // true: also maintain SSOT keys in a source XML Info.plist
+            onConflict = PlistConflictPolicy.FAIL   // or .KEEP, or .REPLACE, when a plist value already differs
+            nonExemptEncryption = false // ITSAppUsesNonExemptEncryption. default: unset, key left alone
+            proMotion = true            // CADisableMinimumFrameDurationOnPhone. default: unset, key left alone
+            renameSharedModule(from = "OldShared", to = "Shared") // one call: Podfile + Swift import migration
+        }
+    }
+
+    // ---- app icon: configuring this block IS the opt-in for the logo-install tasks ----
+    logo {
+        enabled = true                  // false always wins, even over a configured block
+        foreground = file("art/logo_fg.png")
+        backgroundColor = "#102A43"     // or background = file(...); set exactly one, never both
+        androidSafeZone = 66.0 / 108.0  // default. Fraction of the adaptive icon canvas the foreground fills
+        takeOverLegacyIcons = false     // true: claim known legacy/colliding icon files; still backed up first
+    }
+
+    // ---- Kotlin/Native interop opt-ins: configuring this block IS the opt-in ----
+    nativeOptIns {
+        builtIns = true                 // KiteSSOT's own marker set. false: opt in to nothing but what you add
+        add("kotlinx.cinterop.ExperimentalForeignApi")
+        projects(":shared")             // default: empty, which means modules.shared
+    }
+
+    // ---- browser Kotlin/JS worker helper: configuring this block IS the opt-in ----
+    web {
+        ioWorker {
+            enabled = true               // false always wins, even over a configured block
+            targets("js")                // required while enabled; KiteSSOT never guesses browser vs Node
+            projects(":shared")          // default: empty, which means modules.shared
+            packageName = "kitessot.generated"
+        }
+    }
+
+    // ---- generated runtime constants for commonMain: configuring this block IS the opt-in ----
+    buildConfig {
+        enabled = true                  // false always wins, even over a configured block
+        packageName = "kitessot.generated"
+        className = "BuildConfig"
+        includeIdentity = true          // false: fields-only object, no appName/version/appId/locales
+        allowBuildCache = false         // true only when every field here is public, non-secret data
+
+        stringField("BASE_URL", "https://api.example.com")
+        stringField("CHANNEL", providers.gradleProperty("publicChannel").orElse("stable")) // provider overload; give it a default or an unset -P leaves the WHOLE fields list unset
+        intField("API_TIMEOUT_MS", 30_000)
+        longField("CACHE_BYTES", 5_000_000L)
+        booleanField("ANALYTICS_ENABLED", true)
+        doubleField("SAMPLE_RATE", 0.25)
     }
 }
 ```
 
-Run `./gradlew kiteSsotVerify` first. It prints the resolved model and changes
-nothing.
+Five read-only providers are worth wiring into your own build logic: `versionCode`,
+`androidApplicationId`, `iosBundleId`, `canonicalLocales`, and
+`resolvedSharedProjectPath`. Hand any of them straight to another plugin's
+`Property`, no `.get()` needed:
 
-The Android application module then receives four values:
+```kotlin
+val ssot = extensions.getByType<io.github.yuroyami.kitessot.KiteSsotExtension>()
+someOtherTask.someProperty.set(ssot.androidApplicationId)
+```
 
-- the application ID, from `appId`
-- the `versionName`, from `version`
-- a version code derived from `1.4.0`, so `1001004000`
-- an `appName` manifest placeholder, for `android:label="${appName}"`
-
-Every Android module receives the SDK levels.
-
-## Install
-
-Published on the Gradle Plugin Portal as `io.github.yuroyami.kitessot`, current
-version 3.0.0. Two preconditions:
-
-**Apply it to the root project.** Applying it in a submodule throws immediately;
-the plugin aggregates across `allprojects` from the root.
-
-**Declare the Kotlin and Android plugins at the root with `apply false`.** You
-must keep those two lines. KiteSSOT integrates with typed classes from KGP, the
-Kotlin Gradle plugin, and from AGP. Those integrations run only when KiteSSOT can
-load the plugin classes from its own classloader.
-
-Declare `kotlin("multiplatform")` only inside a subproject's `plugins { }` block
-and Gradle loads KGP with a different classloader. KiteSSOT cannot read the
-plugin classes from there, so the affected features cannot run. The plugin fails
-with that explanation, rather than skipping them quietly.
+Run `./gradlew kiteSsotVerify` after any change. It resolves the whole model
+above and prints it. It writes nothing.
 
 ## Upgrading from 2.x
 
@@ -159,82 +266,13 @@ Set `dryRun = true` to make the mutating tasks report what they would write,
 without writing it. Generated Kotlin under `build/` ignores `dryRun`, because it
 is a build input.
 
-## The DSL
+## More on the DSL
 
-`kiteSsot { }` has a small root and a block per concern.
-
-**The root holds shared truth only:** `appName`, `version`, `appId`, `locales`,
-`jvmTarget`, `scheme { }`, plus `dryRun` and `backups`. Eight entries, and the
-first three are usually all you need.
-
-**Blocks hold everything else:**
-
-```
-modules      { shared, androidApps(), androidAppDirectory, composeResources }
-propagate    { appName, bundleId, version, locales }
-android      { idSuffix, versionCode, rebuild, compileSdk, minSdk, targetSdk,
-               ndk, publishedVersionCode, applySdkLevels, filterResourcesToLocales }
-ios          { bundleIdSuffix, marketingVersion, buildNumber, rebuild,
-               deploymentTarget, publishedBuildNumber, pbxproj, podfile,
-               infoPlist, appDirectory, appIconDirectory }
-ios.sync     { targets(), sanitizePlist, onConflict, nonExemptEncryption,
-               proMotion, renameSharedModule(from, to) }
-logo         { foreground, background, backgroundColor, androidSafeZone,
-               takeOverLegacyIcons }
-nativeOptIns { builtIns, add(), projects() }
-web.ioWorker { targets(), projects(), packageName }
-buildConfig  { packageName, className, includeIdentity, allowBuildCache,
-               stringField(), intField(), … }
-```
-
-**Configuring a block is the opt-in.** Writing `logo { }` authorizes the logo
-tasks. Writing `ios { sync { } }` authorizes the Apple source tasks. Neither
-runs anything: you still invoke the task yourself, and `dryRun`, `backups`, and
-the conflict policy still apply.
-
-Five blocks work this way: `ios.sync`, `logo`, `nativeOptIns`, `web.ioWorker`
-and `buildConfig`. Each also takes `enabled`, so `logo { enabled = false }`
-forces a feature off without deleting its configuration.
-
-### One formula for both stores
-
-`scheme { }` turns your version into a build number. Write it once at the root
-and both platforms use it:
-
-```kotlin
-kiteSsot {
-    version = "1.4.0"
-    scheme { v -> 1_000_000 * v.major + 10_000 * v.minor + 100 * v.patch + v.rebuild }
-}
-```
-
-Write nothing and the default packs `1 | major(3) | minor(3) | patch(2) |
-rebuild(1)`, so `1.4.0` becomes `1001004000` and `1.4.1` becomes `1001004010`.
-That leaves ten codes per version for re-uploads.
-
-`rebuild` is the dial for the day a store eats an upload. Play Console keeps
-every uploaded `versionCode` forever, even if you discard the release draft,
-and TestFlight refuses a reused build number. Bump `rebuild` rather than faking
-a patch release:
-
-```kotlin
-android { rebuild = 1 }   // 1001004000 -> 1001004001
-ios     { rebuild = 3 }   // 1001004000 -> 1001004003
-```
-
-Two dials, because the two stores burn numbers on different days. Nothing needs
-resetting: a version bump always outranks every rebuild before it.
-
-### Reading values back
-
-Five read-only derived providers (`versionCode`, `androidApplicationId`,
-`iosBundleId`, `canonicalLocales`, `resolvedSharedProjectPath`) can be passed
-straight into another plugin's `Property`. No `.get()` needed.
-
-Every property carries KDoc saying whether it is optional, what its default is,
-and which other values it needs. The IDE shows it on autocomplete, and the
-published javadoc jar carries it as Dokka HTML. [FEATURES.md](FEATURES.md) is
-the prose reference for behavior and safety rules.
+The [Usage](#usage) block above is the whole surface. Every property there
+carries the same KDoc in your IDE: whether it's optional, what its default is,
+and which other values it needs. The published javadoc jar carries it as
+Dokka HTML, and [FEATURES.md](FEATURES.md) is the prose reference for behavior
+and safety rules beyond a single property.
 
 ## Compatibility
 
@@ -250,7 +288,7 @@ Gradle daemon can load the plugin. The plugin supports the Gradle configuration
 cache, which stores the result of the configuration phase and reuses it on the
 next build.
 
-239 tests across 23 files. 233 of them run in `./gradlew test`. The other 6 run
+249 tests across 23 files. 242 of them run in `./gradlew test`. The other 7 run
 in `./gradlew agpCompatibilityTest`. That task starts real consumer builds on
 Gradle 8.5, 8.9 and 9.5.1. It uses AGP 8.5.2 and 9.3.1, and KGP 2.4.0.
 
