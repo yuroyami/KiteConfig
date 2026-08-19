@@ -916,8 +916,8 @@ internal object KiteSsotDiagnosticEngine {
                     KiteSsotDiagnosticSeverity.ERROR,
                     "Android Gradle plugin compatibility",
                     "Could not determine the active Android Gradle plugin version.",
-                    "Use an AGP release in the supported range 8.5.2 through 9.2.x.",
-                    expected = "8.5.2..9.2.x",
+                    "Use an AGP release in the supported range 8.5.2 through 9.3.x.",
+                    expected = "8.5.2..9.3.x",
                 ),
             )
 
@@ -927,8 +927,8 @@ internal object KiteSsotDiagnosticEngine {
                     KiteSsotDiagnosticSeverity.ERROR,
                     "Android Gradle plugin compatibility",
                     "Active Android Gradle plugin ${context.activeAgpVersion} is unsupported.",
-                    "Use an AGP release in the supported range 8.5.2 through 9.2.x.",
-                    expected = "8.5.2..9.2.x",
+                    "Use an AGP release in the supported range 8.5.2 through 9.3.x.",
+                    expected = "8.5.2..9.3.x",
                     actual = context.activeAgpVersion,
                 ),
             )

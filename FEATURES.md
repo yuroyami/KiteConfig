@@ -34,7 +34,7 @@ configuration or generated values instead.
 |---|---|
 | Gradle | Gradle 8.5 or newer is supported. A published-plugin fixture verifies the 8.5 floor. |
 | Kotlin Gradle plugin | Stable 2.4.x releases are supported. A real fixture applies KGP 2.4.0, generates a fields-only BuildConfig in `commonMain`, and compiles code that reads it. Stable numeric `-release-N` runtime metadata is accepted. RC, Beta, dev, and arbitrary suffixes are rejected. |
-| Android Gradle plugin | AGP 8.5.2 through 9.2.x is supported. Real fixtures cover the AGP 8.5.2 classic adapters and the AGP 9.2.1 classic and KMP-native adapters. |
+| Android Gradle plugin | AGP 8.5.2 through 9.3.x is supported. Real fixtures cover the AGP 8.5.2 classic adapters and the AGP 9.3.1 classic and KMP-native adapters. |
 | Configuration cache | Reuse is verified for the KGP integration on the current Gradle wrapper. |
 
 Declare KGP and AGP versions in the root `plugins` block with `apply false` when

@@ -432,7 +432,7 @@ class KiteSsotDiagnosticsTest {
             quietContext().copy(
                 agpRequired = true,
                 agpOnClasspath = true,
-                activeAgpVersion = "9.3.0",
+                activeAgpVersion = "9.4.0",
                 kgpRequired = true,
                 kgpOnClasspath = true,
                 activeKgpVersion = "2.5.0",
@@ -441,7 +441,7 @@ class KiteSsotDiagnosticsTest {
 
         val agp = relevant.single { it.id == "KMPS061" }
         assertEquals(KiteSsotDiagnosticSeverity.ERROR, agp.severity)
-        assertEquals("9.3.0", agp.actual)
+        assertEquals("9.4.0", agp.actual)
         val kgp = relevant.single { it.id == "KMPS062" }
         assertEquals(KiteSsotDiagnosticSeverity.ERROR, kgp.severity)
         assertEquals("2.5.0", kgp.actual)
@@ -449,7 +449,7 @@ class KiteSsotDiagnosticsTest {
         val irrelevant = KiteSsotDiagnosticEngine.evaluate(
             quietContext().copy(
                 agpOnClasspath = true,
-                activeAgpVersion = "9.3.0",
+                activeAgpVersion = "9.4.0",
                 kgpOnClasspath = true,
                 activeKgpVersion = "2.5.0",
             ),

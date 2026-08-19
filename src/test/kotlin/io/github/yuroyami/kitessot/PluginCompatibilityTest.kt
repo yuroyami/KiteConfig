@@ -15,8 +15,10 @@ class PluginCompatibilityTest {
         assertFalse(isSupportedAgpVersion("9.1.1-alpha01"))
         assertTrue(isSupportedAgpVersion("9.2.0"))
         assertTrue(isSupportedAgpVersion("9.2.1"))
-        assertFalse(isSupportedAgpVersion("9.2.1-alpha01"))
-        assertFalse(isSupportedAgpVersion("9.3.0"))
+        assertTrue(isSupportedAgpVersion("9.3.0"))
+        assertTrue(isSupportedAgpVersion("9.3.1"))
+        assertFalse(isSupportedAgpVersion("9.3.1-alpha01"))
+        assertFalse(isSupportedAgpVersion("9.4.0"))
         assertFalse(isSupportedAgpVersion("unknown"))
     }
 

@@ -38,8 +38,8 @@ commit.
 // Root build.gradle.kts
 plugins {
     kotlin("multiplatform") version "2.4.10" apply false
-    id("com.android.application") version "9.2.1" apply false
-    id("io.github.yuroyami.kitessot") version "2.0.2"
+    id("com.android.application") version "9.3.1" apply false
+    id("io.github.yuroyami.kitessot") version "2.0.3"
 }
 
 kiteSsot {
@@ -70,7 +70,7 @@ Every Android module receives the SDK levels.
 ## Install
 
 Published on the Gradle Plugin Portal as `io.github.yuroyami.kitessot`, current
-version 2.0.2. Two preconditions:
+version 2.0.3. Two preconditions:
 
 **Apply it to the root project.** Applying it in a submodule throws immediately;
 the plugin aggregates across `allprojects` from the root.
@@ -192,7 +192,7 @@ therefore still changes the resolved paths.
 | Component | Supported |
 | --- | --- |
 | Gradle | 8.5 and newer |
-| Android Gradle plugin | 8.5.2 through 9.2.x |
+| Android Gradle plugin | 8.5.2 through 9.3.x |
 | Kotlin Gradle plugin | 2.4.x |
 | JDK running Gradle | 17 and 21 |
 
@@ -203,7 +203,7 @@ next build.
 
 239 tests across 23 files. 233 of them run in `./gradlew test`. The other 6 run
 in `./gradlew agpCompatibilityTest`. That task starts real consumer builds on
-Gradle 8.5, 8.9 and 9.5.1. It uses AGP 8.5.2 and 9.2.1, and KGP 2.4.0.
+Gradle 8.5, 8.9 and 9.5.1. It uses AGP 8.5.2 and 9.3.1, and KGP 2.4.0.
 
 CI builds on ubuntu-24.04 with JDK 17 and JDK 21, on macos-15 with JDK 21, and on
 windows-2025 with JDK 21. Each build runs twice. CI then asserts that the second

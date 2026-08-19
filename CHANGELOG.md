@@ -6,6 +6,15 @@ Gradle Plugin Portal releases.
 
 ## [Unreleased]
 
+## [2.0.3]
+
+### Changed
+- Widened the supported Android Gradle plugin range from `8.5.2..9.2.x` to
+  `8.5.2..9.3.x`, so the latest stable AGP release is accepted. The plugin now
+  compiles against AGP 9.3.1, and the real consumer fixtures exercise AGP 9.3.1
+  for the classic and KMP-native adapters (the AGP 8.5.2 floor fixtures are
+  unchanged).
+
 ## [2.0.2]
 
 ### Fixed

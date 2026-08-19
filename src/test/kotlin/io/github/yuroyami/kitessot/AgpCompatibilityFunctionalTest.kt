@@ -121,9 +121,9 @@ class AgpCompatibilityFunctionalTest {
     }
 
     @Test
-    fun `AGP 9_2_1 current uses modern application and library adapters`() {
+    fun `AGP 9_3_1 current uses modern application and library adapters`() {
         val result = runMatrixFixture(
-            agpVersion = "9.2.1",
+            agpVersion = "9.3.1",
             gradleVersion = "9.5.1",
             localeSeed = "androidResources.localeFilters.add('fr')",
             localeAssertion = """
@@ -133,11 +133,11 @@ class AgpCompatibilityFunctionalTest {
             """.trimIndent(),
         )
 
-        assertTrue(result.output.contains("AGP_MATRIX_OK 9.2.1"), result.output)
+        assertTrue(result.output.contains("AGP_MATRIX_OK 9.3.1"), result.output)
     }
 
     @Test
-    fun `AGP 9_2_1 and KGP 2_4_0 configure a KMP-native Android library with cache reuse`() {
+    fun `AGP 9_3_1 and KGP 2_4_0 configure a KMP-native Android library with cache reuse`() {
         publishPluginFixture()
         write(
             "settings.gradle",
@@ -165,7 +165,7 @@ class AgpCompatibilityFunctionalTest {
             """
             plugins {
                 id 'org.jetbrains.kotlin.multiplatform' version '2.4.0' apply false
-                id 'com.android.kotlin.multiplatform.library' version '9.2.1' apply false
+                id 'com.android.kotlin.multiplatform.library' version '9.3.1' apply false
                 id 'io.github.yuroyami.kitessot' version 'test-fixture'
             }
 
@@ -203,7 +203,7 @@ class AgpCompatibilityFunctionalTest {
                 void verifyValues() {
                     assert compileSdk.get() == 35 : compileSdk.get()
                     assert minSdk.get() == 24 : minSdk.get()
-                    println 'KMP_NATIVE_ANDROID_OK AGP 9.2.1 KGP 2.4.0'
+                    println 'KMP_NATIVE_ANDROID_OK AGP 9.3.1 KGP 2.4.0'
                 }
             }
 
@@ -253,9 +253,9 @@ class AgpCompatibilityFunctionalTest {
             .withArguments(arguments)
             .build()
 
-        assertTrue(first.output.contains("KMP_NATIVE_ANDROID_OK AGP 9.2.1 KGP 2.4.0"), first.output)
+        assertTrue(first.output.contains("KMP_NATIVE_ANDROID_OK AGP 9.3.1 KGP 2.4.0"), first.output)
         assertTrue(first.output.contains("Configuration cache entry stored."), first.output)
-        assertTrue(second.output.contains("KMP_NATIVE_ANDROID_OK AGP 9.2.1 KGP 2.4.0"), second.output)
+        assertTrue(second.output.contains("KMP_NATIVE_ANDROID_OK AGP 9.3.1 KGP 2.4.0"), second.output)
         assertTrue(second.output.contains("Reusing configuration cache."), second.output)
     }
 

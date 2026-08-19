@@ -32,8 +32,8 @@ In the **root** `build.gradle.kts`:
 ```kotlin
 plugins {
     kotlin("multiplatform") version "2.4.10" apply false
-    id("com.android.application") version "9.2.1" apply false
-    id("io.github.yuroyami.kitessot") version "2.0.2"
+    id("com.android.application") version "9.3.1" apply false
+    id("io.github.yuroyami.kitessot") version "2.0.3"
 }
 
 kiteSsot {
@@ -128,11 +128,11 @@ change. Set `dryRun = true` to make the mutating tasks report without writing.
 
 ## Compatibility
 
-Gradle 8.5 and newer, AGP 8.5.2 through 9.2.x, KGP 2.4.x, on a JDK 17 or 21
+Gradle 8.5 and newer, AGP 8.5.2 through 9.3.x, KGP 2.4.x, on a JDK 17 or 21
 daemon.
 
 A dedicated `agpCompatibilityTest` builds real consumer projects on Gradle 8.5,
-8.9 and 9.5.1, against AGP 8.5.2 and 9.2.1. CI runs on Linux with JDK 17 and 21,
+8.9 and 9.5.1, against AGP 8.5.2 and 9.3.1. CI runs on Linux with JDK 17 and 21,
 on macOS with JDK 21, and on Windows with JDK 21. Each build runs twice. CI then
 checks that the second run reuses the configuration cache entry, and that no
 tracked file changed.

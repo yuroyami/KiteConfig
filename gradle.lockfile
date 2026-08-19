@@ -2,8 +2,8 @@
 # Manual edits can break the build and are not advised.
 # This file is expected to be part of source control.
 com.android.tools.build:gradle-api:8.5.2=agp8AdapterCompileClasspath
-com.android.tools.build:gradle-api:9.2.1=compileClasspath
-com.android.tools.build:gradle-common-api:9.2.1=compileClasspath
+com.android.tools.build:gradle-api:9.3.1=compileClasspath
+com.android.tools.build:gradle-common-api:9.3.1=compileClasspath
 com.fasterxml.jackson.core:jackson-annotations:2.12.7=dokkaHtmlGeneratorRuntimeResolver~internal
 com.fasterxml.jackson.core:jackson-core:2.12.7=dokkaHtmlGeneratorRuntimeResolver~internal
 com.fasterxml.jackson.core:jackson-databind:2.12.7.1=dokkaHtmlGeneratorRuntimeResolver~internal
