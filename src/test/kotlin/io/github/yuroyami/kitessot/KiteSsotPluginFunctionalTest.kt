@@ -1432,10 +1432,122 @@ class KiteSsotPluginFunctionalTest {
     }
 
     @Test
+    fun `the sole KMP project is detected as the shared module for buildConfig`() {
+        write("settings.gradle.kts", settingsWithShared())
+        write(
+            "build.gradle.kts",
+            """
+            plugins {
+                id("org.jetbrains.kotlin.multiplatform") apply false
+                id("io.github.yuroyami.kitessot")
+            }
+            kiteSsot {
+                appName = "Detected"
+                version = "1.2.3"
+                appId = "com.acme.app"
+                buildConfig {
+                    packageName = "com.acme.gen"
+                    className = "AppConfig"
+                }
+            }
+            """.trimIndent(),
+        )
+        write(
+            "shared/build.gradle.kts",
+            """
+            plugins { id("org.jetbrains.kotlin.multiplatform") }
+            kotlin { jvm() }
+            """.trimIndent(),
+        )
+
+        val result = run(":shared:generateKiteSsotBuildConfig")
+
+        assertTrue(result.output.contains("BUILD SUCCESSFUL"), result.output)
+        val generated = File(
+            projectDir,
+            "shared/build/generated/kitessot/commonMain/kotlin/com/acme/gen/AppConfig.kt",
+        )
+        assertTrue(generated.isFile, "generated BuildConfig missing: ${generated.path}")
+        assertTrue(generated.readText().contains("public const val appName: String = \"Detected\""))
+    }
+
+    @Test
+    fun `locales are discovered from the detected shared module's compose resources`() {
+        write("settings.gradle.kts", settingsWithShared())
+        write(
+            "build.gradle.kts",
+            """
+            plugins {
+                id("org.jetbrains.kotlin.multiplatform") apply false
+                id("io.github.yuroyami.kitessot")
+            }
+            kiteSsot {
+                appName = "LocaleProbe"
+                version = "1.0.0"
+            }
+            """.trimIndent(),
+        )
+        write(
+            "shared/build.gradle.kts",
+            """
+            plugins { id("org.jetbrains.kotlin.multiplatform") }
+            kotlin { jvm() }
+            """.trimIndent(),
+        )
+        write("shared/src/commonMain/composeResources/values-en/strings.xml", "<resources/>")
+        write("shared/src/commonMain/composeResources/values-fr/strings.xml", "<resources/>")
+
+        val result = run("kiteSsotVerify")
+
+        assertTrue(result.output.contains("BUILD SUCCESSFUL"), result.output)
+        assertTrue(result.output.contains("en, fr"), result.output)
+    }
+
+    @Test
+    fun `two KMP projects without an explicit selection fail naming both candidates`() {
+        write(
+            "settings.gradle.kts",
+            """
+            pluginManagement {
+                repositories { mavenCentral(); gradlePluginPortal(); google() }
+            }
+            dependencyResolutionManagement {
+                repositories { mavenCentral(); google() }
+            }
+            rootProject.name = "fixture"
+            include(":shared")
+            include(":core")
+            """.trimIndent(),
+        )
+        write(
+            "build.gradle.kts",
+            """
+            plugins {
+                id("org.jetbrains.kotlin.multiplatform") apply false
+                id("io.github.yuroyami.kitessot")
+            }
+            kiteSsot {
+                appName = "Ambiguous"
+                version = "1.0.0"
+                appId = "com.acme.app"
+                buildConfig { packageName = "com.acme.gen" }
+            }
+            """.trimIndent(),
+        )
+        write("shared/build.gradle.kts", "plugins { id(\"org.jetbrains.kotlin.multiplatform\") }\nkotlin { jvm() }")
+        write("core/build.gradle.kts", "plugins { id(\"org.jetbrains.kotlin.multiplatform\") }\nkotlin { jvm() }")
+
+        val failure = runAndFail("help")
+
+        assertTrue(failure.output.contains(":shared"), failure.output)
+        assertTrue(failure.output.contains(":core"), failure.output)
+        assertTrue(failure.output.contains("modules { shared"), failure.output)
+    }
+
+    @Test
     fun `a shared-scoped feature says which module to name when none is selected`() {
-        // modules { shared } is NOT auto-detected: the shared project must be known
-        // while KMP source sets are wired, which is before "exactly one KMP project"
-        // can be established. The docs say so; this proves the error says so too.
+        // No project in this build applies Kotlin Multiplatform, so detection has
+        // zero candidates and the error must say what to configure.
         write("settings.gradle.kts", "rootProject.name = \"fixture\"")
         write(
             "build.gradle.kts",
@@ -1444,6 +1556,7 @@ class KiteSsotPluginFunctionalTest {
             kiteSsot {
                 appName = "NoShared"
                 version = "1.0.0"
+                appId = "com.acme.app"
                 buildConfig { packageName = "demo.build" }
             }
             """.trimIndent(),

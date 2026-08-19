@@ -295,8 +295,15 @@ abstract class KiteSsotExtension {
 
     // --- structure ---
 
+    /**
+     * Detection result, set by the plugin at projectsEvaluated when exactly one
+     * project applies Kotlin Multiplatform. Last in the chain: an explicit choice,
+     * 3.0 or 2.x, always beats what discovery found.
+     */
+    internal abstract val detectedSharedProject: Property<String>
+
     internal val effectiveSharedProjectPath: Provider<String>
-        get() = modules.shared.orElse(sharedProjectPath)
+        get() = modules.shared.orElse(sharedProjectPath).orElse(detectedSharedProject)
 
     internal val effectiveComposeResources: Provider<org.gradle.api.file.Directory>
         get() = modules.composeResources.orElse(composeResourcesDirectory)

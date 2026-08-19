@@ -31,14 +31,16 @@ failing test first in every case.
   `kiteSsotCleanupLegacyAppLogoArtifacts` now refuse to run unless the sink is
   a real Android application module or a directory the build named outright.
 
-### Changed
-- Documentation now matches the code on `modules { shared }`. The README, the
-  changelog, and the KDoc said the shared module was auto-detected like the
-  Android application is. It is not, and cannot be at that point in the build:
-  the shared project has to be known while KMP source sets are still being
-  wired, which is earlier than the point where "exactly one KMP project" can be
-  established. Name it whenever you use `buildConfig`, `nativeOptIns`, `web`,
-  or locale auto-detection.
+### Added
+- **`modules { shared }` is now truly auto-detected.** 3.0.0 documented the
+  detection but never implemented it: the wiring ran per-project, before the
+  build could know how many projects apply Kotlin Multiplatform. Resolution now
+  happens once every project is evaluated, when that census is complete. One
+  KMP project makes it the shared module; zero or several with a shared-scoped
+  feature enabled fail with the candidate list and the one line that ends the
+  ambiguity. Locale auto-detection rides on it, so the three-line setup from
+  the 3.0.0 notes now really does discover locales on its own. An explicit
+  `modules { shared }` still beats detection.
 
 ## [3.0.0]
 

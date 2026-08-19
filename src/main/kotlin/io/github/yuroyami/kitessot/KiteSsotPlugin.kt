@@ -234,19 +234,8 @@ class KiteSsotPlugin : Plugin<Project> {
                     throw GradleException("kiteSsot { nativeOptIns { projects } } contains duplicate project paths.")
                 }
             }
-            val canonicalLocales = if (usesLocaleModel) ext.canonicalLocales.get() else emptyList()
-            if (ext.effectiveFilterAndroidResources.get() && canonicalLocales.isEmpty()) {
-                throw GradleException(
-                    "kiteSsot { android { filterResourcesToLocales } } requires at least one locale. " +
-                        "Configure locales explicitly or add a supported values-<locale> resource directory."
-                )
-            }
-            if (ext.effectiveBuildConfigEnabled.get() && !ext.effectiveSharedProjectPath.isPresent) {
-                throw GradleException(
-                    "kiteSsot buildConfig is enabled but no shared project is selected. Set " +
-                        "modules { shared = \":shared\" }."
-                )
-            }
+            // The locale and shared-project checks moved to projectsEvaluated: both can
+            // be satisfied by sole-KMP detection, whose census completes only there.
             if (ext.effectiveBuildConfigEnabled.get() && ext.buildConfig.includeIdentity.get()) {
                 val missing = buildList {
                     if (!ext.effectiveAppName.isPresent) add("appName")
@@ -413,8 +402,9 @@ class KiteSsotPlugin : Plugin<Project> {
                                 .toString()
                             KotlinJvmTargetWiring.apply(consumerProject, targetVersion)
                         }
-                        wireWebIoWorker(consumerProject, ext)
-                        wireBuildConfig(consumerProject, ext)
+                        // wireWebIoWorker and wireBuildConfig moved to projectsEvaluated:
+                        // both select their project against the shared module, which may
+                        // only be KNOWN there when it comes from sole-KMP detection.
                     }
                 } else if (!KGP_ON_CLASSPATH) {
                     kmpProjectsWithoutSharedClassloader += consumerProject.path
@@ -442,6 +432,11 @@ class KiteSsotPlugin : Plugin<Project> {
         }
 
         target.gradle.projectsEvaluated {
+            // The KMP census is complete here, so a sole candidate becomes the shared
+            // module. Pure bookkeeping, safe ahead of the diagnostic early-return; the
+            // orElse chain keeps any explicit choice in front of it.
+            detectedKmpProjects.singleOrNull()?.let { ext.detectedSharedProject.set(it) }
+            ext.detectedSharedProject.finalizeValue()
             val diagnosticSelection = runCatching { ext.effectiveAndroidApps.get() }.getOrDefault(emptyList())
             val diagnosticApplications = diagnosticSelection.ifEmpty { detectedAndroidApplications.toList() }
             val detectedDirectories = diagnosticApplications.mapNotNull { path ->
@@ -665,11 +660,40 @@ class KiteSsotPlugin : Plugin<Project> {
             }
 
             val selectedSharedProject = ext.effectiveSharedProjectPath.orNull
+            if (ext.effectiveBuildConfigEnabled.get() && selectedSharedProject == null) {
+                throw GradleException(
+                    when (detectedKmpProjects.size) {
+                        0 -> "kiteSsot buildConfig is enabled but no shared project is selected, and no " +
+                            "project applying org.jetbrains.kotlin.multiplatform was detected. Set " +
+                            "modules { shared = \":shared\" }."
+                        else -> "kiteSsot buildConfig is enabled but no shared project is selected, and " +
+                            "${detectedKmpProjects.size} projects apply org.jetbrains.kotlin.multiplatform: " +
+                            "${detectedKmpProjects.sorted().joinToString()}. Pick one with modules { shared }."
+                    }
+                )
+            }
             if (ext.effectiveBuildConfigEnabled.get() && selectedSharedProject !in detectedKmpProjects) {
                 throw GradleException(
-                    "kiteSsot buildConfig project '$selectedSharedProject' does not apply " +
+                    "kiteSsot buildConfig project '\$selectedSharedProject' does not apply " +
                         "org.jetbrains.kotlin.multiplatform."
                 )
+            }
+            if (ext.effectiveFilterAndroidResources.get() && ext.canonicalLocales.get().isEmpty()) {
+                throw GradleException(
+                    "kiteSsot { android { filterResourcesToLocales } } requires at least one locale. " +
+                        "Configure locales explicitly or add a supported values-<locale> resource directory."
+                )
+            }
+            // Shared-scoped generation, wired once the shared module is settled. Each
+            // function still self-selects (web can name projects beyond the shared one),
+            // so simply offer every detected KMP project.
+            if (kgpAdaptersUsable) {
+                detectedKmpProjects.forEach { path ->
+                    target.findProject(path)?.let { kmpProject ->
+                        wireWebIoWorker(kmpProject, ext)
+                        wireBuildConfig(kmpProject, ext)
+                    }
+                }
             }
             if (ext.effectiveNativeOptInsEnabled.get()) {
                 val interopProjects = ext.effectiveNativeOptInProjects.get().ifEmpty {
@@ -1327,9 +1351,23 @@ class KiteSsotPlugin : Plugin<Project> {
         }
     }
 
-    /** Freeze every validated DSL input before subprojects can observe it. */
+    /**
+     * Freeze every validated DSL input before subprojects can observe it.
+     *
+     * `locales` alone is frozen lazily: its convention walks the shared module's
+     * compose resources, and when the shared module comes from sole-KMP detection
+     * it is only known at projectsEvaluated, after this freeze runs. Eager
+     * finalization here would lock the list to empty before detection could speak.
+     */
     private fun finalizeModel(ext: KiteSsotExtension) {
-        modelValues(ext).forEach { it.finalizeValue() }
+        modelValues(ext).forEach { value ->
+            if (value === ext.locales) {
+                value.finalizeValueOnRead()
+                value.disallowChanges()
+            } else {
+                value.finalizeValue()
+            }
+        }
     }
 
     /** Prevent late mutation without realizing provider-backed diagnostic values. */
