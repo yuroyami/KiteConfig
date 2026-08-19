@@ -81,8 +81,8 @@ internal fun logoInputFingerprintForFiles(
     parameters: Map<String, String> = emptyMap(),
 ): String = logoInputFingerprint(
     rendererVersion = rendererVersion,
-    foregroundSha256 = boundedLogoFileSha256(foreground, "appLogoPngForeground"),
-    backgroundSha256 = background?.let { boundedLogoFileSha256(it, "appLogoPngBackground") },
+    foregroundSha256 = boundedLogoFileSha256(foreground, "logo { foreground }"),
+    backgroundSha256 = background?.let { boundedLogoFileSha256(it, "logo { background }") },
     backgroundColor = backgroundColor,
     parameters = parameters,
 )

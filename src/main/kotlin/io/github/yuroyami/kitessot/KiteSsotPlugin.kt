@@ -8,6 +8,7 @@ import org.gradle.api.Project
 import org.gradle.api.Task
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.api.plugins.ExtensionAware
+import org.gradle.api.logging.configuration.ConsoleOutput
 import org.gradle.api.provider.HasConfigurableValue
 import org.gradle.api.provider.Provider
 import org.gradle.kotlin.dsl.create
@@ -94,6 +95,22 @@ class KiteSsotPlugin : Plugin<Project> {
             fields.convention(emptyList())
         }
 
+        // Resolve console colour once. Tasks receive only the Boolean, which keeps
+        // them configuration-cache safe and stops every task action re-detecting.
+        val colorSupported = target.provider {
+            resolveColorSupport(
+                explicit = target.providers.gradleProperty("kitessot.color").orNull?.toBoolean(),
+                noColorEnv = target.providers.environmentVariable("NO_COLOR").orNull,
+                term = target.providers.environmentVariable("TERM").orNull,
+                console = when (target.gradle.startParameter.consoleOutput) {
+                    ConsoleOutput.Plain -> ConsoleMode.PLAIN
+                    ConsoleOutput.Rich, ConsoleOutput.Verbose -> ConsoleMode.RICH
+                    else -> ConsoleMode.AUTO
+                },
+                terminalAttached = System.console() != null,
+            )
+        }
+
         // Command-line mirrors: an invocation-level override always wins over
         // whatever the build script says, since their whole point is a CI run
         // overriding a checked-in build without editing it.
@@ -131,10 +148,10 @@ class KiteSsotPlugin : Plugin<Project> {
         registerSyncIosLogoTask(target, ext)
         registerSyncAndroidLogoTask(target, ext, resolvedAndroidAppDirectory)
         registerCleanupLegacyLogoTask(target, ext, resolvedAndroidAppDirectory)
-        val verifyTask = registerVerifyTask(target, ext)
-        val doctorTask = registerDoctorTask(target, ext, resolvedAndroidAppDirectory)
-        val checkTask = registerCheckTask(target, ext, resolvedAndroidAppDirectory)
-        val planTask = registerPlanTask(target)
+        val verifyTask = registerVerifyTask(target, ext, colorSupported)
+        val doctorTask = registerDoctorTask(target, ext, resolvedAndroidAppDirectory, colorSupported)
+        val checkTask = registerCheckTask(target, ext, resolvedAndroidAppDirectory, colorSupported)
+        val planTask = registerPlanTask(target, colorSupported)
 
         target.afterEvaluate {
             // Freeze the authoritative root model before any subproject build
@@ -646,7 +663,7 @@ class KiteSsotPlugin : Plugin<Project> {
                 if (interopProjects.isEmpty()) {
                     throw GradleException(
                         "kiteSsot interop opt-ins need an explicit KMP scope. Set " +
-                            "nativeOptIns { projects(\":shared\") or sharedProjectPath."
+                            "nativeOptIns { projects(\":shared\") } or modules { shared = \":shared\" }."
                     )
                 }
                 val invalid = interopProjects.toSet() - detectedKmpProjects
@@ -669,7 +686,7 @@ class KiteSsotPlugin : Plugin<Project> {
                 if (effectiveWebProjects.isEmpty()) {
                     throw GradleException(
                         "kiteSsot web worker generation needs an explicit KMP project. Set " +
-                            "web.projectPaths.add(\":shared\") or sharedProjectPath = \":shared\"."
+                            "web { ioWorker { projects(\":shared\") } } or modules { shared = \":shared\" }."
                     )
                 }
                 val invalid = effectiveWebProjects.toSet() - detectedKmpProjects
@@ -965,8 +982,14 @@ class KiteSsotPlugin : Plugin<Project> {
             androidResDir.set(resolvedAndroidAppDirectory.dir("src/main/res"))
         }
 
-    private fun registerVerifyTask(root: Project, ext: KiteSsotExtension): TaskProvider<KiteSsotVerifyTask> =
+    private fun registerVerifyTask(
+        root: Project,
+        ext: KiteSsotExtension,
+        colorSupported: Provider<Boolean>,
+    ): TaskProvider<KiteSsotVerifyTask> =
         root.tasks.register<KiteSsotVerifyTask>("kiteSsotVerify") {
+            colorEnabled.set(colorSupported)
+            projectRootDir.set(root.layout.projectDirectory)
             appName.set(ext.effectiveAppName)
             versionName.set(ext.effectiveVersion)
             versionCode.set(root.resilientValue { ext.effectiveAndroidVersionCode.orNull })
@@ -993,22 +1016,29 @@ class KiteSsotPlugin : Plugin<Project> {
         root: Project,
         ext: KiteSsotExtension,
         resolvedAndroidAppDirectory: org.gradle.api.file.DirectoryProperty,
+        colorSupported: Provider<Boolean>,
     ): TaskProvider<KiteSsotDoctorTask> =
         root.tasks.register<KiteSsotDoctorTask>("kiteSsotDoctor") {
-            bindDiagnosticInputs(root, ext, resolvedAndroidAppDirectory)
+            bindDiagnosticInputs(root, ext, resolvedAndroidAppDirectory, colorSupported)
         }
 
     private fun registerCheckTask(
         root: Project,
         ext: KiteSsotExtension,
         resolvedAndroidAppDirectory: org.gradle.api.file.DirectoryProperty,
+        colorSupported: Provider<Boolean>,
     ): TaskProvider<KiteSsotCheckTask> =
         root.tasks.register<KiteSsotCheckTask>("kiteSsotCheck") {
-            bindDiagnosticInputs(root, ext, resolvedAndroidAppDirectory)
+            bindDiagnosticInputs(root, ext, resolvedAndroidAppDirectory, colorSupported)
         }
 
-    private fun registerPlanTask(root: Project): TaskProvider<KiteSsotPlanTask> =
-        root.tasks.register<KiteSsotPlanTask>("kiteSsotPlan")
+    private fun registerPlanTask(
+        root: Project,
+        colorSupported: Provider<Boolean>,
+    ): TaskProvider<KiteSsotPlanTask> =
+        root.tasks.register<KiteSsotPlanTask>("kiteSsotPlan") {
+            colorEnabled.set(colorSupported)
+        }
 
     private fun configurePlanTask(
         root: Project,
@@ -1159,7 +1189,9 @@ class KiteSsotPlugin : Plugin<Project> {
         root: Project,
         ext: KiteSsotExtension,
         resolvedAndroidAppDirectory: org.gradle.api.file.DirectoryProperty,
+        colorSupported: Provider<Boolean>,
     ) {
+        colorEnabled.set(colorSupported)
         propagateAppName.set(ext.effectivePropagateAppName)
         appName.set(ext.effectiveAppName)
         propagateBundleId.set(ext.effectivePropagateBundleId)

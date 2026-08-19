@@ -1,6 +1,7 @@
 package io.github.yuroyami.kitessot
 
 import org.gradle.api.DefaultTask
+import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.Property
@@ -23,8 +24,11 @@ abstract class KiteSsotVerifyTask : DefaultTask() {
         outputs.upToDateWhen { false }
         androidApplicationProjects.convention(emptyList())
         androidAppDirectories.convention(emptyList())
+        colorEnabled.convention(false)
     }
 
+    /** Presentation only, so it never affects up-to-date checks. */
+    @get:Internal abstract val colorEnabled: Property<Boolean>
     @get:Internal abstract val appName: Property<String>
     @get:Internal abstract val versionName: Property<String>
     @get:Internal abstract val versionCode: Property<Int>
@@ -48,6 +52,7 @@ abstract class KiteSsotVerifyTask : DefaultTask() {
     @get:Internal abstract val logoForeground: Property<Boolean>
     @get:Internal abstract val logoBackground: Property<Boolean>
     @get:Internal abstract val logoBackgroundColor: Property<String>
+    @get:Internal abstract val projectRootDir: DirectoryProperty
 
     @TaskAction
     fun report() {
@@ -71,53 +76,82 @@ abstract class KiteSsotVerifyTask : DefaultTask() {
         val derivedVc = runCatching {
             if (versionCode.isPresent) versionCode.get().toString() else "[unset]"
         }.getOrElse { "ERROR: ${diagnosticExceptionSummary(it)}" }
+        val console = KiteSsotConsole(colorEnabled.getOrElse(false))
+        val root = runCatching { projectRootDir.asFile.orNull?.toPath() }.getOrNull()
+
+        fun section(title: String) = console.paint("  $title", KiteSsotStyle.SECTION)
+        fun rows(vararg entries: Pair<String, String>) =
+            alignedRows(entries.toList(), indent = "    ", console = console)
+
         logger.lifecycle(
             buildString {
-                appendLine("[kiteSsot] Resolved single source of truth:")
-                appendLine("  appName              = ${show(appName)}")
-                appendLine("  version              = ${show(versionName)}")
-                appendLine("  versionCode          = $derivedVc")
-                appendLine("  androidApplicationId = ${show(androidApplicationId)}")
-                appendLine("  iosBundleId          = ${show(iosBundleId)}")
-                appendLine("  locales              = $localeDescription")
-                appendLine("  ios.sync renameTo    = ${show(iosSharedModuleName)}")
-                appendLine("  Android:")
-                appendLine("    selected projects = ${listDescription(androidApplicationProjects)}")
-                appendLine("    app directories   = ${listDescription(androidAppDirectories)}")
-                appendLine("    compileSdk         = ${show(compileSdk)}")
-                appendLine("    minSdk             = ${show(minSdk)}")
-                appendLine("    targetSdk          = ${show(targetSdk)}")
-                appendLine("    ndk                = ${show(ndkVersion)}")
-                appendLine("    jvmTarget          = ${show(javaVersion)}")
-                appendLine("  Toolchain toggles:")
-                appendLine("    nativeOptIns           = ${show(propagateInteropOptIns)}")
-                appendLine("    web.ioWorker           = ${show(generateIoWorker)}")
-                appendLine("  App logo:")
-                appendLine("    foreground = $foregroundDescription")
-                appendLine("    background = ${logoBackgroundDescription()}")
-                appendLine("  iOS target files:")
-                appendLine("    pbxproj    ${presence(pbxprojFile)}")
-                appendLine("    Info.plist ${presence(infoPlistFile)}")
-                appendLine("    Podfile    ${presence(podfile)}")
-                append("  Inspect selected mutation paths and policies with: ./gradlew kiteSsotPlan")
+                appendLine(console.paint("[kiteSsot] Resolved single source of truth", KiteSsotStyle.HEADING))
+                appendLine(section("Identity"))
+                rows(
+                    "appName" to show(appName),
+                    "version" to show(versionName),
+                    "versionCode" to derivedVc,
+                    "androidApplicationId" to show(androidApplicationId),
+                    "iosBundleId" to show(iosBundleId),
+                    "locales" to localeDescription,
+                    "ios.sync renameTo" to show(iosSharedModuleName),
+                ).forEach(::appendLine)
+                appendLine(section("Android"))
+                rows(
+                    "selected projects" to listDescription(androidApplicationProjects),
+                    "app directories" to listDescription(androidAppDirectories),
+                    "compileSdk" to show(compileSdk),
+                    "minSdk" to show(minSdk),
+                    "targetSdk" to show(targetSdk),
+                    "ndk" to show(ndkVersion),
+                    "jvmTarget" to show(javaVersion),
+                ).forEach(::appendLine)
+                appendLine(section("Toolchain"))
+                rows(
+                    "nativeOptIns" to show(propagateInteropOptIns),
+                    "web.ioWorker" to show(generateIoWorker),
+                ).forEach(::appendLine)
+                appendLine(section("App logo"))
+                rows(
+                    "foreground" to foregroundDescription,
+                    "background" to logoBackgroundDescription(),
+                ).forEach(::appendLine)
+                appendLine(section("iOS target files"))
+                rows(
+                    "pbxproj" to presence(pbxprojFile, root, console),
+                    "Info.plist" to presence(infoPlistFile, root, console),
+                    "Podfile" to presence(podfile, root, console),
+                ).forEach(::appendLine)
+                append(
+                    console.paint(
+                        "  Inspect selected mutation paths and policies with: ./gradlew kiteSsotPlan",
+                        KiteSsotStyle.MUTED,
+                    ),
+                )
             }
         )
     }
 
-    private fun presence(p: RegularFileProperty): String {
+    private fun presence(
+        p: RegularFileProperty,
+        root: java.nio.file.Path?,
+        console: KiteSsotConsole,
+    ): String {
         return runCatching {
-            val f = p.asFile.orNull ?: return "[path unset]"
+            val f = p.asFile.orNull ?: return console.paint("[path unset]", KiteSsotStyle.MUTED)
             val path = f.toPath()
-            val displayPath = diagnosticSafeText(f.path)
+            val shown = root?.let { relativeDisplayPath(it, path) } ?: f.path
+            val display = console.paint(diagnosticSafeText(shown), KiteSsotStyle.PATH)
             when {
-                java.nio.file.Files.isSymbolicLink(path) -> "SYMLINK ($displayPath)"
+                java.nio.file.Files.isSymbolicLink(path) ->
+                    console.paint("SYMLINK", KiteSsotStyle.WARN) + " $display"
                 java.nio.file.Files.isRegularFile(path, java.nio.file.LinkOption.NOFOLLOW_LINKS) ->
-                    "found   ($displayPath)"
+                    console.paint("found", KiteSsotStyle.PASS) + "   $display"
                 java.nio.file.Files.exists(path, java.nio.file.LinkOption.NOFOLLOW_LINKS) ->
-                    "OTHER   ($displayPath)"
-                else -> "MISSING ($displayPath)"
+                    console.paint("OTHER", KiteSsotStyle.WARN) + "   $display"
+                else -> console.paint("MISSING", KiteSsotStyle.FAIL) + " $display"
             }
-        }.getOrElse { "ERROR   (${diagnosticExceptionSummary(it)})" }
+        }.getOrElse { console.paint("ERROR   (${diagnosticExceptionSummary(it)})", KiteSsotStyle.FAIL) }
     }
 
     private fun logoBackgroundDescription(): String = when {

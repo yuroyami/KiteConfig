@@ -19,13 +19,13 @@ internal fun validateVersionCode(value: Int, property: String = "versionCodeOver
 internal fun validatePublishedVersionCode(next: Int?, published: Int): Int {
     validateVersionCode(published, "android.publishedVersionCode")
     val candidate = next ?: throw GradleException(
-        "kiteSsot { android { publishedVersionCode } } requires versionName or versionCodeOverride.",
+        "kiteSsot { android { publishedVersionCode } } requires version or android { versionCode }.",
     )
     validateVersionCode(candidate)
     if (candidate <= published) {
         throw GradleException(
             "kiteSsot resolved Android versionCode $candidate must be greater than the published " +
-                "baseline $published. Increase versionName/versionCodeOverride before release.",
+                "baseline $published. Increase version, or bump android { rebuild }, before release.",
         )
     }
     return candidate

@@ -358,7 +358,7 @@ class KiteSsotDiagnosticsTest {
 
         assertEquals(KiteSsotDiagnosticSeverity.ERROR, active.severity)
         assertTrue(active.detail.contains(":phone, :tablet"), active.detail)
-        assertTrue(active.detail.contains("no explicit androidApplicationProjects"), active.detail)
+        assertTrue(active.detail.contains("no explicit modules { androidApps }"), active.detail)
 
         val inactive = KiteSsotDiagnosticEngine.evaluate(
             quietContext().copy(detectedAndroidApplicationProjects = listOf(":phone", ":tablet")),

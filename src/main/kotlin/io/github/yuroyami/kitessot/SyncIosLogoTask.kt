@@ -68,12 +68,12 @@ abstract class SyncIosLogoTask : DefaultTask() {
         val dry = dryRun.get()
         val fgFile = foregroundPng.asFile.orNull
         if (fgFile == null) {
-            logger.lifecycle("[kiteSsot] iOS logo sync skipped: appLogoPngForeground is not configured.")
+            logger.lifecycle("[kiteSsot] iOS logo sync skipped: logo { foreground } is not configured.")
             return
         }
         if (!fgFile.exists()) {
             throw GradleException(
-                "[kiteSsot] appLogoPngForeground points to a missing file: " +
+                "[kiteSsot] logo { foreground } points to a missing file: " +
                     "${displayProjectPath(projectRootDir.asFile.get(), fgFile)}. " +
                     "Fix the path or disable logo propagation.",
             )
@@ -96,7 +96,7 @@ abstract class SyncIosLogoTask : DefaultTask() {
             var color = parseLogoBackgroundColor(hex)
             if (color.alpha < 255) {
                 logger.warn(
-                    "[kiteSsot] appLogoBackgroundColor $hex is semi-transparent. " +
+                    "[kiteSsot] logo { backgroundColor } $hex is semi-transparent. " +
                         "flattening over white because App Store icons must be opaque.",
                 )
                 color = flattenOverWhite(color)
@@ -106,14 +106,14 @@ abstract class SyncIosLogoTask : DefaultTask() {
             val bgFile = backgroundPng.asFile.orNull
             if (bgFile == null) {
                 throw GradleException(
-                    "[kiteSsot] iOS logo requires appLogoPngBackground or appLogoBackgroundColor.",
+                    "[kiteSsot] iOS logo requires logo { background } or logo { backgroundColor }.",
                 )
             }
             if (!bgFile.exists()) {
                 throw GradleException(
-                    "[kiteSsot] appLogoPngBackground points to a missing file: " +
+                    "[kiteSsot] logo { background } points to a missing file: " +
                         "${displayProjectPath(projectRootDir.asFile.get(), bgFile)}. " +
-                        "Fix the path or configure appLogoBackgroundColor.",
+                        "Fix the path or configure logo { backgroundColor }.",
                 )
             }
             OwnedOutputSafety.requireInputOutsideOutput(bgFile, outDir, "appLogoPngBackground")

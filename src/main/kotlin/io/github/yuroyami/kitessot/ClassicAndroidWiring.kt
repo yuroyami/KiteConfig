@@ -50,7 +50,7 @@ internal object ClassicAndroidWiring {
                 if (ext.effectiveFilterAndroidResources.get()) {
                     val l = ext.canonicalLocales.get().map(::bcp47ToAndroidQualifier)
                     require(l.isNotEmpty()) {
-                        "[kiteSsot] filterAndroidResources=true requires at least one canonical locale."
+                        "[kiteSsot] android { filterResourcesToLocales } requires at least one canonical locale."
                     }
                     android.androidResources.localeFilters.clear()
                     android.androidResources.localeFilters.addAll(l)

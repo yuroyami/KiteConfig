@@ -64,7 +64,13 @@ abstract class KiteSsotCheckTask : KiteSsotDiagnosticTaskBase() {
                 KiteSsotDiagnosticReports.sarif(findings, projectRootDir.asFile.orNull)
         }
         writeAtomically(reportFile.asFile.get().toPath(), report)
-        logger.lifecycle(renderDiagnosticConsole("Check report", findings))
+        logger.lifecycle(
+            renderDiagnosticConsole(
+                "Check report",
+                findings,
+                KiteSsotConsole(colorEnabled.getOrElse(false)),
+            ),
+        )
         logger.lifecycle(
             "[kiteSsot] ${format.name} diagnostics: " +
                 diagnosticSafeText(reportFile.asFile.get().path),

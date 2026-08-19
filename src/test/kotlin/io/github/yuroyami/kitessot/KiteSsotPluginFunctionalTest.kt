@@ -1206,8 +1206,9 @@ class KiteSsotPluginFunctionalTest {
         assertTrue(result.output.contains("project.pbxproj$BACKUP_SUFFIX"), result.output)
         assertTrue(result.output.contains(".gradle/kitessot/rewrite.lock"), result.output)
         assertTrue(result.output.contains("Xcode target DemoApp"), result.output)
-        assertTrue(result.output.contains("ios.sync.onConflict = FAIL"), result.output)
-        assertTrue(result.output.contains("pbxprojScope = explicit targets"), result.output)
+        // Padding is computed from the longest key, so match the pair, not the spacing.
+        assertTrue(Regex("""ios\.sync\.onConflict\s+= FAIL""").containsMatchIn(result.output), result.output)
+        assertTrue(Regex("""pbxprojScope\s+= explicit targets""").containsMatchIn(result.output), result.output)
         assertTrue(result.output.contains("No files were changed."), result.output)
         assertFalse(File(projectDir, "iosApp/iosApp.xcodeproj/project.pbxproj").exists())
     }

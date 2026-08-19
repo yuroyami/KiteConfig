@@ -4,6 +4,7 @@ import org.gradle.api.DefaultTask
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.MapProperty
+import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.TaskAction
 import org.gradle.work.DisableCachingByDefault
@@ -38,6 +39,8 @@ abstract class KiteSsotPlanTask : DefaultTask() {
         projectRootDir.convention(project.layout.projectDirectory)
     }
 
+    /** Presentation only, so it never affects up-to-date checks. */
+    @get:Internal abstract val colorEnabled: Property<Boolean>
     @get:Internal abstract val projectRootDir: DirectoryProperty
     @get:Internal abstract val operations: ListProperty<String>
     @get:Internal abstract val mutationPaths: ListProperty<String>
@@ -64,33 +67,42 @@ abstract class KiteSsotPlanTask : DefaultTask() {
         val resolvedChanges = resolved("exactChanges", emptyList()) { exactChanges.getOrElse(emptyList()) }
         val resolvedNotes = resolved("notes", emptyList()) { notes.getOrElse(emptyList()) }
 
+        val console = KiteSsotConsole(colorEnabled.getOrElse(false))
+        fun section(title: String) = console.paint("  $title", KiteSsotStyle.SECTION)
+        fun bullet(text: String, style: KiteSsotStyle = KiteSsotStyle.MUTED) =
+            "    " + console.paint("- ", KiteSsotStyle.MUTED) + console.paint(text, style)
+
         logger.lifecycle(
             buildString {
-                appendLine("[kiteSsot] Mutation plan (read-only):")
-                appendLine("  Operations:")
+                appendLine(console.paint("[kiteSsot] Mutation plan (read-only)", KiteSsotStyle.HEADING))
+                appendLine(section("Operations"))
                 values(resolvedOperations, "[none selected]").forEach {
-                    appendLine("    - ${diagnosticSafeText(it)}")
+                    appendLine(bullet(diagnosticSafeText(it), KiteSsotStyle.WARN))
                 }
-                appendLine("  Selected targets:")
-                values(resolvedTargets, "[none]").forEach { appendLine("    - ${diagnosticSafeText(it)}") }
-                appendLine("  Mutation paths:")
+                appendLine(section("Selected targets"))
+                values(resolvedTargets, "[none]").forEach { appendLine(bullet(diagnosticSafeText(it))) }
+                appendLine(section("Mutation paths"))
                 values(resolvedPaths, "[none]").forEach { configured ->
-                    appendLine("    - ${diagnosticSafeText(describePath(root, configured))}")
+                    appendLine(bullet(diagnosticSafeText(describePath(root, configured)), KiteSsotStyle.PATH))
                 }
-                appendLine("  Policies:")
-                if (resolvedPolicies.isEmpty()) appendLine("    - [none]")
-                resolvedPolicies.toSortedMap().forEach { (name, value) ->
-                    appendLine("    - ${diagnosticSafeText(name)} = ${diagnosticSafeText(value)}")
-                }
-                appendLine("  Planned changes:")
+                appendLine(section("Policies"))
+                if (resolvedPolicies.isEmpty()) appendLine(bullet("[none]"))
+                alignedRows(
+                    resolvedPolicies.toSortedMap().map {
+                        diagnosticSafeText(it.key) to diagnosticSafeText(it.value)
+                    },
+                    indent = "    ",
+                    console = console,
+                ).forEach(::appendLine)
+                appendLine(section("Planned changes"))
                 values(resolvedChanges, "[not calculated]").forEach {
-                    appendLine("    - ${diagnosticSafeText(it)}")
+                    appendLine(bullet(diagnosticSafeText(it), KiteSsotStyle.MUTED))
                 }
                 if (resolvedNotes.isNotEmpty()) {
-                    appendLine("  Notes:")
-                    resolvedNotes.forEach { appendLine("    - ${diagnosticSafeText(it)}") }
+                    appendLine(section("Notes"))
+                    resolvedNotes.forEach { appendLine(bullet(diagnosticSafeText(it))) }
                 }
-                append("  No files were changed.")
+                append(console.paint("  No files were changed.", KiteSsotStyle.PASS))
             },
         )
     }

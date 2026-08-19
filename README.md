@@ -266,6 +266,11 @@ Set `dryRun = true` to make the mutating tasks report what they would write,
 without writing it. Generated Kotlin under `build/` ignores `dryRun`, because it
 is a build input.
 
+The four reporting tasks colour their output by severity when a real terminal is
+attached. `NO_COLOR`, `TERM=dumb`, and `--console=plain` each turn it off, so
+piped output and CI logs stay plain text. Force it either way with
+`-Pkitessot.color=true` or `-Pkitessot.color=false`.
+
 ## More on the DSL
 
 The [Usage](#usage) block above is the whole surface. Every property there

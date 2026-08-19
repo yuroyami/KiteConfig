@@ -73,12 +73,12 @@ abstract class SyncAndroidLogoTask : DefaultTask() {
         val dry = dryRun.get()
         val fgFile = foregroundPng.asFile.orNull
         if (fgFile == null) {
-            logger.lifecycle("[kiteSsot] Android logo sync skipped: appLogoPngForeground is not configured.")
+            logger.lifecycle("[kiteSsot] Android logo sync skipped: logo { foreground } is not configured.")
             return
         }
         if (!fgFile.exists()) {
             throw GradleException(
-                "[kiteSsot] appLogoPngForeground points to a missing file: " +
+                "[kiteSsot] logo { foreground } points to a missing file: " +
                     "${displayProjectPath(projectRootDir.asFile.get(), fgFile)}. " +
                     "Fix the path or disable logo propagation.",
             )
@@ -99,7 +99,7 @@ abstract class SyncAndroidLogoTask : DefaultTask() {
             val hex = backgroundColorHex.get()
             var color = parseLogoBackgroundColor(hex)
             if (color.alpha < 255) {
-                logger.warn("[kiteSsot] appLogoBackgroundColor $hex is semi-transparent, so it will be flattened over white to match the iOS icon.")
+                logger.warn("[kiteSsot] logo { backgroundColor } $hex is semi-transparent, so it will be flattened over white to match the iOS icon.")
                 color = flattenOverWhite(color)
             }
             bgDescription = "color $hex"
@@ -109,34 +109,34 @@ abstract class SyncAndroidLogoTask : DefaultTask() {
             val bgFile = backgroundPng.asFile.orNull
             if (bgFile == null) {
                 throw GradleException(
-                    "[kiteSsot] Android logo requires appLogoPngBackground or appLogoBackgroundColor.",
+                    "[kiteSsot] Android logo requires logo { background } or logo { backgroundColor }.",
                 )
             }
             if (!bgFile.exists()) {
                 throw GradleException(
-                    "[kiteSsot] appLogoPngBackground points to a missing file: " +
+                    "[kiteSsot] logo { background } points to a missing file: " +
                         "${displayProjectPath(projectRootDir.asFile.get(), bgFile)}. " +
-                        "Fix the path or configure appLogoBackgroundColor.",
+                        "Fix the path or configure logo { backgroundColor }.",
                 )
             }
             OwnedOutputSafety.requireInputOutsideOutput(bgFile, resDir, "appLogoPngBackground")
             val decoded = decodeLogo(bgFile, "appLogoPngBackground")
             bgSnapshot = decoded
             if (decoded.image.width != decoded.image.height) {
-                logger.warn("[kiteSsot] appLogoPngBackground is not square (${decoded.image.width}×${decoded.image.height}), so it will be center-cropped to fill the canvas.")
+                logger.warn("[kiteSsot] logo { background } is not square (${decoded.image.width}×${decoded.image.height}), so it will be center-cropped to fill the canvas.")
             }
             bgDescription = bgFile.name
             decoded.image
         }
 
         if (fg.width != fg.height) {
-            logger.warn("[kiteSsot] appLogoPngForeground is not square (${fg.width}×${fg.height}), so it will be letterboxed inside the safe zone, preserving aspect ratio.")
+            logger.warn("[kiteSsot] logo { foreground } is not square (${fg.width}×${fg.height}), so it will be letterboxed inside the safe zone, preserving aspect ratio.")
         }
         if (!fg.colorModel.hasAlpha()) {
-            logger.warn("[kiteSsot] appLogoPngForeground has no alpha channel, so it will fully cover the background. Use a PNG with transparency for proper layering.")
+            logger.warn("[kiteSsot] logo { foreground } has no alpha channel, so it will fully cover the background. Use a PNG with transparency for proper layering.")
         }
         if (fg.width < 432) {
-            logger.warn("[kiteSsot] appLogoPngForeground is ${fg.width}px wide. Use ≥432px (the xxxhdpi adaptive size) to avoid upscaling artifacts.")
+            logger.warn("[kiteSsot] logo { foreground } is ${fg.width}px wide. Use ≥432px (the xxxhdpi adaptive size) to avoid upscaling artifacts.")
         }
 
         val ratio = validateLogoSafeZoneRatio(safeZoneRatio.get())
@@ -278,7 +278,7 @@ abstract class SyncAndroidLogoTask : DefaultTask() {
                         "    ${diagnosticSafeText(it.relativeToOrSelf(resDir).path)}"
                     } +
                     (if (omitted > 0) "\n    … and $omitted more" else "") +
-                    "\n  Back them up/remove them, or opt into cleanupLegacyLogoArtifacts for a reversible migration."
+                    "\n  Back them up/remove them, or opt into logo { takeOverLegacyIcons } for a reversible migration."
         )
     }
 

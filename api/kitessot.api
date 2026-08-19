@@ -123,6 +123,7 @@ public abstract class io/github/yuroyami/kitessot/KiteSsotDiagnosticTaskBase : o
 	public abstract fun getAppName ()Lorg/gradle/api/provider/Property;
 	public abstract fun getAppiconsetDir ()Lorg/gradle/api/file/DirectoryProperty;
 	public abstract fun getCleanupLegacyLogoArtifacts ()Lorg/gradle/api/provider/Property;
+	public abstract fun getColorEnabled ()Lorg/gradle/api/provider/Property;
 	public abstract fun getDetectedAndroidApplicationProjects ()Lorg/gradle/api/provider/ListProperty;
 	public abstract fun getFilterAndroidResources ()Lorg/gradle/api/provider/Property;
 	public abstract fun getHasVersionCodeOverride ()Lorg/gradle/api/provider/Property;
@@ -302,6 +303,7 @@ public abstract class io/github/yuroyami/kitessot/KiteSsotNativeOptInsExtension 
 
 public abstract class io/github/yuroyami/kitessot/KiteSsotPlanTask : org/gradle/api/DefaultTask {
 	public fun <init> ()V
+	public abstract fun getColorEnabled ()Lorg/gradle/api/provider/Property;
 	public abstract fun getExactChanges ()Lorg/gradle/api/provider/ListProperty;
 	public abstract fun getMutationPaths ()Lorg/gradle/api/provider/ListProperty;
 	public abstract fun getNotes ()Lorg/gradle/api/provider/ListProperty;
@@ -336,6 +338,7 @@ public abstract class io/github/yuroyami/kitessot/KiteSsotVerifyTask : org/gradl
 	public abstract fun getAndroidApplicationId ()Lorg/gradle/api/provider/Property;
 	public abstract fun getAndroidApplicationProjects ()Lorg/gradle/api/provider/ListProperty;
 	public abstract fun getAppName ()Lorg/gradle/api/provider/Property;
+	public abstract fun getColorEnabled ()Lorg/gradle/api/provider/Property;
 	public abstract fun getCompileSdk ()Lorg/gradle/api/provider/Property;
 	public abstract fun getGenerateIoWorker ()Lorg/gradle/api/provider/Property;
 	public abstract fun getInfoPlistFile ()Lorg/gradle/api/file/RegularFileProperty;
@@ -350,6 +353,7 @@ public abstract class io/github/yuroyami/kitessot/KiteSsotVerifyTask : org/gradl
 	public abstract fun getNdkVersion ()Lorg/gradle/api/provider/Property;
 	public abstract fun getPbxprojFile ()Lorg/gradle/api/file/RegularFileProperty;
 	public abstract fun getPodfile ()Lorg/gradle/api/file/RegularFileProperty;
+	public abstract fun getProjectRootDir ()Lorg/gradle/api/file/DirectoryProperty;
 	public abstract fun getPropagateInteropOptIns ()Lorg/gradle/api/provider/Property;
 	public abstract fun getTargetSdk ()Lorg/gradle/api/provider/Property;
 	public abstract fun getVersionCode ()Lorg/gradle/api/provider/Property;

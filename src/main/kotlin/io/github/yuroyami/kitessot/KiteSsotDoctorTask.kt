@@ -30,6 +30,7 @@ abstract class KiteSsotDiagnosticTaskBase : DefaultTask() {
         androidResPaths.convention(emptyList())
         androidApplicationProjects.convention(emptyList())
         detectedAndroidApplicationProjects.convention(emptyList())
+        colorEnabled.convention(false)
         agpOnClasspath.convention(false)
         agpRequired.convention(false)
         kgpRequired.convention(true)
@@ -41,6 +42,8 @@ abstract class KiteSsotDiagnosticTaskBase : DefaultTask() {
     @get:Internal abstract val iosBundleId: Property<String>
     @get:Internal abstract val propagateVersion: Property<Boolean>
     @get:Internal abstract val versionName: Property<String>
+    /** Presentation only, so it never affects up-to-date checks. */
+    @get:Internal abstract val colorEnabled: Property<Boolean>
     @get:Internal abstract val hasVersionCodeOverride: Property<Boolean>
     @get:Internal abstract val resolvedVersionCode: Property<Int>
     @get:Internal abstract val propagateLocaleList: Property<Boolean>
@@ -111,7 +114,7 @@ abstract class KiteSsotDiagnosticTaskBase : DefaultTask() {
             syncIos = resolve("KMPS908", "syncIos", false) { syncIos.getOrElse(false) },
             sanitizeIosProject = resolve("KMPS918", "sanitizeIosProject", false) { sanitizeIosProject.getOrElse(false) },
             propagateLogo = resolve("KMPS917", "propagateLogo", false) { propagateLogo.getOrElse(false) },
-            cleanupLegacyLogoArtifacts = resolve("KMPS939", "cleanupLegacyLogoArtifacts", false) {
+            cleanupLegacyLogoArtifacts = resolve("KMPS939", "logo { takeOverLegacyIcons }", false) {
                 cleanupLegacyLogoArtifacts.getOrElse(false)
             },
             iosMarketingVersion = resolve<String?>("KMPS919", "iosMarketingVersion", null) { iosMarketingVersion.orNull },
@@ -125,7 +128,7 @@ abstract class KiteSsotDiagnosticTaskBase : DefaultTask() {
                 plistConflictPolicy.getOrElse(PlistConflictPolicy.FAIL)
             },
             iosTargetNames = resolve("KMPS909", "iosTargetNames", emptyList()) { iosTargetNames.getOrElse(emptyList()) },
-            androidApplicationProjects = resolve("KMPS932", "androidApplicationProjects", emptyList()) {
+            androidApplicationProjects = resolve("KMPS932", "modules { androidApps }", emptyList()) {
                 androidApplicationProjects.getOrElse(emptyList())
             },
             detectedAndroidApplicationProjects = resolve(
@@ -192,25 +195,49 @@ abstract class KiteSsotDoctorTask : KiteSsotDiagnosticTaskBase() {
     @TaskAction
     fun diagnose() {
         val findings = diagnosticFindings()
-        logger.lifecycle(renderDiagnosticConsole("Doctor report", findings))
+        logger.lifecycle(
+            renderDiagnosticConsole(
+                "Doctor report",
+                findings,
+                KiteSsotConsole(colorEnabled.getOrElse(false)),
+            ),
+        )
     }
 }
 
-internal fun renderDiagnosticConsole(heading: String, findings: List<KiteSsotDiagnostic>): String = buildString {
-    appendLine("[kiteSsot] $heading:")
+internal fun renderDiagnosticConsole(
+    heading: String,
+    findings: List<KiteSsotDiagnostic>,
+    console: KiteSsotConsole = KiteSsotConsole(colored = false),
+): String = buildString {
+    appendLine(console.paint("[kiteSsot] $heading", KiteSsotStyle.HEADING))
     findings.forEach { finding ->
-        val status = when (finding.severity) {
-            KiteSsotDiagnosticSeverity.PASS -> "PASS"
-            KiteSsotDiagnosticSeverity.SKIPPED -> "SKIP"
-            KiteSsotDiagnosticSeverity.WARNING -> "WARN"
-            KiteSsotDiagnosticSeverity.ERROR -> "FAIL"
+        val (status, style) = when (finding.severity) {
+            KiteSsotDiagnosticSeverity.PASS -> "PASS" to KiteSsotStyle.PASS
+            KiteSsotDiagnosticSeverity.SKIPPED -> "SKIP" to KiteSsotStyle.SKIP
+            KiteSsotDiagnosticSeverity.WARNING -> "WARN" to KiteSsotStyle.WARN
+            KiteSsotDiagnosticSeverity.ERROR -> "FAIL" to KiteSsotStyle.FAIL
         }
-        append("  [$status] ${diagnosticSafeText(finding.id)} ${diagnosticSafeText(finding.title)}: ")
-        append(diagnosticSafeText(finding.detail))
-        finding.remediation?.let { append(" Fix: ").append(diagnosticSafeText(it)) }
-        appendLine()
+        // One span for the whole line: a reset between the tag and the id would
+        // break both grep and a consumer asserting on "[FAIL] KMPS021".
+        val line = buildString {
+            append("  [").append(status).append("] ")
+            append(diagnosticSafeText(finding.id)).append(' ')
+            append(diagnosticSafeText(finding.title)).append(": ")
+            append(diagnosticSafeText(finding.detail))
+        }
+        appendLine(console.paint(line, style))
+        finding.remediation?.let {
+            appendLine(console.paint("         Fix: " + diagnosticSafeText(it), KiteSsotStyle.MUTED))
+        }
     }
     val errors = findings.count { it.severity == KiteSsotDiagnosticSeverity.ERROR }
     val warnings = findings.count { it.severity == KiteSsotDiagnosticSeverity.WARNING }
-    append("  Summary: $errors error(s), $warnings warning(s), ${findings.size} total finding(s).")
+    val summary = "  Summary: $errors error(s), $warnings warning(s), ${findings.size} total finding(s)."
+    val summaryStyle = when {
+        errors > 0 -> KiteSsotStyle.FAIL
+        warnings > 0 -> KiteSsotStyle.WARN
+        else -> KiteSsotStyle.PASS
+    }
+    append(console.paint(summary, summaryStyle))
 }

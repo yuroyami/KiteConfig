@@ -245,7 +245,7 @@ internal fun validateJavaVersion(value: Int): Int {
 internal fun validateLogoSafeZoneRatio(value: Double): Double {
     if (!value.isFinite() || value <= 0.0 || value > 1.0) {
         throw GradleException(
-            "kiteSsot { appLogoAndroidSafeZoneRatio } must be finite and in (0, 1]; got $value.",
+            "kiteSsot { logo { androidSafeZone } } must be finite and in (0, 1]; got $value.",
         )
     }
     return value

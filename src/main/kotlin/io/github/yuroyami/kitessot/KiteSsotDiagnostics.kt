@@ -119,7 +119,7 @@ internal object KiteSsotDiagnosticEngine {
                         KiteSsotDiagnosticSeverity.ERROR,
                         "Android application selection",
                         "Multiple Android application projects are eligible for active app-scoped values: " +
-                            "${detected.joinToString()}; no explicit androidApplicationProjects selector is configured.",
+                            "${detected.joinToString()}; no explicit modules { androidApps } selector is configured.",
                         "Select every intended application explicitly with unique absolute Gradle project paths.",
                     ),
                 )
@@ -129,7 +129,7 @@ internal object KiteSsotDiagnosticEngine {
                         "KMPS070",
                         KiteSsotDiagnosticSeverity.SKIPPED,
                         "Android application selection",
-                        "No explicit androidApplicationProjects selector is configured; " +
+                        "No explicit modules { androidApps } selector is configured; " +
                             if (detected.size == 1) {
                                 "the sole detected application is unambiguous."
                             } else {
@@ -142,7 +142,7 @@ internal object KiteSsotDiagnosticEngine {
         }
 
         val invalid = selected.filter { selector ->
-            runCatching { validateGradleProjectPath(selector, "androidApplicationProjects") }.isFailure
+            runCatching { validateGradleProjectPath(selector, "modules { androidApps }") }.isFailure
         }
         val duplicates = selected.groupingBy { it }.eachCount()
             .filterValues { it > 1 }
@@ -311,7 +311,7 @@ internal object KiteSsotDiagnosticEngine {
                     "KMPS001",
                     KiteSsotDiagnosticSeverity.WARNING,
                     "Android manifest",
-                    "Manifest not found at ${manifest.path}; the appName placeholder cannot be verified.",
+                    "Manifest not found at ${context.shortPath(manifest)}; the appName placeholder cannot be verified.",
                     "Point the Android application selection at a project with src/main/AndroidManifest.xml.",
                 ),
             )
@@ -381,7 +381,7 @@ internal object KiteSsotDiagnosticEngine {
                     "KMPS003",
                     KiteSsotDiagnosticSeverity.ERROR,
                     "Android launcher icon references",
-                    "Manifest not found at ${manifest.path}; installed launcher resources cannot be consumed.",
+                    "Manifest not found at ${context.shortPath(manifest)}; installed launcher resources cannot be consumed.",
                     "Create/select the application manifest and reference @mipmap/ic_launcher.",
                     location = manifest.path,
                 ),
@@ -447,7 +447,7 @@ internal object KiteSsotDiagnosticEngine {
                     "KMPS010",
                     KiteSsotDiagnosticSeverity.ERROR,
                     "iOS Info.plist",
-                    "Configured source Info.plist does not exist at ${plist.path}.",
+                    "Configured source Info.plist does not exist at ${context.shortPath(plist)}.",
                     "Correct iosInfoPlistFile or disable sanitizeIosProject for a generated plist.",
                     location = plist.path,
                 ),
@@ -590,8 +590,8 @@ internal object KiteSsotDiagnosticEngine {
                         "KMPS020",
                         KiteSsotDiagnosticSeverity.ERROR,
                         "iOS pbxproj",
-                        "Project file not found at ${pbxproj.path}.",
-                        "Correct iosProjectPath or disable syncIos.",
+                        "Project file not found at ${context.shortPath(pbxproj)}.",
+                        "Correct ios { pbxproj } or remove the ios { sync { } } block.",
                     ),
                 )
             } else if (pbxprojExists == true) {
@@ -729,15 +729,24 @@ internal object KiteSsotDiagnosticEngine {
                     "KMPS022",
                     KiteSsotDiagnosticSeverity.ERROR,
                     "iOS app icon set",
-                    "No directory exists at ${icons.path}.",
-                    "Configure iosAppiconsetPath or run the explicitly requested logo installer.",
+                    "No directory exists at ${context.shortPath(icons)}.",
+                    "Configure ios { appIconDirectory } or run the explicitly requested logo installer.",
                 ),
                 )
             }
         }
     }
 
-    private fun MutableList<KiteSsotDiagnostic>.diagnoseAndroidIcons(context: KiteSsotDiagnosticContext) {
+    /**
+ * Render [file] the way a report should: short and relative to the project when
+ * it lives there. An absolute path pushes the rest of the finding off screen.
+ */
+private fun KiteSsotDiagnosticContext.shortPath(file: java.io.File): String {
+    val root = projectRootDir?.toPath() ?: return file.path
+    return relativeDisplayPath(root, file.toPath())
+}
+
+private fun MutableList<KiteSsotDiagnostic>.diagnoseAndroidIcons(context: KiteSsotDiagnosticContext) {
         if (!context.propagateLogo) {
             add(diagnostic("KMPS030", KiteSsotDiagnosticSeverity.SKIPPED, "Android launcher icons", "Logo propagation is disabled."))
             return
@@ -753,11 +762,11 @@ internal object KiteSsotDiagnosticEngine {
     ) {
         val resExists = safeExists(context, res, "KMPS030", "Android resources") ?: return
         if (!resExists) {
-            add(diagnostic("KMPS030", KiteSsotDiagnosticSeverity.ERROR, "Android resources", "No Android resource directory exists at ${res.path}."))
+            add(diagnostic("KMPS030", KiteSsotDiagnosticSeverity.ERROR, "Android resources", "No Android resource directory exists at ${context.shortPath(res)}."))
             return
         }
         if (!Files.isDirectory(res.toPath(), java.nio.file.LinkOption.NOFOLLOW_LINKS)) {
-            add(diagnostic("KMPS030", KiteSsotDiagnosticSeverity.ERROR, "Android resources", "${res.path} is not a directory."))
+            add(diagnostic("KMPS030", KiteSsotDiagnosticSeverity.ERROR, "Android resources", "${context.shortPath(res)} is not a directory."))
             return
         }
         val collisions = runCatching { SyncAndroidLogoTask.collidingTemplateIcons(res) }.getOrElse { failure ->
