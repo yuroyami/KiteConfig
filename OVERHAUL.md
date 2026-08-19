@@ -1,6 +1,9 @@
-# KiteSSOT 3.0: The DSL Overhaul (Proposal)
+# KiteSSOT 3.0: The DSL Overhaul
 
-Status: proposal, not implemented. Target: 3.0.0.
+Status: **implemented in 3.0.0**. Kept as the design record.
+
+The shipped DSL matches this document. See CHANGELOG.md for the release notes and
+the exact list of deprecations and removals.
 
 ## TL;DR
 
