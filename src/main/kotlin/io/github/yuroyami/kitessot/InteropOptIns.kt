@@ -18,9 +18,9 @@ internal val DEFAULT_INTEROP_OPT_INS: List<String> = listOf(
 )
 
 /**
- * Default interop markers plus any [extra] the user added via
- * `kiteSsot { extraOptIns += "..." }`, de-duplicated and order-stable (defaults
- * first, then extras in declared order).
+ * KiteSSOT's built-in interop markers, when [includeBuiltIns] is true, plus any
+ * [extra] the user added via `nativeOptIns { add("...") }`, de-duplicated and
+ * order-stable (built-ins first, then extras in declared order).
  */
-internal fun interopOptIns(extra: List<String>): List<String> =
-    (DEFAULT_INTEROP_OPT_INS + extra).distinct()
+internal fun interopOptIns(extra: List<String>, includeBuiltIns: Boolean = true): List<String> =
+    ((if (includeBuiltIns) DEFAULT_INTEROP_OPT_INS else emptyList()) + extra).distinct()

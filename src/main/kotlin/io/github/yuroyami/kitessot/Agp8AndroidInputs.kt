@@ -57,13 +57,25 @@ internal fun KiteSsotExtension.resolveAgp8Inputs(projectPath: String): Agp8Andro
     val selected = effectiveAndroidApps.getOrElse(emptyList())
     val appScoped = selected.isEmpty() || selected.contains(projectPath)
     val filterResources = appScoped && effectiveFilterAndroidResources.get()
+    // Only touch the version providers when they are actually going to be
+    // written. effectiveAndroidVersionCode can throw for a version its scheme
+    // cannot encode; the AGP 9 adapter (ClassicAndroidWiring) never evaluates
+    // it outside this same condition, so an AGP 8 build must not either, or a
+    // build with propagate { version = false }, or a library module, would
+    // fail on AGP 8 while the identical AGP 9 build succeeds.
+    val applyVersion = appScoped && effectivePropagateVersion.get()
+    val applicationId = if (appScoped && effectivePropagateBundleId.get() && effectiveAppId.isPresent) {
+        androidApplicationId.orNull
+    } else {
+        null
+    }
     return Agp8AndroidInputs(
         selectedApplications = selected,
         applyApplicationId = appScoped && effectivePropagateBundleId.get() && effectiveAppId.isPresent,
-        applicationId = androidApplicationId.orNull,
-        applyVersion = appScoped && effectivePropagateVersion.get(),
-        versionName = effectiveVersion.orNull,
-        versionCode = effectiveAndroidVersionCode.orNull,
+        applicationId = applicationId,
+        applyVersion = applyVersion,
+        versionName = if (applyVersion) effectiveVersion.orNull else null,
+        versionCode = if (applyVersion) effectiveAndroidVersionCode.orNull else null,
         applyAppName = appScoped && effectivePropagateAppName.get() && effectiveAppName.isPresent,
         appName = effectiveAppName.orNull,
         filterResources = filterResources,

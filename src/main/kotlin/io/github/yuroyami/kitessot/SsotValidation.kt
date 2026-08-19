@@ -138,6 +138,48 @@ internal fun isValidAppleBuildNumber(value: String): Boolean {
     return !components[0].all { it == '0' }
 }
 
+/**
+ * Componentwise compare two `CFBundleVersion` strings the way App Store Connect
+ * does: numerically, component by component, with a missing trailing
+ * component read as `0`. So `"2.1"` outranks `"2"`, and `"2.0"` equals `"2"`.
+ */
+internal fun compareAppleBuildNumbers(a: String, b: String): Int {
+    val left = a.split('.').map { it.toLong() }
+    val right = b.split('.').map { it.toLong() }
+    for (i in 0 until maxOf(left.size, right.size)) {
+        val cmp = (left.getOrElse(i) { 0L }).compareTo(right.getOrElse(i) { 0L })
+        if (cmp != 0) return cmp
+    }
+    return 0
+}
+
+/** Validate the optional offline TestFlight baseline against a resolved next build number. */
+internal fun validatePublishedBuildNumber(next: String?, published: String): String {
+    if (!isValidAppleBuildNumber(published)) {
+        throw GradleException(
+            "kiteSsot { ios { publishedBuildNumber } } \"${diagnosticSafeText(published, 32)}\" is invalid. " +
+                "CFBundleVersion requires one to three numeric components, each at most " +
+                "$MAX_APPLE_BUILD_COMPONENT_DIGITS digits, and a first component that is not zero.",
+        )
+    }
+    val candidate = next ?: throw GradleException(
+        "kiteSsot { ios { publishedBuildNumber } } requires a resolvable ios { buildNumber }.",
+    )
+    if (!isValidAppleBuildNumber(candidate)) {
+        throw GradleException(
+            "kiteSsot resolved Apple build number \"${diagnosticSafeText(candidate, 32)}\" is invalid.",
+        )
+    }
+    if (compareAppleBuildNumbers(candidate, published) <= 0) {
+        throw GradleException(
+            "kiteSsot resolved Apple build number \"$candidate\" must be greater than the published " +
+                "baseline \"$published\". Bump ios { rebuild }, or set ios { buildNumber } explicitly, " +
+                "before release.",
+        )
+    }
+    return candidate
+}
+
 internal fun validateGradleProjectPath(value: String, property: String): String {
     if (value.length > MAX_GRADLE_PROJECT_PATH_CHARS || !GRADLE_PROJECT_PATH.matches(value)) {
         throw GradleException(

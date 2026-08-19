@@ -582,4 +582,71 @@ class AgpCompatibilityFunctionalTest {
             """.trimIndent(),
         )
     }
+
+    @Test
+    fun `AGP 8_5_2 library module with propagate version off does not evaluate an unencodable version`() {
+        // Regression test: the AGP 8 adapter used to resolve the scheme-derived
+        // versionCode unconditionally, even for a library module and even with
+        // propagate.version off, so a version its scheme could not encode broke
+        // an AGP 8 build that the identical AGP 9 build accepted.
+        publishPluginFixture()
+        write(
+            "settings.gradle",
+            """
+            pluginManagement {
+                repositories {
+                    maven { url = uri(file('plugin-repository')) }
+                    google()
+                    mavenCentral()
+                    gradlePluginPortal()
+                }
+            }
+            rootProject.name = 'agp8-library-version-off-fixture'
+            include ':library'
+            """.trimIndent(),
+        )
+        write(
+            "build.gradle",
+            """
+            plugins {
+                id 'com.android.library' version '8.5.2' apply false
+                id 'io.github.yuroyami.kitessot' version 'test-fixture'
+            }
+
+            kiteSsot {
+                appName = 'LibraryOnly'
+                version = '1.4.150'
+                propagate { version = false }
+            }
+
+            tasks.register('verifyLibraryBuilds') {
+                dependsOn ':library:assertLibraryConfigured'
+            }
+            """.trimIndent(),
+        )
+        write(
+            "library/build.gradle",
+            """
+            plugins { id 'com.android.library' }
+
+            android {
+                namespace = 'fixture.library'
+                compileSdk = 34
+                defaultConfig { minSdk = 21 }
+            }
+
+            tasks.register('assertLibraryConfigured') {
+                doLast { println 'AGP8_LIBRARY_VERSION_OFF_OK' }
+            }
+            """.trimIndent(),
+        )
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withGradleVersion("8.9")
+            .withArguments("--stacktrace", "verifyLibraryBuilds")
+            .build()
+
+        assertTrue(result.output.contains("AGP8_LIBRARY_VERSION_OFF_OK"), result.output)
+    }
 }

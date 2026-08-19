@@ -239,7 +239,7 @@ abstract class KiteSsotExtension {
 
     /** Android application id: [appId] plus [KiteSsotAndroidExtension.idSuffix]. */
     val androidApplicationId: Provider<String>
-        get() = effectiveAppId.zip(android.idSuffix.orElse("")) { base, suffix -> base + suffix }
+        get() = effectiveAppId.zip(effectiveAndroidIdSuffix.orElse("")) { base, suffix -> base + suffix }
 
     /** Apple bundle id: [appId] plus [KiteSsotIosExtension.bundleIdSuffix]. */
     val iosBundleId: Provider<String>
@@ -262,6 +262,12 @@ abstract class KiteSsotExtension {
     // through a 3.0 block and the same value set through a deprecated 2.x
     // property resolve identically.
 
+    /** `-Pkitessot.dryRun=true|false`, bound by the plugin. Wins over [dryRun] when present. */
+    internal abstract val dryRunOverride: Property<Boolean>
+
+    /** `-Pkitessot.backups=true|false`, bound by the plugin. Wins over [backups] when present. */
+    internal abstract val backupsOverride: Property<Boolean>
+
     internal abstract val logoConfigured: Property<Boolean>
     internal abstract val nativeOptInsConfigured: Property<Boolean>
     internal abstract val buildConfigConfigured: Property<Boolean>
@@ -282,10 +288,10 @@ abstract class KiteSsotExtension {
         get() = locales
 
     internal val effectiveDryRun: Provider<Boolean>
-        get() = dryRun.orElse(false)
+        get() = dryRunOverride.orElse(dryRun).orElse(false)
 
     internal val effectiveBackups: Provider<Boolean>
-        get() = backups.orElse(backupBeforeRewrite).orElse(true)
+        get() = backupsOverride.orElse(backups).orElse(backupBeforeRewrite).orElse(true)
 
     // --- structure ---
 
@@ -378,8 +384,8 @@ abstract class KiteSsotExtension {
 
     internal val effectiveSyncIos: Provider<Boolean>
         get() = ios.sync.configured.orElse(false)
-            .zip(ios.sync.enabled.orElse(true)) { configured, enabled -> configured && enabled }
-            .zip(syncIos.orElse(false)) { block, legacy -> block || legacy }
+            .zip(syncIos.orElse(false)) { configured, legacy -> configured || legacy }
+            .zip(ios.sync.enabled.orElse(true)) { on, enabled -> on && enabled }
 
     internal val effectiveSanitizeIosProject: Provider<Boolean>
         get() = ios.sync.sanitizePlist.orElse(sanitizeIosProject).orElse(false)
@@ -410,8 +416,8 @@ abstract class KiteSsotExtension {
 
     internal val effectivePropagateLogo: Provider<Boolean>
         get() = logoConfigured.orElse(false)
-            .zip(logo.enabled.orElse(true)) { configured, enabled -> configured && enabled }
-            .zip(propagateLogo.orElse(false)) { block, legacy -> block || legacy }
+            .zip(propagateLogo.orElse(false)) { configured, legacy -> configured || legacy }
+            .zip(logo.enabled.orElse(true)) { on, enabled -> on && enabled }
 
     internal val effectiveLogoForeground: Provider<org.gradle.api.file.RegularFile>
         get() = logo.foreground.orElse(appLogoPngForeground)
@@ -426,17 +432,22 @@ abstract class KiteSsotExtension {
         get() = logo.androidSafeZone.orElse(appLogoAndroidSafeZoneRatio).orElse(DEFAULT_ANDROID_SAFE_ZONE)
 
     internal val effectiveTakeOverLegacyIcons: Provider<Boolean>
-        get() = logo.takeOverLegacyIcons.orElse(cleanupLegacyLogoArtifacts).orElse(false)
+        get() = effectivePropagateLogo.zip(
+            logo.takeOverLegacyIcons.orElse(cleanupLegacyLogoArtifacts).orElse(false),
+        ) { logoOn, takeOver -> logoOn && takeOver }
 
     // --- native opt-ins ---
 
     internal val effectiveNativeOptInsEnabled: Provider<Boolean>
         get() = nativeOptInsConfigured.orElse(false)
-            .zip(nativeOptIns.enabled.orElse(true)) { configured, enabled -> configured && enabled }
-            .zip(propagateInteropOptIns.orElse(false)) { block, legacy -> block || legacy }
+            .zip(propagateInteropOptIns.orElse(false)) { configured, legacy -> configured || legacy }
+            .zip(nativeOptIns.enabled.orElse(true)) { on, enabled -> on && enabled }
 
     internal val effectiveNativeOptInBuiltIns: Provider<Boolean>
         get() = nativeOptIns.builtIns.orElse(true)
+
+    internal val effectiveAndroidIdSuffix: Provider<String>
+        get() = android.idSuffix.orElse(androidApplicationIdSuffix)
 
     internal val effectiveNativeOptInMarkers: Provider<List<String>>
         get() = nativeOptIns.markers.map { it.ifEmpty { extraOptIns.getOrElse(emptyList()) } }

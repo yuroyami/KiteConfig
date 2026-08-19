@@ -31,4 +31,16 @@ class InteropOptInsTest {
         )
         assertEquals(DEFAULT_INTEROP_OPT_INS + "com.example.MyMarker", result)
     }
+
+    @Test
+    fun `includeBuiltIns=false drops the defaults, keeping only extras`() {
+        val result = interopOptIns(listOf("com.example.MyMarker"), includeBuiltIns = false)
+        assertEquals(listOf("com.example.MyMarker"), result)
+        assertTrue(DEFAULT_INTEROP_OPT_INS.none { it in result })
+    }
+
+    @Test
+    fun `includeBuiltIns=false with no extras opts in to nothing`() {
+        assertEquals(emptyList<String>(), interopOptIns(emptyList(), includeBuiltIns = false))
+    }
 }

@@ -1249,4 +1249,182 @@ class KiteSsotPluginFunctionalTest {
         assertTrue(second.output.contains("ios.sync renameTo    = SharedKit"), second.output)
         assertTrue(second.output.contains("customAndroidApp"), second.output)
     }
+
+    @Test
+    fun `a presence-gated mutation task survives the configuration cache`() {
+        // Regression test: the five mutation tasks' onlyIf specs used to re-walk
+        // ext's nested extension container at EXECUTION time, which the
+        // configuration cache cannot restore, and every one of them failed on a
+        // cached rerun with UnknownDomainObjectException.
+        writePng("art/fg.png", 8)
+        write("settings.gradle.kts", "rootProject.name = \"fixture\"")
+        write(
+            "build.gradle.kts",
+            """
+            plugins { id("io.github.yuroyami.kitessot") }
+            kiteSsot {
+                appName = "CacheProbe"
+                version = "1.0.0"
+                logo {
+                    foreground = file("art/fg.png")
+                    backgroundColor = "#102A43"
+                }
+            }
+            """.trimIndent(),
+        )
+        val arguments = arrayOf(
+            "kiteSsotSyncAndroidLogo",
+            "--configuration-cache",
+            "--configuration-cache-problems=fail",
+        )
+
+        val first = run(*arguments)
+        assertTrue(first.output.contains("Configuration cache entry stored"), first.output)
+        val second = run(*arguments)
+        assertTrue(second.output.contains("Reusing configuration cache"), second.output)
+        assertTrue(second.output.contains("BUILD SUCCESSFUL"), second.output)
+    }
+
+    @Test
+    fun `resilient diagnostics report a malformed version instead of failing the configuration cache`() {
+        // Regression test: kiteSsotDoctor/kiteSsotCheck bound the scheme-derived
+        // versionCode and iosBuildNumber providers directly. Those throw on a
+        // version their scheme cannot encode, and the configuration cache
+        // evaluates bound task inputs while storing the cache entry, before the
+        // task's own resilient resolve() wrapper ever runs.
+        write("settings.gradle.kts", "rootProject.name = \"fixture\"")
+        write(
+            "build.gradle.kts",
+            """
+            plugins { id("io.github.yuroyami.kitessot") }
+            kiteSsot {
+                appName = "Probe"
+                version = "1.4"
+            }
+            """.trimIndent(),
+        )
+        val arguments = arrayOf(
+            "kiteSsotDoctor",
+            "--configuration-cache",
+            "--configuration-cache-problems=fail",
+        )
+
+        val first = run(*arguments)
+        assertTrue(first.output.contains("Configuration cache entry stored"), first.output)
+        assertTrue(first.output.contains("[FAIL] KMPS050"), first.output)
+        val second = run(*arguments)
+        assertTrue(second.output.contains("Reusing configuration cache"), second.output)
+        assertTrue(second.output.contains("[FAIL] KMPS050"), second.output)
+    }
+
+    @Test
+    fun `the deprecated androidApplicationIdSuffix still reaches the resolved applicationId`() {
+        write("settings.gradle.kts", "rootProject.name = \"fixture\"")
+        write(
+            "build.gradle.kts",
+            """
+            plugins { id("io.github.yuroyami.kitessot") }
+            kiteSsot {
+                appName = "Legacy"
+                bundleIdBase = "com.legacy.app"
+                androidApplicationIdSuffix = ".debug"
+            }
+            """.trimIndent(),
+        )
+
+        val result = run("kiteSsotVerify")
+        assertTrue(result.output.contains("androidApplicationId = com.legacy.app.debug"), result.output)
+    }
+
+    @Test
+    fun `sync enabled=false wins over a legacy syncIos=true`() {
+        write("settings.gradle.kts", "rootProject.name = \"fixture\"")
+        write(
+            "build.gradle.kts",
+            """
+            plugins { id("io.github.yuroyami.kitessot") }
+            kiteSsot {
+                appName = "Precedence"
+                version = "1.0.0"
+                @Suppress("DEPRECATION")
+                syncIos = true
+                ios { sync { enabled = false } }
+            }
+            """.trimIndent(),
+        )
+
+        // No pbxproj exists anywhere in the fixture. If enabled=false lost to
+        // the legacy flag, the task would run and fail looking for it instead
+        // of being skipped.
+        val result = run("kiteSsotSyncIosConfig")
+        assertTrue(result.output.contains("kiteSsotSyncIosConfig SKIPPED"), result.output)
+    }
+
+    @Test
+    fun `ios publishedBuildNumber rejects a stale rebuild and accepts a bumped one`() {
+        write("settings.gradle.kts", "rootProject.name = \"fixture\"")
+        write(
+            "build.gradle.kts",
+            """
+            plugins { id("io.github.yuroyami.kitessot") }
+            kiteSsot {
+                appName = "PublishedGuard"
+                version = "1.4.0"
+                ios {
+                    publishedBuildNumber = "1001004000"
+                    sync { }
+                }
+            }
+            """.trimIndent(),
+        )
+
+        val failure = runAndFail("help")
+        assertTrue(failure.output.contains("must be greater than the published baseline"), failure.output)
+
+        write(
+            "build.gradle.kts",
+            """
+            plugins { id("io.github.yuroyami.kitessot") }
+            kiteSsot {
+                appName = "PublishedGuard"
+                version = "1.4.0"
+                ios {
+                    rebuild = 1
+                    publishedBuildNumber = "1001004000"
+                    sync { }
+                }
+            }
+            """.trimIndent(),
+        )
+        val success = run("help")
+        assertTrue(success.output.contains("BUILD SUCCESSFUL"), success.output)
+    }
+
+    @Test
+    fun `-Pkitessot dryRun and backups override the DSL for one invocation`() {
+        writePng("art/fg.png", 8)
+        write("settings.gradle.kts", "rootProject.name = \"fixture\"")
+        write(
+            "build.gradle.kts",
+            """
+            plugins { id("io.github.yuroyami.kitessot") }
+            kiteSsot {
+                appName = "CliMirror"
+                version = "1.0.0"
+                logo {
+                    foreground = file("art/fg.png")
+                    backgroundColor = "#102A43"
+                }
+            }
+            """.trimIndent(),
+        )
+
+        val previewed = run("kiteSsotSyncAndroidLogo", "-Pkitessot.dryRun=true")
+        assertTrue(previewed.output.contains("dry-run"), previewed.output)
+        assertFalse(File(projectDir, "src/main/res").exists())
+
+        val written = run("kiteSsotSyncAndroidLogo")
+        assertFalse(written.output.contains("dry-run"), written.output)
+        assertTrue(File(projectDir, "src/main/res").exists())
+    }
 }
