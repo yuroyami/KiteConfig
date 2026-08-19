@@ -1,5 +1,7 @@
 package io.github.yuroyami.kitessot
 
+import org.gradle.api.GradleException
+import org.gradle.testfixtures.ProjectBuilder
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertThrows
@@ -7,6 +9,40 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class BuildConfigGenTest {
+
+    /** Everything Gradle would print for [failure], including wrapped causes. */
+    private fun reportedText(failure: Throwable): String = generateSequence(failure, Throwable::cause)
+        .mapNotNull(Throwable::message)
+        .joinToString("\n")
+
+    @Test
+    fun `a field whose provider has no value names that field instead of voiding the list`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.objects.newInstance(KiteSsotBuildConfigExtension::class.java)
+        extension.fields.convention(emptyList())
+        extension.stringField("BASE_URL", "https://example.invalid")
+        // -PpublicChannel was never passed, so this provider has no value. Gradle's
+        // ListProperty.add(Provider) makes the WHOLE list absent in that case, which
+        // used to surface far away as "customFields doesn't have a configured value".
+        extension.stringField("CHANNEL", project.providers.gradleProperty("publicChannel"))
+
+        // Gradle wraps a throwing provider in PropertyQueryException, so assert on the
+        // whole chain: that is the text a consumer actually reads in the build output.
+        val reported = reportedText(assertThrows(Exception::class.java) { extension.fields.get() })
+        assertTrue(reported.contains("CHANNEL"), reported)
+        assertTrue(reported.contains("orElse"), reported)
+        assertTrue(reported.contains("buildConfig"), reported)
+    }
+
+    @Test
+    fun `a field whose provider has a value is emitted normally`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.objects.newInstance(KiteSsotBuildConfigExtension::class.java)
+        extension.fields.convention(emptyList())
+        extension.stringField("CHANNEL", project.providers.provider { "stable" })
+
+        assertEquals(listOf("CHANNEL: String = \"stable\""), extension.fields.get())
+    }
 
     @Test
     fun `emits identity and custom fields under the chosen class name`() {

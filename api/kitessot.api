@@ -85,6 +85,7 @@ public abstract class io/github/yuroyami/kitessot/KiteSsotBuildConfigExtension {
 	public abstract fun getFields ()Lorg/gradle/api/provider/ListProperty;
 	public abstract fun getIncludeIdentity ()Lorg/gradle/api/provider/Property;
 	public abstract fun getPackageName ()Lorg/gradle/api/provider/Property;
+	protected abstract fun getProviderFactory ()Lorg/gradle/api/provider/ProviderFactory;
 	public final fun intField (Ljava/lang/String;I)V
 	public final fun longField (Ljava/lang/String;J)V
 	public final fun stringField (Ljava/lang/String;Ljava/lang/String;)V

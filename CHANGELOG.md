@@ -6,6 +6,14 @@ Gradle Plugin Portal releases.
 
 ## [Unreleased]
 
+### Fixed
+- `buildConfig { stringField(name, provider) }` given a provider with no value
+  (a bare `providers.gradleProperty("x")` with no `-Px` passed) now fails
+  naming the field, and says to add `orElse(...)` or pass a plain String.
+  Gradle voids an entire `ListProperty` when one added provider is absent, so
+  this used to surface as `customFields doesn't have a configured value` on
+  `generateKiteSsotBuildConfig`, pointing nowhere near the field that caused it.
+
 ## [3.0.0]
 
 The DSL is reshaped. The engine, the safety charter, and every task name are

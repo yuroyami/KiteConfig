@@ -1,8 +1,11 @@
 package io.github.yuroyami.kitessot
 
+import org.gradle.api.GradleException
 import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.provider.Provider
+import org.gradle.api.provider.ProviderFactory
+import javax.inject.Inject
 
 /**
  * Generated Kotlin constants for your shared code, inside
@@ -46,6 +49,10 @@ import org.gradle.api.provider.Provider
  * private API keys, signing material, or other credentials.
  */
 abstract class KiteSsotBuildConfigExtension {
+
+    /** Gradle-injected, used only to build the failure path for an empty provider. */
+    @get:Inject
+    protected abstract val providerFactory: ProviderFactory
 
     /**
      * Whether the object is generated.
@@ -121,11 +128,31 @@ abstract class KiteSsotBuildConfigExtension {
      * inputs, build scans, application binaries, or an enabled build cache. The
      * resolved value may contain at most 10,000 characters. Do not use this for
      * credentials.
+     *
+     * The provider must have a value. A bare `providers.gradleProperty("x")` has
+     * none until someone passes `-Px`, and that fails the build naming this field.
+     * Give it a fallback when the value is optional:
+     *
+     * ```kotlin
+     * stringField("CHANNEL", providers.gradleProperty("publicChannel").orElse("stable"))
+     * ```
      */
     fun stringField(name: String, value: Provider<String>) {
         val checkedName = name.checkedFieldName()
-        fields.add(value.map { BuildConfigField.StringValue(checkedName, it).renderBody() })
+        // Gradle voids the WHOLE list when an added provider has no value, so an
+        // unset -P would otherwise surface as "customFields doesn't have a
+        // configured value" with nothing pointing back to the field that caused it.
+        fields.add(
+            value.map { BuildConfigField.StringValue(checkedName, it).renderBody() }
+                .orElse(providerFactory.provider { missingFieldValue(checkedName) }),
+        )
     }
+
+    private fun missingFieldValue(name: String): String = throw GradleException(
+        "kiteSsot { buildConfig { stringField(\"$name\", ...) } } was given a provider with no " +
+            "value, so the field cannot be generated. Supply a fallback with orElse(...), or pass " +
+            "a plain String.",
+    )
 
     /** Add a validated Kotlin `Int` constant. `Int.MIN_VALUE` is emitted as valid Kotlin source. */
     fun intField(name: String, value: Int) {

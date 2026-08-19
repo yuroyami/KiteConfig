@@ -170,7 +170,7 @@ kiteSsot {
         allowBuildCache = false         // true only when every field here is public, non-secret data
 
         stringField("BASE_URL", "https://api.example.com")
-        stringField("CHANNEL", providers.gradleProperty("publicChannel").orElse("stable")) // provider overload; give it a default or an unset -P leaves the WHOLE fields list unset
+        stringField("CHANNEL", providers.gradleProperty("publicChannel").orElse("stable")) // provider overload; without orElse, an unset -P fails the build naming this field
         intField("API_TIMEOUT_MS", 30_000)
         longField("CACHE_BYTES", 5_000_000L)
         booleanField("ANALYTICS_ENABLED", true)
