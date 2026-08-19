@@ -193,6 +193,16 @@ tasks.named<JavaCompile>(agp8AdapterSourceSet.compileJavaTaskName) {
     dependsOn(tasks.named("classes"))
 }
 
+// KdocExampleCompilationTest and MessageHygieneTest read src/main/kotlin as DATA,
+// not through the compiled classpath. Kotlin compile avoidance treats a
+// comment-only edit as no change, so :test stayed UP-TO-DATE and both guards went
+// silently unenforced. Declaring the sources as an input is what makes them real.
+tasks.named<Test>("test") {
+    inputs.dir(layout.projectDirectory.dir("src/main/kotlin"))
+        .withPropertyName("kiteSsotDocumentedSources")
+        .withPathSensitivity(PathSensitivity.RELATIVE)
+}
+
 dependencyLocking {
     lockAllConfigurations()
 }

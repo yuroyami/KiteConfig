@@ -31,12 +31,33 @@ import org.gradle.api.provider.Provider
  * resources, the shared module is detected when there is only one, and the
  * Android application project is found the same way.
  *
+ * ## Where each value lands
+ *
+ * | You write | Android receives | Apple receives |
+ * |---|---|---|
+ * | [appName] | `appName` manifest placeholder | `PRODUCT_NAME`, `CFBundleName`, `CFBundleDisplayName` |
+ * | [version] | `versionName` | `MARKETING_VERSION` |
+ * | [appId] | `applicationId` + [KiteSsotAndroidExtension.idSuffix] | bundle id + [KiteSsotIosExtension.bundleIdSuffix] |
+ * | [scheme] | `versionCode` | `CURRENT_PROJECT_VERSION` |
+ * | [locales] | resource locale filter | `knownRegions` |
+ * | [jvmTarget] | Java + Kotlin JVM level | not applicable |
+ *
+ * Android values are applied during an ordinary build. Apple values are written
+ * only by the explicit sync tasks, never as a side effect of building.
+ *
  * ## How the blocks work
  *
  * Shared facts live here at the top. Anything that is genuinely Android-only or
  * Apple-only lives in [android] or [ios]. Feature blocks such as [logo] and
  * [buildConfig] switch themselves on simply by being configured, so there is no
  * second flag to remember.
+ *
+ * | Block | Turns on by | Effect |
+ * |---|---|---|
+ * | [android], [ios], [propagate], [modules] | always present | configuration only |
+ * | [buildConfig] | being configured | generates Kotlin into `build/` |
+ * | [nativeOptIns], [web] | being configured | affects compilation |
+ * | [logo], `ios { sync { } }` | being configured | **authorizes** source-writing tasks; never runs them |
  *
  * ## What runs, and when
  *
@@ -53,6 +74,11 @@ import org.gradle.api.provider.Provider
  * ```kotlin
  * val minSdk = kiteSsot.android.minSdk   // Provider<Int>, still lazy
  * ```
+ *
+ * @see KiteSsotAndroidExtension for Android-only identity, SDK levels, and NDK.
+ * @see KiteSsotIosExtension for Apple-only identity and the source sync gate.
+ * @see VersionCodeScheme for the build-number formula both platforms share.
+ * @see KiteSsotModulesExtension when detection cannot pick your modules for you.
  */
 abstract class KiteSsotExtension {
 
@@ -91,6 +117,13 @@ abstract class KiteSsotExtension {
      * Default: discovered from the Compose resources directory by reading
      * locale-only folders like `values-en`, `values-pt-rBR`, and
      * `values-b+sr+Latn`. Set this when you want the list pinned by hand.
+     *
+     * Discovery reads the shared module, so it needs one to be selected or
+     * detected. Tags are canonicalized and de-duplicated before use.
+     *
+     * @throws org.gradle.api.GradleException during configuration when a tag is
+     *   not a well-formed BCP 47 language tag.
+     * @see KiteSsotModulesExtension.composeResources to point discovery elsewhere.
      */
     abstract val locales: ListProperty<String>
 
@@ -125,6 +158,11 @@ abstract class KiteSsotExtension {
      * have ever uploaded, so a new formula must always produce a **larger**
      * number than your highest shipped code. Guard that with
      * [KiteSsotAndroidExtension.publishedVersionCode].
+     *
+     * @throws org.gradle.api.GradleException at task time when the formula
+     *   returns a value outside `1..2_100_000_000`, the range Google Play
+     *   accepts.
+     * @see VersionSchemes.DEFAULT for the layout used when you set nothing.
      */
     abstract val scheme: Property<VersionCodeScheme>
 
