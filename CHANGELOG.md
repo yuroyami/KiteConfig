@@ -4,33 +4,6 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions track the
 Gradle Plugin Portal releases.
 
-## [Unreleased]
-
-### Added
-- Colour in the reports. `kiteSsotVerify`, `kiteSsotDoctor`, `kiteSsotCheck`, and
-  `kiteSsotPlan` colour their output by severity, so failures stand out instead
-  of sitting in a wall of identical grey lines. Colour is off unless a real
-  terminal is attached, and `NO_COLOR`, `TERM=dumb`, and Gradle's `--console=plain`
-  each disable it. Force either way with `-Pkitessot.color=true|false`.
-
-### Changed
-- Report layout. Key/value rows now share one computed column per section, rather
-  than four hand-counted widths that never lined up. Paths inside the project
-  print relative to it, so a finding no longer runs off the right of the terminal.
-  A finding's `Fix:` moved onto its own indented line.
-- Runtime messages now name 3.0 properties. Thirty-one of them still said things
-  like `appLogoPngForeground` or `Configure iosAppiconsetPath`, the latter naming
-  a property 3.0 removed outright, which sent readers looking for something that
-  no longer exists.
-
-### Fixed
-- `buildConfig { stringField(name, provider) }` given a provider with no value
-  (a bare `providers.gradleProperty("x")` with no `-Px` passed) now fails
-  naming the field, and says to add `orElse(...)` or pass a plain String.
-  Gradle voids an entire `ListProperty` when one added provider is absent, so
-  this used to surface as `customFields doesn't have a configured value` on
-  `generateKiteSsotBuildConfig`, pointing nowhere near the field that caused it.
-
 ## [3.0.0]
 
 The DSL is reshaped. The engine, the safety charter, and every task name are
@@ -69,6 +42,11 @@ application project are all detected.
   `ios { sync { } }` blocks.
 - `ios { sync { renameSharedModule(from, to) } }` replaces a flag plus two
   properties with one call.
+- Colour in the reports. `kiteSsotVerify`, `kiteSsotDoctor`, `kiteSsotCheck`, and
+  `kiteSsotPlan` colour their output by severity, so failures stand out instead
+  of sitting in a wall of identical grey lines. Colour is off unless a real
+  terminal is attached, and `NO_COLOR`, `TERM=dumb`, and Gradle's `--console=plain`
+  each disable it. Force either way with `-Pkitessot.color=true|false`.
 
 ### Changed
 - **The derived `versionCode` formula.** It is now
@@ -90,6 +68,23 @@ application project are all detected.
   extension, so both AGP lines share exactly one resolution path.
 - `kiteSsotDoctor` reports the `versionCode` the build will really use,
   including a custom `scheme { }`, instead of recomputing it.
+- Report layout. Key/value rows now share one computed column per section, rather
+  than four hand-counted widths that never lined up. Paths inside the project
+  print relative to it, so a finding no longer runs off the right of the terminal.
+  A finding's `Fix:` moved onto its own indented line.
+- Runtime messages now name 3.0 properties. Dozens still said things like
+  `appLogoPngForeground` or `Configure iosAppiconsetPath`, the latter naming a
+  property 3.0 removed outright, which sent readers looking for something that
+  no longer exists. A test now scans every message for retired names, so a
+  rename cannot leave stale advice behind again.
+
+### Fixed
+- `buildConfig { stringField(name, provider) }` given a provider with no value
+  (a bare `providers.gradleProperty("x")` with no `-Px` passed) now fails
+  naming the field, and says to add `orElse(...)` or pass a plain String.
+  Gradle voids an entire `ListProperty` when one added provider is absent, so
+  this used to surface as `customFields doesn't have a configured value` on
+  `generateKiteSsotBuildConfig`, pointing nowhere near the field that caused it.
 
 ### Deprecated
 Every pre-3.0 **root** property still works and still feeds the same model, now

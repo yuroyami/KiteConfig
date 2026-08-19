@@ -98,27 +98,27 @@ abstract class KiteSsotDiagnosticTaskBase : DefaultTask() {
             }
 
         val context = KiteSsotDiagnosticContext(
-            propagateAppName = resolve("KMPS901", "propagateAppName", false) { propagateAppName.getOrElse(false) },
+            propagateAppName = resolve("KMPS901", "propagate { appName }", false) { propagateAppName.getOrElse(false) },
             appName = resolve<String?>("KMPS902", "appName", null) { appName.orNull },
-            propagateBundleId = resolve("KMPS921", "propagateBundleId", false) { propagateBundleId.getOrElse(false) },
+            propagateBundleId = resolve("KMPS921", "propagate { bundleId }", false) { propagateBundleId.getOrElse(false) },
             iosBundleId = resolve<String?>("KMPS922", "iosBundleId", null) { iosBundleId.orNull },
-            propagateVersion = resolve("KMPS903", "propagateVersion", false) { propagateVersion.getOrElse(false) },
-            versionName = resolve<String?>("KMPS904", "versionName", null) { versionName.orNull },
-            hasVersionCodeOverride = resolve("KMPS905", "versionCodeOverride", false) { hasVersionCodeOverride.getOrElse(false) },
+            propagateVersion = resolve("KMPS903", "propagate { version }", false) { propagateVersion.getOrElse(false) },
+            versionName = resolve<String?>("KMPS904", "version", null) { versionName.orNull },
+            hasVersionCodeOverride = resolve("KMPS905", "android { versionCode }", false) { hasVersionCodeOverride.getOrElse(false) },
             resolvedVersionCode = resolve<Int?>("KMPS905", "versionCode", null) { resolvedVersionCode.orNull },
-            propagateLocaleList = resolve("KMPS906", "propagateLocaleList", false) { propagateLocaleList.getOrElse(false) },
+            propagateLocaleList = resolve("KMPS906", "propagate { locales }", false) { propagateLocaleList.getOrElse(false) },
             locales = resolve("KMPS907", "locales", emptyList()) { locales.getOrElse(emptyList()) },
-            filterAndroidResources = resolve("KMPS938", "filterAndroidResources", false) {
+            filterAndroidResources = resolve("KMPS938", "android { filterResourcesToLocales }", false) {
                 filterAndroidResources.getOrElse(false)
             },
-            syncIos = resolve("KMPS908", "syncIos", false) { syncIos.getOrElse(false) },
-            sanitizeIosProject = resolve("KMPS918", "sanitizeIosProject", false) { sanitizeIosProject.getOrElse(false) },
-            propagateLogo = resolve("KMPS917", "propagateLogo", false) { propagateLogo.getOrElse(false) },
+            syncIos = resolve("KMPS908", "ios { sync }", false) { syncIos.getOrElse(false) },
+            sanitizeIosProject = resolve("KMPS918", "ios { sync { sanitizePlist } }", false) { sanitizeIosProject.getOrElse(false) },
+            propagateLogo = resolve("KMPS917", "logo { }", false) { propagateLogo.getOrElse(false) },
             cleanupLegacyLogoArtifacts = resolve("KMPS939", "logo { takeOverLegacyIcons }", false) {
                 cleanupLegacyLogoArtifacts.getOrElse(false)
             },
-            iosMarketingVersion = resolve<String?>("KMPS919", "iosMarketingVersion", null) { iosMarketingVersion.orNull },
-            iosBuildNumber = resolve<String?>("KMPS920", "iosBuildNumber", null) { iosBuildNumber.orNull },
+            iosMarketingVersion = resolve<String?>("KMPS919", "ios { marketingVersion }", null) { iosMarketingVersion.orNull },
+            iosBuildNumber = resolve<String?>("KMPS920", "ios { buildNumber }", null) { iosBuildNumber.orNull },
             iosDeploymentTarget = resolve<String?>("KMPS940", "iosDeploymentTarget", null) {
                 iosDeploymentTarget.orNull
             },

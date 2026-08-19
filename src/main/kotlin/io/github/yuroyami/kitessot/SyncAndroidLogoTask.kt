@@ -89,8 +89,8 @@ abstract class SyncAndroidLogoTask : DefaultTask() {
             projectRootDir.asFile.get(),
             "Android logo output",
         )
-        OwnedOutputSafety.requireInputOutsideOutput(fgFile, resDir, "appLogoPngForeground")
-        val fgSnapshot = decodeLogo(fgFile, "appLogoPngForeground")
+        OwnedOutputSafety.requireInputOutsideOutput(fgFile, resDir, "logo { foreground }")
+        val fgSnapshot = decodeLogo(fgFile, "logo { foreground }")
         val fg = fgSnapshot.image
 
         val bgDescription: String
@@ -119,8 +119,8 @@ abstract class SyncAndroidLogoTask : DefaultTask() {
                         "Fix the path or configure logo { backgroundColor }.",
                 )
             }
-            OwnedOutputSafety.requireInputOutsideOutput(bgFile, resDir, "appLogoPngBackground")
-            val decoded = decodeLogo(bgFile, "appLogoPngBackground")
+            OwnedOutputSafety.requireInputOutsideOutput(bgFile, resDir, "logo { background }")
+            val decoded = decodeLogo(bgFile, "logo { background }")
             bgSnapshot = decoded
             if (decoded.image.width != decoded.image.height) {
                 logger.warn("[kiteSsot] logo { background } is not square (${decoded.image.width}×${decoded.image.height}), so it will be center-cropped to fill the canvas.")

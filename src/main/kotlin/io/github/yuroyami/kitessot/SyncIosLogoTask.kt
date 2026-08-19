@@ -84,8 +84,8 @@ abstract class SyncIosLogoTask : DefaultTask() {
             projectRootDir.asFile.get(),
             "iOS AppIcon output",
         )
-        OwnedOutputSafety.requireInputOutsideOutput(fgFile, outDir, "appLogoPngForeground")
-        val fgSnapshot = decodeLogo(fgFile, "appLogoPngForeground")
+        OwnedOutputSafety.requireInputOutsideOutput(fgFile, outDir, "logo { foreground }")
+        val fgSnapshot = decodeLogo(fgFile, "logo { foreground }")
         val fg = fgSnapshot.image
 
         val bgDescription: String
@@ -116,9 +116,9 @@ abstract class SyncIosLogoTask : DefaultTask() {
                         "Fix the path or configure logo { backgroundColor }.",
                 )
             }
-            OwnedOutputSafety.requireInputOutsideOutput(bgFile, outDir, "appLogoPngBackground")
+            OwnedOutputSafety.requireInputOutsideOutput(bgFile, outDir, "logo { background }")
             bgDescription = bgFile.name
-            decodeLogo(bgFile, "appLogoPngBackground").also { bgSnapshot = it }.image
+            decodeLogo(bgFile, "logo { background }").also { bgSnapshot = it }.image
         }
 
         // INT_RGB so any residual alpha is composed against opaque white.

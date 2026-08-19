@@ -34,10 +34,10 @@ private fun pbxNameLiteral(value: String): String =
 
 private fun validateIosAppIconName(value: String): String {
     require(value.length in 1..128) {
-        "iosAppIconDirectory must name a 1..128 character .appiconset catalog"
+        "ios { appIconDirectory } must name a 1..128 character .appiconset catalog"
     }
     require(value.none { it.isISOControl() || it == '/' || it == '\\' }) {
-        "iosAppIconDirectory catalog name must not contain controls or path separators"
+        "ios { appIconDirectory } catalog name must not contain controls or path separators"
     }
     return value
 }
@@ -45,7 +45,7 @@ private fun validateIosAppIconName(value: String): String {
 /** Derive the Xcode asset-catalog build-setting value from one directory name. */
 internal fun iosAppIconCatalogName(directoryName: String): String {
     require(directoryName.endsWith(".appiconset") && directoryName != ".appiconset") {
-        "iosAppIconDirectory must point to a named .appiconset directory"
+        "ios { appIconDirectory } must point to a named .appiconset directory"
     }
     return validateIosAppIconName(directoryName.removeSuffix(".appiconset"))
 }

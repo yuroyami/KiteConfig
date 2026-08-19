@@ -308,7 +308,7 @@ tasks.named<Jar>("javadocJar") {
 }
 
 // KGP is compileOnly, so TestKit's injected plugin classpath (built from
-// runtimeClasspath) wouldn't include it — functional tests that apply
+// runtimeClasspath) wouldn't include it, so functional tests that apply
 // kotlin("multiplatform") in fixtures need it added explicitly. This also puts
 // KGP in the SAME classloader as the plugin under test, matching the documented
 // consumer setup (kotlin declared in the root plugins block).

@@ -246,7 +246,7 @@ abstract class SyncIosConfigTask : DefaultTask() {
         if (!file.exists()) {
             throw GradleException(
                 "Configured source Info.plist does not exist: ${file.path}. " +
-                    "For a generated plist, disable sanitizeIosProject and configure Xcode build settings instead.",
+                    "For a generated plist, disable ios { sync { sanitizePlist } } and configure Xcode build settings instead.",
             )
         }
         val stringEntries = buildList {
@@ -353,15 +353,15 @@ abstract class SyncIosConfigTask : DefaultTask() {
         val newName = iosSharedModuleName.orNull
         if (oldName == null || newName == null) {
             logger.info(
-                "[kiteSsot] Shared-module migration skipped: set both iosPreviousSharedModuleName and " +
-                    "iosSharedModuleName " +
+                "[kiteSsot] Shared-module migration skipped: call " +
+                    "ios { sync { renameSharedModule(from, to) } } " +
                     "for an explicit from/to migration. Podfile auto-detection is intentionally disabled."
             )
             return
         }
         try {
-            requireSwiftModuleIdentifier(oldName, "iosPreviousSharedModuleName")
-            requireSwiftModuleIdentifier(newName, "iosSharedModuleName")
+            requireSwiftModuleIdentifier(oldName, "renameSharedModule from")
+            requireSwiftModuleIdentifier(newName, "renameSharedModule to")
         } catch (failure: IllegalArgumentException) {
             throw GradleException(failure.message ?: "Invalid shared-module migration name", failure)
         }

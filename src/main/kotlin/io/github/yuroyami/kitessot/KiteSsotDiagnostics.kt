@@ -448,7 +448,7 @@ internal object KiteSsotDiagnosticEngine {
                     KiteSsotDiagnosticSeverity.ERROR,
                     "iOS Info.plist",
                     "Configured source Info.plist does not exist at ${context.shortPath(plist)}.",
-                    "Correct iosInfoPlistFile or disable sanitizeIosProject for a generated plist.",
+                    "Correct ios { infoPlist } or disable ios { sync { sanitizePlist } } for a generated plist.",
                     location = plist.path,
                 ),
             )
@@ -549,7 +549,7 @@ internal object KiteSsotDiagnosticEngine {
                         "KMPS024",
                         KiteSsotDiagnosticSeverity.ERROR,
                         "Xcode AppIcon selection",
-                        "Logo propagation is enabled, but iosAppIconDirectory is unset.",
+                        "Logo propagation is enabled, but ios { appIconDirectory } is unset.",
                         "Configure a named .appiconset directory and select that catalog in every application configuration.",
                     ),
                 )
@@ -574,7 +574,7 @@ internal object KiteSsotDiagnosticEngine {
                             KiteSsotDiagnosticSeverity.ERROR,
                             "Xcode AppIcon selection",
                             diagnosticExceptionSummary(failure),
-                            "Point iosAppIconDirectory at a named .appiconset directory.",
+                            "Point ios { appIconDirectory } at a named .appiconset directory.",
                         ),
                     )
                     null
@@ -865,7 +865,7 @@ private fun MutableList<KiteSsotDiagnostic>.diagnoseAndroidIcons(context: KiteSs
         }
         val version = context.versionName
         if (version == null) {
-            add(diagnostic("KMPS050", KiteSsotDiagnosticSeverity.SKIPPED, "Android versionCode", "versionName is unset; identity values are optional until configured."))
+            add(diagnostic("KMPS050", KiteSsotDiagnosticSeverity.SKIPPED, "Android versionCode", "version is unset; identity values are optional until configured."))
             return
         }
         val resolved = context.resolvedVersionCode
