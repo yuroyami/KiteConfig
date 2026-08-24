@@ -7,8 +7,13 @@ import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputFile
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
+import org.gradle.api.file.DirectoryProperty
+import org.gradle.api.file.FileSystemOperations
+import org.gradle.api.tasks.InputDirectory
+import org.gradle.api.tasks.OutputDirectory
 import org.gradle.api.tasks.Sync
 import org.gradle.api.tasks.TaskAction
+import javax.inject.Inject
 import org.cyclonedx.gradle.BaseCyclonedxTask
 import org.cyclonedx.gradle.CyclonedxDirectTask
 import org.cyclonedx.model.License
@@ -310,11 +315,56 @@ dokka {
     }
 }
 
+/*
+ * Dokka 2.0.0 renders a `<code>` span inside a KDoc markdown table by calling
+ * toString() on its page model node, so the CSS class carries a JVM identity
+ * hash: `class="org.jetbrains.dokka.pages.commenttable@40eea85a lang-kotlin"`.
+ * That hash changes on every JVM run, which makes the javadoc jar (and the
+ * .module metadata that records its checksum) differ between two builds of the
+ * same commit. The release pipeline compares the unsigned candidate against the
+ * independently rebuilt signed one, so this alone failed every publish once the
+ * KDoc gained tables. Dropping the hash keeps the class name stable and styles
+ * identically, since no stylesheet can target a per-run value anyway.
+ */
+abstract class NormalizeDokkaHtmlTask : DefaultTask() {
+
+    @get:InputDirectory
+    @get:PathSensitive(PathSensitivity.RELATIVE)
+    abstract val generatedHtml: DirectoryProperty
+
+    @get:OutputDirectory
+    abstract val normalizedHtml: DirectoryProperty
+
+    @get:Inject
+    abstract val fs: FileSystemOperations
+
+    @TaskAction
+    fun normalize() {
+        fs.sync {
+            from(generatedHtml)
+            into(normalizedHtml)
+        }
+        val unstableClass = Regex("""(org\.jetbrains\.dokka\.pages\.[a-z]+)@[0-9a-f]+""")
+        normalizedHtml.get().asFile.walkTopDown()
+            .filter { it.isFile && it.extension == "html" }
+            .forEach { page ->
+                val original = page.readText()
+                val stable = unstableClass.replace(original, "$1")
+                if (stable != original) page.writeText(stable)
+            }
+    }
+}
+
+val normalizeDokkaHtml = tasks.register<NormalizeDokkaHtmlTask>("normalizeDokkaHtml") {
+    dependsOn("dokkaGeneratePublicationHtml")
+    generatedHtml.set(layout.buildDirectory.dir("dokka/html"))
+    normalizedHtml.set(layout.buildDirectory.dir("dokka/html-normalized"))
+}
+
 // java-gradle-plugin publishes a javadoc artifact, but Java's Javadoc task does
 // not understand Kotlin. Fill that artifact with the actual Dokka HTML/KDoc.
 tasks.named<Jar>("javadocJar") {
-    dependsOn("dokkaGeneratePublicationHtml")
-    from(layout.buildDirectory.dir("dokka/html"))
+    from(normalizeDokkaHtml.flatMap { it.normalizedHtml })
 }
 
 // KGP is compileOnly, so TestKit's injected plugin classpath (built from

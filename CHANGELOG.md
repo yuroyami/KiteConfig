@@ -21,6 +21,16 @@ Gradle Plugin Portal releases.
   An SSOT-only consumer can now run every task, not just builds.
 
 ### Added
+- **The release pipeline can actually publish again.** Dokka 2.0.0 renders a
+  `<code>` span inside a KDoc markdown table by calling `toString()` on its page
+  model node, so the emitted CSS class carried a JVM identity hash that changed
+  on every run. The javadoc jar, and the `.module` metadata recording its
+  checksum, therefore differed between two builds of the same commit, and the
+  publish job compares its independently rebuilt signed candidate against the
+  staged unsigned one. Every release since the KDoc gained tables failed that
+  comparison before reaching the Portal. The generated HTML is now normalized
+  before it is packaged, so the jar is byte-identical across builds.
+
 - **A drift warning when a module declares a value the SSOT replaces.** The
   wiring always won silently: `compileSdk = 33` in a module while the SSOT
   says `37` builds with 37 and the module file keeps lying. Each configuring
