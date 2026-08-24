@@ -124,17 +124,21 @@ class ImageOpsTest {
         val fg = BufferedImage(10, 10, BufferedImage.TYPE_INT_ARGB)
             .withGraphics { color = Color.RED; fillRect(0, 0, 10, 10) }
         val padded = padToSafeZone(fg, 100, 0.5)
-        assertEquals(100, padded.width, "got ${padded.width}")
-        assertEquals(0, padded.getRGB(2, 2) ushr 24, "got ${padded.getRGB(2, 2) ushr 24}")
-        assertEquals(255, padded.getRGB(50, 50) ushr 24, "got ${padded.getRGB(50, 50) ushr 24}")
+        assertEquals(100, padded.width)
+        assertEquals(0, padded.getRGB(2, 2) ushr 24)
+        assertEquals(255, padded.getRGB(50, 50) ushr 24)
     }
 
     @Test
-    fun `applyRoundedRectMask clears the corners and keeps the centre`() {
+    fun `applyRoundedRectMask cuts a corner of the documented radius`() {
         val square = BufferedImage(100, 100, BufferedImage.TYPE_INT_ARGB)
             .withGraphics { color = Color.RED; fillRect(0, 0, 100, 100) }
         val rounded = applyRoundedRectMask(square, 0.25)
-        assertEquals(0, rounded.getRGB(0, 0) ushr 24, "got ${rounded.getRGB(0, 0) ushr 24}")
-        assertEquals(255, rounded.getRGB(50, 50) ushr 24, "got ${rounded.getRGB(50, 50) ushr 24}")
+        assertEquals(0, rounded.getRGB(0, 0) ushr 24)
+        assertEquals(255, rounded.getRGB(50, 50) ushr 24)
+        // Pins the radius itself, not merely that some rounding happened. With a
+        // radius of 25 the corner circle is centred at (25,25), so (5,5) lies
+        // 28.3 away and is cut. A half-size radius would leave (5,5) opaque.
+        assertEquals(0, rounded.getRGB(5, 5) ushr 24)
     }
 }

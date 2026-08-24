@@ -268,7 +268,8 @@ internal fun padToSafeZone(fg: BufferedImage, canvasSize: Int, ratio: Double): B
 /** Clip [src] to a rounded square. [cornerRatio] is the corner radius as a fraction of the side. */
 internal fun applyRoundedRectMask(src: BufferedImage, cornerRatio: Double): BufferedImage {
     val side = minOf(src.width, src.height).toFloat()
-    val arc = (side * cornerRatio).toFloat()
+    // RoundRectangle2D takes the arc DIAMETER, so a radius fraction doubles here.
+    val arc = (side * cornerRatio * 2).toFloat()
     return BufferedImage(src.width, src.height, BufferedImage.TYPE_INT_ARGB).withGraphics {
         clip = RoundRectangle2D.Float(0f, 0f, src.width.toFloat(), src.height.toFloat(), arc, arc)
         drawImage(src, 0, 0, null)
