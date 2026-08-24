@@ -728,6 +728,11 @@ class KiteSsotPlugin : Plugin<Project> {
                                 "org.jetbrains.compose: ${unknown.sorted().joinToString()}."
                         )
                     }
+                    // Whether a selected path is genuinely a desktop app is checked in
+                    // DesktopWiring.write() itself, before that path's own afterEvaluate ever
+                    // touches desktop.application: by the time this project census runs, every
+                    // explicitly selected project has already been written and its initialization
+                    // flags would read APPLICATION regardless, so the check cannot live here.
                 }
             }
 

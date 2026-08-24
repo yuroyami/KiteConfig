@@ -1,5 +1,6 @@
 package io.github.yuroyami.kitessot
 
+import org.gradle.api.GradleException
 import org.gradle.api.Project
 import org.gradle.api.plugins.ExtensionAware
 import org.gradle.api.tasks.TaskProvider
@@ -8,6 +9,14 @@ import org.jetbrains.compose.desktop.DesktopExtension
 import org.jetbrains.compose.desktop.application.dsl.AbstractDistributions
 import org.jetbrains.compose.desktop.application.dsl.AbstractMacOSPlatformSettings
 import org.jetbrains.compose.desktop.application.dsl.JvmApplicationDistributions
+
+/**
+ * Whether a project's Compose Desktop application flags could be read at all, kept
+ * apart from what they said. An unreadable flag and a genuine "no application" are
+ * different facts: an explicit `modules { desktopApps(...) }` selector must reject
+ * the latter and stay lenient only for the former.
+ */
+internal enum class DesktopAppProbe { APPLICATION, NOT_APPLICATION, UNAVAILABLE }
 
 /**
  * Writes the single source of truth into Compose Desktop.
@@ -47,13 +56,27 @@ internal object DesktopWiring {
      * Reads the initialization flags reflectively. That indirection is not
      * optional: calling `application` or `nativeApplication` initializes the lazy
      * delegate behind it, and Compose then configures packaging tasks in a module
-     * that only draws UI. A flag that cannot be read counts as "not an
-     * application", so the module degrades to explicit selection through
-     * `modules { desktopApps(...) }` rather than guessing.
+     * that only draws UI. [DesktopAppProbe.UNAVAILABLE] counts as false here,
+     * because the zero-selector census this feeds must stay conservative.
      */
-    fun isDesktopApp(project: Project): Boolean {
-        val desktop = desktopExtension(project) ?: return false
-        return initialized(desktop, JVM_APPLICATION_FLAG) || initialized(desktop, NATIVE_APPLICATION_FLAG)
+    fun isDesktopApp(project: Project): Boolean = probe(project) == DesktopAppProbe.APPLICATION
+
+    /**
+     * The three-valued read behind [isDesktopApp]. An explicit
+     * `modules { desktopApps(...) }` selector needs the extra state:
+     * [DesktopAppProbe.NOT_APPLICATION] is grounds to reject a named path, while
+     * [DesktopAppProbe.UNAVAILABLE] is not, since reflection breaking is the
+     * escape hatch design section 15 relies on explicit selection for.
+     */
+    fun probe(project: Project): DesktopAppProbe {
+        val desktop = desktopExtension(project) ?: return DesktopAppProbe.UNAVAILABLE
+        val jvm = readFlag(desktop, JVM_APPLICATION_FLAG)
+        val native = readFlag(desktop, NATIVE_APPLICATION_FLAG)
+        return when {
+            jvm == true || native == true -> DesktopAppProbe.APPLICATION
+            jvm == false && native == false -> DesktopAppProbe.NOT_APPLICATION
+            else -> DesktopAppProbe.UNAVAILABLE
+        }
     }
 
     fun write(project: Project, ext: KiteSsotExtension, resilient: Boolean) {
@@ -66,10 +89,24 @@ internal object DesktopWiring {
         var receivesDesktopValues = false
         project.wireValueGroup(resilient, "the desktop application selection") {
             val selected = ext.effectiveDesktopApps.get()
+            val explicitlySelected = project.path in selected
+            // Checked here, before anything below touches desktop.application: that access
+            // initializes the lazy delegate as a side effect, so a later, project-census-wide
+            // check would always see APPLICATION regardless of what this project configures.
+            // UNAVAILABLE stays lenient; it is the reflection escape hatch explicit
+            // selection exists for.
+            if (explicitlySelected && probe(project) == DesktopAppProbe.NOT_APPLICATION) {
+                throw GradleException(
+                    "kiteSsot { modules { desktopApps } } names ${project.path}, which applies " +
+                        "org.jetbrains.compose but configures no desktop application. Remove it " +
+                        "from desktopApps, or configure compose.desktop.application { } or " +
+                        "compose.desktop.nativeApplication { } there."
+                )
+            }
             receivesDesktopValues = if (selected.isEmpty()) {
                 jvmApplication || nativeApplication
             } else {
-                project.path in selected
+                explicitlySelected
             }
         }
         if (!receivesDesktopValues) return
@@ -216,7 +253,14 @@ internal object DesktopWiring {
     }
 
     /** Reads one `internal` initialization flag without initializing what it guards. */
-    private fun initialized(desktop: Any, accessor: String): Boolean = runCatching {
+    private fun initialized(desktop: Any, accessor: String): Boolean = readFlag(desktop, accessor) == true
+
+    /** Null means the accessor is missing or reflection failed, distinct from a genuine false. */
+    private fun readFlag(desktop: Any, accessor: String): Boolean? = try {
         desktop.javaClass.getMethod(accessor).invoke(desktop) as Boolean
-    }.getOrDefault(false)
+    } catch (e: ReflectiveOperationException) {
+        null
+    } catch (e: LinkageError) {
+        null
+    }
 }

@@ -1936,4 +1936,42 @@ class KiteSsotPluginFunctionalTest {
         assertTrue(result.output.contains("desktop { icons = true }"), result.output)
         assertTrue(result.output.contains("logo { }"), result.output)
     }
+
+    /**
+     * `:ui` applies Compose but configures no application. Naming it through
+     * `modules { desktopApps(...) }` must be rejected with a message pointing at it,
+     * before `DesktopWiring.write()` initializes Compose's lazy `application`
+     * delegate on a module with no `mainClass`.
+     */
+    @Test
+    fun `an explicitly selected module that is not a desktop app fails and names it`() {
+        write("settings.gradle.kts", settingsWithSharedAndDesktop(":ui"))
+        write(
+            "build.gradle.kts",
+            """
+            plugins {
+                id("org.jetbrains.kotlin.multiplatform") apply false
+                id("org.jetbrains.kotlin.plugin.compose") apply false
+                id("org.jetbrains.compose") apply false
+                id("io.github.yuroyami.kitessot")
+            }
+            kiteSsot {
+                modules {
+                    shared = ":shared"
+                    desktopApps(":ui")
+                }
+                appName = "Demo"
+                version = "1.2.3"
+                appId = "com.acme.app"
+                desktop { }
+            }
+            """.trimIndent(),
+        )
+        write("shared/build.gradle.kts", sharedJvmModule())
+        write("ui/build.gradle.kts", composeModulePlugins())
+
+        val failure = runAndFail("help")
+
+        assertTrue(failure.output.contains(":ui"), failure.output)
+    }
 }
