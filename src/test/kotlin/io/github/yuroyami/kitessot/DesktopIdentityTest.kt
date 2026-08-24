@@ -38,6 +38,22 @@ class DesktopIdentityTest {
     }
 
     @Test
+    fun `a non-numeric minor fails closed rather than being read as zero`() {
+        val failure = assertThrows(GradleException::class.java) {
+            validateDesktopPackageVersion("1.abc.0", setOf("Msi"))
+        }
+        assertTrue(failure.message!!.contains("1.abc.0"), failure.message)
+    }
+
+    @Test
+    fun `a component too large for an Int fails closed`() {
+        val failure = assertThrows(GradleException::class.java) {
+            validateDesktopPackageVersion("1.99999999999.0", setOf("Msi"))
+        }
+        assertTrue(failure.message!!.contains("99999999999"), failure.message)
+    }
+
+    @Test
     fun `the Linux slug lowercases and replaces punctuation`() {
         assertEquals("jetzy", deriveLinuxPackageName("Jetzy"))
         assertEquals("my-app", deriveLinuxPackageName("My App"))

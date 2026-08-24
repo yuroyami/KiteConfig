@@ -25,10 +25,14 @@ private const val MIN_DEBIAN_PACKAGE_NAME_CHARS = 2
 internal fun validateDesktopPackageVersion(version: String, targetFormats: Set<String>): String {
     if (targetFormats.none { it in WINDOWS_FORMATS }) return version
     val parts = version.split('.')
+    // An absent component is 0, but a present one that will not parse fails
+    // closed. Treating "1.abc.0" as "1.0.0" would let it through the cap.
     val major = parts.getOrNull(0)?.toIntOrNull()
-    val minor = parts.getOrNull(1)?.toIntOrNull() ?: 0
-    val build = parts.getOrNull(2)?.toIntOrNull() ?: 0
-    if (major == null || major > 255 || minor > 255 || build > 65_535) {
+    val minor = if (parts.size > 1) parts[1].toIntOrNull() else 0
+    val build = if (parts.size > 2) parts[2].toIntOrNull() else 0
+    if (major == null || minor == null || build == null ||
+        major > 255 || minor > 255 || build > 65_535
+    ) {
         throw GradleException(
             "kiteSsot { version } is \"${diagnosticSafeText(version, 64)}\", which Windows installers " +
                 "reject. MSI and EXE accept MAJOR.MINOR.BUILD with limits 255, 255 and 65535. " +
