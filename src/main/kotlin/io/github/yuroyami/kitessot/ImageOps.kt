@@ -6,6 +6,7 @@ import java.awt.Graphics2D
 import java.awt.Rectangle
 import java.awt.RenderingHints
 import java.awt.geom.Ellipse2D
+import java.awt.geom.RoundRectangle2D
 import java.awt.image.BufferedImage
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
@@ -255,4 +256,21 @@ internal fun encodePng(image: BufferedImage, label: String): ByteArray {
         throw GradleException("[kiteSsot] This JDK has no PNG encoder; cannot render $label.")
     }
     return output.toByteArray()
+}
+
+/** Centre [fg] inside a square canvas, filling only [ratio] of each side. */
+internal fun padToSafeZone(fg: BufferedImage, canvasSize: Int, ratio: Double): BufferedImage {
+    val safe = (canvasSize * ratio).toInt().coerceAtLeast(1)
+    val offset = (canvasSize - safe) / 2
+    return newArgb(canvasSize).withGraphics { drawContain(fg, offset, offset, safe, safe) }
+}
+
+/** Clip [src] to a rounded square. [cornerRatio] is the corner radius as a fraction of the side. */
+internal fun applyRoundedRectMask(src: BufferedImage, cornerRatio: Double): BufferedImage {
+    val side = minOf(src.width, src.height).toFloat()
+    val arc = (side * cornerRatio).toFloat()
+    return BufferedImage(src.width, src.height, BufferedImage.TYPE_INT_ARGB).withGraphics {
+        clip = RoundRectangle2D.Float(0f, 0f, src.width.toFloat(), src.height.toFloat(), arc, arc)
+        drawImage(src, 0, 0, null)
+    }
 }

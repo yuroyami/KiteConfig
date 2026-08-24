@@ -270,13 +270,6 @@ abstract class SyncAndroidLogoTask : DefaultTask() {
         |</adaptive-icon>
         |""".trimMargin()
 
-    /** Foreground fit (aspect-preserving) inside the safe zone, centered on a transparent canvas. */
-    private fun padToSafeZone(fg: BufferedImage, canvasSize: Int, ratio: Double): BufferedImage {
-        val safe = (canvasSize * ratio).toInt().coerceAtLeast(1)
-        val offset = (canvasSize - safe) / 2
-        return newArgb(canvasSize).withGraphics { drawContain(fg, offset, offset, safe, safe) }
-    }
-
     /** Background scaled to cover the full canvas, preserving aspect (center-cropped). */
     private fun coverCanvas(bg: BufferedImage, size: Int): BufferedImage =
         BufferedImage(size, size, BufferedImage.TYPE_INT_RGB).withGraphics {

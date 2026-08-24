@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
+import java.awt.Color
 import java.awt.image.BufferedImage
 import java.io.ByteArrayInputStream
 import java.io.File
@@ -116,5 +117,24 @@ class ImageOpsTest {
         val decoded = ImageIO.read(ByteArrayInputStream(encoded))
         assertEquals(24, decoded.width, "width changed during PNG round trip")
         assertEquals(24, decoded.height, "height changed during PNG round trip")
+    }
+
+    @Test
+    fun `padToSafeZone centers the foreground inside the ratio`() {
+        val fg = BufferedImage(10, 10, BufferedImage.TYPE_INT_ARGB)
+            .withGraphics { color = Color.RED; fillRect(0, 0, 10, 10) }
+        val padded = padToSafeZone(fg, 100, 0.5)
+        assertEquals(100, padded.width, "got ${padded.width}")
+        assertEquals(0, padded.getRGB(2, 2) ushr 24, "got ${padded.getRGB(2, 2) ushr 24}")
+        assertEquals(255, padded.getRGB(50, 50) ushr 24, "got ${padded.getRGB(50, 50) ushr 24}")
+    }
+
+    @Test
+    fun `applyRoundedRectMask clears the corners and keeps the centre`() {
+        val square = BufferedImage(100, 100, BufferedImage.TYPE_INT_ARGB)
+            .withGraphics { color = Color.RED; fillRect(0, 0, 100, 100) }
+        val rounded = applyRoundedRectMask(square, 0.25)
+        assertEquals(0, rounded.getRGB(0, 0) ushr 24, "got ${rounded.getRGB(0, 0) ushr 24}")
+        assertEquals(255, rounded.getRGB(50, 50) ushr 24, "got ${rounded.getRGB(50, 50) ushr 24}")
     }
 }
