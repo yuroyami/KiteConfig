@@ -31,6 +31,7 @@ import org.gradle.api.provider.Property
  * |---|---|---|
  * | [shared] | where generated `commonMain` source lands | the sole project applying Kotlin Multiplatform |
  * | [androidApps] | which apps receive identity, versions, and logo output | the sole Android application project |
+ * | [desktopApps] | which desktop apps receive identity, versions, and installer icons | the sole Compose Desktop application project |
  * | [androidAppDirectory] | where launcher resources are written | the selected application's own directory |
  * | [composeResources] | where locale discovery reads | the shared project's `commonMain/composeResources` |
  *
@@ -80,6 +81,32 @@ abstract class KiteSsotModulesExtension {
      */
     fun androidApps(vararg paths: String) {
         androidApps.addAll(*paths)
+    }
+
+    /**
+     * Exact Compose Desktop application project paths, absolute, such as
+     * `":desktopApp"`. These receive app identity, versions, packaging names, and
+     * installer icons.
+     *
+     * Default: empty, which means KiteSSOT uses the one Compose Desktop
+     * application it finds. Two or more candidates is a hard error that lists
+     * them and asks for this value.
+     *
+     * @see KiteSsotDesktopExtension for what those projects then receive.
+     */
+    abstract val desktopApps: ListProperty<String>
+
+    /**
+     * Adds one or more desktop application paths to [desktopApps].
+     *
+     * This adds, never replaces, so repeated calls pile up.
+     *
+     * ```kotlin
+     * desktopApps(":desktopApp")
+     * ```
+     */
+    fun desktopApps(vararg paths: String) {
+        desktopApps.addAll(*paths)
     }
 
     /**

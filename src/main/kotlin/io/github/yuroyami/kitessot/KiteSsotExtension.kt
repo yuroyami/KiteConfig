@@ -56,6 +56,7 @@ import org.gradle.api.provider.Provider
  * |---|---|---|
  * | [android], [ios], [propagate], [modules] | always present | configuration only |
  * | [buildConfig] | being configured | generates Kotlin into `build/` |
+ * | [desktop] | being configured | applies identity to Compose Desktop packaging |
  * | [nativeOptIns], [web] | being configured | affects compilation |
  * | [logo], `ios { sync { } }` | being configured | **authorizes** source-writing tasks; never runs them |
  *
@@ -270,6 +271,20 @@ abstract class KiteSsotExtension {
         action.execute(buildConfig)
     }
 
+    /**
+     * Compose Desktop settings. Configure with `kiteSsot { desktop { } }`.
+     *
+     * Opening this block turns desktop propagation on.
+     */
+    val desktop: KiteSsotDesktopExtension
+        get() = nested()
+
+    /** Apply app identity, versions, and installer values to Compose Desktop. */
+    fun desktop(action: Action<in KiteSsotDesktopExtension>) {
+        desktop.configured.set(true)
+        action.execute(desktop)
+    }
+
     private inline fun <reified T : Any> nested(): T =
         (this as ExtensionAware).extensions.getByType(T::class.java)
 
@@ -282,6 +297,17 @@ abstract class KiteSsotExtension {
     /** Apple bundle id: [appId] plus [KiteSsotIosExtension.bundleIdSuffix]. */
     val iosBundleId: Provider<String>
         get() = effectiveAppId.zip(effectiveIosBundleSuffix.orElse("")) { base, suffix -> base + suffix }
+
+    /**
+     * Desktop bundle id: [appId] plus [KiteSsotDesktopExtension.idSuffix].
+     *
+     * @throws org.gradle.api.GradleException when read, if the result is not a
+     *   valid reverse-DNS identifier.
+     */
+    val desktopBundleId: Provider<String>
+        get() = effectiveAppId.zip(desktop.idSuffix.orElse("")) { base, suffix ->
+            validateAppleBundleId(base + suffix)
+        }
 
     /** The resolved Android `versionCode` for this build. */
     val versionCode: Provider<Int>
@@ -520,6 +546,30 @@ abstract class KiteSsotExtension {
     internal val effectiveBuildConfigEnabled: Provider<Boolean>
         get() = buildConfigConfigured.orElse(false)
             .zip(buildConfig.enabled.orElse(true)) { configured, enabled -> configured && enabled }
+
+    // --- desktop ---
+
+    internal val effectiveDesktopEnabled: Provider<Boolean>
+        get() = desktop.configured.orElse(false)
+            .zip(desktop.enabled.orElse(true)) { configured, enabled -> configured && enabled }
+
+    /** No 2.x fallback chain: `desktop { }` has no deprecated predecessor. */
+    internal val effectiveDesktopApps: Provider<List<String>>
+        get() = modules.desktopApps
+
+    internal val effectiveDesktopBuildNumber: Provider<String>
+        get() = desktop.buildNumber.orElse(
+            effectiveVersion.zip(
+                desktop.rebuild.orElse(0).zip(desktop.scheme.orElse(schemeOrDefault)) { r, s -> r to s },
+            ) { version, (rebuild, activeScheme) ->
+                computeVersionCode(activeScheme, version, rebuild, "desktop").toString()
+            },
+        )
+
+    internal val effectiveDesktopIcons: Provider<Boolean>
+        get() = effectiveDesktopEnabled
+            .zip(desktop.icons.orElse(true)) { on, icons -> on && icons }
+            .zip(effectivePropagateLogo) { wanted, logo -> wanted && logo }
 
     internal companion object {
         internal const val DEFAULT_ANDROID_SAFE_ZONE: Double = 66.0 / 108.0

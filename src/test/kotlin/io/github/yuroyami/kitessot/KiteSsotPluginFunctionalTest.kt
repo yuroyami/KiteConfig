@@ -1660,4 +1660,35 @@ class KiteSsotPluginFunctionalTest {
         assertTrue(backupsFailure.output.contains("kitessot.backups"), backupsFailure.output)
         assertFalse(File(projectDir, "src/main/res").exists(), "no source may be written")
     }
+
+    @Test
+    fun `the desktop block is accepted and reported by verify`() {
+        write("settings.gradle.kts", settingsWithShared())
+        write(
+            "build.gradle.kts",
+            """
+            plugins {
+                id("org.jetbrains.kotlin.multiplatform") apply false
+                id("io.github.yuroyami.kitessot")
+            }
+            kiteSsot {
+                modules { shared = ":shared" }
+                appName = "Demo"
+                version = "1.2.3"
+                appId = "com.acme.app"
+                desktop {
+                    idSuffix = ".desktop"
+                    rebuild = 2
+                }
+            }
+            """.trimIndent(),
+        )
+        write("shared/build.gradle.kts", """
+            plugins { id("org.jetbrains.kotlin.multiplatform") }
+            kotlin { jvm() }
+        """.trimIndent())
+
+        val result = run("kiteSsotVerify")
+        assertTrue(result.output.contains("com.acme.app.desktop"), result.output)
+    }
 }

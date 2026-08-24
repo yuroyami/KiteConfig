@@ -65,6 +65,9 @@ abstract class KiteSsotVerifyTask : DefaultTask() {
     @get:Internal abstract val logoForeground: Property<Boolean>
     @get:Internal abstract val logoBackground: Property<Boolean>
     @get:Internal abstract val logoBackgroundColor: Property<String>
+    @get:Internal abstract val desktopBundleId: Property<String>
+    @get:Internal abstract val desktopBuildNumber: Property<String>
+    @get:Internal abstract val desktopIcons: Property<Boolean>
     @get:Internal abstract val projectRootDir: DirectoryProperty
 
     @TaskAction
@@ -128,6 +131,12 @@ abstract class KiteSsotVerifyTask : DefaultTask() {
                 rows(
                     "foreground" to foregroundDescription,
                     "background" to logoBackgroundDescription(),
+                ).forEach(::appendLine)
+                appendLine(section("Desktop"))
+                rows(
+                    "bundleId" to show(desktopBundleId),
+                    "buildNumber" to show(desktopBuildNumber),
+                    "icons" to show(desktopIcons),
                 ).forEach(::appendLine)
                 appendLine(section("iOS target files"))
                 rows(

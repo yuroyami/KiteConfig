@@ -101,6 +101,21 @@ public abstract class io/github/yuroyami/kitessot/KiteSsotCheckTask : io/github/
 	public abstract fun getReportFormat ()Lorg/gradle/api/provider/Property;
 }
 
+public abstract class io/github/yuroyami/kitessot/KiteSsotDesktopExtension {
+	public fun <init> ()V
+	public abstract fun getBuildNumber ()Lorg/gradle/api/provider/Property;
+	public abstract fun getDeriveUpgradeUuid ()Lorg/gradle/api/provider/Property;
+	public abstract fun getEnabled ()Lorg/gradle/api/provider/Property;
+	public abstract fun getIcons ()Lorg/gradle/api/provider/Property;
+	public abstract fun getIdSuffix ()Lorg/gradle/api/provider/Property;
+	public abstract fun getLinuxPackageName ()Lorg/gradle/api/provider/Property;
+	public abstract fun getPublishedBuildNumber ()Lorg/gradle/api/provider/Property;
+	public abstract fun getRebuild ()Lorg/gradle/api/provider/Property;
+	public abstract fun getRoundMacOsIcon ()Lorg/gradle/api/provider/Property;
+	public abstract fun getScheme ()Lorg/gradle/api/provider/Property;
+	public final fun scheme (Lio/github/yuroyami/kitessot/VersionCodeScheme;)V
+}
+
 public final class io/github/yuroyami/kitessot/KiteSsotDiagnosticReportFormat : java/lang/Enum {
 	public static final field JSON Lio/github/yuroyami/kitessot/KiteSsotDiagnosticReportFormat;
 	public static final field SARIF Lio/github/yuroyami/kitessot/KiteSsotDiagnosticReportFormat;
@@ -164,6 +179,7 @@ public abstract class io/github/yuroyami/kitessot/KiteSsotExtension {
 	public fun <init> ()V
 	public final fun android (Lorg/gradle/api/Action;)V
 	public final fun buildConfig (Lorg/gradle/api/Action;)V
+	public final fun desktop (Lorg/gradle/api/Action;)V
 	public final fun getAndroid ()Lio/github/yuroyami/kitessot/KiteSsotAndroidExtension;
 	public abstract fun getAndroidAppDirectory ()Lorg/gradle/api/file/DirectoryProperty;
 	public final fun getAndroidApplicationId ()Lorg/gradle/api/provider/Provider;
@@ -182,6 +198,8 @@ public abstract class io/github/yuroyami/kitessot/KiteSsotExtension {
 	public final fun getCanonicalLocales ()Lorg/gradle/api/provider/Provider;
 	public abstract fun getCleanupLegacyLogoArtifacts ()Lorg/gradle/api/provider/Property;
 	public abstract fun getComposeResourcesDirectory ()Lorg/gradle/api/file/DirectoryProperty;
+	public final fun getDesktop ()Lio/github/yuroyami/kitessot/KiteSsotDesktopExtension;
+	public final fun getDesktopBundleId ()Lorg/gradle/api/provider/Provider;
 	public abstract fun getDryRun ()Lorg/gradle/api/provider/Property;
 	public abstract fun getExtraOptIns ()Lorg/gradle/api/provider/ListProperty;
 	public abstract fun getFilterAndroidResources ()Lorg/gradle/api/provider/Property;
@@ -286,9 +304,11 @@ public abstract class io/github/yuroyami/kitessot/KiteSsotLogoExtension {
 public abstract class io/github/yuroyami/kitessot/KiteSsotModulesExtension {
 	public fun <init> ()V
 	public final fun androidApps ([Ljava/lang/String;)V
+	public final fun desktopApps ([Ljava/lang/String;)V
 	public abstract fun getAndroidAppDirectory ()Lorg/gradle/api/file/DirectoryProperty;
 	public abstract fun getAndroidApps ()Lorg/gradle/api/provider/ListProperty;
 	public abstract fun getComposeResources ()Lorg/gradle/api/file/DirectoryProperty;
+	public abstract fun getDesktopApps ()Lorg/gradle/api/provider/ListProperty;
 	public abstract fun getShared ()Lorg/gradle/api/provider/Property;
 }
 
@@ -341,6 +361,9 @@ public abstract class io/github/yuroyami/kitessot/KiteSsotVerifyTask : org/gradl
 	public abstract fun getAppName ()Lorg/gradle/api/provider/Property;
 	public abstract fun getColorEnabled ()Lorg/gradle/api/provider/Property;
 	public abstract fun getCompileSdk ()Lorg/gradle/api/provider/Property;
+	public abstract fun getDesktopBuildNumber ()Lorg/gradle/api/provider/Property;
+	public abstract fun getDesktopBundleId ()Lorg/gradle/api/provider/Property;
+	public abstract fun getDesktopIcons ()Lorg/gradle/api/provider/Property;
 	public abstract fun getGenerateIoWorker ()Lorg/gradle/api/provider/Property;
 	public abstract fun getInfoPlistFile ()Lorg/gradle/api/file/RegularFileProperty;
 	public abstract fun getIosBundleId ()Lorg/gradle/api/provider/Property;

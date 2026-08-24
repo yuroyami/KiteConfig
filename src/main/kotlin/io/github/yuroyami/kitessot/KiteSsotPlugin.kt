@@ -65,6 +65,7 @@ class KiteSsotPlugin : Plugin<Project> {
         val extAware = ext as ExtensionAware
         extAware.extensions.create<KiteSsotModulesExtension>("modules").apply {
             androidApps.convention(emptyList())
+            desktopApps.convention(emptyList())
         }
         extAware.extensions.create<KiteSsotPropagateExtension>("propagate")
         extAware.extensions.create<KiteSsotAndroidExtension>("android").apply {
@@ -93,6 +94,9 @@ class KiteSsotPlugin : Plugin<Project> {
             includeIdentity.convention(true)
             allowBuildCache.convention(false)
             fields.convention(emptyList())
+        }
+        extAware.extensions.create<KiteSsotDesktopExtension>("desktop").apply {
+            rebuild.convention(0)
         }
 
         // Resolve console colour once. Tasks receive only the Boolean, which keeps
@@ -1055,6 +1059,9 @@ class KiteSsotPlugin : Plugin<Project> {
             logoForeground.set(ext.effectiveLogoForeground.map { true }.orElse(false))
             logoBackground.set(ext.effectiveLogoBackground.map { true }.orElse(false))
             logoBackgroundColor.set(ext.effectiveLogoBackgroundColor)
+            desktopBundleId.set(root.resilientValue { ext.desktopBundleId.orNull })
+            desktopBuildNumber.set(root.resilientValue { ext.effectiveDesktopBuildNumber.orNull })
+            desktopIcons.set(ext.effectiveDesktopIcons)
         }
 
     private fun registerDoctorTask(
@@ -1418,6 +1425,12 @@ class KiteSsotPlugin : Plugin<Project> {
             ext.web.ioWorker.targets, ext.web.ioWorker.projects, ext.web.ioWorker.packageName,
             ext.buildConfig.enabled, ext.buildConfig.packageName, ext.buildConfig.className,
             ext.buildConfig.includeIdentity, ext.buildConfig.allowBuildCache, ext.buildConfig.fields,
+        ) + listOf(
+            ext.desktop.enabled, ext.desktop.configured, ext.desktop.idSuffix,
+            ext.desktop.buildNumber, ext.desktop.rebuild, ext.desktop.scheme,
+            ext.desktop.publishedBuildNumber, ext.desktop.icons,
+            ext.desktop.roundMacOsIcon, ext.desktop.linuxPackageName,
+            ext.desktop.deriveUpgradeUuid, ext.modules.desktopApps,
         ) + legacyModelValues(ext)
 
     /** Pre-3.0 inputs, still honoured until 4.0 removes them. */
