@@ -397,18 +397,12 @@ internal object KiteSsotDiagnosticEngine {
             )
             return
         }
-        val numericComponents = version.split('.').let { parts -> parts.size <= 3 && parts.all { it.toIntOrNull() != null } }
-        if (!numericComponents) {
-            add(
-                diagnostic(
-                    "KMPS085",
-                    KiteSsotDiagnosticSeverity.PASS,
-                    "Desktop package version",
-                    "\"$version\" is not a plain numeric version, so the Windows MSI/EXE component limits do not apply.",
-                ),
-            )
-            return
-        }
+        // No pre-filter here: a present-but-unparseable component (non-numeric or
+        // Int-overflowing) must reach validateDesktopPackageVersion and warn, the
+        // same as an over-cap component. It already fails closed on those and only
+        // defaults an ABSENT component to 0; short-circuiting to PASS here for any
+        // input the filter did not recognize contradicted that and hid a real build
+        // failure behind a passing doctor check.
         runCatching { validateDesktopPackageVersion(version, setOf("Msi", "Exe")) }.fold(
             onSuccess = {
                 add(

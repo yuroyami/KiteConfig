@@ -387,6 +387,8 @@ public abstract class io/github/yuroyami/kitessot/KiteSsotVerifyTask : org/gradl
 	public abstract fun getDesktopBuildNumber ()Lorg/gradle/api/provider/Property;
 	public abstract fun getDesktopBundleId ()Lorg/gradle/api/provider/Property;
 	public abstract fun getDesktopIcons ()Lorg/gradle/api/provider/Property;
+	public abstract fun getDesktopLinuxPackageName ()Lorg/gradle/api/provider/Property;
+	public abstract fun getDesktopUpgradeCode ()Lorg/gradle/api/provider/Property;
 	public abstract fun getGenerateIoWorker ()Lorg/gradle/api/provider/Property;
 	public abstract fun getInfoPlistFile ()Lorg/gradle/api/file/RegularFileProperty;
 	public abstract fun getIosBundleId ()Lorg/gradle/api/provider/Property;

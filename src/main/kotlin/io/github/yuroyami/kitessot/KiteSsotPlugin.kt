@@ -512,8 +512,11 @@ class KiteSsotPlugin : Plugin<Project> {
                         (detectedKmpProjects.isNotEmpty() || detectedKotlinJvmProjects.isNotEmpty()))
             // Read-only reflection, safe to run ahead of the resilient-diagnostic early
             // return below: doctor/check need the desktop-app census regardless of
-            // whether this invocation is resilient.
-            val diagnosticDetectedDesktopApplications = if (COMPOSE_ON_CLASSPATH) {
+            // whether this invocation is resilient. Computed once here and reused by
+            // every later census read in this block, guarded the same way every time:
+            // a duplicated, unguarded copy of this filter is what caused the
+            // NoClassDefFoundError crash this comment used to sit next to.
+            val detectedDesktopApplications = if (COMPOSE_ON_CLASSPATH) {
                 detectedComposeProjects.filter { path -> target.findProject(path)?.let(DesktopWiring::isDesktopApp) == true }
             } else {
                 emptyList()
@@ -530,7 +533,7 @@ class KiteSsotPlugin : Plugin<Project> {
                     agpRequired.set(diagnosticNeedsAndroidIntegration)
                     kgpRequired.set(diagnosticNeedsKgpIntegration)
                     composeRequired.set(diagnosticNeedsComposeIntegration)
-                    detectedDesktopApplicationProjects.set(diagnosticDetectedDesktopApplications)
+                    detectedDesktopApplicationProjects.set(detectedDesktopApplications)
                 }
             }
             configurePlanTask(
@@ -560,9 +563,6 @@ class KiteSsotPlugin : Plugin<Project> {
                 ext.ios.publishedBuildNumber.orNull?.let { published ->
                     validatePublishedBuildNumber(ext.effectiveIosBuildNumber.orNull, published)
                 }
-            }
-            val detectedDesktopApplications = detectedComposeProjects.filter { path ->
-                target.findProject(path)?.let(DesktopWiring::isDesktopApp) == true
             }
             if (detectedDesktopApplications.isNotEmpty() && ext.effectivePropagateVersion.get()) {
                 ext.desktop.publishedBuildNumber.orNull?.let { published ->
@@ -744,13 +744,10 @@ class KiteSsotPlugin : Plugin<Project> {
                     throw GradleException("kiteSsot { modules { desktopApps } } contains duplicate project paths.")
                 }
                 if (selectedDesktopApps.isEmpty()) {
-                    val detectedDesktopApps = detectedComposeProjects.filter { path ->
-                        target.findProject(path)?.let(DesktopWiring::isDesktopApp) == true
-                    }
-                    if (detectedDesktopApps.size > 1) {
+                    if (detectedDesktopApplications.size > 1) {
                         throw GradleException(
                             "kiteSsot found multiple Compose Desktop application projects while desktop " +
-                                "values are enabled: ${detectedDesktopApps.joinToString()}. Select the " +
+                                "values are enabled: ${detectedDesktopApplications.joinToString()}. Select the " +
                                 "intended targets explicitly with modules { desktopApps(\":desktopApp\") }."
                         )
                     }
@@ -1166,6 +1163,32 @@ class KiteSsotPlugin : Plugin<Project> {
             logoBackgroundColor.set(ext.effectiveLogoBackgroundColor)
             desktopBundleId.set(root.resilientValue { ext.desktopBundleId.orNull })
             desktopBuildNumber.set(root.resilientValue { ext.effectiveDesktopBuildNumber.orNull })
+            // Mirrors the KMPS087 PASS gate exactly, so verify and doctor never show
+            // conflicting states for the same inputs: desktop enabled, derivation
+            // opted in, bundle-id propagation on, and an appId to derive from.
+            desktopUpgradeCode.set(root.resilientValue {
+                if (ext.effectiveDesktopEnabled.get() &&
+                    ext.desktop.deriveUpgradeUuid.getOrElse(false) &&
+                    ext.effectivePropagateBundleId.get() &&
+                    ext.effectiveAppId.isPresent
+                ) {
+                    deriveUpgradeUuid(ext.effectiveAppId.get())
+                } else {
+                    null
+                }
+            })
+            // Mirrors the KMPS086 gate: an explicit override always wins, otherwise
+            // the derived slug, so a release engineer sees exactly what will apply.
+            desktopLinuxPackageName.set(root.resilientValue {
+                if (ext.effectiveDesktopEnabled.get() &&
+                    ext.effectivePropagateAppName.get() &&
+                    ext.effectiveAppName.isPresent
+                ) {
+                    ext.desktop.linuxPackageName.orNull ?: deriveLinuxPackageName(ext.effectiveAppName.get())
+                } else {
+                    null
+                }
+            })
             desktopIcons.set(ext.effectiveDesktopIcons)
         }
 

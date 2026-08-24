@@ -252,7 +252,8 @@ switches, plus `android { applySdkLevels }`, `android { filterResourcesToLocales
 `buildConfig { }`, `web { ioWorker { } }` and `desktop { }`, govern the values
 KiteSSOT applies on every build: Android identity and SDK levels, Java and
 Kotlin JVM alignment, Kotlin source generated into `build/`, and Compose
-Desktop identity, build number and installer icons.
+Desktop identity and build number. Desktop installer icons follow a
+different rule, covered next.
 
 **Source-tree edits are opt-in and manual.** `ios { sync { } }` and `logo { }`
 are authorization gates. They unlock tasks and never run them. `logo { }` is the
@@ -262,9 +263,10 @@ for Android or Apple.
 Desktop breaks that pattern on purpose. The same `logo { }` art that only
 *unlocks* the Android and Apple installers *feeds* the desktop icon generator
 directly: once `desktop { }` and `logo { }` are both configured, the macOS,
-Windows and Linux installer icons generate on every build, wired into
-packaging with no task for you to run. The output never leaves `build/`, so
-it carries none of the source-tree safety machinery below either.
+Windows and Linux installer icons generate whenever a packaging task runs,
+wired in automatically with no task for you to run yourself. The output
+never leaves `build/`, so it carries none of the source-tree safety
+machinery below either.
 
 Installing the Apple app icon needs three things: a `logo { }` block, an
 `ios { sync { } }` block, and `ios { deploymentTarget }`. You then still run

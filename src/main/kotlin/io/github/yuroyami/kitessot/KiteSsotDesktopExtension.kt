@@ -179,6 +179,11 @@ abstract class KiteSsotDesktopExtension {
      * yields the same one, which is what lets an MSI upgrade an install in place
      * rather than sitting beside it.
      *
+     * Turning this on for an app you already shipped changes its upgrade code
+     * once, on that release: existing installs will not upgrade in place, the
+     * same one-time break this feature prevents from then on. Enable it before
+     * your first release if you can.
+     *
      * An upgrade code you set yourself is always kept. This only fills a blank.
      * Changing `appId` changes the derived code and breaks in-place upgrades for
      * everyone already installed, so pin the old value by hand if you rename.

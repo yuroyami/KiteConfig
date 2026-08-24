@@ -1696,6 +1696,43 @@ class KiteSsotPluginFunctionalTest {
         assertTrue(result.output.contains("com.acme.app.desktop"), result.output)
     }
 
+    /**
+     * Design section 9 requires the resolved Windows upgrade code always be
+     * printed by both `kiteSsotVerify` and `kiteSsotDoctor`, and section 10
+     * requires the same of the derived Linux package name; only doctor had them.
+     */
+    @Test
+    fun `kiteSsotVerify prints the resolved Windows upgrade code and Linux package name`() {
+        write("settings.gradle.kts", settingsWithShared())
+        write(
+            "build.gradle.kts",
+            """
+            plugins {
+                id("org.jetbrains.kotlin.multiplatform") apply false
+                id("io.github.yuroyami.kitessot")
+            }
+            kiteSsot {
+                modules { shared = ":shared" }
+                appName = "Demo"
+                version = "1.2.3"
+                appId = "com.acme.app"
+                desktop {
+                    deriveUpgradeUuid = true
+                }
+            }
+            """.trimIndent(),
+        )
+        write("shared/build.gradle.kts", """
+            plugins { id("org.jetbrains.kotlin.multiplatform") }
+            kotlin { jvm() }
+        """.trimIndent())
+
+        val result = run("kiteSsotVerify")
+
+        assertTrue(result.output.contains(deriveUpgradeUuid("com.acme.app")), result.output)
+        assertTrue(result.output.contains(deriveLinuxPackageName("Demo")), result.output)
+    }
+
     // --- Compose Desktop ------------------------------------------------------
     // Every fixture below applies org.jetbrains.kotlin.plugin.compose next to
     // org.jetbrains.compose: ComposePlugin fails configuration outright without it.
@@ -2136,5 +2173,52 @@ class KiteSsotPluginFunctionalTest {
 
         assertTrue(result.output.contains("root project"), result.output)
         assertTrue(result.output.contains("apply false"), result.output)
+    }
+
+    /**
+     * Regression test for the crash where the desktop-app census was computed a
+     * second, unguarded time: a project that never touches `desktop { }` must not
+     * pay for a Compose subproject existing elsewhere in the build.
+     *
+     * This fixture cannot reproduce the original NoClassDefFoundError itself: every
+     * fixture here shares one TestKit classloader with Compose on it (see the class
+     * KDoc), so `COMPOSE_ON_CLASSPATH` is always true in this test process. The bug
+     * needed Compose applied only inside a subproject's own `plugins { }` block with
+     * no root `apply false`, landing it in a sibling classloader kitessot cannot see.
+     */
+    @Test
+    fun `a compose subproject with no desktop block configured does not crash the build`() {
+        write("settings.gradle.kts", settingsWithSharedAndDesktop(":desktopApp"))
+        write(
+            "build.gradle.kts",
+            """
+            plugins {
+                id("org.jetbrains.kotlin.multiplatform") apply false
+                id("org.jetbrains.kotlin.plugin.compose") apply false
+                id("org.jetbrains.compose") apply false
+                id("io.github.yuroyami.kitessot")
+            }
+            kiteSsot {
+                modules { shared = ":shared" }
+                appName = "Demo"
+                version = "1.2.3"
+                appId = "com.acme.app"
+            }
+            """.trimIndent(),
+        )
+        write("shared/build.gradle.kts", sharedJvmModule())
+        write(
+            "desktopApp/build.gradle.kts",
+            """
+            ${composeModulePlugins()}
+            compose.desktop {
+                application { mainClass = "MainKt" }
+            }
+            """.trimIndent(),
+        )
+
+        val result = run("help")
+
+        assertTrue(result.output.contains("BUILD SUCCESSFUL"), result.output)
     }
 }

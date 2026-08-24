@@ -587,21 +587,31 @@ class KiteSsotDiagnosticsTest {
     }
 
     @Test
-    fun `desktop package version warns only once the numeric Windows caps are exceeded`() {
+    fun `desktop package version warns on an over-cap or unparseable component but passes within-cap or absent ones`() {
         val overCap = KiteSsotDiagnosticEngine.evaluate(
             quietContext().copy(propagateDesktop = true, propagateVersion = true, versionName = "1.300.0"),
         ).single { it.id == "KMPS085" }
-        assertEquals(KiteSsotDiagnosticSeverity.WARNING, overCap.severity, overCap.toString())
+        assertEquals(KiteSsotDiagnosticSeverity.WARNING, overCap.severity)
 
+        // "0-beta1" is a PRESENT build component that does not parse as an Int, which
+        // validateDesktopPackageVersion throws on when Msi/Exe is a target format.
+        // Doctor must warn, not PASS: a PASS here would contradict a real build failure.
         val suffixed = KiteSsotDiagnosticEngine.evaluate(
             quietContext().copy(propagateDesktop = true, propagateVersion = true, versionName = "1.4.0-beta1"),
         ).single { it.id == "KMPS085" }
-        assertEquals(KiteSsotDiagnosticSeverity.PASS, suffixed.severity, suffixed.toString())
+        assertEquals(KiteSsotDiagnosticSeverity.WARNING, suffixed.severity)
 
         val withinCap = KiteSsotDiagnosticEngine.evaluate(
             quietContext().copy(propagateDesktop = true, propagateVersion = true, versionName = "1.4.0"),
         ).single { it.id == "KMPS085" }
-        assertEquals(KiteSsotDiagnosticSeverity.PASS, withinCap.severity, withinCap.toString())
+        assertEquals(KiteSsotDiagnosticSeverity.PASS, withinCap.severity)
+
+        // The build component is ABSENT here, not unparseable, so it defaults to 0
+        // and still passes; only a component that is present and fails to parse warns.
+        val absentComponent = KiteSsotDiagnosticEngine.evaluate(
+            quietContext().copy(propagateDesktop = true, propagateVersion = true, versionName = "1.4"),
+        ).single { it.id == "KMPS085" }
+        assertEquals(KiteSsotDiagnosticSeverity.PASS, absentComponent.severity)
     }
 
     @Test

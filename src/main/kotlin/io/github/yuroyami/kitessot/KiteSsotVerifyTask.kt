@@ -67,6 +67,8 @@ abstract class KiteSsotVerifyTask : DefaultTask() {
     @get:Internal abstract val logoBackgroundColor: Property<String>
     @get:Internal abstract val desktopBundleId: Property<String>
     @get:Internal abstract val desktopBuildNumber: Property<String>
+    @get:Internal abstract val desktopUpgradeCode: Property<String>
+    @get:Internal abstract val desktopLinuxPackageName: Property<String>
     @get:Internal abstract val desktopIcons: Property<Boolean>
     @get:Internal abstract val projectRootDir: DirectoryProperty
 
@@ -136,6 +138,8 @@ abstract class KiteSsotVerifyTask : DefaultTask() {
                 rows(
                     "bundleId" to show(desktopBundleId),
                     "buildNumber" to show(desktopBuildNumber),
+                    "upgradeCode" to show(desktopUpgradeCode),
+                    "linuxPackageName" to show(desktopLinuxPackageName),
                     "icons" to show(desktopIcons),
                 ).forEach(::appendLine)
                 appendLine(section("iOS target files"))

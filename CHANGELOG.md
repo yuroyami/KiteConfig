@@ -29,7 +29,10 @@ Gradle Plugin Portal releases.
   `windows.upgradeUuid` is set, so renaming the app silently breaks in-place
   upgrades for everyone already installed. `desktop { deriveUpgradeUuid }`
   derives a stable UUIDv5 from `appId` instead, so the identity, not the
-  name, decides the code. KiteSSOT also now rejects a `version` over the
+  name, decides the code. Turning this on for an app already shipped changes
+  its upgrade code once, on that release, so existing installs will not
+  upgrade in place; enable it before your first release if you can.
+  KiteSSOT also now rejects a `version` over the
   Windows MSI/EXE limits (255, 255, 65535) before jpackage does, and
   validates the resolved macOS, Windows, and Linux identifiers up front.
 
