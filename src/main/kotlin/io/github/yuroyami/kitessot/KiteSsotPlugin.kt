@@ -700,6 +700,20 @@ class KiteSsotPlugin : Plugin<Project> {
                 }
             }
 
+            // Compose applied directly to root breaks the root-before-subproject ordering
+            // guarantee every other desktop write below depends on.
+            if (ext.effectiveDesktopEnabled.get() &&
+                target.plugins.hasPlugin("org.jetbrains.compose") &&
+                DesktopWiring.isDesktopApp(target)
+            ) {
+                throw GradleException(
+                    "kiteSsot cannot propagate desktop identity when org.jetbrains.compose is applied to the root " +
+                        "project and the root project is itself the desktop app. Ordering against Compose is only " +
+                        "guaranteed for subprojects. Declare Compose at the root with `apply false` and move the " +
+                        "application into its own module.",
+                )
+            }
+
             // Desktop selection needs the whole project census, so it lands here rather
             // than in the per-project afterEvaluate that writes the identity values.
             if (ext.effectiveDesktopEnabled.get() && detectedComposeProjects.isNotEmpty()) {

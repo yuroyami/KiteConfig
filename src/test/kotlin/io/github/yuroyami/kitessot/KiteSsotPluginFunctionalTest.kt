@@ -2040,4 +2040,37 @@ class KiteSsotPluginFunctionalTest {
         val result = runAndFail("help")
         assertTrue(result.output.contains("9999999999"), result.output)
     }
+
+    @Test
+    fun `applying Compose to the root project fails with a clear message`() {
+        write("settings.gradle.kts", "rootProject.name = \"fixture\"")
+        write(
+            "build.gradle.kts",
+            """
+            plugins {
+                id("org.jetbrains.kotlin.multiplatform")
+                id("org.jetbrains.kotlin.plugin.compose")
+                id("org.jetbrains.compose")
+                id("io.github.yuroyami.kitessot")
+            }
+            kotlin { jvm() }
+            compose.desktop {
+                application {
+                    mainClass = "MainKt"
+                }
+            }
+            kiteSsot {
+                appName = "Demo"
+                version = "1.2.3"
+                appId = "com.acme.app"
+                desktop { }
+            }
+            """.trimIndent(),
+        )
+
+        val result = runAndFail("help")
+
+        assertTrue(result.output.contains("root project"), result.output)
+        assertTrue(result.output.contains("apply false"), result.output)
+    }
 }
