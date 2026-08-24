@@ -1931,7 +1931,7 @@ class KiteSsotPluginFunctionalTest {
             """.trimIndent(),
         )
 
-        val result = runAndFail("kiteSsotVerify")
+        val result = runAndFail("help")
 
         assertTrue(result.output.contains("desktop { icons = true }"), result.output)
         assertTrue(result.output.contains("logo { }"), result.output)
