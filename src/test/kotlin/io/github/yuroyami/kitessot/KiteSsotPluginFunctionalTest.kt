@@ -1974,4 +1974,51 @@ class KiteSsotPluginFunctionalTest {
 
         assertTrue(failure.output.contains(":ui"), failure.output)
     }
+
+    @Test
+    fun `the derived upgrade uuid is applied only when asked and never overwrites an explicit value`() {
+        write("settings.gradle.kts", settingsWithSharedAndDesktop(":desktopApp"))
+        write("build.gradle.kts", desktopRootBuild("deriveUpgradeUuid = true"))
+        write("shared/build.gradle.kts", sharedJvmModule())
+        write(
+            "desktopApp/build.gradle.kts",
+            """
+            ${composeModulePlugins()}
+            compose.desktop {
+                application {
+                    mainClass = "MainKt"
+                }
+            }
+            tasks.register("printUpgradeUuid") {
+                val windows = compose.desktop.application.nativeDistributions.windows
+                doLast { println("RESOLVED=" + windows.upgradeUuid) }
+            }
+            """.trimIndent(),
+        )
+
+        val derived = run(":desktopApp:printUpgradeUuid")
+        assertTrue(derived.output.contains("RESOLVED=" + deriveUpgradeUuid("com.acme.app")), derived.output)
+
+        write(
+            "desktopApp/build.gradle.kts",
+            """
+            ${composeModulePlugins()}
+            compose.desktop {
+                application {
+                    mainClass = "MainKt"
+                    nativeDistributions {
+                        windows { upgradeUuid = "8c247f56-9724-4b95-8503-b47c5c1b0e35" }
+                    }
+                }
+            }
+            tasks.register("printUpgradeUuid") {
+                val windows = compose.desktop.application.nativeDistributions.windows
+                doLast { println("RESOLVED=" + windows.upgradeUuid) }
+            }
+            """.trimIndent(),
+        )
+
+        val kept = run(":desktopApp:printUpgradeUuid")
+        assertTrue(kept.output.contains("RESOLVED=8c247f56-9724-4b95-8503-b47c5c1b0e35"), kept.output)
+    }
 }
