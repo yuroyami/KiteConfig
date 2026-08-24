@@ -123,7 +123,7 @@ abstract class KiteSsotDiagnosticTaskBase : DefaultTask() {
             propagateVersion = resolve("KMPS903", "propagate { version }", false) { propagateVersion.getOrElse(false) },
             versionName = resolve<String?>("KMPS904", "version", null) { versionName.orNull },
             hasVersionCodeOverride = resolve("KMPS905", "android { versionCode }", false) { hasVersionCodeOverride.getOrElse(false) },
-            resolvedVersionCode = resolve<Int?>("KMPS905", "versionCode", null) { resolvedVersionCode.orNull },
+            resolvedVersionCode = resolve<Int?>("KMPS952", "versionCode", null) { resolvedVersionCode.orNull },
             propagateLocaleList = resolve("KMPS906", "propagate { locales }", false) { propagateLocaleList.getOrElse(false) },
             locales = resolve("KMPS907", "locales", emptyList()) { locales.getOrElse(emptyList()) },
             filterAndroidResources = resolve("KMPS938", "android { filterResourcesToLocales }", false) {

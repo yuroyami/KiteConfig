@@ -677,7 +677,7 @@ Stable diagnostic families are:
 | `KMPS060` to `KMPS062` | KGP visibility and active AGP or KGP compatibility |
 | `KMPS070` to `KMPS071` | Exact Android project and Xcode target selectors |
 | `KMPS080` to `KMPS087` | Desktop identity, icons, Compose plugin compatibility, application selection, bundle identifier, package version, and Linux or Windows packaging names |
-| `KMPS901` to `KMPS940` | Provider, path, and input-fingerprint resolution |
+| `KMPS901` to `KMPS952` | Provider, path, and input-fingerprint resolution |
 | `KMPS999` | Unexpected diagnostic-engine failure |
 
 `KMPS011` follows `ios.sync.onConflict`. `FAIL` is an error. `KEEP` is a
