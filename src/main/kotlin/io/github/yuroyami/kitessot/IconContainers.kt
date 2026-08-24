@@ -44,3 +44,42 @@ internal fun writeIcns(square: BufferedImage): ByteArray {
     out.write(entries)
     return out.toByteArray()
 }
+
+/** The Windows `.ico` entry sizes KiteSSOT emits. */
+internal val ICO_SIZES: List<Int> = listOf(16, 24, 32, 48, 64, 128, 256)
+
+private fun littleEndianShort(value: Int): ByteArray =
+    byteArrayOf(value.toByte(), (value ushr 8).toByte())
+
+private fun littleEndianInt(value: Int): ByteArray = byteArrayOf(
+    value.toByte(),
+    (value ushr 8).toByte(),
+    (value ushr 16).toByte(),
+    (value ushr 24).toByte(),
+)
+
+/** Build a Windows `.ico` container from one square source image. */
+internal fun writeIco(square: BufferedImage): ByteArray {
+    val payloads = ICO_SIZES.map { size ->
+        encodePng(resize(square, size, size), "Windows icon entry ${size}px")
+    }
+    val directoryBytes = 6 + ICO_SIZES.size * 16
+    val out = ByteArrayOutputStream()
+    out.write(littleEndianShort(0))
+    out.write(littleEndianShort(1))
+    out.write(littleEndianShort(ICO_SIZES.size))
+
+    var offset = directoryBytes
+    ICO_SIZES.forEachIndexed { index, size ->
+        // A 256 pixel side is stored as 0, which is what the format reserves for it.
+        val stored = if (size == 256) 0 else size
+        out.write(byteArrayOf(stored.toByte(), stored.toByte(), 0, 0))
+        out.write(littleEndianShort(1))
+        out.write(littleEndianShort(32))
+        out.write(littleEndianInt(payloads[index].size))
+        out.write(littleEndianInt(offset))
+        offset += payloads[index].size
+    }
+    payloads.forEach(out::write)
+    return out.toByteArray()
+}
