@@ -23,16 +23,16 @@ internal object Agp8ClassicAndroidWiringBridge {
         }
     }
 
-    fun wireApplication(project: Project, ext: KiteSsotExtension) =
-        invoke("wireApplication", project, ext)
+    fun wireApplication(project: Project, ext: KiteSsotExtension, resilient: Boolean) =
+        invoke("wireApplication", project, ext, resilient)
 
-    fun wireLibrary(project: Project, ext: KiteSsotExtension) =
-        invoke("wireLibrary", project, ext)
+    fun wireLibrary(project: Project, ext: KiteSsotExtension, resilient: Boolean) =
+        invoke("wireLibrary", project, ext, resilient)
 
-    private fun invoke(methodName: String, project: Project, ext: KiteSsotExtension) {
+    private fun invoke(methodName: String, project: Project, ext: KiteSsotExtension, resilient: Boolean) {
         // Resolved lazily: the adapter calls this from inside finalizeDsl, so the
         // model is read at the same point the AGP 9 adapter reads it.
-        val inputs = Supplier { ext.resolveAgp8Inputs(project.path) }
+        val inputs = Supplier { ext.resolveAgp8Inputs(project, resilient) }
         try {
             val method = adapterClass.getDeclaredMethod(
                 methodName,

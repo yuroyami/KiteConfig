@@ -32,12 +32,20 @@ final class Agp8ClassicAndroidWiring {
         components.finalizeDsl(android -> {
             Agp8AndroidInputs in = inputs.get();
             ApplicationDefaultConfig dc = android.getDefaultConfig();
+            java.util.List<String> replaced = new java.util.ArrayList<>();
             if (in.applyApplicationId && in.applicationId != null) {
+                observeDrift(replaced, "applicationId", dc.getApplicationId(), in.applicationId);
                 dc.setApplicationId(in.applicationId);
             }
             if (in.applyVersion) {
-                if (in.versionName != null) dc.setVersionName(in.versionName);
-                if (in.versionCode != null) dc.setVersionCode(in.versionCode);
+                if (in.versionName != null) {
+                    observeDrift(replaced, "versionName", dc.getVersionName(), in.versionName);
+                    dc.setVersionName(in.versionName);
+                }
+                if (in.versionCode != null) {
+                    observeDrift(replaced, "versionCode", dc.getVersionCode(), in.versionCode);
+                    dc.setVersionCode(in.versionCode);
+                }
             }
             if (in.applyAppName && in.appName != null) {
                 dc.getManifestPlaceholders().put("appName", in.appName);
@@ -58,12 +66,22 @@ final class Agp8ClassicAndroidWiring {
                 dc.getResourceConfigurations().addAll(in.localeFilters);
             }
             if (in.applySdkLevels) {
-                if (in.compileSdk != null) android.setCompileSdk(in.compileSdk);
+                if (in.compileSdk != null) {
+                    observeDrift(replaced, "compileSdk", android.getCompileSdk(), in.compileSdk);
+                    android.setCompileSdk(in.compileSdk);
+                }
                 if (in.ndk != null) android.setNdkVersion(in.ndk);
-                if (in.minSdk != null) dc.setMinSdk(in.minSdk);
-                if (in.targetSdk != null) dc.setTargetSdk(in.targetSdk);
+                if (in.minSdk != null) {
+                    observeDrift(replaced, "minSdk", dc.getMinSdk(), in.minSdk);
+                    dc.setMinSdk(in.minSdk);
+                }
+                if (in.targetSdk != null) {
+                    observeDrift(replaced, "targetSdk", dc.getTargetSdk(), in.targetSdk);
+                    dc.setTargetSdk(in.targetSdk);
+                }
             }
             applyJavaVersion(android.getCompileOptions(), in.javaVersion);
+            reportDrift(project, replaced);
         });
     }
 
@@ -75,14 +93,44 @@ final class Agp8ClassicAndroidWiring {
         components.finalizeDsl(android -> {
             Agp8AndroidInputs in = inputs.get();
             LibraryDefaultConfig dc = android.getDefaultConfig();
+            java.util.List<String> replaced = new java.util.ArrayList<>();
             if (in.applySdkLevels) {
-                if (in.compileSdk != null) android.setCompileSdk(in.compileSdk);
+                if (in.compileSdk != null) {
+                    observeDrift(replaced, "compileSdk", android.getCompileSdk(), in.compileSdk);
+                    android.setCompileSdk(in.compileSdk);
+                }
                 if (in.ndk != null) android.setNdkVersion(in.ndk);
-                if (in.minSdk != null) dc.setMinSdk(in.minSdk);
+                if (in.minSdk != null) {
+                    observeDrift(replaced, "minSdk", dc.getMinSdk(), in.minSdk);
+                    dc.setMinSdk(in.minSdk);
+                }
                 // Library modules have no targetSdk (AGP removed it).
             }
             applyJavaVersion(android.getCompileOptions(), in.javaVersion);
+            reportDrift(project, replaced);
         });
+    }
+
+    /** Same line as the Kotlin SsotDriftLog; keep the wording in sync. */
+    private static void observeDrift(
+        java.util.List<String> replaced,
+        String dslName,
+        Object declared,
+        Object applied
+    ) {
+        if (declared != null && !declared.equals(applied)) {
+            replaced.add(dslName + " " + declared + " -> " + applied);
+        }
+    }
+
+    private static void reportDrift(Project project, java.util.List<String> replaced) {
+        if (replaced.isEmpty()) return;
+        project.getLogger().warn(
+            "[kiteSsot] " + project.getPath()
+                + " declares values the single source of truth replaces: "
+                + String.join(", ", replaced)
+                + ". Delete these module declarations; the kiteSsot { } block owns them."
+        );
     }
 
     private static void applyJavaVersion(

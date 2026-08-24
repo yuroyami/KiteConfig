@@ -4,6 +4,32 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions track the
 Gradle Plugin Portal releases.
 
+## [3.0.2]
+
+### Fixed
+- **The diagnostic tasks no longer crash a consumer that declares its Android
+  values only in `kiteSsot { }`.** `kiteSsotVerify`, `kiteSsotDoctor`,
+  `kiteSsotCheck`, and `kiteSsotPlan` used to skip the Android wiring so a
+  broken model could still be reported. But AGP validates its DSL on every
+  invocation, so a module with no `compileSdk` of its own failed configuration
+  with AGP's "does not specify `compileSdk`" before the diagnostic could say a
+  word: the guard caused the exact failure it existed to survive. The wiring
+  now always runs. On a diagnostic invocation each value group is applied
+  best-effort: a throwing provider is skipped and logged at info, because the
+  diagnostic re-resolves the same providers and reports the failure as a
+  finding, while every group that does resolve keeps AGP's validation green.
+  An SSOT-only consumer can now run every task, not just builds.
+
+### Added
+- **A drift warning when a module declares a value the SSOT replaces.** The
+  wiring always won silently: `compileSdk = 33` in a module while the SSOT
+  says `37` builds with 37 and the module file keeps lying. Each configuring
+  Android project now logs one warning naming every replaced declaration
+  (`applicationId`, `versionName`, `versionCode`, `compileSdk`, `minSdk`,
+  `targetSdk`) so the dead lines get deleted instead of trusted. Identical
+  wording on the AGP 9 adapter, the AGP 8 adapter, and the KMP-native library
+  adapter; equal values stay silent.
+
 ## [3.0.1]
 
 An external audit (SOLAUDIT.md) reviewed the 3.0.0 source. These are the

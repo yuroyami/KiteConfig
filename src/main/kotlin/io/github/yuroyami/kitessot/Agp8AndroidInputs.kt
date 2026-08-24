@@ -48,47 +48,73 @@ class Agp8AndroidInputs internal constructor(
 )
 
 /**
- * Resolve the AGP 8 snapshot for [projectPath].
+ * Resolve the AGP 8 snapshot for [project].
  *
  * Called from inside AGP's `finalizeDsl` callback, never at wiring time, so
  * every provider is read at the same moment the AGP 9 adapter would read it.
+ *
+ * With [resilient] set (the diagnostic invocations), each value group resolves
+ * best-effort: a throwing provider becomes a null field, logged at info, and
+ * the diagnostic task reports the underlying problem as a finding. This is the
+ * AGP 8 twin of [wireValueGroup] in the AGP 9 adapter. The selection fails
+ * closed: when it cannot resolve, no app-scoped value is written anywhere.
  */
-internal fun KiteSsotExtension.resolveAgp8Inputs(projectPath: String): Agp8AndroidInputs {
-    val selected = effectiveAndroidApps.getOrElse(emptyList())
-    val appScoped = selected.isEmpty() || selected.contains(projectPath)
-    val filterResources = appScoped && effectiveFilterAndroidResources.get()
+internal fun KiteSsotExtension.resolveAgp8Inputs(project: org.gradle.api.Project, resilient: Boolean): Agp8AndroidInputs {
+    fun <T> resolve(group: String, read: () -> T): T? = if (!resilient) {
+        read()
+    } else {
+        try {
+            read()
+        } catch (failure: Exception) {
+            project.logger.info(
+                "[kiteSsot] ${project.path}: $group not applied on this diagnostic invocation: ${failure.message}"
+            )
+            null
+        }
+    }
+
+    val selected = resolve("the application selection") { effectiveAndroidApps.get() }
+    val appScoped = selected != null && (selected.isEmpty() || selected.contains(project.path))
+    val filterResources = appScoped &&
+        (resolve("the locale filters") { effectiveFilterAndroidResources.get() } ?: false)
     // Only touch the version providers when they are actually going to be
     // written. effectiveAndroidVersionCode can throw for a version its scheme
     // cannot encode; the AGP 9 adapter (ClassicAndroidWiring) never evaluates
     // it outside this same condition, so an AGP 8 build must not either, or a
     // build with propagate { version = false }, or a library module, would
     // fail on AGP 8 while the identical AGP 9 build succeeds.
-    val applyVersion = appScoped && effectivePropagateVersion.get()
-    val applicationId = if (appScoped && effectivePropagateBundleId.get() && effectiveAppId.isPresent) {
-        androidApplicationId.orNull
+    val applyVersion = appScoped &&
+        (resolve("the version values") { effectivePropagateVersion.get() } ?: false)
+    val applyApplicationId = appScoped &&
+        (resolve("applicationId") { effectivePropagateBundleId.get() && effectiveAppId.isPresent } ?: false)
+    val applicationId = if (applyApplicationId) {
+        resolve("applicationId") { androidApplicationId.orNull }
     } else {
         null
     }
+    val localeFilters = if (filterResources) {
+        resolve("the locale filters") { canonicalLocales.get().map(::bcp47ToAndroidQualifier) }
+    } else {
+        null
+    }
+    val applySdkLevels = resolve("the SDK levels") { effectiveApplySdkLevels.get() } ?: false
     return Agp8AndroidInputs(
-        selectedApplications = selected,
-        applyApplicationId = appScoped && effectivePropagateBundleId.get() && effectiveAppId.isPresent,
+        selectedApplications = selected.orEmpty(),
+        applyApplicationId = applyApplicationId,
         applicationId = applicationId,
         applyVersion = applyVersion,
-        versionName = if (applyVersion) effectiveVersion.orNull else null,
-        versionCode = if (applyVersion) effectiveAndroidVersionCode.orNull else null,
-        applyAppName = appScoped && effectivePropagateAppName.get() && effectiveAppName.isPresent,
-        appName = effectiveAppName.orNull,
-        filterResources = filterResources,
-        localeFilters = if (filterResources) {
-            canonicalLocales.get().map(::bcp47ToAndroidQualifier)
-        } else {
-            emptyList()
-        },
-        applySdkLevels = effectiveApplySdkLevels.get(),
-        compileSdk = android.compileSdk.orNull,
-        ndk = android.ndk.orNull,
-        minSdk = android.minSdk.orNull,
-        targetSdk = android.targetSdk.orNull,
-        javaVersion = effectiveJvmTarget.orNull?.let(::validateJavaVersion),
+        versionName = if (applyVersion) resolve("the version values") { effectiveVersion.orNull } else null,
+        versionCode = if (applyVersion) resolve("the version values") { effectiveAndroidVersionCode.orNull } else null,
+        applyAppName = appScoped &&
+            (resolve("the appName placeholder") { effectivePropagateAppName.get() && effectiveAppName.isPresent } ?: false),
+        appName = resolve("the appName placeholder") { effectiveAppName.orNull },
+        filterResources = filterResources && localeFilters != null,
+        localeFilters = localeFilters.orEmpty(),
+        applySdkLevels = applySdkLevels,
+        compileSdk = if (applySdkLevels) resolve("the SDK levels") { android.compileSdk.orNull } else null,
+        ndk = if (applySdkLevels) resolve("the SDK levels") { android.ndk.orNull } else null,
+        minSdk = if (applySdkLevels) resolve("the SDK levels") { android.minSdk.orNull } else null,
+        targetSdk = if (applySdkLevels) resolve("the SDK levels") { android.targetSdk.orNull } else null,
+        javaVersion = resolve("the Java compatibility level") { effectiveJvmTarget.orNull?.let(::validateJavaVersion) },
     )
 }

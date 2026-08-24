@@ -36,6 +36,9 @@ class MessageHygieneTest {
     private val allowed = mapOf(
         "KiteSsotExtension.kt" to retiredNames.toSet(),
         "BuildConfigGen.kt" to setOf("versionName"),
+        // The drift warning names AGP's own `versionName` DSL property as the module
+        // declared it, not the retired 2.x kiteSsot property.
+        "ClassicAndroidWiring.kt" to setOf("versionName"),
     )
 
     @Test

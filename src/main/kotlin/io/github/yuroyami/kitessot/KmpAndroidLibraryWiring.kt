@@ -20,7 +20,10 @@ import org.gradle.api.Project
  * plugins, this plugin does **not** create its DSL extension synchronously at apply time, so
  * reading it inside the `withId` callback finds nothing. `finalizeDsl` is AGP's sanctioned
  * hook that runs after the module's own DSL block but before variants lock, so the SSOT
- * value also wins over a module-local `compileSdk`.
+ * value wins over a module-local `compileSdk` — and is supplied outright when the module
+ * declares none. It also runs on the diagnostic invocations, through [wireValueGroup], for
+ * the same reason as [ClassicAndroidWiring]: AGP validates its DSL on every invocation.
+ * [SsotDriftLog] flags module declarations the SSOT replaces.
  *
  * Only `compileSdk`/`minSdk` apply: the KMP library DSL has no `targetSdk` (libraries never
  * did) nor `ndkVersion`, so those are skipped even when set. Locale propagation also doesn't
@@ -29,7 +32,7 @@ import org.gradle.api.Project
 internal object KmpAndroidLibraryWiring {
 
     /** Returns false when the expected public components extension is absent. */
-    fun apply(project: Project, ext: KiteSsotExtension): Boolean {
+    fun apply(project: Project, ext: KiteSsotExtension, resilient: Boolean): Boolean {
         val components = project.extensions
             .findByType(KotlinMultiplatformAndroidComponentsExtension::class.java)
         if (components == null) {
@@ -37,16 +40,29 @@ internal object KmpAndroidLibraryWiring {
         }
 
         components.finalizeDsl { dsl ->
-            if (!ext.effectiveApplySdkLevels.get()) return@finalizeDsl
-            val sdk = ext.android
-            if (sdk.compileSdk.isPresent) dsl.compileSdk = sdk.compileSdk.get()
-            if (sdk.minSdk.isPresent) dsl.minSdk = sdk.minSdk.get()
-            if (sdk.targetSdk.isPresent || sdk.ndk.isPresent) {
-                project.logger.info(
-                    "[kiteSsot] ${project.path}: targetSdk/ndkVersion ignored: the KMP Android library " +
-                        "DSL exposes neither."
-                )
+            val drift = SsotDriftLog(project)
+            project.wireValueGroup(resilient, "the SDK levels") {
+                if (ext.effectiveApplySdkLevels.get()) {
+                    val sdk = ext.android
+                    if (sdk.compileSdk.isPresent) {
+                        val applied = sdk.compileSdk.get()
+                        drift.observe("compileSdk", dsl.compileSdk, applied)
+                        dsl.compileSdk = applied
+                    }
+                    if (sdk.minSdk.isPresent) {
+                        val applied = sdk.minSdk.get()
+                        drift.observe("minSdk", dsl.minSdk, applied)
+                        dsl.minSdk = applied
+                    }
+                    if (sdk.targetSdk.isPresent || sdk.ndk.isPresent) {
+                        project.logger.info(
+                            "[kiteSsot] ${project.path}: targetSdk/ndkVersion ignored: the KMP Android library " +
+                                "DSL exposes neither."
+                        )
+                    }
+                }
             }
+            drift.report()
         }
         return true
     }

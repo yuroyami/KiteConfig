@@ -335,33 +335,36 @@ class KiteSsotPlugin : Plugin<Project> {
         val kmpProjectsWithoutSharedClassloader = linkedSetOf<String>()
         target.allprojects {
             val consumerProject = this
+            // The Android wiring runs on the diagnostic invocations too, unlike the KGP
+            // wiring below: AGP validates its DSL on every invocation, so a consumer whose
+            // compileSdk lives only in kiteSsot { } would fail configuration before the
+            // diagnostic task could report anything. The adapters guard each value group
+            // themselves on resilient runs and skip a failing provider instead of aborting.
             plugins.withId("com.android.application") {
                 detectedAndroidApplications += consumerProject.path
                 detectedAndroidProjects += consumerProject.path
-                if (!isResilientDiagnosticInvocation(target)) {
-                    if (agpAdaptersUsable) {
-                        if (useAgp8ClassicAdapter) {
-                            Agp8ClassicAndroidWiringBridge.wireApplication(consumerProject, ext)
-                        } else {
-                            ClassicAndroidWiring.wireApplication(consumerProject, ext)
-                        }
-                    } else if (!AGP_ON_CLASSPATH) {
-                        androidProjectsWithoutSharedClassloader += consumerProject.path
+                val resilient = isResilientDiagnosticInvocation(target)
+                if (agpAdaptersUsable) {
+                    if (useAgp8ClassicAdapter) {
+                        Agp8ClassicAndroidWiringBridge.wireApplication(consumerProject, ext, resilient)
+                    } else {
+                        ClassicAndroidWiring.wireApplication(consumerProject, ext, resilient)
                     }
+                } else if (!AGP_ON_CLASSPATH) {
+                    androidProjectsWithoutSharedClassloader += consumerProject.path
                 }
             }
             plugins.withId("com.android.library") {
                 detectedAndroidProjects += consumerProject.path
-                if (!isResilientDiagnosticInvocation(target)) {
-                    if (agpAdaptersUsable) {
-                        if (useAgp8ClassicAdapter) {
-                            Agp8ClassicAndroidWiringBridge.wireLibrary(consumerProject, ext)
-                        } else {
-                            ClassicAndroidWiring.wireLibrary(consumerProject, ext)
-                        }
-                    } else if (!AGP_ON_CLASSPATH) {
-                        androidProjectsWithoutSharedClassloader += consumerProject.path
+                val resilient = isResilientDiagnosticInvocation(target)
+                if (agpAdaptersUsable) {
+                    if (useAgp8ClassicAdapter) {
+                        Agp8ClassicAndroidWiringBridge.wireLibrary(consumerProject, ext, resilient)
+                    } else {
+                        ClassicAndroidWiring.wireLibrary(consumerProject, ext, resilient)
                     }
+                } else if (!AGP_ON_CLASSPATH) {
+                    androidProjectsWithoutSharedClassloader += consumerProject.path
                 }
             }
             // AGP's KMP-native Android library plugin (com.android.kotlin.multiplatform.library)
@@ -369,14 +372,13 @@ class KiteSsotPlugin : Plugin<Project> {
             // its own wiring. Common for the shared module in modern KMP setups (composeApp/shared).
             plugins.withId("com.android.kotlin.multiplatform.library") {
                 detectedAndroidProjects += consumerProject.path
-                if (!isResilientDiagnosticInvocation(target)) {
-                    if (agpAdaptersUsable) {
-                        if (!KmpAndroidLibraryWiring.apply(consumerProject, ext)) {
-                            kmpAndroidProjectsWithoutComponents += consumerProject.path
-                        }
-                    } else if (!AGP_ON_CLASSPATH) {
-                        androidProjectsWithoutSharedClassloader += consumerProject.path
+                val resilient = isResilientDiagnosticInvocation(target)
+                if (agpAdaptersUsable) {
+                    if (!KmpAndroidLibraryWiring.apply(consumerProject, ext, resilient)) {
+                        kmpAndroidProjectsWithoutComponents += consumerProject.path
                     }
+                } else if (!AGP_ON_CLASSPATH) {
+                    androidProjectsWithoutSharedClassloader += consumerProject.path
                 }
             }
             plugins.withId("org.jetbrains.kotlin.multiplatform") {

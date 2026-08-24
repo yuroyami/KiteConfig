@@ -118,6 +118,7 @@ class AgpCompatibilityFunctionalTest {
         )
 
         assertTrue(result.output.contains("AGP_MATRIX_OK 8.5.2"), result.output)
+        assertDriftWarnings(result)
     }
 
     @Test
@@ -134,6 +135,7 @@ class AgpCompatibilityFunctionalTest {
         )
 
         assertTrue(result.output.contains("AGP_MATRIX_OK 9.3.1"), result.output)
+        assertDriftWarnings(result)
     }
 
     @Test
@@ -255,6 +257,13 @@ class AgpCompatibilityFunctionalTest {
 
         assertTrue(first.output.contains("KMP_NATIVE_ANDROID_OK AGP 9.3.1 KGP 2.4.0"), first.output)
         assertTrue(first.output.contains("Configuration cache entry stored."), first.output)
+        assertTrue(
+            first.output.contains(
+                ":shared declares values the single source of truth replaces: " +
+                    "compileSdk 34 -> 35, minSdk 21 -> 24",
+            ),
+            first.output,
+        )
         assertTrue(second.output.contains("KMP_NATIVE_ANDROID_OK AGP 9.3.1 KGP 2.4.0"), second.output)
         assertTrue(second.output.contains("Reusing configuration cache."), second.output)
     }
@@ -648,5 +657,148 @@ class AgpCompatibilityFunctionalTest {
             .build()
 
         assertTrue(result.output.contains("AGP8_LIBRARY_VERSION_OFF_OK"), result.output)
+    }
+
+    @Test
+    fun `AGP 9_3_1 receives SDK levels from the SSOT alone and still runs the diagnostic tasks`() {
+        writeSsotOnlySdkLevelsFixture()
+
+        // A regular task: the wiring supplies compileSdk/minSdk/targetSdk from nothing.
+        val supplied = runSsotOnlyFixture("verifySsotSuppliedSdkLevels")
+        assertTrue(supplied.output.contains("SSOT_SUPPLIED_SDK_OK"), supplied.output)
+
+        // The diagnostic tasks used to skip the wiring, so AGP failed configuration
+        // ("does not specify compileSdk") before the diagnostic could report anything.
+        val verify = runSsotOnlyFixture("kiteSsotVerify")
+        assertTrue(Regex("""compileSdk\s+= 35""").containsMatchIn(verify.output), verify.output)
+
+        val doctor = runSsotOnlyFixture("kiteSsotDoctor")
+        assertTrue(doctor.output.contains("Doctor report"), doctor.output)
+    }
+
+    @Test
+    fun `kiteSsotDoctor survives a version its scheme cannot encode while the SSOT supplies compileSdk`() {
+        // patch 150 exceeds the default scheme's 0..99 budget, so the versionCode
+        // provider throws when the wiring resolves it. On a diagnostic invocation
+        // that failure must be skipped, not fatal: the SDK levels still reach AGP
+        // (or configuration dies for want of compileSdk) and the doctor reports
+        // the version problem as a finding.
+        writeSsotOnlySdkLevelsFixture(version = "1.4.150")
+
+        val doctor = runSsotOnlyFixture("kiteSsotDoctor")
+        assertTrue(doctor.output.contains("Doctor report"), doctor.output)
+        assertTrue(doctor.output.contains("KMPS050"), doctor.output)
+    }
+
+    private fun runSsotOnlyFixture(task: String): BuildResult = GradleRunner.create()
+        .withProjectDir(projectDir)
+        .withGradleVersion("9.5.1")
+        .withArguments("--stacktrace", task)
+        .build()
+
+    /** An application module that declares no SDK level anywhere: the SSOT is the only source. */
+    private fun writeSsotOnlySdkLevelsFixture(version: String = "2.3.4") {
+        publishPluginFixture()
+        write(
+            "settings.gradle",
+            """
+            pluginManagement {
+                repositories {
+                    maven { url = uri(file('plugin-repository')) }
+                    google()
+                    mavenCentral()
+                    gradlePluginPortal()
+                }
+            }
+            dependencyResolutionManagement {
+                repositories {
+                    google()
+                    mavenCentral()
+                }
+            }
+            rootProject.name = 'ssot-only-sdk-fixture'
+            include ':app'
+            """.trimIndent(),
+        )
+        write(
+            "build.gradle",
+            """
+            plugins {
+                id 'com.android.application' version '9.3.1' apply false
+                id 'io.github.yuroyami.kitessot' version 'test-fixture'
+            }
+
+            kiteSsot {
+                appName = 'Ssot Only App'
+                version = '$version'
+                appId = 'dev.matrix.ssotonly'
+                android {
+                    compileSdk = 35
+                    minSdk = 24
+                    targetSdk = 35
+                }
+            }
+
+            tasks.register('verifySsotSuppliedSdkLevels') {
+                dependsOn ':app:assertSdkLevelsSupplied'
+            }
+            """.trimIndent(),
+        )
+        write(
+            "app/build.gradle",
+            """
+            plugins { id 'com.android.application' }
+
+            // No compileSdk, minSdk, or targetSdk anywhere in this module.
+            android {
+                namespace = 'fixture.ssotonly'
+            }
+
+            tasks.register('assertSdkLevelsSupplied') {
+                doLast {
+                    def androidExt = project.extensions.getByName('android')
+                    def dc = androidExt.defaultConfig
+                    assert androidExt.compileSdk == 35 : androidExt.compileSdk
+                    assert dc.minSdk == 24 : dc.minSdk
+                    assert dc.targetSdk == 35 : dc.targetSdk
+                    println 'SSOT_SUPPLIED_SDK_OK'
+                }
+            }
+            """.trimIndent(),
+        )
+        write(
+            "app/src/main/AndroidManifest.xml",
+            "<manifest xmlns:android=\"http://schemas.android.com/apk/res/android\"><application android:label=\"\${appName}\"/></manifest>",
+        )
+
+        System.getenv("ANDROID_HOME")?.takeIf { it.isNotBlank() }?.let { sdkDir ->
+            write("local.properties", "sdk.dir=${sdkDir.replace("\\", "\\\\")}")
+        }
+    }
+
+    /** The matrix fixture seeds module values the SSOT replaces; every adapter must say so. */
+    private fun assertDriftWarnings(result: BuildResult) {
+        assertTrue(
+            result.output.contains(
+                ":app declares values the single source of truth replaces: " +
+                    "applicationId fixture.before -> dev.matrix.ssot, versionName 0.1.0 -> 2.3.4, " +
+                    "versionCode 1 -> 1002003040, compileSdk 34 -> 35, minSdk 21 -> 24, targetSdk 34 -> 35",
+            ),
+            result.output,
+        )
+        assertTrue(
+            result.output.contains(
+                ":secondaryApp declares values the single source of truth replaces: " +
+                    "compileSdk 34 -> 35, minSdk 21 -> 24, targetSdk 34 -> 35",
+            ),
+            result.output,
+        )
+        assertTrue(
+            result.output.contains(
+                ":library declares values the single source of truth replaces: " +
+                    "compileSdk 34 -> 35, minSdk 21 -> 24",
+            ),
+            result.output,
+        )
     }
 }
