@@ -37,4 +37,19 @@ class PluginCompatibilityTest {
         assertFalse(isSupportedKgpVersion("2.4.0-release-281-extra"))
         assertFalse(isSupportedKgpVersion("2.5.0"))
     }
+
+    @Test
+    fun `the compose range accepts the tested line and its pre-release builds`() {
+        assertTrue(isSupportedComposeVersion("1.11.0"))
+        assertTrue(isSupportedComposeVersion("1.12.0"))
+        assertTrue(isSupportedComposeVersion("1.12.0-rc01"), "Compose ships long rc lines people build on")
+        assertTrue(isSupportedComposeVersion("1.12.0-beta03"))
+    }
+
+    @Test
+    fun `the compose range rejects versions outside it`() {
+        assertFalse(isSupportedComposeVersion("1.10.9"))
+        assertFalse(isSupportedComposeVersion("1.13.0"))
+        assertFalse(isSupportedComposeVersion("not-a-version"))
+    }
 }

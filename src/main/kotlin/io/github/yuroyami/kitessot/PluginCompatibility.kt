@@ -14,6 +14,9 @@ private val STABLE_TOOL_VERSION = Regex(
 private val STABLE_KGP_RUNTIME_VERSION = Regex(
     """^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-release-(?:0|[1-9]\d*))?$""",
 )
+private val COMPOSE_RUNTIME_VERSION = Regex(
+    """^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-(?:alpha|beta|rc|dev)[0-9.]*)?$""",
+)
 
 internal fun parseToolVersion(value: String): ToolVersion? {
     val match = LEADING_VERSION.matchEntire(value.trim()) ?: return null
@@ -40,4 +43,15 @@ internal fun isSupportedKgpVersion(value: String): Boolean {
     if (!STABLE_KGP_RUNTIME_VERSION.matches(value.trim())) return false
     val version = parseToolVersion(value) ?: return false
     return version >= ToolVersion(2, 4, 0) && version < ToolVersion(2, 5, 0)
+}
+
+/**
+ * Compose ships long alpha, beta and rc lines that real projects build on, so
+ * unlike the AGP rule this one accepts a pre-release suffix and compares only
+ * the numeric part.
+ */
+internal fun isSupportedComposeVersion(value: String): Boolean {
+    if (!COMPOSE_RUNTIME_VERSION.matches(value.trim())) return false
+    val version = parseToolVersion(value) ?: return false
+    return version >= ToolVersion(1, 11, 0) && version < ToolVersion(1, 13, 0)
 }
