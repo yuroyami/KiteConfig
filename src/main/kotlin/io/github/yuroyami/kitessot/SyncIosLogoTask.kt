@@ -13,14 +13,12 @@ import org.gradle.api.tasks.TaskAction
 import org.gradle.work.DisableCachingByDefault
 import java.awt.Color
 import java.awt.image.BufferedImage
-import java.io.ByteArrayOutputStream
 import java.io.File
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.nio.file.LinkOption.NOFOLLOW_LINKS
 import java.nio.file.attribute.BasicFileAttributes
 import java.security.MessageDigest
-import javax.imageio.ImageIO
 
 /**
  * Composites the FG/BG layers into the iOS AppIcon.appiconset:
@@ -144,7 +142,7 @@ abstract class SyncIosLogoTask : DefaultTask() {
         }
 
         OwnedOutputSafety.requireSafePath(outDir, "iOS AppIcon output")
-        val pngBytes = encodePng(composite)
+        val pngBytes = encodePng(composite, "iOS app icon")
         val rendered = linkedMapOf(
             "AppIcon-1024.png" to pngBytes,
             "Contents.json" to CONTENTS_JSON.toByteArray(StandardCharsets.UTF_8),
@@ -195,14 +193,6 @@ abstract class SyncIosLogoTask : DefaultTask() {
         readBoundedLogoPngSnapshot(file, label)
     } catch (e: IllegalArgumentException) {
         throw GradleException("[kiteSsot] ${e.message}", e)
-    }
-
-    private fun encodePng(image: BufferedImage): ByteArray {
-        val output = ByteArrayOutputStream()
-        if (!ImageIO.write(image, "PNG", output)) {
-            throw GradleException("[kiteSsot] This JDK has no PNG encoder; cannot render iOS logo.")
-        }
-        return output.toByteArray()
     }
 
     /**

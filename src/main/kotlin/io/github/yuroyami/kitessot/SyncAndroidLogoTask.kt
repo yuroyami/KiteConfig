@@ -12,13 +12,11 @@ import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.TaskAction
 import org.gradle.work.DisableCachingByDefault
 import java.awt.image.BufferedImage
-import java.io.ByteArrayOutputStream
 import java.io.File
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.nio.file.LinkOption.NOFOLLOW_LINKS
 import java.nio.file.attribute.BasicFileAttributes
-import javax.imageio.ImageIO
 
 /**
  * Propagates the FG/BG layer PNGs to a complete Android launcher-icon resource
@@ -178,12 +176,12 @@ abstract class SyncAndroidLogoTask : DefaultTask() {
             val adaptiveSize = (108 * scale).toInt()
             val legacySize = (48 * scale).toInt()
 
-            rendered["mipmap-$qualifier/ic_launcher_foreground.png"] = encodePng(padToSafeZone(fg, adaptiveSize, ratio))
-            rendered["mipmap-$qualifier/ic_launcher_background.png"] = encodePng(coverCanvas(bg, adaptiveSize))
+            rendered["mipmap-$qualifier/ic_launcher_foreground.png"] = encodePng(padToSafeZone(fg, adaptiveSize, ratio), "Android logo")
+            rendered["mipmap-$qualifier/ic_launcher_background.png"] = encodePng(coverCanvas(bg, adaptiveSize), "Android logo")
 
             val legacySquare = legacyComposite(fg, bg, legacySize)
-            rendered["mipmap-$qualifier/ic_launcher.png"] = encodePng(legacySquare)
-            rendered["mipmap-$qualifier/ic_launcher_round.png"] = encodePng(applyCircleMask(legacySquare))
+            rendered["mipmap-$qualifier/ic_launcher.png"] = encodePng(legacySquare, "Android logo")
+            rendered["mipmap-$qualifier/ic_launcher_round.png"] = encodePng(applyCircleMask(legacySquare), "Android logo")
         }
 
         val adaptiveXml = buildAdaptiveIconWrapper(monochrome = false).toByteArray(StandardCharsets.UTF_8)
@@ -293,14 +291,6 @@ abstract class SyncAndroidLogoTask : DefaultTask() {
             drawCover(bg, 0, 0, size, size)
             drawContain(fg, 0, 0, size, size)
         }
-
-    private fun encodePng(image: BufferedImage): ByteArray {
-        val output = ByteArrayOutputStream()
-        if (!ImageIO.write(image, "PNG", output)) {
-            throw GradleException("[kiteSsot] This JDK has no PNG encoder; cannot render Android logo.")
-        }
-        return output.toByteArray()
-    }
 
     /**
      * Fail on template launcher icons that share a generated PNG's stem but a

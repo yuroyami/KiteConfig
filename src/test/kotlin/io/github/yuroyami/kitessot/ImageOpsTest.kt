@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.awt.image.BufferedImage
+import java.io.ByteArrayInputStream
 import java.io.File
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -106,5 +107,14 @@ class ImageOpsTest {
         }
 
         assertTrue(error.message.orEmpty().contains("Unsafe foreground path"), error.message)
+    }
+
+    @Test
+    fun `encodePng produces bytes that decode back to the same size`() {
+        val source = BufferedImage(24, 24, BufferedImage.TYPE_INT_ARGB)
+        val encoded = encodePng(source, "test icon")
+        val decoded = ImageIO.read(ByteArrayInputStream(encoded))
+        assertEquals(24, decoded.width, "width changed during PNG round trip")
+        assertEquals(24, decoded.height, "height changed during PNG round trip")
     }
 }

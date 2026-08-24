@@ -1,5 +1,6 @@
 package io.github.yuroyami.kitessot
 
+import org.gradle.api.GradleException
 import java.awt.AlphaComposite
 import java.awt.Graphics2D
 import java.awt.Rectangle
@@ -246,3 +247,12 @@ internal fun applyCircleMask(src: BufferedImage): BufferedImage =
         clip = Ellipse2D.Float(0f, 0f, src.width.toFloat(), src.height.toFloat())
         drawImage(src, 0, 0, null)
     }
+
+/** Encode [image] as PNG bytes. [label] names the artifact in the failure message. */
+internal fun encodePng(image: BufferedImage, label: String): ByteArray {
+    val output = ByteArrayOutputStream()
+    if (!ImageIO.write(image, "PNG", output)) {
+        throw GradleException("[kiteSsot] This JDK has no PNG encoder; cannot render $label.")
+    }
+    return output.toByteArray()
+}
