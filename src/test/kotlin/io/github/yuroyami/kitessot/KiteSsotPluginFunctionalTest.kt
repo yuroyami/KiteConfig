@@ -2101,6 +2101,8 @@ class KiteSsotPluginFunctionalTest {
 
         val result = runAndFail("help")
         assertTrue(result.output.contains("9999999999"), result.output)
+        assertTrue(result.output.contains("desktop {"), result.output)
+        assertTrue(!result.output.contains("ios {"), result.output)
     }
 
     @Test

@@ -153,27 +153,39 @@ internal fun compareAppleBuildNumbers(a: String, b: String): Int {
     return 0
 }
 
-/** Validate the optional offline TestFlight baseline against a resolved next build number. */
-internal fun validatePublishedBuildNumber(next: String?, published: String): String {
+/**
+ * Validate the optional offline published-build baseline against a resolved
+ * next build number. Shared by iOS and desktop; [platform] picks which DSL
+ * block the failure names.
+ */
+internal fun validatePublishedBuildNumber(next: String?, published: String, platform: String = "ios"): String {
+    val dsl = when (platform) {
+        "desktop" -> "desktop {"
+        else -> "ios {"
+    }
+    val noun = when (platform) {
+        "desktop" -> "macOS package build version"
+        else -> "Apple build number"
+    }
     if (!isValidAppleBuildNumber(published)) {
         throw GradleException(
-            "kiteSsot { ios { publishedBuildNumber } } \"${diagnosticSafeText(published, 32)}\" is invalid. " +
+            "kiteSsot { $dsl publishedBuildNumber } } \"${diagnosticSafeText(published, 32)}\" is invalid. " +
                 "CFBundleVersion requires one to three numeric components, each at most " +
                 "$MAX_APPLE_BUILD_COMPONENT_DIGITS digits, and a first component that is not zero.",
         )
     }
     val candidate = next ?: throw GradleException(
-        "kiteSsot { ios { publishedBuildNumber } } requires a resolvable ios { buildNumber }.",
+        "kiteSsot { $dsl publishedBuildNumber } } requires a resolvable $dsl buildNumber }.",
     )
     if (!isValidAppleBuildNumber(candidate)) {
         throw GradleException(
-            "kiteSsot resolved Apple build number \"${diagnosticSafeText(candidate, 32)}\" is invalid.",
+            "kiteSsot resolved $noun \"${diagnosticSafeText(candidate, 32)}\" is invalid.",
         )
     }
     if (compareAppleBuildNumbers(candidate, published) <= 0) {
         throw GradleException(
-            "kiteSsot resolved Apple build number \"$candidate\" must be greater than the published " +
-                "baseline \"$published\". Bump ios { rebuild }, or set ios { buildNumber } explicitly, " +
+            "kiteSsot resolved $noun \"$candidate\" must be greater than the published " +
+                "baseline \"$published\". Bump $dsl rebuild }, or set $dsl buildNumber } explicitly, " +
                 "before release.",
         )
     }

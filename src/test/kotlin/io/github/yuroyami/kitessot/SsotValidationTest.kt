@@ -89,4 +89,19 @@ class SsotValidationTest {
             validateRelativeProjectPath("x".repeat(4_097), "iosInfoPlistPath")
         }
     }
+
+    @Test
+    fun `a desktop published build number failure names desktop, not iOS`() {
+        val missingCandidate = assertThrows(GradleException::class.java) {
+            validatePublishedBuildNumber(null, "5", platform = "desktop")
+        }
+        assertTrue(missingCandidate.message!!.contains("desktop {"), missingCandidate.message)
+        assertTrue(!missingCandidate.message!!.contains("ios {"), missingCandidate.message)
+
+        val notGreater = assertThrows(GradleException::class.java) {
+            validatePublishedBuildNumber("5", "5", platform = "desktop")
+        }
+        assertTrue(notGreater.message!!.contains("desktop {"), notGreater.message)
+        assertTrue(!notGreater.message!!.contains("ios {"), notGreater.message)
+    }
 }

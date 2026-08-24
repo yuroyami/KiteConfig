@@ -566,7 +566,7 @@ class KiteSsotPlugin : Plugin<Project> {
             }
             if (detectedDesktopApplications.isNotEmpty() && ext.effectivePropagateVersion.get()) {
                 ext.desktop.publishedBuildNumber.orNull?.let { published ->
-                    validatePublishedBuildNumber(ext.effectiveDesktopBuildNumber.orNull, published)
+                    validatePublishedBuildNumber(ext.effectiveDesktopBuildNumber.orNull, published, platform = "desktop")
                 }
             }
             val needsApplicationSelection =
