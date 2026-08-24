@@ -34,6 +34,12 @@ abstract class KiteSsotDiagnosticTaskBase : DefaultTask() {
         agpOnClasspath.convention(false)
         agpRequired.convention(false)
         kgpRequired.convention(true)
+        propagateDesktop.convention(false)
+        composeOnClasspath.convention(false)
+        composeRequired.convention(false)
+        desktopApplicationProjects.convention(emptyList())
+        detectedDesktopApplicationProjects.convention(emptyList())
+        desktopDeriveUpgradeUuid.convention(false)
     }
 
     @get:Internal abstract val propagateAppName: Property<Boolean>
@@ -81,6 +87,18 @@ abstract class KiteSsotDiagnosticTaskBase : DefaultTask() {
     @get:Internal abstract val kgpOnClasspath: Property<Boolean>
     @get:Internal abstract val kgpRequired: Property<Boolean>
     @get:Internal abstract val activeKgpVersion: Property<String>
+
+    @get:Internal abstract val propagateDesktop: Property<Boolean>
+    @get:Internal abstract val desktopIconsExplicit: Property<Boolean>
+    @get:Internal abstract val composeOnClasspath: Property<Boolean>
+    @get:Internal abstract val composeRequired: Property<Boolean>
+    @get:Internal abstract val activeComposeVersion: Property<String>
+    @get:Internal abstract val desktopApplicationProjects: ListProperty<String>
+    @get:Internal abstract val detectedDesktopApplicationProjects: ListProperty<String>
+    @get:Internal abstract val appId: Property<String>
+    @get:Internal abstract val desktopBundleId: Property<String>
+    @get:Internal abstract val desktopLinuxPackageName: Property<String>
+    @get:Internal abstract val desktopDeriveUpgradeUuid: Property<Boolean>
 
     internal fun diagnosticFindings(): List<KiteSsotDiagnostic> {
         val resolutionFindings = mutableListOf<KiteSsotDiagnostic>()
@@ -163,6 +181,27 @@ abstract class KiteSsotDiagnosticTaskBase : DefaultTask() {
             kgpOnClasspath = resolve("KMPS915", "kgpOnClasspath", false) { kgpOnClasspath.getOrElse(false) },
             kgpRequired = resolve("KMPS916", "kgpRequired", true) { kgpRequired.getOrElse(true) },
             activeKgpVersion = resolve<String?>("KMPS937", "activeKgpVersion", null) { activeKgpVersion.orNull },
+            propagateDesktop = resolve("KMPS941", "desktop { }", false) { propagateDesktop.getOrElse(false) },
+            desktopIconsExplicit = resolve<Boolean?>("KMPS942", "desktop { icons }", null) { desktopIconsExplicit.orNull },
+            composeOnClasspath = resolve("KMPS943", "composeOnClasspath", false) { composeOnClasspath.getOrElse(false) },
+            composeRequired = resolve("KMPS944", "composeRequired", false) { composeRequired.getOrElse(false) },
+            activeComposeVersion = resolve<String?>("KMPS945", "activeComposeVersion", null) { activeComposeVersion.orNull },
+            desktopApplicationProjects = resolve("KMPS946", "modules { desktopApps }", emptyList()) {
+                desktopApplicationProjects.getOrElse(emptyList())
+            },
+            detectedDesktopApplicationProjects = resolve(
+                "KMPS947",
+                "detectedDesktopApplicationProjects",
+                emptyList(),
+            ) { detectedDesktopApplicationProjects.getOrElse(emptyList()) },
+            appId = resolve<String?>("KMPS948", "appId", null) { appId.orNull },
+            desktopBundleId = resolve<String?>("KMPS949", "desktopBundleId", null) { desktopBundleId.orNull },
+            desktopLinuxPackageName = resolve<String?>("KMPS950", "desktop { linuxPackageName }", null) {
+                desktopLinuxPackageName.orNull
+            },
+            desktopDeriveUpgradeUuid = resolve("KMPS951", "desktop { deriveUpgradeUuid }", false) {
+                desktopDeriveUpgradeUuid.getOrElse(false)
+            },
         )
 
         val evaluated = runCatching { KiteSsotDiagnosticEngine.evaluate(context) }.getOrElse { failure ->

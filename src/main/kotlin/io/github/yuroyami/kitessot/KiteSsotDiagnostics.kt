@@ -79,6 +79,17 @@ internal data class KiteSsotDiagnosticContext(
     val kgpOnClasspath: Boolean = false,
     val kgpRequired: Boolean = false,
     val activeKgpVersion: String? = null,
+    val propagateDesktop: Boolean = false,
+    val desktopIconsExplicit: Boolean? = null,
+    val composeOnClasspath: Boolean = false,
+    val composeRequired: Boolean = false,
+    val activeComposeVersion: String? = null,
+    val desktopApplicationProjects: List<String> = emptyList(),
+    val detectedDesktopApplicationProjects: List<String> = emptyList(),
+    val appId: String? = null,
+    val desktopBundleId: String? = null,
+    val desktopLinuxPackageName: String? = null,
+    val desktopDeriveUpgradeUuid: Boolean = false,
 )
 
 /** Pure orchestration around guarded filesystem reads and fail-closed parsers. */
@@ -97,6 +108,420 @@ internal object KiteSsotDiagnosticEngine {
         diagnoseVersion(context)
         diagnoseKgp(context)
         diagnosePluginCompatibility(context)
+        diagnoseDesktop(context)
+    }
+
+    private fun MutableList<KiteSsotDiagnostic>.diagnoseDesktop(context: KiteSsotDiagnosticContext) {
+        diagnoseDesktopIdentity(context)
+        diagnoseDesktopIcons(context)
+        diagnoseComposeCompatibility(context)
+        diagnoseDesktopApplicationSelection(context)
+        diagnoseDesktopBundleId(context)
+        diagnoseDesktopPackageVersion(context)
+        diagnoseDesktopLinuxPackageName(context)
+        diagnoseWindowsUpgradeCode(context)
+    }
+
+    /** What gets written to Compose Desktop, gated on `desktop { }` being opened at all. */
+    private fun MutableList<KiteSsotDiagnostic>.diagnoseDesktopIdentity(context: KiteSsotDiagnosticContext) {
+        if (!context.propagateDesktop) {
+            add(diagnostic("KMPS080", KiteSsotDiagnosticSeverity.SKIPPED, "Desktop identity propagation", "desktop { } is not enabled."))
+            return
+        }
+        val propagated = buildList {
+            if (context.propagateAppName && context.appName != null) add("packageName from appName")
+            if (context.propagateVersion && context.versionName != null) add("packageVersion and macOS build number from version")
+            if (context.propagateBundleId && context.desktopBundleId != null) add("macOS.bundleID from appId")
+        }
+        if (propagated.isEmpty()) {
+            add(
+                diagnostic(
+                    "KMPS080",
+                    KiteSsotDiagnosticSeverity.WARNING,
+                    "Desktop identity propagation",
+                    "desktop { } is enabled, but appName, version, and appId are all unset, so no identity value " +
+                        "is written to Compose Desktop.",
+                    "Set appName, version, and appId at the kiteSsot { } root, or remove desktop { }.",
+                ),
+            )
+        } else {
+            add(
+                diagnostic(
+                    "KMPS080",
+                    KiteSsotDiagnosticSeverity.PASS,
+                    "Desktop identity propagation",
+                    "desktop { } writes: ${propagated.joinToString("; ")}.",
+                ),
+            )
+        }
+    }
+
+    /**
+     * The one check that carries real weight. `desktop { icons = true }` with no
+     * usable `logo { }` is a hard configuration failure that runs after the
+     * resilient-diagnostic early return, so a real build fails but kiteSsotDoctor
+     * would otherwise stay silent about it. This mirrors that exact condition,
+     * regardless of whether desktop { } itself is enabled.
+     */
+    private fun MutableList<KiteSsotDiagnostic>.diagnoseDesktopIcons(context: KiteSsotDiagnosticContext) {
+        when {
+            context.desktopIconsExplicit == true && !context.propagateLogo -> add(
+                diagnostic(
+                    "KMPS081",
+                    KiteSsotDiagnosticSeverity.ERROR,
+                    "Desktop app icons",
+                    "desktop { icons = true } is set, but no usable logo { } block is configured.",
+                    "Configure logo { } with a foreground and exactly one of background or backgroundColor, " +
+                        "or remove desktop { icons }.",
+                ),
+            )
+            context.desktopIconsExplicit == false -> add(
+                diagnostic("KMPS081", KiteSsotDiagnosticSeverity.SKIPPED, "Desktop app icons", "desktop { icons = false }; icon generation is off."),
+            )
+            !context.propagateDesktop -> add(
+                diagnostic("KMPS081", KiteSsotDiagnosticSeverity.SKIPPED, "Desktop app icons", "desktop { } is not enabled."),
+            )
+            !context.propagateLogo -> add(
+                diagnostic(
+                    "KMPS081",
+                    KiteSsotDiagnosticSeverity.SKIPPED,
+                    "Desktop app icons",
+                    "logo { } is not configured; desktop icon generation defaults to off.",
+                ),
+            )
+            else -> add(
+                diagnostic(
+                    "KMPS081",
+                    KiteSsotDiagnosticSeverity.PASS,
+                    "Desktop app icons",
+                    "Desktop icon generation is enabled from the configured logo { } art.",
+                ),
+            )
+        }
+    }
+
+    /** Mirrors KMPS061/KMPS062: a soft diagnostic for the same classpath and version gate. */
+    private fun MutableList<KiteSsotDiagnostic>.diagnoseComposeCompatibility(context: KiteSsotDiagnosticContext) {
+        when {
+            !context.composeRequired -> add(
+                diagnostic(
+                    "KMPS082",
+                    KiteSsotDiagnosticSeverity.SKIPPED,
+                    "Compose Gradle plugin compatibility",
+                    "No detected Compose Desktop project needs an enabled typed Compose integration.",
+                ),
+            )
+            !context.composeOnClasspath -> add(
+                diagnostic(
+                    "KMPS082",
+                    KiteSsotDiagnosticSeverity.ERROR,
+                    "Compose Gradle plugin compatibility",
+                    "Compose types are not visible to kitessot, so the active version cannot be verified.",
+                    "Declare org.jetbrains.compose with apply false in the root plugins block.",
+                ),
+            )
+            context.activeComposeVersion == null -> add(
+                diagnostic(
+                    "KMPS082",
+                    KiteSsotDiagnosticSeverity.ERROR,
+                    "Compose Gradle plugin compatibility",
+                    "Could not determine the active Compose Gradle plugin version.",
+                    "Use a Compose release in the supported range 1.11.0 through 1.12.x.",
+                    expected = "1.11.0..1.12.x",
+                ),
+            )
+            !isSupportedComposeVersion(context.activeComposeVersion) -> add(
+                diagnostic(
+                    "KMPS082",
+                    KiteSsotDiagnosticSeverity.ERROR,
+                    "Compose Gradle plugin compatibility",
+                    "Active Compose Gradle plugin ${context.activeComposeVersion} is unsupported.",
+                    "Use a Compose release in the supported range 1.11.0 through 1.12.x.",
+                    expected = "1.11.0..1.12.x",
+                    actual = context.activeComposeVersion,
+                ),
+            )
+            else -> add(
+                diagnostic(
+                    "KMPS082",
+                    KiteSsotDiagnosticSeverity.PASS,
+                    "Compose Gradle plugin compatibility",
+                    "Active Compose Gradle plugin ${context.activeComposeVersion} is supported.",
+                ),
+            )
+        }
+    }
+
+    /** Mirrors KMPS070 (Android application selection) for `modules { desktopApps }`. */
+    private fun MutableList<KiteSsotDiagnostic>.diagnoseDesktopApplicationSelection(context: KiteSsotDiagnosticContext) {
+        if (!context.propagateDesktop) {
+            add(diagnostic("KMPS083", KiteSsotDiagnosticSeverity.SKIPPED, "Desktop application selection", "desktop { } is not enabled."))
+            return
+        }
+        val selected = context.desktopApplicationProjects
+        if (selected.isEmpty()) {
+            val detected = context.detectedDesktopApplicationProjects.distinct().sorted()
+            if (detected.size > 1) {
+                add(
+                    diagnostic(
+                        "KMPS083",
+                        KiteSsotDiagnosticSeverity.ERROR,
+                        "Desktop application selection",
+                        "Multiple Compose Desktop application projects are eligible for active identity values: " +
+                            "${detected.joinToString()}; no explicit modules { desktopApps } selector is configured.",
+                        "Select every intended application explicitly with unique absolute Gradle project paths.",
+                    ),
+                )
+            } else {
+                add(
+                    diagnostic(
+                        "KMPS083",
+                        KiteSsotDiagnosticSeverity.SKIPPED,
+                        "Desktop application selection",
+                        "No explicit modules { desktopApps } selector is configured; " +
+                            if (detected.size == 1) {
+                                "the sole detected application is unambiguous."
+                            } else {
+                                "no Compose Desktop application was detected."
+                            },
+                    ),
+                )
+            }
+            return
+        }
+        val invalid = selected.filter { selector ->
+            runCatching { validateGradleProjectPath(selector, "modules { desktopApps }") }.isFailure
+        }
+        val duplicates = selected.groupingBy { it }.eachCount().filterValues { it > 1 }.keys.sorted()
+        val unknown = selected.asSequence()
+            .filterNot(invalid::contains)
+            .filterNot(context.detectedDesktopApplicationProjects.toSet()::contains)
+            .distinct()
+            .sorted()
+            .toList()
+        val problems = buildList {
+            if (invalid.isNotEmpty()) {
+                add("invalid absolute Gradle project path(s): ${invalid.distinct().joinToString { renderSelector(it) }}")
+            }
+            if (duplicates.isNotEmpty()) {
+                add("duplicate selector(s): ${duplicates.joinToString { renderSelector(it) }}")
+            }
+            if (unknown.isNotEmpty()) {
+                add(
+                    "selector(s) do not identify a detected Compose Desktop application: " +
+                        unknown.joinToString { renderSelector(it) },
+                )
+            }
+        }
+        if (problems.isEmpty()) {
+            add(
+                diagnostic(
+                    "KMPS083",
+                    KiteSsotDiagnosticSeverity.PASS,
+                    "Desktop application selection",
+                    "Every explicit Compose Desktop application selector resolves exactly: ${selected.joinToString()}.",
+                ),
+            )
+        } else {
+            add(
+                diagnostic(
+                    "KMPS083",
+                    KiteSsotDiagnosticSeverity.ERROR,
+                    "Desktop application selection",
+                    problems.joinToString("; "),
+                    "Use unique absolute Gradle paths for projects that apply org.jetbrains.compose and configure " +
+                        "a desktop application (for example :desktopApp).",
+                ),
+            )
+        }
+    }
+
+    /** The bundle ID gets the same treatment as version: checked before Compose sees it. */
+    private fun MutableList<KiteSsotDiagnostic>.diagnoseDesktopBundleId(context: KiteSsotDiagnosticContext) {
+        val raw = context.desktopBundleId
+        if (!context.propagateDesktop || !context.propagateBundleId || raw == null) {
+            add(
+                diagnostic(
+                    "KMPS084",
+                    KiteSsotDiagnosticSeverity.SKIPPED,
+                    "Desktop bundle identifier",
+                    "desktop { } is not enabled, bundle-id propagation is disabled, or appId is unset.",
+                ),
+            )
+            return
+        }
+        runCatching { validateAppleBundleId(raw) }.fold(
+            onSuccess = { value ->
+                add(
+                    diagnostic(
+                        "KMPS084",
+                        KiteSsotDiagnosticSeverity.PASS,
+                        "Desktop bundle identifier",
+                        "Resolved desktop bundle identifier \"$value\" is valid reverse-DNS.",
+                    ),
+                )
+            },
+            onFailure = { failure ->
+                add(
+                    diagnostic(
+                        "KMPS084",
+                        KiteSsotDiagnosticSeverity.ERROR,
+                        "Desktop bundle identifier",
+                        diagnosticExceptionSummary(failure),
+                        "Use reverse-DNS segments containing letters, digits, or hyphens, for appId and " +
+                            "desktop { idSuffix } together.",
+                        actual = diagnosticSafeText(raw, 255),
+                    ),
+                )
+            },
+        )
+    }
+
+    /**
+     * Windows is the only real failure mode, and only when Msi or Exe is an
+     * enabled target format, which this read-only diagnostic cannot see. A numeric
+     * version that would exceed the cap is reported as a warning rather than an
+     * error, so kiteSsotCheck does not fail CI over a format the project may
+     * never enable.
+     */
+    private fun MutableList<KiteSsotDiagnostic>.diagnoseDesktopPackageVersion(context: KiteSsotDiagnosticContext) {
+        val version = context.versionName
+        if (!context.propagateDesktop || !context.propagateVersion || version == null) {
+            add(
+                diagnostic(
+                    "KMPS085",
+                    KiteSsotDiagnosticSeverity.SKIPPED,
+                    "Desktop package version",
+                    "desktop { } is not enabled, version propagation is disabled, or version is unset.",
+                ),
+            )
+            return
+        }
+        val numericComponents = version.split('.').let { parts -> parts.size <= 3 && parts.all { it.toIntOrNull() != null } }
+        if (!numericComponents) {
+            add(
+                diagnostic(
+                    "KMPS085",
+                    KiteSsotDiagnosticSeverity.PASS,
+                    "Desktop package version",
+                    "\"$version\" is not a plain numeric version, so the Windows MSI/EXE component limits do not apply.",
+                ),
+            )
+            return
+        }
+        runCatching { validateDesktopPackageVersion(version, setOf("Msi", "Exe")) }.fold(
+            onSuccess = {
+                add(
+                    diagnostic(
+                        "KMPS085",
+                        KiteSsotDiagnosticSeverity.PASS,
+                        "Desktop package version",
+                        "\"$version\" satisfies the Windows MSI/EXE numeric limits (255, 255, 65535).",
+                    ),
+                )
+            },
+            onFailure = { failure ->
+                add(
+                    diagnostic(
+                        "KMPS085",
+                        KiteSsotDiagnosticSeverity.WARNING,
+                        "Desktop package version",
+                        diagnosticExceptionSummary(failure),
+                        "This only fails the real build when Msi or Exe is an enabled desktop target format, " +
+                            "which kiteSsotDoctor cannot see; lower the offending version component or confirm " +
+                            "those formats stay disabled.",
+                    ),
+                )
+            },
+        )
+    }
+
+    /** Debian names must be lowercase and start with an alphanumeric; an explicit override always wins. */
+    private fun MutableList<KiteSsotDiagnostic>.diagnoseDesktopLinuxPackageName(context: KiteSsotDiagnosticContext) {
+        val appName = context.appName
+        if (!context.propagateDesktop || !context.propagateAppName || appName == null) {
+            add(
+                diagnostic(
+                    "KMPS086",
+                    KiteSsotDiagnosticSeverity.SKIPPED,
+                    "Desktop Linux package name",
+                    "desktop { } is not enabled, app-name propagation is disabled, or appName is unset.",
+                ),
+            )
+            return
+        }
+        val explicit = context.desktopLinuxPackageName
+        if (explicit != null) {
+            add(
+                diagnostic(
+                    "KMPS086",
+                    KiteSsotDiagnosticSeverity.PASS,
+                    "Desktop Linux package name",
+                    "desktop { linuxPackageName } is set explicitly to \"$explicit\"; no derivation is needed.",
+                ),
+            )
+            return
+        }
+        runCatching { deriveLinuxPackageName(appName) }.fold(
+            onSuccess = { slug ->
+                add(
+                    diagnostic(
+                        "KMPS086",
+                        KiteSsotDiagnosticSeverity.PASS,
+                        "Desktop Linux package name",
+                        "appName derives to the Debian-legal package name \"$slug\" when Deb or Rpm is enabled.",
+                    ),
+                )
+            },
+            onFailure = { failure ->
+                add(
+                    diagnostic(
+                        "KMPS086",
+                        KiteSsotDiagnosticSeverity.ERROR,
+                        "Desktop Linux package name",
+                        diagnosticExceptionSummary(failure),
+                        "Set desktop { linuxPackageName } explicitly.",
+                    ),
+                )
+            },
+        )
+    }
+
+    /** kiteSsotDoctor always prints the resolved UUID, whether derived or not, so it can be checked before release. */
+    private fun MutableList<KiteSsotDiagnostic>.diagnoseWindowsUpgradeCode(context: KiteSsotDiagnosticContext) {
+        val appId = context.appId
+        when {
+            !context.propagateDesktop -> add(
+                diagnostic("KMPS087", KiteSsotDiagnosticSeverity.SKIPPED, "Windows upgrade code", "desktop { } is not enabled."),
+            )
+            !context.desktopDeriveUpgradeUuid -> add(
+                diagnostic(
+                    "KMPS087",
+                    KiteSsotDiagnosticSeverity.SKIPPED,
+                    "Windows upgrade code",
+                    "desktop { deriveUpgradeUuid } is disabled (the default); jpackage derives an upgrade code " +
+                        "from the app name unless windows.upgradeUuid is set explicitly, and that code changes " +
+                        "if the app is renamed.",
+                ),
+            )
+            !context.propagateBundleId || appId == null -> add(
+                diagnostic(
+                    "KMPS087",
+                    KiteSsotDiagnosticSeverity.SKIPPED,
+                    "Windows upgrade code",
+                    "desktop { deriveUpgradeUuid } is enabled, but bundle-id propagation is disabled or appId is unset.",
+                ),
+            )
+            else -> add(
+                diagnostic(
+                    "KMPS087",
+                    KiteSsotDiagnosticSeverity.PASS,
+                    "Windows upgrade code",
+                    "appId derives to Windows upgradeUuid ${deriveUpgradeUuid(appId)}. " +
+                        "An upgradeUuid already set on the module always wins.",
+                ),
+            )
+        }
     }
 
     private fun MutableList<KiteSsotDiagnostic>.diagnoseAndroidApplicationSelection(

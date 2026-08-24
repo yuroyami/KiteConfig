@@ -510,6 +510,16 @@ class KiteSsotPlugin : Plugin<Project> {
                     diagnosticBoolean { ext.effectiveBuildConfigEnabled.get() } ||
                     (diagnosticBoolean { ext.effectiveJvmTarget.isPresent } &&
                         (detectedKmpProjects.isNotEmpty() || detectedKotlinJvmProjects.isNotEmpty()))
+            // Read-only reflection, safe to run ahead of the resilient-diagnostic early
+            // return below: doctor/check need the desktop-app census regardless of
+            // whether this invocation is resilient.
+            val diagnosticDetectedDesktopApplications = if (COMPOSE_ON_CLASSPATH) {
+                detectedComposeProjects.filter { path -> target.findProject(path)?.let(DesktopWiring::isDesktopApp) == true }
+            } else {
+                emptyList()
+            }
+            val diagnosticNeedsComposeIntegration = detectedComposeProjects.isNotEmpty() &&
+                diagnosticBoolean { ext.effectiveDesktopEnabled.get() }
             listOf(doctorTask, checkTask).forEach { diagnosticTask ->
                 diagnosticTask.configure {
                     detectedAndroidApplicationProjects.set(detectedAndroidApplications.toList())
@@ -519,6 +529,8 @@ class KiteSsotPlugin : Plugin<Project> {
                     androidResPaths.set(resourceDirectories.map { it.resolve("src/main/res").path })
                     agpRequired.set(diagnosticNeedsAndroidIntegration)
                     kgpRequired.set(diagnosticNeedsKgpIntegration)
+                    composeRequired.set(diagnosticNeedsComposeIntegration)
+                    detectedDesktopApplicationProjects.set(diagnosticDetectedDesktopApplications)
                 }
             }
             configurePlanTask(
@@ -1271,6 +1283,7 @@ class KiteSsotPlugin : Plugin<Project> {
                     } else {
                         "explicit targets"
                     },
+                    "desktop.identity" to if (ext.effectiveDesktopEnabled.get()) "enabled" else "disabled",
                     "sourceMutationDuringBuild" to "disabled",
                 )
             })
@@ -1405,6 +1418,15 @@ class KiteSsotPlugin : Plugin<Project> {
                     ext.effectiveBuildConfigEnabled.get()
             }
         )
+        propagateDesktop.set(ext.effectiveDesktopEnabled)
+        desktopIconsExplicit.set(ext.desktop.icons)
+        composeOnClasspath.set(COMPOSE_ON_CLASSPATH)
+        if (COMPOSE_ON_CLASSPATH) runtimeComposeVersion()?.let(this.activeComposeVersion::set)
+        desktopApplicationProjects.set(ext.effectiveDesktopApps)
+        appId.set(ext.effectiveAppId)
+        desktopBundleId.set(ext.effectiveAppId.zip(ext.desktop.idSuffix.orElse("")) { base, suffix -> base + suffix })
+        desktopLinuxPackageName.set(ext.desktop.linuxPackageName)
+        desktopDeriveUpgradeUuid.set(ext.desktop.deriveUpgradeUuid.orElse(false))
     }
 
     /**
@@ -1618,12 +1640,19 @@ class KiteSsotPlugin : Plugin<Project> {
             ).`package`.implementationVersion
         }.getOrNull()
 
+        /**
+         * The published `compose-gradle-plugin` jar carries no `Implementation-Version`
+         * manifest entry, so `Package.implementationVersion` (the mechanism AGP and KGP
+         * use above) always reads null here. Compose instead bakes its version into a
+         * `const val` on this generated object, which reflection reads as a plain
+         * static field with no instance required.
+         */
         private fun runtimeComposeVersion(): String? = runCatching {
             Class.forName(
-                "org.jetbrains.compose.ComposePlugin",
+                "org.jetbrains.compose.ComposeBuildConfig",
                 false,
                 KiteSsotPlugin::class.java.classLoader,
-            ).`package`?.implementationVersion
+            ).getField("composeGradlePluginVersion").get(null) as? String
         }.getOrNull()
 
         private fun runtimeAgpVersion(): String? = runCatching {

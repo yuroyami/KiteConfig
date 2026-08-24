@@ -139,6 +139,7 @@ public final class io/github/yuroyami/kitessot/KiteSsotDiagnosticReportFormat : 
 public abstract class io/github/yuroyami/kitessot/KiteSsotDiagnosticTaskBase : org/gradle/api/DefaultTask {
 	public fun <init> ()V
 	public abstract fun getActiveAgpVersion ()Lorg/gradle/api/provider/Property;
+	public abstract fun getActiveComposeVersion ()Lorg/gradle/api/provider/Property;
 	public abstract fun getActiveKgpVersion ()Lorg/gradle/api/provider/Property;
 	public abstract fun getAgpOnClasspath ()Lorg/gradle/api/provider/Property;
 	public abstract fun getAgpRequired ()Lorg/gradle/api/provider/Property;
@@ -148,11 +149,20 @@ public abstract class io/github/yuroyami/kitessot/KiteSsotDiagnosticTaskBase : o
 	public abstract fun getAndroidManifestPaths ()Lorg/gradle/api/provider/ListProperty;
 	public abstract fun getAndroidResDir ()Lorg/gradle/api/file/DirectoryProperty;
 	public abstract fun getAndroidResPaths ()Lorg/gradle/api/provider/ListProperty;
+	public abstract fun getAppId ()Lorg/gradle/api/provider/Property;
 	public abstract fun getAppName ()Lorg/gradle/api/provider/Property;
 	public abstract fun getAppiconsetDir ()Lorg/gradle/api/file/DirectoryProperty;
 	public abstract fun getCleanupLegacyLogoArtifacts ()Lorg/gradle/api/provider/Property;
 	public abstract fun getColorEnabled ()Lorg/gradle/api/provider/Property;
+	public abstract fun getComposeOnClasspath ()Lorg/gradle/api/provider/Property;
+	public abstract fun getComposeRequired ()Lorg/gradle/api/provider/Property;
+	public abstract fun getDesktopApplicationProjects ()Lorg/gradle/api/provider/ListProperty;
+	public abstract fun getDesktopBundleId ()Lorg/gradle/api/provider/Property;
+	public abstract fun getDesktopDeriveUpgradeUuid ()Lorg/gradle/api/provider/Property;
+	public abstract fun getDesktopIconsExplicit ()Lorg/gradle/api/provider/Property;
+	public abstract fun getDesktopLinuxPackageName ()Lorg/gradle/api/provider/Property;
 	public abstract fun getDetectedAndroidApplicationProjects ()Lorg/gradle/api/provider/ListProperty;
+	public abstract fun getDetectedDesktopApplicationProjects ()Lorg/gradle/api/provider/ListProperty;
 	public abstract fun getFilterAndroidResources ()Lorg/gradle/api/provider/Property;
 	public abstract fun getHasVersionCodeOverride ()Lorg/gradle/api/provider/Property;
 	public abstract fun getInfoPlistFile ()Lorg/gradle/api/file/RegularFileProperty;
@@ -172,6 +182,7 @@ public abstract class io/github/yuroyami/kitessot/KiteSsotDiagnosticTaskBase : o
 	public abstract fun getProjectRootDir ()Lorg/gradle/api/file/DirectoryProperty;
 	public abstract fun getPropagateAppName ()Lorg/gradle/api/provider/Property;
 	public abstract fun getPropagateBundleId ()Lorg/gradle/api/provider/Property;
+	public abstract fun getPropagateDesktop ()Lorg/gradle/api/provider/Property;
 	public abstract fun getPropagateLocaleList ()Lorg/gradle/api/provider/Property;
 	public abstract fun getPropagateLogo ()Lorg/gradle/api/provider/Property;
 	public abstract fun getPropagateVersion ()Lorg/gradle/api/provider/Property;

@@ -1938,6 +1938,68 @@ class KiteSsotPluginFunctionalTest {
     }
 
     /**
+     * The hard configuration failure above used to sit before the resilient-diagnostic
+     * early return, so `kiteSsotDoctor` itself died on the exact misconfiguration it
+     * exists to explain. It now sits after that return, so this must both report
+     * KMPS081 and exit successfully: doctor never fails the build (README.md).
+     */
+    @Test
+    fun `kiteSsotDoctor reports KMPS081 for icons without a logo and still succeeds`() {
+        write("settings.gradle.kts", settingsWithSharedAndDesktop(":desktopApp"))
+        write("build.gradle.kts", desktopRootBuild("icons = true"))
+        write("shared/build.gradle.kts", sharedJvmModule())
+        write(
+            "desktopApp/build.gradle.kts",
+            """
+            ${composeModulePlugins()}
+            compose.desktop {
+                application { mainClass = "MainKt" }
+            }
+            """.trimIndent(),
+        )
+
+        val result = run("kiteSsotDoctor")
+
+        assertTrue(result.output.contains("[FAIL] KMPS081 Desktop app icons"), result.output)
+        assertTrue(result.output.contains("BUILD SUCCESSFUL"), result.output)
+    }
+
+    @Test
+    fun `kiteSsotDoctor reports compose compatibility and desktop application selection for a real project`() {
+        write("settings.gradle.kts", settingsWithSharedAndDesktop(":desktopApp"))
+        write(
+            "build.gradle.kts",
+            desktopRootBuild(
+                logo = """
+                logo {
+                    foreground = file("art/logo_fg.png")
+                    backgroundColor = "#102A43"
+                }
+                """.trimIndent(),
+            ),
+        )
+        write("shared/build.gradle.kts", sharedJvmModule())
+        writePng("art/logo_fg.png", 512)
+        write(
+            "desktopApp/build.gradle.kts",
+            """
+            ${composeModulePlugins()}
+            compose.desktop {
+                application { mainClass = "MainKt" }
+            }
+            """.trimIndent(),
+        )
+
+        val result = run("kiteSsotDoctor")
+
+        assertTrue(result.output.contains("[PASS] KMPS082 Compose Gradle plugin compatibility"), result.output)
+        // No explicit modules { desktopApps } selector; the sole detected app is
+        // unambiguous, which KMPS070 (its Android counterpart) also reports as SKIPPED.
+        assertTrue(result.output.contains("[SKIP] KMPS083 Desktop application selection"), result.output)
+        assertTrue(result.output.contains("[PASS] KMPS080 Desktop identity propagation"), result.output)
+    }
+
+    /**
      * `:ui` applies Compose but configures no application. Naming it through
      * `modules { desktopApps(...) }` must be rejected with a message pointing at it,
      * before `DesktopWiring.write()` initializes Compose's lazy `application`

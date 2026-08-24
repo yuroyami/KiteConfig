@@ -465,6 +465,190 @@ class KiteSsotDiagnosticsTest {
     }
 
     @Test
+    fun `desktop identity reports SKIPPED when the block is off and PASS listing what propagates when on`() {
+        val off = KiteSsotDiagnosticEngine.evaluate(quietContext().copy(propagateDesktop = false))
+            .single { it.id == "KMPS080" }
+        assertEquals(KiteSsotDiagnosticSeverity.SKIPPED, off.severity, off.toString())
+
+        val on = KiteSsotDiagnosticEngine.evaluate(
+            quietContext(propagateAppName = true, appName = "Demo").copy(propagateDesktop = true),
+        ).single { it.id == "KMPS080" }
+        assertEquals(KiteSsotDiagnosticSeverity.PASS, on.severity, on.toString())
+        assertTrue(on.detail.contains("packageName"), on.detail)
+    }
+
+    @Test
+    fun `desktop identity warns when enabled with nothing configured to propagate`() {
+        val finding = KiteSsotDiagnosticEngine.evaluate(quietContext().copy(propagateDesktop = true))
+            .single { it.id == "KMPS080" }
+        assertEquals(KiteSsotDiagnosticSeverity.WARNING, finding.severity, finding.toString())
+    }
+
+    @Test
+    fun `desktop icons is an ERROR for icons = true with no usable logo, even with desktop disabled`() {
+        val finding = KiteSsotDiagnosticEngine.evaluate(
+            quietContext().copy(propagateDesktop = false, desktopIconsExplicit = true, propagateLogo = false),
+        ).single { it.id == "KMPS081" }
+        assertEquals(KiteSsotDiagnosticSeverity.ERROR, finding.severity, finding.toString())
+        assertTrue(finding.detail.contains("desktop { icons = true }"), finding.detail)
+    }
+
+    @Test
+    fun `desktop icons passes an explicit icons = true backed by a logo block`() {
+        val finding = KiteSsotDiagnosticEngine.evaluate(
+            quietContext(propagateLogo = true).copy(propagateDesktop = true, desktopIconsExplicit = true),
+        ).single { it.id == "KMPS081" }
+        assertEquals(KiteSsotDiagnosticSeverity.PASS, finding.severity, finding.toString())
+    }
+
+    @Test
+    fun `desktop icons is SKIPPED when unset and no logo block is configured`() {
+        val finding = KiteSsotDiagnosticEngine.evaluate(
+            quietContext().copy(propagateDesktop = true),
+        ).single { it.id == "KMPS081" }
+        assertEquals(KiteSsotDiagnosticSeverity.SKIPPED, finding.severity, finding.toString())
+    }
+
+    @Test
+    fun `compose compatibility is SKIPPED unless a desktop app requires it`() {
+        val finding = KiteSsotDiagnosticEngine.evaluate(quietContext().copy(composeRequired = false))
+            .single { it.id == "KMPS082" }
+        assertEquals(KiteSsotDiagnosticSeverity.SKIPPED, finding.severity, finding.toString())
+    }
+
+    @Test
+    fun `compose compatibility rejects an unsupported active version`() {
+        val finding = KiteSsotDiagnosticEngine.evaluate(
+            quietContext().copy(composeRequired = true, composeOnClasspath = true, activeComposeVersion = "1.13.0"),
+        ).single { it.id == "KMPS082" }
+        assertEquals(KiteSsotDiagnosticSeverity.ERROR, finding.severity, finding.toString())
+        assertEquals("1.13.0", finding.actual)
+    }
+
+    @Test
+    fun `compose compatibility passes a supported active version`() {
+        val finding = KiteSsotDiagnosticEngine.evaluate(
+            quietContext().copy(composeRequired = true, composeOnClasspath = true, activeComposeVersion = "1.12.0-rc01"),
+        ).single { it.id == "KMPS082" }
+        assertEquals(KiteSsotDiagnosticSeverity.PASS, finding.severity, finding.toString())
+    }
+
+    @Test
+    fun `desktop application selection reports ambiguity across detected candidates`() {
+        val finding = KiteSsotDiagnosticEngine.evaluate(
+            quietContext().copy(
+                propagateDesktop = true,
+                detectedDesktopApplicationProjects = listOf(":deskA", ":deskB"),
+            ),
+        ).single { it.id == "KMPS083" }
+        assertEquals(KiteSsotDiagnosticSeverity.ERROR, finding.severity, finding.toString())
+        assertTrue(finding.detail.contains(":deskA, :deskB"), finding.detail)
+    }
+
+    @Test
+    fun `desktop application selection rejects an unknown explicit selector`() {
+        val finding = KiteSsotDiagnosticEngine.evaluate(
+            quietContext().copy(
+                propagateDesktop = true,
+                desktopApplicationProjects = listOf(":missing"),
+                detectedDesktopApplicationProjects = listOf(":deskA"),
+            ),
+        ).single { it.id == "KMPS083" }
+        assertEquals(KiteSsotDiagnosticSeverity.ERROR, finding.severity, finding.toString())
+        assertTrue(finding.detail.contains("do not identify a detected Compose Desktop application"), finding.detail)
+    }
+
+    @Test
+    fun `desktop application selection passes a selector matching the sole detected app`() {
+        val finding = KiteSsotDiagnosticEngine.evaluate(
+            quietContext().copy(
+                propagateDesktop = true,
+                desktopApplicationProjects = listOf(":deskA"),
+                detectedDesktopApplicationProjects = listOf(":deskA"),
+            ),
+        ).single { it.id == "KMPS083" }
+        assertEquals(KiteSsotDiagnosticSeverity.PASS, finding.severity, finding.toString())
+    }
+
+    @Test
+    fun `desktop bundle identifier rejects an illegal derived value`() {
+        val finding = KiteSsotDiagnosticEngine.evaluate(
+            quietContext().copy(propagateDesktop = true, propagateBundleId = true, desktopBundleId = "com.acme_app"),
+        ).single { it.id == "KMPS084" }
+        assertEquals(KiteSsotDiagnosticSeverity.ERROR, finding.severity, finding.toString())
+    }
+
+    @Test
+    fun `desktop bundle identifier passes a legal derived value`() {
+        val finding = KiteSsotDiagnosticEngine.evaluate(
+            quietContext().copy(propagateDesktop = true, propagateBundleId = true, desktopBundleId = "com.acme.app"),
+        ).single { it.id == "KMPS084" }
+        assertEquals(KiteSsotDiagnosticSeverity.PASS, finding.severity, finding.toString())
+    }
+
+    @Test
+    fun `desktop package version warns only once the numeric Windows caps are exceeded`() {
+        val overCap = KiteSsotDiagnosticEngine.evaluate(
+            quietContext().copy(propagateDesktop = true, propagateVersion = true, versionName = "1.300.0"),
+        ).single { it.id == "KMPS085" }
+        assertEquals(KiteSsotDiagnosticSeverity.WARNING, overCap.severity, overCap.toString())
+
+        val suffixed = KiteSsotDiagnosticEngine.evaluate(
+            quietContext().copy(propagateDesktop = true, propagateVersion = true, versionName = "1.4.0-beta1"),
+        ).single { it.id == "KMPS085" }
+        assertEquals(KiteSsotDiagnosticSeverity.PASS, suffixed.severity, suffixed.toString())
+
+        val withinCap = KiteSsotDiagnosticEngine.evaluate(
+            quietContext().copy(propagateDesktop = true, propagateVersion = true, versionName = "1.4.0"),
+        ).single { it.id == "KMPS085" }
+        assertEquals(KiteSsotDiagnosticSeverity.PASS, withinCap.severity, withinCap.toString())
+    }
+
+    @Test
+    fun `desktop Linux package name reports the derived slug or a resolution failure`() {
+        val derived = KiteSsotDiagnosticEngine.evaluate(
+            quietContext(propagateAppName = true, appName = "Jetzy").copy(propagateDesktop = true),
+        ).single { it.id == "KMPS086" }
+        assertEquals(KiteSsotDiagnosticSeverity.PASS, derived.severity, derived.toString())
+        assertTrue(derived.detail.contains("jetzy"), derived.detail)
+
+        val unresolvable = KiteSsotDiagnosticEngine.evaluate(
+            quietContext(propagateAppName = true, appName = "!!!").copy(propagateDesktop = true),
+        ).single { it.id == "KMPS086" }
+        assertEquals(KiteSsotDiagnosticSeverity.ERROR, unresolvable.severity, unresolvable.toString())
+    }
+
+    @Test
+    fun `desktop Linux package name passes an explicit override without deriving anything`() {
+        val finding = KiteSsotDiagnosticEngine.evaluate(
+            quietContext(propagateAppName = true, appName = "!!!").copy(
+                propagateDesktop = true,
+                desktopLinuxPackageName = "jetzy-linux",
+            ),
+        ).single { it.id == "KMPS086" }
+        assertEquals(KiteSsotDiagnosticSeverity.PASS, finding.severity, finding.toString())
+        assertTrue(finding.detail.contains("jetzy-linux"), finding.detail)
+    }
+
+    @Test
+    fun `windows upgrade code is SKIPPED by default and PASS with the derived value once opted in`() {
+        val off = KiteSsotDiagnosticEngine.evaluate(quietContext().copy(propagateDesktop = true))
+            .single { it.id == "KMPS087" }
+        assertEquals(KiteSsotDiagnosticSeverity.SKIPPED, off.severity, off.toString())
+
+        val on = KiteSsotDiagnosticEngine.evaluate(
+            quietContext().copy(
+                propagateDesktop = true,
+                propagateBundleId = true,
+                desktopDeriveUpgradeUuid = true,
+                appId = "com.acme.app",
+            ),
+        ).single { it.id == "KMPS087" }
+        assertEquals(KiteSsotDiagnosticSeverity.PASS, on.severity, on.toString())
+        assertTrue(on.detail.contains(deriveUpgradeUuid("com.acme.app")), on.detail)
+    }
+
+    @Test
     fun `json report is deterministic and escapes source text`() {
         val finding = KiteSsotDiagnostic(
             id = "KMPS777",
