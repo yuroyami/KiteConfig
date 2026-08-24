@@ -549,6 +549,14 @@ class KiteSsotPlugin : Plugin<Project> {
                     validatePublishedBuildNumber(ext.effectiveIosBuildNumber.orNull, published)
                 }
             }
+            val detectedDesktopApplications = detectedComposeProjects.filter { path ->
+                target.findProject(path)?.let(DesktopWiring::isDesktopApp) == true
+            }
+            if (detectedDesktopApplications.isNotEmpty() && ext.effectivePropagateVersion.get()) {
+                ext.desktop.publishedBuildNumber.orNull?.let { published ->
+                    validatePublishedBuildNumber(ext.effectiveDesktopBuildNumber.orNull, published)
+                }
+            }
             val needsApplicationSelection =
                 (ext.effectivePropagateAppName.get() && ext.effectiveAppName.isPresent) ||
                     (ext.effectivePropagateBundleId.get() && ext.effectiveAppId.isPresent) ||

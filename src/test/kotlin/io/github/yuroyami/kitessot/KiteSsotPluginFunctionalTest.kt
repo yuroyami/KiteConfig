@@ -2021,4 +2021,23 @@ class KiteSsotPluginFunctionalTest {
         val kept = run(":desktopApp:printUpgradeUuid")
         assertTrue(kept.output.contains("RESOLVED=8c247f56-9724-4b95-8503-b47c5c1b0e35"), kept.output)
     }
+
+    @Test
+    fun `a desktop build number that does not beat the published baseline fails the build`() {
+        write("settings.gradle.kts", settingsWithSharedAndDesktop(":desktopApp"))
+        write("build.gradle.kts", desktopRootBuild("publishedBuildNumber = \"9999999999\""))
+        write("shared/build.gradle.kts", sharedJvmModule())
+        write(
+            "desktopApp/build.gradle.kts",
+            """
+            ${composeModulePlugins()}
+            compose.desktop {
+                application { mainClass = "MainKt" }
+            }
+            """.trimIndent(),
+        )
+
+        val result = runAndFail("help")
+        assertTrue(result.output.contains("9999999999"), result.output)
+    }
 }
