@@ -11,9 +11,9 @@ matching platform setting alone. Some values have a convention instead:
 inputs. The model is frozen after root-project evaluation.
 
 Feature blocks are their own switch. Configuring `logo {}`, `ios { sync {} }`,
-`nativeOptIns {}`, `web { ioWorker {} }`, or `buildConfig {}` turns that feature
-on. Leaving the block out keeps it off. You still have to run the explicit tasks
-yourself for anything that changes source files.
+`nativeOptIns {}`, `web { ioWorker {} }`, `buildConfig {}`, or `desktop {}`
+turns that feature on. Leaving the block out keeps it off. You still have to
+run the explicit tasks yourself for anything that changes source files.
 
 The deprecated `Project.kiteSsot` accessor remains for source compatibility.
 It reaches across projects, exposes the mutable root model, and does not support
@@ -30,6 +30,7 @@ configuration or generated values instead.
 | Browser work | Generate a small Kotlin/JS helper for trusted work in a browser Web Worker |
 | Native compiler settings | Add selected Kotlin/Native opt-ins |
 | Apple project updates | Update selected Xcode app targets, source XML plists, and explicit CocoaPods or Swift module references |
+| Desktop packaging | Share app identity and a build number with a Compose Desktop application, generate its installer icons, and derive a stable Windows upgrade code |
 | App icons | Install owned Android launcher icons and an Apple universal AppIcon |
 | Validation | Report resolved values, diagnose setup problems, create CI reports, and preview source-changing work |
 | Release checks | Derive one ordered build number for both platforms, enforce an optional published-code baseline, and offer per-platform re-upload dials |
@@ -59,8 +60,8 @@ supported.
 | `ios.marketingVersion` | `version`, when present | Apple can still use a separate marketing version. |
 | `scheme` | Pack `1`, `major(3)`, `minor(3)`, `patch(2)`, and `rebuild(1)` | One build-number formula for both platforms. |
 | `android.versionCode` | Unset, so the resolved code comes from `scheme` | Assign a value to bypass the formula. |
-| `ios.buildNumber` | Unset, so the resolved number is the `scheme` result as a string | Assign a value to bypass the formula. |
-| `android.rebuild` and `ios.rebuild` | `0` | Re-upload dials. Bump one when a store burns a number. |
+| `ios.buildNumber` and `desktop.buildNumber` | Unset, so the resolved number is the `scheme` result as a string | Assign a value to bypass the formula. |
+| `android.rebuild`, `ios.rebuild`, and `desktop.rebuild` | `0` | Re-upload dials. Bump one when a store burns a number. |
 | `locales` | Discover supported locale-only resource directories when a shared project or resources directory can be resolved | You can replace discovery with an explicit list. |
 | `propagate.appName` | `true` | A present app name can reach enabled platform consumers. |
 | `propagate.bundleId` | `true` | A present app ID can reach enabled platform consumers. |
@@ -87,6 +88,11 @@ supported.
 | `buildConfig.className` | `BuildConfig` | The generated object uses this name. |
 | `buildConfig.includeIdentity` | `true` | Enabling BuildConfig requires complete identity values unless this is set to `false`. |
 | `buildConfig.allowBuildCache` | `false` | Generated values do not enter local or remote Gradle build caches unless you opt in. |
+| `desktop {}` | Not configured | No values reach Compose Desktop, and no installer icons are generated. |
+| `desktop.icons` | `true` | Generates installer icons only while `logo {}` is also configured. |
+| `desktop.roundMacOsIcon` | `true` | The generated macOS icon gets Apple's rounded-square mask. |
+| `desktop.linuxPackageName` | A Debian-legal slug derived from `appName` | Set it yourself when the slug is not the name you publish under. |
+| `desktop.deriveUpgradeUuid` | `false` | The Windows upgrade code is left to jpackage instead of being derived from `appId`. |
 
 ## Reading values in Gradle build logic
 
@@ -199,6 +205,7 @@ Selectors tell KiteSSOT exactly where a value or generated file belongs.
 | Selector | Selection rule |
 |---|---|
 | `modules.androidApps(...)` | Exact absolute Gradle project paths for app identity, app versions, app-name placeholders, locale filtering, and Android icon selection. Without a call, KiteSSOT selects a single detected app. Multiple detected apps require an explicit selector when an app-scoped operation is active. The single Android icon destination accepts at most one effective app. When no Android application plugin is applied, it can use `modules.androidAppDirectory`. SDK and JVM policy are not restricted by this selector. |
+| `modules.desktopApps(...)` | Exact absolute Gradle project paths for desktop app identity, build numbers, packaging names, and installer icons. Without a call, KiteSSOT selects a single detected Compose Desktop application. Multiple detected applications fail configuration and name every candidate. |
 | `modules.shared` | Exact KMP project that owns generated `commonMain` source and provides the default KMP scope. Without a value, KiteSSOT detects a sole KMP project. |
 | `nativeOptIns.projects(...)` | Exact KMP projects that may receive Kotlin/Native opt-ins. Without a call, the scope can fall back to `modules.shared`. |
 | `web.ioWorker.projects(...)` | Exact KMP projects that may receive browser-worker source. Without a call, the scope can fall back to `modules.shared`. |
@@ -393,6 +400,75 @@ The helper executes caller-supplied JavaScript text, so that text must be
 trusted and must not be built from user input.
 
 Node.js-only targets and `wasmJs` are not supported.
+
+## Desktop application packaging
+
+Compose Multiplatform packages a desktop application as a macOS `.dmg` or
+`.pkg`, a Windows `.msi` or `.exe`, or a Linux `.deb`, `.rpm`, or AppImage.
+Configuring `desktop { }` extends the root `appName`, `version`, and `appId`
+to that package, folds its build number into the same `scheme` every other
+platform uses, and generates its installer icons from your `logo { }` art.
+
+When enabled, KiteSSOT:
+
+- shares `appName`, `version`, and `appId` with the detected Compose Desktop
+  application, the same way it does for Android and iOS;
+- folds the desktop build number into the root `scheme`, so `desktop.rebuild`
+  bumps it independently of `android.rebuild` and `ios.rebuild`;
+- generates the macOS `.icns`, Windows `.ico`, and Linux `.png` installer
+  icons from the configured `logo { }` art with `generateKiteSsotDesktopIcons`,
+  writing only to `build/`;
+- wires that task into packaging automatically, with no `dependsOn` for you
+  to write;
+- can derive a stable Windows upgrade code from `appId` with
+  `desktop { deriveUpgradeUuid = true }`, so an MSI upgrades an existing
+  install instead of sitting beside it;
+- derives a Debian-legal Linux package name from `appName` unless
+  `desktop { linuxPackageName }` is set;
+- rejects a resolved `version` outside the Windows MSI/EXE numeric limits
+  before Compose does;
+- offers the same offline `publishedBuildNumber` guard already available for
+  `android { }` and `ios { }`, with failures naming `desktop { }` throughout.
+
+Desktop values are written through the same early callback used for Android
+and iOS. Compose holds identity as plain `var` fields, not lazy `Property`
+objects, and reads them inside its own `afterEvaluate`. KiteSSOT registers
+its write earlier than that; a later registration would let every value
+above land too late.
+
+KiteSSOT selects the sole Compose Desktop application project it detects.
+Two or more candidates fail configuration and name every one of them; select
+the intended project explicitly with `modules { desktopApps(":desktopApp") }`.
+An explicitly selected project that applies `org.jetbrains.compose` but
+configures no desktop application also fails, naming that project.
+
+`desktop { icons = true }` requires a usable `logo { }` block: a foreground
+PNG plus exactly one of a background PNG or a background color. Configuration
+fails otherwise. With no `logo { }` block at all, icon generation defaults
+off instead of failing.
+
+The derived Windows upgrade code is a UUIDv5 built from a fixed namespace,
+`6b0f4c1e-6d4a-5a2f-9c3d-1f6b2a8e7d40`, and your resolved `appId`. This
+namespace is a published contract: changing it would change every upgrade
+code KiteSSOT has ever derived, breaking in-place upgrades for everyone who
+already installed the app. An `upgradeUuid` a module already set is always
+kept.
+
+Windows `.msi` and `.exe` accept only `MAJOR.MINOR.BUILD` versions, with
+MAJOR and MINOR capped at 255 and BUILD at 65535. The cap applies only when
+Msi or Exe is an enabled target format. Debian and RPM package names must
+start with a letter or digit and be at least two characters long; KiteSSOT
+derives one from `appName` or fails, naming `desktop { linuxPackageName }` as
+the escape hatch. The macOS bundle identifier follows the same reverse-DNS
+rule every Apple bundle ID in KiteSSOT uses: letters, digits, hyphens, and
+periods, in at least two dot-separated segments.
+
+`org.jetbrains.compose` refuses to apply without the Kotlin Compose compiler
+plugin, `org.jetbrains.kotlin.plugin.compose`, on the same classpath, so both
+belong in the root `plugins { }` block with `apply false`, for the same
+classloader reason Kotlin and AGP already are. Supported Compose Gradle
+plugin releases are `1.11.0` through `1.12.x`. `kiteSsotDoctor` reports the
+active version's compatibility.
 
 ## Kotlin/Native compiler opt-ins
 
@@ -600,6 +676,7 @@ Stable diagnostic families are:
 | `KMPS050` | Build-number derivation |
 | `KMPS060` to `KMPS062` | KGP visibility and active AGP or KGP compatibility |
 | `KMPS070` to `KMPS071` | Exact Android project and Xcode target selectors |
+| `KMPS080` to `KMPS087` | Desktop identity, icons, Compose plugin compatibility, application selection, bundle identifier, package version, and Linux or Windows packaging names |
 | `KMPS901` to `KMPS940` | Provider, path, and input-fingerprint resolution |
 | `KMPS999` | Unexpected diagnostic-engine failure |
 
@@ -654,6 +731,21 @@ KiteSSOT does not currently provide:
 - secret management;
 - `pod install`;
 - release upload;
-- automatic version increments.
+- automatic version increments;
+- a Windows or Linux desktop build number;
+- desktop locale propagation;
+- desktop `vendor`, `description`, or `copyright` management;
+- a verified real signed DMG, a real MSI upgrade across two versions, or a
+  real Debian install produced from these outputs.
 
 These are explicit product boundaries, not implied features.
+
+The desktop build-number scheme reaches the macOS bundle version only.
+Windows and Linux packaging have no separate build-number field for it to
+fill.
+
+Desktop application detection reads Kotlin `internal` initialization flags on
+Compose's `DesktopExtension` through reflection, since Compose exposes no
+public API for it. If a future Compose release renames those flags,
+auto-detection silently stops finding any desktop application, and you have
+to name it yourself with `modules { desktopApps(":yourApp") }`.

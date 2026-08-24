@@ -35,15 +35,26 @@ commit.
 ## Usage
 
 Add the plugin to the **root** `build.gradle.kts`, alongside Kotlin and AGP.
-Both stay `apply false`: KiteSSOT reads their typed classes from its own
-classloader, and that only works when they are declared at the root, not
-inside a subproject's `plugins { }` block.
+A module that packages a Compose Desktop app also needs
+`org.jetbrains.compose` and `org.jetbrains.kotlin.plugin.compose` declared at
+the root.
+
+Every one of those stays `apply false`: KiteSSOT reads their typed classes
+from its own classloader, and that only works when they are declared at the
+root, not inside a subproject's `plugins { }` block. Compose adds its own
+rule on top of that: `org.jetbrains.compose` refuses to apply without the
+Kotlin Compose compiler plugin on the same classpath, so the two are always
+declared together. Give `org.jetbrains.kotlin.plugin.compose` the same
+version as `kotlin("multiplatform")` above; that plugin tracks the Kotlin
+release, not the Compose one.
 
 ```kotlin
 // <repo-root>/build.gradle.kts
 plugins {
     kotlin("multiplatform") version "2.4.10" apply false
     id("com.android.application") version "9.3.1" apply false
+    id("org.jetbrains.compose") version "1.12.0-rc01" apply false
+    id("org.jetbrains.kotlin.plugin.compose") version "2.4.10" apply false
     id("io.github.yuroyami.kitessot") version "3.0.0"
 }
 ```
@@ -176,6 +187,20 @@ kiteSsot {
         booleanField("ANALYTICS_ENABLED", true)
         doubleField("SAMPLE_RATE", 0.25)
     }
+
+    // ---- desktop (Compose Multiplatform): configuring this block IS the opt-in ----
+    desktop {
+        enabled = true                  // false always wins, even over a configured block
+        idSuffix = ".desktop"           // default: empty, so the desktop bundle ID equals appId
+        // buildNumber = "42"           // default: the root scheme, rendered as text; assign to bypass it
+        rebuild = 2                     // default: 0. Bump it for a re-package that does not bump the version
+        // scheme { v -> ... }          // rare: override the root scheme for desktop alone
+        // publishedBuildNumber = "1001004000" // release guard: the next resolved number must beat this, componentwise
+        icons = true                    // default: true while logo { } is configured; writes only to build/
+        roundMacOsIcon = true           // default: true. Apple's rounded-square mask; macOS icon only
+        linuxPackageName = "jetzy"      // default: a Debian-legal slug derived from appName
+        deriveUpgradeUuid = true        // default: false. Stable UUIDv5 from appId, so an MSI upgrades in place
+    }
 }
 ```
 
@@ -224,13 +249,22 @@ yourself. Configuring a block therefore does not always make something happen.
 
 **Gradle configuration is automatic and continuous.** The four `propagate { }`
 switches, plus `android { applySdkLevels }`, `android { filterResourcesToLocales }`,
-`buildConfig { }` and `web { ioWorker { } }`, govern the values KiteSSOT applies
-on every build: Android identity and SDK levels, Java and Kotlin JVM alignment,
-and Kotlin source generated into `build/`.
+`buildConfig { }`, `web { ioWorker { } }` and `desktop { }`, govern the values
+KiteSSOT applies on every build: Android identity and SDK levels, Java and
+Kotlin JVM alignment, Kotlin source generated into `build/`, and Compose
+Desktop identity, build number and installer icons.
 
 **Source-tree edits are opt-in and manual.** `ios { sync { } }` and `logo { }`
 are authorization gates. They unlock tasks and never run them. `logo { }` is the
-one that surprises people: it looks automatic, but on its own it writes nothing.
+one that surprises people: it looks automatic, but on its own it writes nothing
+for Android or Apple.
+
+Desktop breaks that pattern on purpose. The same `logo { }` art that only
+*unlocks* the Android and Apple installers *feeds* the desktop icon generator
+directly: once `desktop { }` and `logo { }` are both configured, the macOS,
+Windows and Linux installer icons generate on every build, wired into
+packaging with no task for you to run. The output never leaves `build/`, so
+it carries none of the source-tree safety machinery below either.
 
 Installing the Apple app icon needs three things: a `logo { }` block, an
 `ios { sync { } }` block, and `ios { deploymentTarget }`. You then still run
@@ -252,6 +286,7 @@ lifecycle task, so the mutating ones run only when named.
 | `kiteSsotCheck` | `build/` | Same checks, writes a JSON or SARIF report, fails on ERROR findings |
 | `generateKiteSsotBuildConfig` | `build/` | The `commonMain` constants object |
 | `generateKiteSsotIoWorker<Target>` | `build/` | The browser worker helper |
+| `generateKiteSsotDesktopIcons` | `build/` | The desktop `.icns`, `.ico` and `.png` icons |
 | `kiteSsotSanitizeIosProject` | source | Maintains the SSOT keys in a source XML `Info.plist` |
 | `kiteSsotSyncIosConfig` | source | Applies Xcode build settings, plist, Podfile and Swift plans |
 | `kiteSsotSyncIosLogo` | source | Installs the Apple `AppIcon.appiconset` |
@@ -320,8 +355,21 @@ unchanged.
   created from a blob URL. That normally means `worker-src blob:`.
 - `buildConfig` is not a secret store. Every value reaches generated source, task
   inputs, build scans and shipped binaries.
+- The desktop build-number scheme reaches macOS only. Windows and Linux
+  packaging have no separate build-number field, so `desktop { buildNumber }`
+  and `desktop { rebuild }` affect the macOS bundle version alone.
+- Locales are not propagated to desktop packaging. `desktop { }` also does not
+  manage `vendor`, `description` or `copyright`; set those directly on the
+  Compose `nativeDistributions` block.
+- Desktop application detection reads Kotlin `internal` members on the Compose
+  Desktop extension reflectively, since Compose exposes no public API for it.
+  If a future Compose release renames them, detection degrades to requiring an
+  explicit `modules { desktopApps(...) }` selector instead of silently
+  detecting nothing.
 - Nobody has yet verified a real Xcode archive, signing or App Store upload driven
   by these outputs, or live browser CSP execution of the worker.
+- Nobody has yet verified a real signed DMG, a real MSI upgrade across two
+  versions, or a real Debian install driven by these outputs.
 
 ## Releasing
 

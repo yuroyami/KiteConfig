@@ -4,6 +4,35 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions track the
 Gradle Plugin Portal releases.
 
+## [3.1.0]
+
+### Added
+- **A Compose Desktop app no longer keeps its own separate identity.** A KMP
+  repo already had Android and iOS covered, but its desktop package (macOS
+  `.dmg`/`.pkg`, Windows `.msi`/`.exe`, Linux `.deb`/`.rpm`/AppImage) held its
+  name, version, and bundle ID in the Compose `nativeDistributions` block,
+  invisible to the SSOT. The new `desktop { }` block extends the same root
+  `appName`, `version`, and `appId` there, and folds its build number into
+  the same `scheme` the other two platforms already share. Propagation is
+  automatic and continuous, like `buildConfig { }`, not a manual
+  authorization gate like `logo { }`. It also gets the same offline
+  `publishedBuildNumber` release guard `ios { }` already had.
+- **Installer icons no longer need their own hand-maintained files.** Without
+  this, a desktop app shipped Compose's placeholder icon, or someone
+  maintained a `.icns`, `.ico`, and `.png` by hand, separate from the
+  `logo { }` art already driving the Android and Apple icons.
+  `generateKiteSsotDesktopIcons` now renders all three from that same art
+  straight into `build/`, and desktop packaging picks them up with no
+  `dependsOn` to write.
+- **A Windows MSI can now upgrade an install instead of sitting beside it.**
+  jpackage derives the MSI upgrade code from the app name unless
+  `windows.upgradeUuid` is set, so renaming the app silently breaks in-place
+  upgrades for everyone already installed. `desktop { deriveUpgradeUuid }`
+  derives a stable UUIDv5 from `appId` instead, so the identity, not the
+  name, decides the code. KiteSSOT also now rejects a `version` over the
+  Windows MSI/EXE limits (255, 255, 65535) before jpackage does, and
+  validates the resolved macOS, Windows, and Linux identifiers up front.
+
 ## [3.0.2]
 
 ### Fixed
