@@ -127,4 +127,12 @@ class VersionCodeTest {
         }
         assertTrue(invalidBaseline.message.orEmpty().contains("android { publishedVersionCode }"))
     }
+
+    @Test
+    fun `a desktop failure names the desktop override, not the android one`() {
+        val failure = assertThrows(GradleException::class.java) {
+            computeVersionCode(VersionSchemes.DEFAULT, "1.2.3-rc1", 0, "desktop")
+        }
+        assertTrue(failure.message!!.contains("desktop { buildNumber"), failure.message)
+    }
 }

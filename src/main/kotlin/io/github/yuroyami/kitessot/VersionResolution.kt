@@ -43,6 +43,7 @@ internal fun computeVersionCode(
 ): Int {
     val property = when (platform) {
         "ios" -> "ios { buildNumber = ... }"
+        "desktop" -> "desktop { buildNumber = ... }"
         else -> "android { versionCode = ... }"
     }
     requireRebuild(rebuild, platform)
