@@ -1472,6 +1472,25 @@ class KiteSsotPlugin : Plugin<Project> {
             false
         }
 
+        /**
+         * Whether the (compileOnly) Compose Gradle plugin classes are loadable from
+         * kitessot's own classloader. False when the consumer declares
+         * org.jetbrains.compose only in a subproject, which puts it in a sibling
+         * classloader.
+         */
+        internal val COMPOSE_ON_CLASSPATH: Boolean = try {
+            Class.forName(
+                "org.jetbrains.compose.desktop.DesktopExtension",
+                false,
+                KiteSsotPlugin::class.java.classLoader,
+            )
+            true
+        } catch (_: ClassNotFoundException) {
+            false
+        } catch (_: LinkageError) {
+            false
+        }
+
         internal val AGP_ON_CLASSPATH: Boolean = try {
             Class.forName(
                 "com.android.build.api.variant.ApplicationAndroidComponentsExtension",
@@ -1491,6 +1510,14 @@ class KiteSsotPlugin : Plugin<Project> {
                 false,
                 KiteSsotPlugin::class.java.classLoader,
             ).`package`.implementationVersion
+        }.getOrNull()
+
+        private fun runtimeComposeVersion(): String? = runCatching {
+            Class.forName(
+                "org.jetbrains.compose.ComposePlugin",
+                false,
+                KiteSsotPlugin::class.java.classLoader,
+            ).`package`?.implementationVersion
         }.getOrNull()
 
         private fun runtimeAgpVersion(): String? = runCatching {

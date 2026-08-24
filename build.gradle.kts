@@ -219,6 +219,9 @@ dependencies {
     compileOnly(libs.android.gradle.api)
     compileOnly(libs.kotlin.gradle.plugin.api)
     compileOnly(libs.kotlin.gradle.plugin)
+    // Compose Desktop identity propagation needs the typed DSL classes at compile
+    // time only. Consumers bring their own Compose Gradle plugin.
+    compileOnly(libs.compose.gradle.plugin)
 
     testImplementation(libs.junit.jupiter)
     testImplementation(gradleTestKit())
@@ -375,6 +378,10 @@ tasks.named<Jar>("javadocJar") {
 val testKitPluginClasspath: Configuration by configurations.creating
 dependencies {
     testKitPluginClasspath(libs.kotlin.gradle.plugin)
+    testKitPluginClasspath(libs.compose.gradle.plugin)
+    // org.jetbrains.compose refuses to apply without the Kotlin Compose compiler
+    // plugin also on the classpath, so fixtures that apply it need both.
+    testKitPluginClasspath(libs.kotlin.compose.compiler.gradle.plugin)
 }
 tasks.named<org.gradle.plugin.devel.tasks.PluginUnderTestMetadata>("pluginUnderTestMetadata") {
     pluginClasspath.from(testKitPluginClasspath)
