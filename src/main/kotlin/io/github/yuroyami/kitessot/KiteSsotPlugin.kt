@@ -165,6 +165,18 @@ class KiteSsotPlugin : Plugin<Project> {
         val planTask = registerPlanTask(target, colorSupported)
 
         target.afterEvaluate {
+            // Unconditional, even for a resilient diagnostic invocation: unlike an
+            // ambiguous selection, there is no partial finding to report here. An
+            // explicit icons = true with no usable logo can never render anything, so
+            // every invocation, including kiteSsotVerify, fails config the same way.
+            // Leaving logo { } unconfigured still turns icons off quietly (effectiveDesktopIcons).
+            if (ext.desktop.icons.orNull == true && !ext.effectivePropagateLogo.get()) {
+                throw GradleException(
+                    "kiteSsot { desktop { icons = true } } needs a logo { } block with a foreground and " +
+                        "exactly one of background or backgroundColor. Configure logo { }, or remove " +
+                        "desktop { icons }.",
+                )
+            }
             // Freeze the authoritative root model before any subproject build
             // script can mutate it. Diagnostic-only invocations lock without
             // realizing values so their tasks can report provider failures.

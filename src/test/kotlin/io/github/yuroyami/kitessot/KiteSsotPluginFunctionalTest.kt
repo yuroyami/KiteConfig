@@ -1705,7 +1705,7 @@ class KiteSsotPluginFunctionalTest {
         kotlin { jvm() }
     """.trimIndent()
 
-    private fun desktopRootBuild(body: String = "") = """
+    private fun desktopRootBuild(body: String = "", logo: String = "") = """
         plugins {
             id("org.jetbrains.kotlin.multiplatform") apply false
             id("org.jetbrains.kotlin.plugin.compose") apply false
@@ -1718,6 +1718,7 @@ class KiteSsotPluginFunctionalTest {
             version = "1.2.3"
             appId = "com.acme.app"
             desktop { $body }
+            $logo
         }
     """.trimIndent()
 
@@ -1863,5 +1864,76 @@ class KiteSsotPluginFunctionalTest {
         val appTasks = run(":desktopApp:tasks", "--all")
         assertTrue(appTasks.output.contains("createDistributable"), appTasks.output)
         assertTrue(appTasks.output.contains("packageDistributionForCurrentOS"), appTasks.output)
+    }
+
+    /**
+     * Icons are generated into `build/` and wired through `iconFile`, a real
+     * `RegularFileProperty`. Every declared target format's package task reads its
+     * icon from the current host's DSL platform block regardless of that task's own
+     * target OS, so one task registration and `--dry-run` (never real jpackage
+     * execution) is enough on any CI host.
+     */
+    @Test
+    fun `packaging depends on generated desktop icons without an explicit dependsOn`() {
+        write("settings.gradle.kts", settingsWithSharedAndDesktop(":desktopApp"))
+        write(
+            "build.gradle.kts",
+            desktopRootBuild(
+                logo = """
+                logo {
+                    foreground = file("art/logo_fg.png")
+                    backgroundColor = "#102A43"
+                }
+                """.trimIndent(),
+            ),
+        )
+        write("shared/build.gradle.kts", sharedJvmModule())
+        writePng("art/logo_fg.png", 512)
+        write(
+            "desktopApp/build.gradle.kts",
+            """
+            ${composeModulePlugins()}
+            compose.desktop {
+                application {
+                    mainClass = "MainKt"
+                    nativeDistributions {
+                        targetFormats(
+                            org.jetbrains.compose.desktop.application.dsl.TargetFormat.Dmg,
+                            org.jetbrains.compose.desktop.application.dsl.TargetFormat.Msi,
+                            org.jetbrains.compose.desktop.application.dsl.TargetFormat.Deb,
+                        )
+                    }
+                }
+            }
+            """.trimIndent(),
+        )
+
+        val result = run(":desktopApp:packageDistributionForCurrentOS", "--dry-run")
+
+        assertTrue(
+            result.output.contains(":desktopApp:generateKiteSsotDesktopIcons SKIPPED"),
+            "the icon task must be in the packaging graph: ${result.output}",
+        )
+    }
+
+    @Test
+    fun `desktop icons without a logo block fail and name both blocks`() {
+        write("settings.gradle.kts", settingsWithSharedAndDesktop(":desktopApp"))
+        write("build.gradle.kts", desktopRootBuild("icons = true"))
+        write("shared/build.gradle.kts", sharedJvmModule())
+        write(
+            "desktopApp/build.gradle.kts",
+            """
+            ${composeModulePlugins()}
+            compose.desktop {
+                application { mainClass = "MainKt" }
+            }
+            """.trimIndent(),
+        )
+
+        val result = runAndFail("kiteSsotVerify")
+
+        assertTrue(result.output.contains("desktop { icons = true }"), result.output)
+        assertTrue(result.output.contains("logo { }"), result.output)
     }
 }

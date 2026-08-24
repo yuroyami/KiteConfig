@@ -47,6 +47,18 @@ public abstract class io/github/yuroyami/kitessot/GenerateBuildConfigTask : org/
 	public abstract fun getVersionName ()Lorg/gradle/api/provider/Property;
 }
 
+public abstract class io/github/yuroyami/kitessot/GenerateDesktopIconsTask : org/gradle/api/DefaultTask {
+	public fun <init> ()V
+	public final fun generate ()V
+	public abstract fun getBackground ()Lorg/gradle/api/file/RegularFileProperty;
+	public abstract fun getBackgroundColor ()Lorg/gradle/api/provider/Property;
+	public abstract fun getDryRun ()Lorg/gradle/api/provider/Property;
+	public abstract fun getForeground ()Lorg/gradle/api/file/RegularFileProperty;
+	public abstract fun getGeneratedRoot ()Lorg/gradle/api/file/DirectoryProperty;
+	public abstract fun getOutputDir ()Lorg/gradle/api/file/DirectoryProperty;
+	public abstract fun getRoundMacOsIcon ()Lorg/gradle/api/provider/Property;
+}
+
 public abstract class io/github/yuroyami/kitessot/GenerateIoWorkerTask : org/gradle/api/DefaultTask {
 	public fun <init> ()V
 	public final fun generate ()V

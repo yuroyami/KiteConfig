@@ -2,6 +2,8 @@ package io.github.yuroyami.kitessot
 
 import org.gradle.api.Project
 import org.gradle.api.plugins.ExtensionAware
+import org.gradle.api.tasks.TaskProvider
+import org.gradle.kotlin.dsl.register
 import org.jetbrains.compose.desktop.DesktopExtension
 import org.jetbrains.compose.desktop.application.dsl.AbstractDistributions
 import org.jetbrains.compose.desktop.application.dsl.AbstractMacOSPlatformSettings
@@ -73,19 +75,49 @@ internal object DesktopWiring {
         if (!receivesDesktopValues) return
 
         val drift = SsotDriftLog(project)
+        // One task feeds every distributions model this project ends up with, so it is
+        // registered once here rather than inside writeSharedIdentity/writeJvmOnlyIdentity.
+        val iconTask = registerIconsTask(project, ext, resilient)
         // An explicit selector overrides detection, so a named project is treated as
         // a JVM application even when both flags read false. That is the escape
         // hatch for a Compose release that renames them.
         if (jvmApplication || !nativeApplication) {
             val distributions = desktop.application.nativeDistributions
-            writeSharedIdentity(project, ext, resilient, drift, distributions, distributions.macOS)
-            writeJvmOnlyIdentity(project, ext, resilient, distributions)
+            writeSharedIdentity(project, ext, resilient, drift, distributions, distributions.macOS, iconTask)
+            writeJvmOnlyIdentity(project, ext, resilient, distributions, iconTask)
         }
         if (nativeApplication) {
             val distributions = desktop.nativeApplication.distributions
-            writeSharedIdentity(project, ext, resilient, drift, distributions, distributions.macOS)
+            writeSharedIdentity(project, ext, resilient, drift, distributions, distributions.macOS, iconTask)
         }
         drift.report()
+    }
+
+    /**
+     * Registers the icon generator for this project, or returns null when
+     * `desktop { icons }` resolves false. `logo { }` completeness is guaranteed by the
+     * root validation that runs before this: it fails configuration for an explicit
+     * `icons = true` with no usable logo, so by the time [KiteSsotExtension.effectiveDesktopIcons]
+     * reads true here, foreground plus exactly one background is already in place.
+     */
+    private fun registerIconsTask(
+        project: Project,
+        ext: KiteSsotExtension,
+        resilient: Boolean,
+    ): TaskProvider<GenerateDesktopIconsTask>? {
+        var iconsEnabled = false
+        project.wireValueGroup(resilient, "the desktop icon selection") {
+            iconsEnabled = ext.effectiveDesktopIcons.get()
+        }
+        if (!iconsEnabled) return null
+        return project.tasks.register<GenerateDesktopIconsTask>("generateKiteSsotDesktopIcons") {
+            foreground.set(ext.effectiveLogoForeground)
+            background.set(ext.effectiveLogoBackground)
+            backgroundColor.set(ext.effectiveLogoBackgroundColor)
+            roundMacOsIcon.set(ext.desktop.roundMacOsIcon.orElse(true))
+            outputDir.set(project.layout.buildDirectory.dir("generated/kitessot/desktop-icons"))
+            dryRun.set(ext.effectiveDryRun)
+        }
     }
 
     /** The values both application models share, typed against their common bases. */
@@ -96,6 +128,7 @@ internal object DesktopWiring {
         drift: SsotDriftLog,
         distributions: AbstractDistributions,
         macOS: AbstractMacOSPlatformSettings,
+        iconTask: TaskProvider<GenerateDesktopIconsTask>?,
     ) {
         project.wireValueGroup(resilient, "the desktop package name") {
             if (ext.effectivePropagateAppName.get() && ext.effectiveAppName.isPresent) {
@@ -127,6 +160,13 @@ internal object DesktopWiring {
                 }
             }
         }
+        // A provider carrying task provenance, never a resolved File: this is what lets
+        // Gradle infer that packaging depends on generateKiteSsotDesktopIcons.
+        if (iconTask != null) {
+            project.wireValueGroup(resilient, "the desktop macOS icon") {
+                macOS.iconFile.set(iconTask.flatMap { it.outputDir.file("app.icns") })
+            }
+        }
     }
 
     /** Windows and Linux exist only on the JVM application model. */
@@ -135,6 +175,7 @@ internal object DesktopWiring {
         ext: KiteSsotExtension,
         resilient: Boolean,
         distributions: JvmApplicationDistributions,
+        iconTask: TaskProvider<GenerateDesktopIconsTask>?,
     ) {
         project.wireValueGroup(resilient, "the Linux package name") {
             val linux = distributions.linux
@@ -157,6 +198,14 @@ internal object DesktopWiring {
                 ext.effectiveAppId.isPresent
             ) {
                 windows.upgradeUuid = deriveUpgradeUuid(ext.effectiveAppId.get())
+            }
+        }
+        if (iconTask != null) {
+            project.wireValueGroup(resilient, "the desktop Windows icon") {
+                distributions.windows.iconFile.set(iconTask.flatMap { it.outputDir.file("app.ico") })
+            }
+            project.wireValueGroup(resilient, "the desktop Linux icon") {
+                distributions.linux.iconFile.set(iconTask.flatMap { it.outputDir.file("app.png") })
             }
         }
     }
