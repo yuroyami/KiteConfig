@@ -337,8 +337,26 @@ class KiteSsotPlugin : Plugin<Project> {
         val kmpAndroidProjectsWithoutComponents = linkedSetOf<String>()
         val androidProjectsWithoutSharedClassloader = linkedSetOf<String>()
         val kmpProjectsWithoutSharedClassloader = linkedSetOf<String>()
+        val detectedComposeProjects = linkedSetOf<String>()
         target.allprojects {
             val consumerProject = this
+            // Registered while the ROOT project is still evaluating, which is what puts
+            // it ahead of the afterEvaluate the Compose plugin registers when this
+            // subproject applies it. Gradle runs afterEvaluate callbacks in registration
+            // order, and Compose reads its plain `var` identity fields inside its own
+            // callback, so second place means every desktop identity write is ignored.
+            // Moving this inside plugins.withId("org.jetbrains.compose") would do exactly
+            // that: withId fires after Compose's apply() has already returned. Leave it here.
+            consumerProject.afterEvaluate {
+                // Compose DSL signatures mention Kotlin Gradle plugin types, so Compose
+                // being visible is not on its own enough to make these calls safe.
+                if (!COMPOSE_ON_CLASSPATH || !KGP_ON_CLASSPATH) return@afterEvaluate
+                if (!ext.effectiveDesktopEnabled.get()) return@afterEvaluate
+                DesktopWiring.write(consumerProject, ext, isResilientDiagnosticInvocation(target))
+            }
+            plugins.withId("org.jetbrains.compose") {
+                detectedComposeProjects += consumerProject.path
+            }
             // The Android wiring runs on the diagnostic invocations too, unlike the KGP
             // wiring below: AGP validates its DSL on every invocation, so a consumer whose
             // compileSdk lives only in kiteSsot { } would fail configuration before the
@@ -662,6 +680,45 @@ class KiteSsotPlugin : Plugin<Project> {
                         "[KITESSOT-COMPAT-004] Unsupported Kotlin Gradle plugin $kgpVersion; " +
                             "this kitessot build supports KGP 2.4.x."
                     )
+                }
+            }
+
+            // Desktop selection needs the whole project census, so it lands here rather
+            // than in the per-project afterEvaluate that writes the identity values.
+            if (ext.effectiveDesktopEnabled.get() && detectedComposeProjects.isNotEmpty()) {
+                if (!COMPOSE_ON_CLASSPATH || !KGP_ON_CLASSPATH) {
+                    throw GradleException(
+                        "[KITESSOT-COMPAT-007] kiteSsot cannot configure requested desktop values in " +
+                            "${detectedComposeProjects.joinToString()}: Compose Gradle plugin classes are " +
+                            "isolated in a sibling classloader. Declare org.jetbrains.compose and " +
+                            "kotlin(\"multiplatform\") with apply false in the root plugins block so Compose " +
+                            "and kitessot share a classloader. No requested desktop value was silently skipped."
+                    )
+                }
+                val selectedDesktopApps = ext.effectiveDesktopApps.get()
+                selectedDesktopApps.forEach { validateGradleProjectPath(it, "modules { desktopApps }") }
+                if (selectedDesktopApps.distinct().size != selectedDesktopApps.size) {
+                    throw GradleException("kiteSsot { modules { desktopApps } } contains duplicate project paths.")
+                }
+                if (selectedDesktopApps.isEmpty()) {
+                    val detectedDesktopApps = detectedComposeProjects.filter { path ->
+                        target.findProject(path)?.let(DesktopWiring::isDesktopApp) == true
+                    }
+                    if (detectedDesktopApps.size > 1) {
+                        throw GradleException(
+                            "kiteSsot found multiple Compose Desktop application projects while desktop " +
+                                "values are enabled: ${detectedDesktopApps.joinToString()}. Select the " +
+                                "intended targets explicitly with modules { desktopApps(\":desktopApp\") }."
+                        )
+                    }
+                } else {
+                    val unknown = selectedDesktopApps.toSet() - detectedComposeProjects
+                    if (unknown.isNotEmpty()) {
+                        throw GradleException(
+                            "kiteSsot { modules { desktopApps } } contains project paths that do not apply " +
+                                "org.jetbrains.compose: ${unknown.sorted().joinToString()}."
+                        )
+                    }
                 }
             }
 

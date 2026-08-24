@@ -59,6 +59,10 @@ class KiteSsotPluginFunctionalTest {
         include(":shared")
     """.trimIndent()
 
+    /** [settingsWithShared] plus the extra modules a Compose Desktop fixture needs. */
+    private fun settingsWithSharedAndDesktop(vararg desktopModules: String) =
+        settingsWithShared() + desktopModules.joinToString("") { "\ninclude(\"$it\")" }
+
     /**
      * Minimal but structurally real pbxproj graph. Each application target owns one
      * configuration list and one XCBuildConfiguration containing every setting the
@@ -1690,5 +1694,174 @@ class KiteSsotPluginFunctionalTest {
 
         val result = run("kiteSsotVerify")
         assertTrue(result.output.contains("com.acme.app.desktop"), result.output)
+    }
+
+    // --- Compose Desktop ------------------------------------------------------
+    // Every fixture below applies org.jetbrains.kotlin.plugin.compose next to
+    // org.jetbrains.compose: ComposePlugin fails configuration outright without it.
+
+    private fun sharedJvmModule() = """
+        plugins { id("org.jetbrains.kotlin.multiplatform") }
+        kotlin { jvm() }
+    """.trimIndent()
+
+    private fun desktopRootBuild(body: String = "") = """
+        plugins {
+            id("org.jetbrains.kotlin.multiplatform") apply false
+            id("org.jetbrains.kotlin.plugin.compose") apply false
+            id("org.jetbrains.compose") apply false
+            id("io.github.yuroyami.kitessot")
+        }
+        kiteSsot {
+            modules { shared = ":shared" }
+            appName = "Demo"
+            version = "1.2.3"
+            appId = "com.acme.app"
+            desktop { $body }
+        }
+    """.trimIndent()
+
+    private fun composeModulePlugins() = """
+        plugins {
+            id("org.jetbrains.kotlin.multiplatform")
+            id("org.jetbrains.kotlin.plugin.compose")
+            id("org.jetbrains.compose")
+        }
+        kotlin { jvm() }
+    """.trimIndent()
+
+    /**
+     * The load-bearing ordering test. Compose reads its plain `var` identity fields
+     * inside an `afterEvaluate` it registers when the module applies it, so a
+     * KiteSSOT value only lands if KiteSSOT's own callback was registered first.
+     * `StaleName` in the output means KiteSSOT lost that race.
+     */
+    @Test
+    fun `the SSOT replaces a package name the desktop module declared itself`() {
+        write("settings.gradle.kts", settingsWithSharedAndDesktop(":desktopApp"))
+        write("build.gradle.kts", desktopRootBuild())
+        write("shared/build.gradle.kts", sharedJvmModule())
+        write(
+            "desktopApp/build.gradle.kts",
+            """
+            ${composeModulePlugins()}
+            compose.desktop {
+                application {
+                    mainClass = "MainKt"
+                    nativeDistributions { packageName = "StaleName" }
+                }
+            }
+            tasks.register("printDesktopIdentity") {
+                val distributions = compose.desktop.application.nativeDistributions
+                doLast {
+                    println("PACKAGE_NAME=" + distributions.packageName)
+                    println("PACKAGE_VERSION=" + distributions.packageVersion)
+                    println("BUNDLE_ID=" + distributions.macOS.bundleID)
+                    println("BUILD_VERSION=" + distributions.macOS.packageBuildVersion)
+                }
+            }
+            """.trimIndent(),
+        )
+
+        val result = run(":desktopApp:printDesktopIdentity")
+
+        assertTrue(result.output.contains("PACKAGE_NAME=Demo"), result.output)
+        assertTrue(result.output.contains("PACKAGE_VERSION=1.2.3"), result.output)
+        assertTrue(result.output.contains("BUNDLE_ID=com.acme.app"), result.output)
+        assertTrue(result.output.contains("BUILD_VERSION=1001002030"), result.output)
+        assertTrue(
+            result.output.contains("StaleName"),
+            "the drift warning should name what was replaced: ${result.output}",
+        )
+    }
+
+    @Test
+    fun `the native application receives the same identity as the JVM application`() {
+        write("settings.gradle.kts", settingsWithSharedAndDesktop(":nativeApp"))
+        write("build.gradle.kts", desktopRootBuild("idSuffix = \".desktop\""))
+        write("shared/build.gradle.kts", sharedJvmModule())
+        write(
+            "nativeApp/build.gradle.kts",
+            """
+            ${composeModulePlugins()}
+            compose.desktop {
+                nativeApplication {
+                    distributions { packageName = "StaleNative" }
+                }
+            }
+            tasks.register("printNativeIdentity") {
+                val distributions = compose.desktop.nativeApplication.distributions
+                doLast {
+                    println("PACKAGE_NAME=" + distributions.packageName)
+                    println("PACKAGE_VERSION=" + distributions.packageVersion)
+                    println("BUNDLE_ID=" + distributions.macOS.bundleID)
+                    println("BUILD_VERSION=" + distributions.macOS.packageBuildVersion)
+                }
+            }
+            """.trimIndent(),
+        )
+
+        val result = run(":nativeApp:printNativeIdentity")
+
+        assertTrue(result.output.contains("PACKAGE_NAME=Demo"), result.output)
+        assertTrue(result.output.contains("PACKAGE_VERSION=1.2.3"), result.output)
+        assertTrue(result.output.contains("BUNDLE_ID=com.acme.app.desktop"), result.output)
+        assertTrue(result.output.contains("BUILD_VERSION=1001002030"), result.output)
+    }
+
+    @Test
+    fun `two desktop applications without a selector fail and name both candidates`() {
+        write("settings.gradle.kts", settingsWithSharedAndDesktop(":deskA", ":deskB"))
+        write("build.gradle.kts", desktopRootBuild())
+        write("shared/build.gradle.kts", sharedJvmModule())
+        listOf("deskA", "deskB").forEach { module ->
+            write(
+                "$module/build.gradle.kts",
+                """
+                ${composeModulePlugins()}
+                compose.desktop {
+                    application { mainClass = "MainKt" }
+                }
+                """.trimIndent(),
+            )
+        }
+
+        val failure = runAndFail("help")
+
+        assertTrue(failure.output.contains(":deskA"), failure.output)
+        assertTrue(failure.output.contains(":deskB"), failure.output)
+        assertTrue(failure.output.contains("desktopApps"), failure.output)
+    }
+
+    /**
+     * Detection must read the initialization flags without touching `application`.
+     * Touching it initializes the lazy delegate, and Compose then configures
+     * packaging tasks in a module that only draws UI.
+     */
+    @Test
+    fun `a Compose module that is not an application gains no packaging tasks`() {
+        write("settings.gradle.kts", settingsWithSharedAndDesktop(":ui", ":desktopApp"))
+        write("build.gradle.kts", desktopRootBuild())
+        write("shared/build.gradle.kts", sharedJvmModule())
+        write("ui/build.gradle.kts", composeModulePlugins())
+        write(
+            "desktopApp/build.gradle.kts",
+            """
+            ${composeModulePlugins()}
+            compose.desktop {
+                application { mainClass = "MainKt" }
+            }
+            """.trimIndent(),
+        )
+
+        val uiTasks = run(":ui:tasks", "--all")
+        assertFalse(uiTasks.output.contains("createDistributable"), uiTasks.output)
+        assertFalse(uiTasks.output.contains("packageDistributionForCurrentOS"), uiTasks.output)
+
+        // The same run must still produce those tasks for the real application, or
+        // the assertions above would pass for the wrong reason.
+        val appTasks = run(":desktopApp:tasks", "--all")
+        assertTrue(appTasks.output.contains("createDistributable"), appTasks.output)
+        assertTrue(appTasks.output.contains("packageDistributionForCurrentOS"), appTasks.output)
     }
 }
