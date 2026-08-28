@@ -33,6 +33,7 @@ The reshape fixes all three with one law and one layout rule:
 2. **Only two verbs act.**
    * `generate { }`: files appear under `build/` during ordinary builds. Never in the source tree.
    * `rewrite { }`: arms a task that edits your source. Nothing runs until you call the task by name. `dryRun`, `backups`, and `onConflict` always apply.
+   * Verbs appear only nested inside the topic they serve. There are no top-level verb blocks. A topic without a verb inside it is inert facts.
 3. **One topic, one block.** No topic may spread across blocks. Platform details nest inside the topic as corners.
 
 No exceptions. An empty noun block is always a no-op.
@@ -153,16 +154,21 @@ kiteSsot {
         deriveUpgradeUuid = true       // stable Windows MSI upgrade id from appId
     }
 
+    web {
+        ioWorker {                     // browser IO worker source
+            targets("wasmJs")
+            generate { }               // the consent, like everywhere else
+        }
+    }
+
     // ---- Master flow control, same words as everywhere ----
     // skip(desktop)                   // platform receives nothing at all
 
-    generate {
-        buildConfig {
-            packageName = "com.example.jetzy"
-            className   = "AppInfo"
-            stringField("API_HOST", "api.jetzy.app")
-        }
-        ioWorker { targets("wasmJs") }
+    buildConfig {                      // Kotlin object for commonMain
+        packageName = "com.example.jetzy"
+        className   = "AppInfo"
+        stringField("API_HOST", "api.jetzy.app")
+        generate { }                   // no generate inside = inert facts, nothing made
     }
 
     modules {
@@ -188,8 +194,8 @@ kiteSsot {
 | Splash | none | `splash { }`, new topic |
 | Xcode sync | `ios { sync { } }` | `ios { rewrite { } }` |
 | Opt-ins | `nativeOptIns { }` | `optIns { }` |
-| Build config | `buildConfig { }`, presence turns it on | `generate { buildConfig { } }` |
-| IO worker | `web { ioWorker { } }` | `generate { ioWorker { } }` |
+| Build config | `buildConfig { }`, presence turns it on | `buildConfig { }` with nested `generate { }` as the consent |
+| IO worker | `web { ioWorker { } }`, presence turns it on | `web { ioWorker { } }` with nested `generate { }` as the consent |
 | Flow switches | `propagate { }` + `android.applySdkLevels` + `enabled` flags | `skip()` / `only()` at the fact, root `skip(p)` as master |
 | Modules | `modules { }` | unchanged |
 
@@ -234,8 +240,9 @@ Round one covers Android, iOS, and Desktop. Web is out.
 ## What dies
 
 * The entire deprecated 2.x property layer, 30+ root properties.
-* `propagate { }`, `web { }`, `ios.sync`, `desktop.enabled`, `desktop.icons`, all `enabled` flags, all internal `configured` trackers.
+* `propagate { }`, `ios.sync`, `desktop.enabled`, `desktop.icons`, all `enabled` flags, all internal `configured` trackers.
 * The rule "opening a block turns something on". Nothing works that way anymore.
+* `web { }` survives as the web platform block, home of `ioWorker`.
 
 ## Task names
 
