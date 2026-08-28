@@ -54,7 +54,7 @@ class AgpCompatibilityFunctionalTest {
             kiteSsot {
                 appName = 'Gradle Floor App'
                 version = '1.2.3'
-                appId = 'dev.matrix.gradlefloor'
+                id = 'dev.matrix.gradlefloor'
             }
 
             tasks.register('verifyGradleFloor') {
@@ -174,7 +174,7 @@ class AgpCompatibilityFunctionalTest {
             kiteSsot {
                 appName = 'KMP Native Android Fixture'
                 version = '3.4.5'
-                appId = 'dev.matrix.kmpnative'
+                id = 'dev.matrix.kmpnative'
                 android {
                     compileSdk = 35
                     minSdk = 24
@@ -308,7 +308,7 @@ class AgpCompatibilityFunctionalTest {
             kiteSsot {
                 appName = 'Matrix App'
                 version = '2.3.4'
-                appId = 'dev.matrix.ssot'
+                id = 'dev.matrix.ssot'
                 locales.addAll(['en', 'pt-BR'])
                 jvmTarget = 17
                 modules {
@@ -624,8 +624,11 @@ class AgpCompatibilityFunctionalTest {
 
             kiteSsot {
                 appName = 'LibraryOnly'
-                version = '1.4.150'
-                propagate { version = false }
+                version('1.4.150') {
+                    skip(android)
+                    skip(ios)
+                    skip(desktop)
+                }
             }
 
             tasks.register('verifyLibraryBuilds') {

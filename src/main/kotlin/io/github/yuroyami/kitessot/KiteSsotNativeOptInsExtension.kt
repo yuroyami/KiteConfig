@@ -8,7 +8,7 @@ import org.gradle.api.provider.Property
  *
  * ```kotlin
  * kiteSsot {
- *     nativeOptIns {
+ *     optIns {
  *         add("kotlin.experimental.ExperimentalObjCRefinement")
  *     }
  * }

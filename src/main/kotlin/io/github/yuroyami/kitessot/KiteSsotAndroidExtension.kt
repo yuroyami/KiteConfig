@@ -7,16 +7,11 @@ import org.gradle.api.provider.Property
  *
  * ```kotlin
  * kiteSsot {
- *     appId = "com.example.jetzy"
- *     version = "1.4.0"
+ *     id("com.example.jetzy") { android { suffix = ".debug" } }
+ *     version("1.4.0") { android { reupload = 1 } }
  *
  *     android {
- *         idSuffix = ".debug"
- *         rebuild = 1
- *
- *         compileSdk = 36
- *         minSdk = 26
- *         targetSdk = 36
+ *         sdk(min = 26, target = 36, compile = 36)
  *     }
  * }
  * ```
@@ -55,7 +50,9 @@ import org.gradle.api.provider.Property
  * @see KiteSsotIosExtension for the Apple half of the same identity.
  * @see KiteSsotModulesExtension.androidApps when more than one module is an application.
  */
-abstract class KiteSsotAndroidExtension {
+abstract class KiteSsotAndroidExtension : KitePlatformRef {
+
+    final override val platform: KitePlatform = KitePlatform.ANDROID
 
     // --- Identity -------------------------------------------------------------
 

@@ -22,8 +22,9 @@ private const val LEGACY_SCHEME_SNIPPET =
  *
  * ```kotlin
  * kiteSsot {
- *     version = "1.4.0"
- *     scheme { v -> 1_000_000 * v.major + 10_000 * v.minor + 100 * v.patch + v.reupload }
+ *     version("1.4.0") {
+ *         formula { v -> 1_000_000 * v.major + 10_000 * v.minor + 100 * v.patch + v.reupload }
+ *     }
  * }
  * ```
  *
@@ -73,10 +74,10 @@ class SsotVersion(
  *
  * ```kotlin
  * kiteSsot {
- *     version = "1.4.0"
- *
- *     // 1.4.0 -> 1040000, 1.4.1 -> 1040100
- *     scheme { v -> 1_000_000 * v.major + 10_000 * v.minor + 100 * v.patch + v.reupload }
+ *     version("1.4.0") {
+ *         // 1.4.0 -> 1040000, 1.4.1 -> 1040100
+ *         formula { v -> 1_000_000 * v.major + 10_000 * v.minor + 100 * v.patch + v.reupload }
+ *     }
  * }
  * ```
  *
@@ -99,7 +100,7 @@ fun interface VersionCodeScheme {
  *
  * ```kotlin
  * kiteSsot {
- *     version = "1.4.0"    // no scheme { } block: DEFAULT is used
+ *     version = "1.4.0"    // no formula { } block: DEFAULT is used
  * }
  * ```
  */
@@ -130,7 +131,7 @@ object VersionSchemes {
      *
      * ```kotlin
      * // 1.4.0 -> 1010040000, 1.4.0 rebuild 42 -> 1010040042
-     * scheme { v ->
+     * formula { v ->
      *     fun pad(value: Int, width: Int) = value.toString().padStart(width, '0')
      *     "1${pad(v.major, 2)}${pad(v.minor, 3)}${pad(v.patch, 2)}${pad(v.reupload, 2)}".toInt()
      * }

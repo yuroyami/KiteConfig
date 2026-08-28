@@ -84,9 +84,9 @@ internal fun KiteSsotExtension.resolveAgp8Inputs(project: org.gradle.api.Project
     // build with propagate { version = false }, or a library module, would
     // fail on AGP 8 while the identical AGP 9 build succeeds.
     val applyVersion = appScoped &&
-        (resolve("the version values") { effectivePropagateVersion.get() } ?: false)
+        (resolve("the version values") { versionFlowsTo(KitePlatform.ANDROID).get() } ?: false)
     val applyApplicationId = appScoped &&
-        (resolve("applicationId") { effectivePropagateBundleId.get() && effectiveAppId.isPresent } ?: false)
+        (resolve("applicationId") { idFlowsTo(KitePlatform.ANDROID).get() && id.isPresent } ?: false)
     val applicationId = if (applyApplicationId) {
         resolve("applicationId") { androidApplicationId.orNull }
     } else {
@@ -106,8 +106,8 @@ internal fun KiteSsotExtension.resolveAgp8Inputs(project: org.gradle.api.Project
         versionName = if (applyVersion) resolve("the version values") { effectiveVersion.orNull } else null,
         versionCode = if (applyVersion) resolve("the version values") { effectiveAndroidVersionCode.orNull } else null,
         applyAppName = appScoped &&
-            (resolve("the appName placeholder") { effectivePropagateAppName.get() && effectiveAppName.isPresent } ?: false),
-        appName = resolve("the appName placeholder") { effectiveAppName.orNull },
+            (resolve("the appName placeholder") { appNameFlowsTo(KitePlatform.ANDROID).get() && effectiveAppNameFor(KitePlatform.ANDROID).isPresent } ?: false),
+        appName = resolve("the appName placeholder") { effectiveAppNameFor(KitePlatform.ANDROID).orNull },
         filterResources = filterResources && localeFilters != null,
         localeFilters = localeFilters.orEmpty(),
         applySdkLevels = applySdkLevels,

@@ -168,14 +168,14 @@ internal object DesktopWiring {
         iconTask: TaskProvider<GenerateDesktopIconsTask>?,
     ) {
         project.wireValueGroup(resilient, "the desktop package name") {
-            if (ext.effectivePropagateAppName.get() && ext.effectiveAppName.isPresent) {
-                val applied = ext.effectiveAppName.get()
+            if (ext.appNameFlowsTo(KitePlatform.DESKTOP).get() && ext.effectiveAppNameFor(KitePlatform.DESKTOP).isPresent) {
+                val applied = ext.effectiveAppNameFor(KitePlatform.DESKTOP).get()
                 drift.observe("packageName", distributions.packageName, applied)
                 distributions.packageName = applied
             }
         }
         project.wireValueGroup(resilient, "the desktop package version") {
-            if (ext.effectivePropagateVersion.get() && ext.effectiveVersion.isPresent) {
+            if (ext.versionFlowsTo(KitePlatform.DESKTOP).get() && ext.effectiveVersion.isPresent) {
                 val formats = distributions.targetFormats.mapTo(mutableSetOf()) { it.name }
                 val applied = validateDesktopPackageVersion(ext.effectiveVersion.get(), formats)
                 drift.observe("packageVersion", distributions.packageVersion, applied)
@@ -183,14 +183,14 @@ internal object DesktopWiring {
             }
         }
         project.wireValueGroup(resilient, "the desktop bundle identifier") {
-            if (ext.effectivePropagateBundleId.get() && ext.effectiveAppId.isPresent) {
+            if (ext.idFlowsTo(KitePlatform.DESKTOP).get() && ext.id.isPresent) {
                 val applied = ext.desktopBundleId.get()
                 drift.observe("macOS.bundleID", macOS.bundleID, applied)
                 macOS.bundleID = applied
             }
         }
         project.wireValueGroup(resilient, "the desktop build number") {
-            if (ext.effectivePropagateVersion.get()) {
+            if (ext.versionFlowsTo(KitePlatform.DESKTOP).get()) {
                 ext.effectiveDesktopBuildNumber.orNull?.let { applied ->
                     drift.observe("macOS.packageBuildVersion", macOS.packageBuildVersion, applied)
                     macOS.packageBuildVersion = applied
@@ -224,17 +224,17 @@ internal object DesktopWiring {
                 return@wireValueGroup
             }
             val packagesForLinux = distributions.targetFormats.any { it.name in LINUX_FORMATS }
-            if (packagesForLinux && ext.effectivePropagateAppName.get() && ext.effectiveAppName.isPresent) {
-                linux.packageName = deriveLinuxPackageName(ext.effectiveAppName.get())
+            if (packagesForLinux && ext.appNameFlowsTo(KitePlatform.DESKTOP).get() && ext.effectiveAppNameFor(KitePlatform.DESKTOP).isPresent) {
+                linux.packageName = deriveLinuxPackageName(ext.effectiveAppNameFor(KitePlatform.DESKTOP).get())
             }
         }
         project.wireValueGroup(resilient, "the Windows upgrade code") {
             val windows = distributions.windows
             if (windows.upgradeUuid != null) return@wireValueGroup
-            if (ext.effectivePropagateBundleId.get() && ext.desktop.deriveUpgradeUuid.getOrElse(false) &&
-                ext.effectiveAppId.isPresent
+            if (ext.idFlowsTo(KitePlatform.DESKTOP).get() && ext.desktop.deriveUpgradeUuid.getOrElse(false) &&
+                ext.id.isPresent
             ) {
-                windows.upgradeUuid = deriveUpgradeUuid(ext.effectiveAppId.get())
+                windows.upgradeUuid = deriveUpgradeUuid(ext.id.get())
             }
         }
         if (iconTask != null) {

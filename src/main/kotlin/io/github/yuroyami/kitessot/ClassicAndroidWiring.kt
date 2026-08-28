@@ -57,14 +57,14 @@ internal object ClassicAndroidWiring {
 
             if (receivesAppScopedValues) {
                 project.wireValueGroup(resilient, "applicationId") {
-                    if (ext.effectivePropagateBundleId.get() && ext.effectiveAppId.isPresent) {
+                    if (ext.idFlowsTo(KitePlatform.ANDROID).get() && ext.id.isPresent) {
                         val applied = ext.androidApplicationId.get()
                         drift.observe("applicationId", dc.applicationId, applied)
                         dc.applicationId = applied
                     }
                 }
                 project.wireValueGroup(resilient, "the version values") {
-                    if (ext.effectivePropagateVersion.get()) {
+                    if (ext.versionFlowsTo(KitePlatform.ANDROID).get()) {
                         // versionName and versionCode are independent. A lone
                         // versionCodeOverride still increments the build number.
                         if (ext.effectiveVersion.isPresent) {
@@ -79,8 +79,8 @@ internal object ClassicAndroidWiring {
                     }
                 }
                 project.wireValueGroup(resilient, "the appName placeholder") {
-                    if (ext.effectivePropagateAppName.get() && ext.effectiveAppName.isPresent) {
-                        dc.manifestPlaceholders["appName"] = ext.effectiveAppName.get()
+                    if (ext.appNameFlowsTo(KitePlatform.ANDROID).get() && ext.effectiveAppNameFor(KitePlatform.ANDROID).isPresent) {
+                        dc.manifestPlaceholders["appName"] = ext.effectiveAppNameFor(KitePlatform.ANDROID).get()
                     }
                 }
                 project.wireValueGroup(resilient, "the locale filters") {

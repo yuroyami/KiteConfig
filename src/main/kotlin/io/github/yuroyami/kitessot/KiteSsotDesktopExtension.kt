@@ -11,13 +11,8 @@ import org.gradle.api.provider.Property
  * ```kotlin
  * kiteSsot {
  *     appName = "Jetzy"
- *     version = "1.4.0"
- *     appId = "com.example.jetzy"
- *
- *     desktop {
- *         idSuffix = ".desktop"
- *         rebuild = 2
- *     }
+ *     id("com.example.jetzy") { desktop { suffix = ".desktop" } }
+ *     version("1.4.0") { desktop { reupload = 2 } }
  * }
  * ```
  *
@@ -39,7 +34,9 @@ import org.gradle.api.provider.Property
  * @see KiteSsotExtension.scheme for the build-number formula every platform shares.
  * @see KiteSsotLogoExtension for the art that [icons] turns into installer icons.
  */
-abstract class KiteSsotDesktopExtension {
+abstract class KiteSsotDesktopExtension : KitePlatformRef {
+
+    final override val platform: KitePlatform = KitePlatform.DESKTOP
 
     // --- Gate -----------------------------------------------------------------
 

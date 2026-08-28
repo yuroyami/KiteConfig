@@ -16,14 +16,11 @@ import org.gradle.api.provider.Property
  * ```kotlin
  * kiteSsot {
  *     appName = "Jetzy"
- *     version = "1.4.0"
- *     appId = "com.example.jetzy"
+ *     id("com.example.jetzy") { ios { suffix = ".iosApp" } }
+ *     version("1.4.0") { ios { reupload = 3 } }
  *
  *     ios {
- *         bundleIdSuffix = ".iosApp"
- *         rebuild = 3
- *
- *         sync {
+ *         rewrite {
  *             targets("iosApp")
  *         }
  *     }
@@ -64,7 +61,9 @@ import org.gradle.api.provider.Property
  * @see KiteSsotAndroidExtension for the Android half of the same identity.
  * @see KiteSsotExtension.scheme for the formula both platforms share.
  */
-abstract class KiteSsotIosExtension {
+abstract class KiteSsotIosExtension : KitePlatformRef {
+
+    final override val platform: KitePlatform = KitePlatform.IOS
 
     // --- Identity -------------------------------------------------------------
 

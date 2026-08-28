@@ -4,7 +4,7 @@ import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.Property
 
 /**
- * Apple source sync policy inside `kiteSsot { ios { sync { ... } } }`.
+ * Apple source sync policy inside `kiteSsot { ios { rewrite { ... } } }`.
  *
  * Writing this block is the opt-in. Its presence is what authorizes the
  * explicit Apple source tasks, and it replaces the old `syncIos = true` flag.
@@ -12,7 +12,7 @@ import org.gradle.api.provider.Property
  * ```kotlin
  * kiteSsot {
  *     ios {
- *         sync {
+ *         rewrite {
  *             targets("iosApp")
  *             cleanPlist = true
  *             onConflict = PlistConflictPolicy.KEEP
