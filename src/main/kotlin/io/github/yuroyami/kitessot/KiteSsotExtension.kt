@@ -309,24 +309,49 @@ abstract class KiteSsotExtension {
 
     // ------------------------------------------------------ Derived, read-only
 
-    /** Android application id: [appId] plus [KiteSsotAndroidExtension.idSuffix]. */
-    val androidApplicationId: Provider<String>
-        get() = effectiveAppId.zip(effectiveAndroidIdSuffix.orElse("")) { base, suffix -> base + suffix }
+    /** Reverse-DNS id base shared by every platform. Simple form of [id]. */
+    abstract val id: Property<String>
 
-    /** Apple bundle id: [appId] plus [KiteSsotIosExtension.bundleIdSuffix]. */
+    /** Detailed form of [id]: per-platform suffix corners and flow modifiers. */
+    fun id(value: String, action: Action<in KiteIdScope>) {
+        if (id.isPresent) doubleSetWarnings.add("id")
+        id.set(value)
+        action.execute(idScope)
+    }
+
+    internal val idScope: KiteIdScope
+        get() = nested()
+
+    // Transition bridge: falls back to the 2.x/3.0 chains until the purge task
+    // deletes them. New surface wins wherever both are set.
+    internal fun effectiveIdFor(p: KitePlatform): Provider<String> {
+        val base = id.orElse(effectiveAppId)
+        val legacySuffix = when (p) {
+            KitePlatform.ANDROID -> effectiveAndroidIdSuffix
+            KitePlatform.IOS -> effectiveIosBundleSuffix
+            KitePlatform.DESKTOP -> desktop.idSuffix
+        }
+        return base.zip(idScope.suffixFor(p).orElse(legacySuffix).orElse("")) { b, s -> b + s }
+    }
+
+    internal fun idFlowsTo(p: KitePlatform): Provider<Boolean> = idScope.flowsTo(p)
+
+    /** Android application id: [id] plus its android corner suffix. */
+    val androidApplicationId: Provider<String>
+        get() = effectiveIdFor(KitePlatform.ANDROID)
+
+    /** Apple bundle id: [id] plus its ios corner suffix. */
     val iosBundleId: Provider<String>
-        get() = effectiveAppId.zip(effectiveIosBundleSuffix.orElse("")) { base, suffix -> base + suffix }
+        get() = effectiveIdFor(KitePlatform.IOS)
 
     /**
-     * Desktop bundle id: [appId] plus [KiteSsotDesktopExtension.idSuffix].
+     * Desktop bundle id: [id] plus its desktop corner suffix.
      *
      * @throws org.gradle.api.GradleException when read, if the result is not a
      *   valid reverse-DNS identifier.
      */
     val desktopBundleId: Provider<String>
-        get() = effectiveAppId.zip(desktop.idSuffix.orElse("")) { base, suffix ->
-            validateAppleBundleId(base + suffix)
-        }
+        get() = effectiveIdFor(KitePlatform.DESKTOP).map(::validateAppleBundleId)
 
     /** The resolved Android `versionCode` for this build. */
     val versionCode: Provider<Int>
