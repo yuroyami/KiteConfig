@@ -1,5 +1,8 @@
 # KiteSSOT 3.0: The DSL Overhaul
 
+> Superseded: the DSL described below was replaced by the topic reshape.
+> See specs/2026-08-28-dsl-reshape-design.md for the current surface.
+
 Status: **implemented in 3.0.0**. Kept as the design record.
 
 The shipped DSL matches this document. See CHANGELOG.md for the release notes and

@@ -11,11 +11,17 @@ import org.gradle.api.provider.Property
 import org.gradle.api.provider.Provider
 
 /**
- * The single source of truth for your app's identity.
+ * The single source of truth for your app's identity. Apply to the **root** project.
  *
- * Apply the plugin to the **root** project and describe your app once. KiteSSOT
- * carries those values out to Android and Apple for you, so the same name,
- * version, and bundle id cannot drift apart across platforms.
+ * ## The law
+ *
+ * 1. **Facts always flow.** A declared fact reaches every platform found, on every
+ *    build, in memory or as files under `build/`. Declaring it is the consent.
+ *    `skip()` and `only()` beside the fact are the only flow control.
+ * 2. **`rewrite { }` is the only word that acts on YOUR files.** It arms a by-name
+ *    task that edits source. [dryRun], [backups], and `onConflict` always apply.
+ * 3. **One topic, one block.** Platform corners nest inside topics. Platform
+ *    blocks hold only platform-exclusive things.
  *
  * Three lines are a complete setup:
  *
@@ -27,59 +33,111 @@ import org.gradle.api.provider.Provider
  * }
  * ```
  *
- * Everything else is optional. Locales are discovered from your Compose
- * resources, the shared module is detected when there is only one, and the
- * Android application project is found the same way.
+ * Locales auto-detect from Compose resources, the shared module and the app
+ * modules are detected too. Everything else below is optional.
  *
- * ## Where each value lands
- *
- * | You write | Android receives | Apple receives |
- * |---|---|---|
- * | [appName] | `appName` manifest placeholder | `PRODUCT_NAME`, `CFBundleName`, `CFBundleDisplayName` |
- * | [version] | `versionName` | `MARKETING_VERSION` |
- * | [appId] | `applicationId` + [KiteSsotAndroidExtension.idSuffix] | bundle id + [KiteSsotIosExtension.bundleIdSuffix] |
- * | [scheme] | `versionCode` | `CURRENT_PROJECT_VERSION` |
- * | [locales] | resource locale filter | `knownRegions` |
- * | [jvmTarget] | Java + Kotlin JVM level | not applicable |
- *
- * Android values are applied during an ordinary build. Apple values are written
- * only by the explicit sync tasks, never as a side effect of building.
- *
- * ## How the blocks work
- *
- * Shared facts live here at the top. Anything that is genuinely Android-only or
- * Apple-only lives in [android] or [ios]. Feature blocks such as [logo] and
- * [buildConfig] switch themselves on simply by being configured, so there is no
- * second flag to remember.
- *
- * | Block | Turns on by | Effect |
- * |---|---|---|
- * | [android], [ios], [propagate], [modules] | always present | configuration only |
- * | [buildConfig] | being configured | generates Kotlin into `build/` |
- * | [desktop] | being configured | applies identity to Compose Desktop packaging |
- * | [optIns], [web] | being configured | affects compilation |
- * | [logo], `ios { sync { } }` | being configured | **authorizes** source-writing tasks; never runs them |
- *
- * ## What runs, and when
- *
- * Applying identity happens during an ordinary build. Changing files on disk
- * never does. Logo installation and the Apple source tasks only run when you
- * invoke them by name, and [dryRun], [backups], and the conflict policy still
- * apply when you do.
- *
- * ## Wiring values into your own build logic
- *
- * Every input is a lazy Gradle `Property`, so you can hand one to another task
- * without resolving it early:
+ * ## The full surface
  *
  * ```kotlin
- * val minSdk = kiteSsot.android.minSdk   // Provider<Int>, still lazy
+ * kiteSsot {
+ *     appName("Jetzy") {
+ *         ios("Jetzy Lite")          // platform value override
+ *         skip(desktop)              // this fact does not flow there
+ *     }
+ *
+ *     jvmTarget = 21                 // Java + Kotlin JVM level, whole build
+ *
+ *     id("com.example.jetzy") {
+ *         android { suffix = ".android" }   // applicationId = base + suffix
+ *         ios     { suffix = ".ios" }       // bundle id     = base + suffix
+ *         desktop { suffix = ".desktop" }
+ *     }
+ *
+ *     version("1.4.0") {
+ *         // formula { v -> ... }        // optional: your own build-number formula
+ *         android {
+ *             reupload = 1               // re-upload same version to Play
+ *             shipped  = 1001003090      // highest code ever shipped, guard
+ *         }
+ *         ios { shipped = "1001003090" }
+ *         desktop { shipped = "1001003090" }
+ *     }
+ *
+ *     locales {
+ *         pin("en", "ar", "fr")          // hand list, detection skipped
+ *         filterAndroidRes = true        // drop Android res outside the list
+ *     }
+ *
+ *     logo {
+ *         foreground = file("art/logo-fg.png")
+ *         backgroundColor = "#0B0B0F"
+ *         android { safeZone = 0.611 }
+ *         desktop { roundMac = true }    // desktop icons flow from presence
+ *         rewrite { replaceOld = true }  // arms kiteRewriteLogo (source edits)
+ *     }
+ *
+ *     optIns {
+ *         add("kotlinx.cinterop.ExperimentalForeignApi")
+ *     }
+ *
+ *     android { sdk(min = 26, target = 36, compile = 36) }
+ *
+ *     ios {
+ *         deploymentTarget = "15.0"
+ *         rewrite {                      // arms kiteRewriteXcode (source edits)
+ *             targets("iosApp")
+ *             cleanPlist = true
+ *         }
+ *     }
+ *
+ *     desktop { linuxPackageName = "jetzy" }
+ *
+ *     web { ioWorker { targets("js") } }
+ *
+ *     buildConfig {                      // presence generates into build/
+ *         packageName = "com.example.jetzy"
+ *         stringField("API_HOST", "api.jetzy.app")
+ *     }
+ *
+ *     modules { shared = ":shared" }     // only when detection guesses wrong
+ *
+ *     dryRun  = false
+ *     backups = true
+ * }
  * ```
  *
- * @see KiteSsotAndroidExtension for Android-only identity, SDK levels, and NDK.
- * @see KiteSsotIosExtension for Apple-only identity and the source sync gate.
- * @see VersionCodeScheme for the build-number formula both platforms share.
- * @see KiteSsotModulesExtension when detection cannot pick your modules for you.
+ * ## What you can inject where
+ *
+ * | You can inject | Works in | Meaning |
+ * |---|---|---|
+ * | `skip(p...)` / `only(p...)` | root, `appName`, `id`, `version`, `locales`, `logo` | flow control, at root = platform master |
+ * | `android("v")` / `ios("v")` / `desktop("v")` | `appName` | platform value override |
+ * | `android { }` / `ios { }` / `desktop { }` corner | `id`, `version`, `logo` | platform detail scope |
+ * | `pin` | `version` corners, `locales` | manual value, machinery skipped |
+ * | `reupload`, `shipped`, `formula` | `version` and its corners | store counter, guard floor, number formula |
+ * | `suffix` | `id` corners | appended to the base id |
+ * | `rewrite { }` | `logo`, `ios` | the only acting word, arms a task |
+ * | typed `*Field(...)` | `buildConfig` | generated constants |
+ *
+ * ## Tasks
+ *
+ * `kiteCheck`, `kiteDoctor`, `kiteVerify`, `kitePlan` are read-only and always
+ * safe. `kiteRewriteLogo` and `kiteRewriteXcode` run only when armed by a
+ * `rewrite { }` block and only when you invoke them. CLI overrides:
+ * `-Pkitessot.dryRun=true`, `-Pkitessot.backups=false`.
+ *
+ * ## Read-back
+ *
+ * Every fact is a lazy Gradle `Property`. Resolved derived providers:
+ * [androidApplicationId], [iosBundleId], [desktopBundleId], [versionCode],
+ * [canonicalLocales], [resolvedSharedProjectPath].
+ *
+ * @see KiteAppNameScope for name overrides and flow.
+ * @see KiteIdScope for identity suffix corners.
+ * @see KiteVersionScope for the formula and version corners.
+ * @see KiteLocalesScope for the pinned list and the Android res filter.
+ * @see KiteSsotLogoExtension for icon art and the armed logo rewrite.
+ * @see VersionCodeScheme for the build-number formula input.
  */
 abstract class KiteSsotExtension : KiteFlowScope() {
 

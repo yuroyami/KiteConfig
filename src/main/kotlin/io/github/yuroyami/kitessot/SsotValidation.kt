@@ -75,7 +75,7 @@ internal fun validateAppleMarketingVersion(value: String): String {
 internal fun validateAppleBuildNumber(value: String): String {
     if (!isValidAppleBuildNumber(value)) {
         throw GradleException(
-            "kiteSsot { ios { buildNumber } } \"${diagnosticSafeText(value, 32)}\" is invalid. " +
+            "kiteSsot { version { ios { pin } } } \"${diagnosticSafeText(value, 32)}\" is invalid. " +
                 "CFBundleVersion requires one to three numeric components, each at most " +
                 "$MAX_APPLE_BUILD_COMPONENT_DIGITS digits, and a first component that is not zero."
         )
@@ -185,7 +185,7 @@ internal fun validatePublishedBuildNumber(next: String?, published: String, plat
     if (compareAppleBuildNumbers(candidate, published) <= 0) {
         throw GradleException(
             "kiteSsot resolved $noun \"$candidate\" must be greater than the published " +
-                "baseline \"$published\". Bump $dsl rebuild }, or set $dsl buildNumber } explicitly, " +
+                "baseline \"$published\". Bump the reupload dial, or set the pin, in version { $dsl } }, " +
                 "before release.",
         )
     }

@@ -7,6 +7,11 @@ import javax.inject.Inject
 /**
  * Details for [KiteSsotExtension.appName]: per-platform name overrides
  * and flow modifiers. `android("x")` overrides the shown name there.
+ *
+ * | member | meaning | default | flow class |
+ * |---|---|---|---|
+ * | `android("v")` / `ios("v")` / `desktop("v")` | that platform shows its own name | base value | memory |
+ * | `skip(p)` / `only(p)` | flow control | flow everywhere | n/a |
  */
 abstract class KiteAppNameScope @Inject constructor(objects: ObjectFactory) : KiteFlowScope() {
 

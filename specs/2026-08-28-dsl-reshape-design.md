@@ -208,7 +208,7 @@ kiteSsot {
 
     web {
         ioWorker {                           // presence = worker source generated
-            targets("wasmJs", "js")
+            targets("js")
             projects(":composeApp")          // default: all web-capable
             packageName = "kitessot.generated"
         }

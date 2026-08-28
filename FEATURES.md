@@ -3,17 +3,19 @@
 This page describes current KiteSSOT behavior. It is not a roadmap. Start with
 the [README](README.md) if you are setting up the plugin for the first time.
 
-KiteSSOT is applied to the root Gradle project. You declare the values and
-features you need in one `kiteSsot {}` block. Most unset scalar values leave the
-matching platform setting alone. Some values have a convention instead:
-`ios.marketingVersion` follows `version`, build numbers follow the root
-`scheme`, and locales can be discovered. Enabled features may require related
-inputs. The model is frozen after root-project evaluation.
+KiteSSOT is applied to the root Gradle project. You declare facts in one
+`kiteSsot {}` block, and one law governs everything:
 
-Feature blocks are their own switch. Configuring `logo {}`, `ios { sync {} }`,
-`nativeOptIns {}`, `web { ioWorker {} }`, `buildConfig {}`, or `desktop {}`
-turns that feature on. Leaving the block out keeps it off. You still have to
-run the explicit tasks yourself for anything that changes source files.
+1. Facts always flow, to every platform found, on every build, in memory or as
+   files under `build/`. Declaring a fact is the consent. `skip()` and `only()`
+   beside the fact are the only flow control.
+2. `rewrite { }` is the only word that acts on your source files. It arms a
+   by-name task; `dryRun`, `backups`, and `onConflict` always apply.
+3. One topic, one block. Platform corners nest inside topics.
+
+Conventions: `marketingVersion` follows `version`, build numbers follow the
+shared `formula`, and locales can be discovered. The model is frozen after
+root-project evaluation.
 
 The deprecated `Project.kiteSsot` accessor remains for source compatibility.
 It reaches across projects, exposes the mutable root model, and does not support
@@ -56,28 +58,25 @@ supported.
 
 | Setting | Default | Meaning |
 |---|---|---|
-| `appName`, `version`, `appId`, `android.idSuffix`, `ios.bundleIdSuffix`, `ios.deploymentTarget`, and `jvmTarget` | Unset | KiteSSOT leaves the matching platform value alone unless a configured feature needs it. |
+| `appName`, `version`, `id`, its `suffix` corners, `ios.deploymentTarget`, and `jvmTarget` | Unset | KiteSSOT leaves the matching platform value alone unless a configured feature needs it. |
 | `ios.marketingVersion` | `version`, when present | Apple can still use a separate marketing version. |
-| `scheme` | Pack `1`, `major(3)`, `minor(3)`, `patch(2)`, and `rebuild(1)` | One build-number formula for both platforms. |
-| `android.versionCode` | Unset, so the resolved code comes from `scheme` | Assign a value to bypass the formula. |
-| `ios.buildNumber` and `desktop.buildNumber` | Unset, so the resolved number is the `scheme` result as a string | Assign a value to bypass the formula. |
-| `android.rebuild`, `ios.rebuild`, and `desktop.rebuild` | `0` | Re-upload dials. Bump one when a store burns a number. |
+| `formula` | Pack `1`, `major(3)`, `minor(3)`, `patch(2)`, and `reupload(1)` | One build-number formula for both platforms. |
+| `version { android { pin } }` | Unset, so the resolved code comes from the formula | Assign a value to bypass the formula. |
+| `version { ios { pin } }` and `version { desktop { pin } }` | Unset, so the resolved number is the formula result as a string | Assign a value to bypass the formula. |
+| `reupload` in each `version` corner | `0` | Re-upload dials. Bump one when a store burns a number. |
 | `locales` | Discover supported locale-only resource directories when a shared project or resources directory can be resolved | You can replace discovery with an explicit list. |
-| `propagate.appName` | `true` | A present app name can reach enabled platform consumers. |
-| `propagate.bundleId` | `true` | A present app ID can reach enabled platform consumers. |
-| `propagate.version` | `true` | Present platform release values can reach enabled consumers. |
-| `propagate.locales` | `true` | Canonical locales can reach enabled metadata consumers. |
+| `skip(p)` / `only(p)` | flow everywhere | The only flow control. Beside a fact they gate that fact; at the root they silence a whole platform. |
 | `android.applySdkLevels` | `true` | Present Android SDK and NDK values are applied. |
-| `android.filterResourcesToLocales` | `false` | Locales do not prune packaged Android resources unless you opt in. |
+| `android.locales { filterAndroidRes }` | `false` | Locales do not prune packaged Android resources unless you opt in. |
 | `logo {}` | Not configured | App icon installers are disabled. |
-| `ios { sync {} }` | Not configured | Apple source files are not changed. |
-| `ios.sync.sanitizePlist` | `false` | The source Info.plist is not changed. |
+| `ios { rewrite {} }` | Not armed | Apple source files are not changed. |
+| `ios.sync.cleanPlist` | `false` | The source Info.plist is not changed. |
 | `ios.sync.renameSharedModule(...)` | Not called | Podfile and Swift module-reference migration is disabled. |
-| `nativeOptIns {}` | Not configured | Kotlin/Native opt-ins are not added. |
-| `logo.takeOverLegacyIcons` | `false` | Legacy Android icon takeover is not allowed. |
+| `optIns {}` | Not configured | Kotlin/Native opt-ins are not added. |
+| `logo.rewrite { replaceOld }` | `false` | Legacy Android icon takeover is not allowed. |
 | `backups` | `true` | Eligible user-owned files receive a recovery copy before first replacement. |
 | `dryRun` | `false` | Explicit installers and migrations apply their reviewed plan. Build-owned generators ignore this switch. |
-| `logo.androidSafeZone` | `66.0 / 108.0` | The adaptive-icon foreground uses Android's standard safe area. |
+| `logo.logo { android { safeZone } }` | `66.0 / 108.0` | The adaptive-icon foreground uses Android's standard safe area. |
 | `ios.sync.targets(...)` | Empty | KiteSSOT selects an Xcode app automatically only when there is exactly one. |
 | `ios.sync.onConflict` | `FAIL` | A conflicting plist value stops the complete plist plan. |
 | `web { ioWorker {} }` | Not configured | No browser helper is generated. |
@@ -90,9 +89,9 @@ supported.
 | `buildConfig.allowBuildCache` | `false` | Generated values do not enter local or remote Gradle build caches unless you opt in. |
 | `desktop {}` | Not configured | No values reach Compose Desktop, and no installer icons are generated. |
 | `desktop.icons` | `true` | Generates installer icons only while `logo {}` is also configured. |
-| `desktop.roundMacOsIcon` | `true` | The generated macOS icon gets Apple's rounded-square mask. |
+| `desktop.logo { desktop { roundMac } }` | `true` | The generated macOS icon gets Apple's rounded-square mask. |
 | `desktop.linuxPackageName` | A Debian-legal slug derived from `appName` | Set it yourself when the slug is not the name you publish under. |
-| `desktop.deriveUpgradeUuid` | `false` | The Windows upgrade code is left to jpackage instead of being derived from `appId`. |
+| `desktop.deriveUpgradeUuid` | `false` | The Windows upgrade code is left to jpackage instead of being derived from `id`. |
 
 ## Reading values in Gradle build logic
 
@@ -122,15 +121,15 @@ The root model also provides read-only derived providers:
 
 | Provider | Result |
 |---|---|
-| `versionCode` | Explicit `android.versionCode`, or the value derived from `scheme` |
+| `versionCode` | An explicit `pin`, or the value derived from the formula |
 | `androidApplicationId` | App ID plus Android suffix |
 | `iosBundleId` | App ID plus Apple suffix |
 | `canonicalLocales` | Normalized locale list |
 | `resolvedSharedProjectPath` | Effective shared Gradle project path |
 
 Read the derived provider when you want the resolved value.
-`android.versionCode` and `ios.buildNumber` are inputs. They stay empty until
-you assign them, and an assigned value replaces the `scheme` result.
+`android.versionCode` and `version { ios { pin } }` are inputs. They stay empty until
+you assign them, and an assigned `pin` replaces the formula result.
 
 The deprecated `Project.kiteSsot` accessor is the compatibility path for old
 subproject scripts. Treat it as read-only. It reaches across projects and does
@@ -140,22 +139,22 @@ read selected identity and public client values from application code.
 ## App identity and release values
 
 All identity fields are optional. A field reaches a platform only when the
-field is present, its `propagate` gate is enabled, and a matching consumer is
+field is present, its flow is not skipped, and a matching consumer is
 selected.
 
 | Property | Type | Purpose and rules |
 |---|---|---|
 | `appName` | `Property<String>` | Android receives the `appName` manifest placeholder. Explicit Apple sync can use it for product and display names. |
 | `version` | `Property<String>` | Android display version and the default source for `ios.marketingVersion`. When consumed, it must be non-blank, contain no control characters, and contain at most 255 characters. |
-| `android.versionCode` | `Property<Int>` | Android store build number in `1..2_100_000_000`. It follows `scheme` unless you assign a value. |
-| `android.rebuild` | `Property<Int>` | Feeds `scheme` as `v.rebuild`. Bump it when Play has already taken the current code. |
-| `android.publishedVersionCode` | `Property<Int>` | Optional offline lower bound. The next resolved Android code must be greater while Android version propagation is active for a detected app. KiteSSOT does not contact a store. |
+| `version { android { pin } }` | `Property<Int>` | Android store build number in `1..2_100_000_000`. It follows the formula unless you assign a value. |
+| `version { android { reupload } }` | `Property<Int>` | Feeds the formula as `v.reupload`. Bump it when Play has already taken the current code. |
+| `android.version { android { shipped } }` | `Property<Int>` | Optional offline lower bound. The next resolved Android code must be greater while Android version propagation is active for a detected app. KiteSSOT does not contact a store. |
 | `ios.marketingVersion` | `Property<String>` | Apple `MARKETING_VERSION` during explicit Apple sync. It must contain three non-negative integer components. |
-| `ios.buildNumber` | `Property<String>` | Apple `CURRENT_PROJECT_VERSION` during explicit Apple sync. It follows `scheme` unless you assign a value. An assigned value accepts one to three numeric components. The positive first part may use at most four digits, and each optional later part may use at most two. |
-| `ios.rebuild` | `Property<Int>` | Feeds `scheme` as `v.rebuild` for Apple. Bump it when TestFlight has already taken the current build number. |
-| `appId` | `Property<String>` | Reverse-DNS base for the Android application ID and Apple bundle ID. |
-| `android.idSuffix` | `Property<String>` | Optional Android-only suffix appended to `appId`. |
-| `ios.bundleIdSuffix` | `Property<String>` | Optional Apple-only suffix appended to `appId`. |
+| `version { ios { pin } }` | `Property<String>` | Apple `CURRENT_PROJECT_VERSION` during explicit Apple sync. It follows the formula unless you assign a value. An assigned value accepts one to three numeric components. The positive first part may use at most four digits, and each optional later part may use at most two. |
+| `version { ios { reupload } }` | `Property<Int>` | Feeds the formula as `v.reupload` for Apple. Bump it when TestFlight has already taken the current build number. |
+| `id` | `Property<String>` | Reverse-DNS base for every platform identifier. |
+| `id { android { suffix } }` | `Property<String>` | Optional Android-only suffix appended to the base id. |
+| `id { ios { suffix } }` | `Property<String>` | Optional Apple-only suffix appended to `id`. |
 | `ios.deploymentTarget` | `Property<String>` | Compatibility assertion required by the Apple universal AppIcon installer. It does not write `IPHONEOS_DEPLOYMENT_TARGET`. |
 
 ### Build numbers and the scheme
@@ -171,10 +170,10 @@ kiteSsot {
 }
 ```
 
-The lambda receives `v.major`, `v.minor`, `v.patch`, and `v.rebuild`. It returns
+The lambda receives `v.major`, `v.minor`, `v.patch`, and `v.reupload`. It returns
 one `Int`. Android uses that `Int`. Apple uses the same number as a string.
 
-The default formula packs `1 | major(3) | minor(3) | patch(2) | rebuild(1)`:
+The default formula packs `1 | major(3) | minor(3) | patch(2) | reupload(1)`:
 
 | Version | Rebuild | Result |
 |---|---|---|
@@ -184,14 +183,14 @@ The default formula packs `1 | major(3) | minor(3) | patch(2) | rebuild(1)`:
 | `1.5.0` | `0` | `1001005000` |
 
 Fixed widths keep build numbers ordered as versions increase. A version bump
-always beats any rebuild of the previous version.
+always beats any reupload of the previous version.
 
 When a consumer needs a derived number, `version` must use exactly `x.y.z` with
 no leading zeroes. Under the default formula, major and minor must be in
-`0..999`, patch must be in `0..99`, and rebuild must be in `0..9`.
+`0..999`, patch must be in `0..99`, and reupload must be in `0..9`.
 
 Do you need a different shape? Write your own `scheme { }`, or assign
-`android.versionCode` and `ios.buildNumber` directly.
+`android.versionCode` and `version { ios { pin } }` directly.
 
 Upgrade note: the pre-3.0 formula gave `1.4.1` the code `1001004001`. The 3.0
 default gives `1001004010`. Derived version codes therefore change in 3.0. The
@@ -207,7 +206,7 @@ Selectors tell KiteSSOT exactly where a value or generated file belongs.
 | `modules.androidApps(...)` | Exact absolute Gradle project paths for app identity, app versions, app-name placeholders, locale filtering, and Android icon selection. Without a call, KiteSSOT selects a single detected app. Multiple detected apps require an explicit selector when an app-scoped operation is active. The single Android icon destination accepts at most one effective app. When no Android application plugin is applied, it can use `modules.androidAppDirectory`. SDK and JVM policy are not restricted by this selector. |
 | `modules.desktopApps(...)` | Exact absolute Gradle project paths for desktop app identity, build numbers, packaging names, and installer icons. Without a call, KiteSSOT selects a single detected Compose Desktop application. Multiple detected applications fail configuration and name every candidate. |
 | `modules.shared` | Exact KMP project that owns generated `commonMain` source and provides the default KMP scope. Without a value, KiteSSOT detects a sole KMP project. |
-| `nativeOptIns.projects(...)` | Exact KMP projects that may receive Kotlin/Native opt-ins. Without a call, the scope can fall back to `modules.shared`. |
+| `optIns.projects(...)` | Exact KMP projects that may receive Kotlin/Native opt-ins. Without a call, the scope can fall back to `modules.shared`. |
 | `web.ioWorker.projects(...)` | Exact KMP projects that may receive browser-worker source. Without a call, the scope can fall back to `modules.shared`. |
 | `web.ioWorker.targets(...)` | Exact Kotlin/JS targets that use a browser runtime. This list is required when the `ioWorker` block is configured. |
 | `ios.sync.targets(...)` | Exact Xcode application targets whose build configurations explicit Xcode sync may change. Without a call, an app-setting update can auto-select only a sole app target. Project-level locales and file-based plist, Podfile, and Swift work use their own scopes and do not require this selector. |
@@ -235,7 +234,7 @@ Use typed Gradle path properties:
 | `ios.appIconDirectory` | AppIcon installation directory |
 
 `modules.shared` selects a Gradle project, not a directory. Swift and pod module
-identities are named in `ios { sync { renameSharedModule(from = ..., to = ...) } }`.
+identities are named in `ios { rewrite { renameSharedModule(from = ..., to = ...) } }`.
 
 The old `sharedModule`, `oldSharedModuleName`, `androidAppModule`,
 `iosProjectPath`, `iosPodfilePath`, `iosInfoPlistPath`, `iosAppDir`, and
@@ -286,7 +285,7 @@ entries.
   `Base` and unrelated existing regions because KiteSSOT does not own every
   `.lproj` directory.
 - Android resource filtering is separate and defaults to off.
-- With `android { filterResourcesToLocales = true }`, KiteSSOT replaces the
+- With `android { locales { filterAndroidRes } = true }`, KiteSSOT replaces the
   selected application's locale-filter set with the canonical list.
 - AGP 9 uses `localeFilters`. AGP 8 uses compatible resource qualifiers.
 - On AGP 8, density, ABI, and unrelated resource configurations are preserved.
@@ -347,7 +346,7 @@ When enabled, KiteSSOT:
 
 BuildConfig needs a shared project, so `modules.shared` must resolve. When
 `includeIdentity` is `true`, `appName`, `version`, a resolvable version code,
-and `appId` must all be present.
+and `id` must all be present.
 
 The generator rejects:
 
@@ -381,7 +380,7 @@ JavaScript target uses a browser.
 When enabled, KiteSSOT:
 
 - requires exact KMP project and Kotlin/JS browser target selection;
-- generates `kiteSsotOffload` below
+- generates `kiteOffload` below
   `build/generated/kitessot/<target>Main/kotlin`;
 - supports custom target names and package names;
 - includes request IDs and explicit success or error state in protocol messages;
@@ -405,29 +404,29 @@ Node.js-only targets and `wasmJs` are not supported.
 
 Compose Multiplatform packages a desktop application as a macOS `.dmg` or
 `.pkg`, a Windows `.msi` or `.exe`, or a Linux `.deb`, `.rpm`, or AppImage.
-Configuring `desktop { }` extends the root `appName`, `version`, and `appId`
-to that package, folds its build number into the same `scheme` every other
+Configuring `desktop { }` extends the root `appName`, `version`, and `id`
+to that package, folds its build number into the same the formula every other
 platform uses, and generates its installer icons from your `logo { }` art.
 
 When enabled, KiteSSOT:
 
-- shares `appName`, `version`, and `appId` with the detected Compose Desktop
+- shares `appName`, `version`, and `id` with the detected Compose Desktop
   application, the same way it does for Android and iOS;
-- folds the desktop build number into the root `scheme`, so `desktop.rebuild`
-  bumps it independently of `android.rebuild` and `ios.rebuild`;
+- folds the desktop build number into the root the formula, so the desktop `reupload`
+  bumps it independently of the Android and iOS ones;
 - generates the macOS `.icns`, Windows `.ico`, and Linux `.png` installer
-  icons from the configured `logo { }` art with `generateKiteSsotDesktopIcons`,
+  icons from the configured `logo { }` art with `kiteInternalDesktopIcons`,
   writing only to `build/`;
 - wires that task into packaging automatically, with no `dependsOn` for you
   to write;
-- can derive a stable Windows upgrade code from `appId` with
+- can derive a stable Windows upgrade code from `id` with
   `desktop { deriveUpgradeUuid = true }`, so an MSI upgrades an existing
   install instead of sitting beside it;
 - derives a Debian-legal Linux package name from `appName` unless
   `desktop { linuxPackageName }` is set;
 - rejects a resolved `version` outside the Windows MSI/EXE numeric limits
   before Compose does;
-- offers the same offline `publishedBuildNumber` guard already available for
+- offers the same offline `shipped` guard already available for
   `android { }` and `ios { }`, with failures naming `desktop { }` throughout.
 
 Desktop values are written through the same early callback used for Android
@@ -448,7 +447,7 @@ fails otherwise. With no `logo { }` block at all, icon generation defaults
 off instead of failing.
 
 The derived Windows upgrade code is a UUIDv5 built from a fixed namespace,
-`6b0f4c1e-6d4a-5a2f-9c3d-1f6b2a8e7d40`, and your resolved `appId`. This
+`6b0f4c1e-6d4a-5a2f-9c3d-1f6b2a8e7d40`, and your resolved `id`. This
 namespace is a published contract: changing it would change every upgrade
 code KiteSSOT has ever derived, breaking in-place upgrades for everyone who
 already installed the app. An `upgradeUuid` a module already set is always
@@ -467,30 +466,30 @@ periods, in at least two dot-separated segments.
 plugin, `org.jetbrains.kotlin.plugin.compose`, on the same classpath, so both
 belong in the root `plugins { }` block with `apply false`, for the same
 classloader reason Kotlin and AGP already are. Supported Compose Gradle
-plugin releases are `1.11.0` through `1.12.x`. `kiteSsotDoctor` reports the
+plugin releases are `1.11.0` through `1.12.x`. `kiteDoctor` reports the
 active version's compatibility.
 
 ## Kotlin/Native compiler opt-ins
 
-Native opt-ins are off until you configure `nativeOptIns { }`. When configured,
+Native opt-ins are off until you configure `optIns { }`. When configured,
 selected native compilations receive these markers:
 
 - `kotlinx.cinterop.ExperimentalForeignApi`
 - `kotlin.experimental.ExperimentalObjCName`
 - `kotlin.experimental.ExperimentalNativeApi`
 
-`nativeOptIns { add("...") }` adds validated fully qualified marker names.
+`optIns { add("...") }` adds validated fully qualified marker names.
 KiteSSOT removes duplicates while preserving order.
 
 Only selected KMP projects and native compilations receive these options.
 KiteSSOT does not add annotations to source files.
-`nativeOptIns { projects(...) }` limits only this native policy. It does not
+`optIns { projects(...) }` limits only this native policy. It does not
 limit the root-global JVM alignment from `jvmTarget`.
 
 ## Explicit Apple project changes
 
 Apple source changes never run as part of normal compilation, linking, or
-archiving. You must configure `ios { sync { } }` and run the named task.
+archiving. You must configure `ios { rewrite { } }` and run the named task.
 
 ### Xcode project file
 
@@ -516,7 +515,7 @@ characters without regex replacement errors.
 ### Source Info.plist
 
 Plist sanitization runs when you set
-`ios { sync { sanitizePlist = true } }`. The sanitizer supports source XML
+`ios { rewrite { cleanPlist = true } }`. The sanitizer supports source XML
 property lists only. It does not convert binary, OpenStep, or generated plists.
 
 It:
@@ -546,7 +545,7 @@ A failure produces no partial plist rewrite.
 ### Shared-module references
 
 Shared-module migration runs only when you call
-`ios { sync { renameSharedModule(from = "OldShared", to = "Shared") } }`. Both
+`ios { rewrite { renameSharedModule(from = "OldShared", to = "Shared") } }`. Both
 names are required. KiteSSOT does not infer the old module from a Podfile.
 
 The migration:
@@ -600,7 +599,7 @@ The installer:
 - generates API 33 monochrome wrappers when
   `android.compileSdk >= 33`;
 - refuses unknown first-contact output files and same-stem template collisions
-  unless `logo.takeOverLegacyIcons = true` explicitly authorizes a backed-up
+  unless `logo.rewrite { replaceOld } = true` explicitly authorizes a backed-up
   takeover;
 - replaces or removes later files only when their ownership checksums still
   match.
@@ -609,7 +608,7 @@ The installer:
 
 Apple icon installation requires:
 
-- a configured `ios { sync { } }` block;
+- a configured `ios { rewrite { } }` block;
 - a configured `logo { }` block;
 - `logo.foreground`, a PNG;
 - exactly one of `logo.background` or `logo.backgroundColor`;
@@ -627,7 +626,7 @@ Unreferenced PNG files are reported but not deleted.
 
 ### Legacy Android icon takeover
 
-`logo.takeOverLegacyIcons` authorizes a deliberate takeover of known legacy
+`logo.rewrite { replaceOld }` authorizes a deliberate takeover of known legacy
 files, same-stem Android Studio template icons, and unowned first-contact paths
 that the current installer will claim.
 
@@ -646,10 +645,10 @@ The takeover:
 
 | Task | Behavior |
 |---|---|
-| `kiteSsotVerify` | Prints the best available resolved values and selected paths. It does not change files. |
-| `kiteSsotDoctor` | Runs resilient setup checks and reports findings. Findings do not fail the task. |
-| `kiteSsotCheck` | Uses the same checks, writes deterministic JSON or SARIF, then fails on errors or optionally on warnings. |
-| `kiteSsotPlan` | Reports selected operations, paths, targets, and policies without changing files. |
+| `kiteVerify` | Prints the best available resolved values and selected paths. It does not change files. |
+| `kiteDoctor` | Runs resilient setup checks and reports findings. Findings do not fail the task. |
+| `kiteCheck` | Uses the same checks, writes deterministic JSON or SARIF, then fails on errors or optionally on warnings. |
+| `kitePlan` | Reports selected operations, paths, targets, and policies without changing files. |
 
 Configure the strict CI task from the root build:
 
@@ -657,7 +656,7 @@ Configure the strict CI task from the root build:
 import io.github.yuroyami.kitessot.KiteSsotCheckTask
 import io.github.yuroyami.kitessot.KiteSsotDiagnosticReportFormat
 
-tasks.named<KiteSsotCheckTask>("kiteSsotCheck") {
+tasks.named<KiteSsotCheckTask>("kiteCheck") {
     reportFormat.set(KiteSsotDiagnosticReportFormat.SARIF)
     reportFile.set(layout.buildDirectory.file("reports/kitessot/diagnostics.sarif"))
     failOnWarnings.set(true)

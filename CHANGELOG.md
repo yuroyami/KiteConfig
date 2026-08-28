@@ -4,6 +4,32 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions track the
 Gradle Plugin Portal releases.
 
+## Unreleased: the topic reshape
+
+One law now covers the whole DSL: facts always flow (`skip()` / `only()` are the
+only flow control), `rewrite { }` is the only word that acts on source files,
+and every topic lives in exactly one block.
+
+Renames and moves, hard break with no deprecation bridge:
+
+- `appId` is `id`; `scheme { }` is `formula { }` inside `version("x") { }`.
+- `rebuild` is `reupload`; version pins are `pin`; published baselines are
+  `shipped`; all three live in `version { android/ios/desktop { } }` corners.
+- Platform id suffixes live in `id("base") { android/ios/desktop { suffix } }`.
+- `filterResourcesToLocales` is `locales { filterAndroidRes }`.
+- `androidSafeZone` and `roundMacOsIcon` are `logo { android { safeZone } }` and
+  `logo { desktop { roundMac } }`.
+- `takeOverLegacyIcons` is `logo { rewrite { replaceOld } }`.
+- `ios { sync { } }` is `ios { rewrite { } }`; `sanitizePlist` is `cleanPlist`.
+- `nativeOptIns { }` is `optIns { }`.
+- `propagate { }`, every `enabled` flag, and the whole deprecated 2.x layer are
+  removed.
+- Desktop identity flows automatically when a Compose Desktop app module
+  exists.
+- Tasks: `kiteCheck`, `kiteDoctor`, `kiteVerify`, `kitePlan`,
+  `kiteRewriteLogo`, `kiteRewriteXcode`; generators are `kiteInternal*`.
+
+
 ## [3.1.0]
 
 ### Added

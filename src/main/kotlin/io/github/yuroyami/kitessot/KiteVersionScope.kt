@@ -5,7 +5,19 @@ import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.Property
 import javax.inject.Inject
 
-/** Details for [KiteSsotExtension.version]: the shared formula and platform corners. */
+/**
+ * Details for [KiteSsotExtension.version]: the shared formula and platform corners.
+ *
+ * | member | meaning | default | flow class |
+ * |---|---|---|---|
+ * | `formula { v -> ... }` | version to every store's build number | [VersionSchemes.DEFAULT] | memory |
+ * | corner `reupload` | re-upload counter, feeds the formula | 0 | memory |
+ * | corner `shipped` | highest number ever shipped, guard floor | unset | memory |
+ * | corner `pin` | hard number, formula skipped | unset | memory |
+ * | corner `formula` | platform-only formula override | shared formula | memory |
+ * | `ios { marketingVersion }` | shown version on iOS | base version | memory |
+ * | `skip(p)` / `only(p)` | flow control | flow everywhere | n/a |
+ */
 abstract class KiteVersionScope : KiteFlowScope() {
 
     /** The shared version-to-build-number formula. Corners can override it. */

@@ -39,7 +39,7 @@ plugins {
 kiteSsot {
     appName = "Jetzy"
     version = "1.4.0"
-    appId = "com.example.jetzy"
+    id = "com.example.jetzy"
 
     android {
         compileSdk = 36
@@ -52,7 +52,7 @@ kiteSsot {
 Then:
 
 ```bash
-./gradlew kiteSsotVerify
+./gradlew kiteVerify
 ```
 
 That prints the resolved model and writes nothing. Run it again whenever a value
@@ -84,7 +84,7 @@ the value. Nothing else is needed.
 `Info.plist`, `Podfile`, Swift imports and launcher icons are yours. Editing them
 takes three things:
 
-1. The block that unlocks the task. Writing `ios { sync { } }` unlocks the Xcode
+1. The block that unlocks the task. Writing `ios { rewrite { } }` arms the Xcode
    tasks, and the app icon task needs a `logo { }` block as well.
 2. An explicitly named task that you run yourself.
 3. A set of containment, ownership, checksum, backup and rollback checks, which
@@ -94,12 +94,12 @@ In 3.0 the block **is** the switch. There is no separate `= true` flag: an empty
 `logo { }` counts as on, and leaving the block out counts as off.
 
 This surprises people. Adding `logo { }` installs nothing. It unlocks
-`kiteSsotSyncIosLogo` only when you also add `ios { sync { } }` and set
+`kiteRewriteLogo` only when you also add `logo { rewrite { } }`, an `ios { rewrite { } }` block, and set
 `ios { deploymentTarget }`, and you then run that task yourself. A plain
 `./gradlew build` never writes outside `build/`, and CI asserts that on every
 commit.
 
-Run `./gradlew kiteSsotPlan` before you run any mutating task. It lists which
+Run `./gradlew kitePlan` before you run any mutating task. It lists which
 mutations your current configuration authorizes, and the exact paths they would
 change. Set `dryRun = true` to make the mutating tasks report without writing.
 

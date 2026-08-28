@@ -62,150 +62,118 @@ plugins {
 Applying it anywhere but the root throws immediately: the plugin aggregates
 across every module from there, so a submodule apply can't do its job.
 
-Below is every DSL entry that exists, each with its real default. Nothing
-here is required beyond `appName`, `version`, and `appId` on the root; every
-block, dial, and file path is opt-in on top of that.
+The whole DSL follows one law:
+
+1. **Facts always flow.** A declared fact reaches every platform found, on every
+   build, in memory or as files under `build/`. Declaring it is the consent.
+   `skip()` and `only()` beside the fact are the only flow control.
+2. **`rewrite { }` is the only word that acts on your files.** It arms a by-name
+   task that edits source. `dryRun`, `backups`, and `onConflict` always apply.
+3. **One topic, one block.** Platform corners nest inside topics. Platform
+   blocks hold only platform-exclusive things.
+
+Below is the full surface. Nothing is required beyond `appName`, `version`, and
+`id` on the root.
 
 ```kotlin
 kiteSsot {
-    // ---- the shared truth, declared once, read by both platforms ----
-    appName = "Jetzy"                  // display name; Android manifest + Apple Info.plist
-    version = "1.4.0"                  // versionName / marketing version; feeds scheme below
-    appId = "com.example.jetzy"        // reverse-DNS base; android.idSuffix / ios.bundleIdSuffix extend it
-    locales = listOf("en", "pt-BR")    // default: auto-detected from the shared module's composeResources values-* folders
-    jvmTarget = 21                     // Java + Kotlin JVM compatibility across every module
+    // Simple forms: appName = "Jetzy" / id = "..." / version = "1.4.0".
+    // Detailed forms take the value plus a block, shown where useful.
 
-    // ---- the one formula that turns `version` into a store build number ----
-    // default: packs 1|major(3)|minor(3)|patch(2)|rebuild(1), so 1.4.0 -> 1001004000.
-    // Android reads the Int as versionCode; Apple reads the same number, as text,
-    // for CURRENT_PROJECT_VERSION. Write your own to replace the layout entirely:
-    scheme { v -> 1_000_000 * v.major + 10_000 * v.minor + 100 * v.patch + v.rebuild }
-
-    // ---- safety, both overridable per invocation ----
-    dryRun = false                     // true: mutating tasks report, write nothing. -Pkitessot.dryRun=true
-    backups = true                     // recovery copy before a rewrite. -Pkitessot.backups=false
-
-    // ---- where your modules live ----
-    modules {
-        shared = ":shared"                          // default: the sole module applying Kotlin Multiplatform; name it when several do
-        androidApps(":androidApp")                   // default: the sole Android application module
-        androidAppDirectory = layout.projectDirectory.dir("androidApp") // default: found from the app above
-        composeResources = layout.projectDirectory.dir("shared/src/commonMain/composeResources") // default: shared's own
+    appName("Jetzy") {
+        ios("Jetzy Lite")              // ios shows its own name
+        skip(desktop)                  // desktop keeps what it has
     }
 
-    // ---- which values KiteSSOT is allowed to apply, all on by default ----
-    propagate {
-        appName = true                 // off: the manifest placeholder and Apple name stay untouched
-        bundleId = true                // off: applicationId / bundle ID stay untouched
-        version = true                 // off: beats every version setting below, including an explicit versionCode
-        locales = true                 // off: locale metadata is still computed and reported, just not written
+    jvmTarget = 21                     // Java + Kotlin JVM level, whole build
+
+    id("com.example.jetzy") {
+        android { suffix = ".android" }   // applicationId = base + suffix
+        ios     { suffix = ".ios" }       // bundle id     = base + suffix
+        desktop { suffix = ".desktop" }
     }
 
-    // ---- Android-only: identity suffix, SDK levels, the Play re-upload dial ----
-    android {
-        idSuffix = ".debug"            // default: empty, so applicationId == appId
-        versionCode = 140              // default: the root scheme; assign to bypass it entirely
-        rebuild = 1                    // default: 0. Play keeps every uploaded versionCode forever; bump this to re-upload
-        // scheme { v -> ... }          // rare: override the root scheme for Android alone
-        compileSdk = 36                // default: unset, leaves each module's own value alone
-        minSdk = 26                    // default: unset, leaves each module's own value alone
-        targetSdk = 36                 // default: unset. Applications only; AGP removed it from libraries
-        ndk = "27.0.12077973"          // default: unset. Classic Android modules only
-        publishedVersionCode = 139     // default: unset, no check. When set, the next code must exceed it
-        applySdkLevels = true          // off: compileSdk/minSdk/targetSdk/ndk above are computed, not written
-        filterResourcesToLocales = false // true: narrows packaged resources to `locales`. Changes shipped output
-    }
-
-    // ---- Apple-only: identity suffix, build number, paths, and explicit source sync ----
-    ios {
-        bundleIdSuffix = ".iosApp"     // default: empty, so the bundle ID equals appId
-        marketingVersion = "1.4.0"     // default: the root version; needs three numeric parts
-        // buildNumber = "42"           // default: the root scheme, rendered as text; assign to bypass it
-        rebuild = 3                    // default: 0. TestFlight refuses a build number it already saw for this version
-        // scheme { v -> ... }          // rare: override the root scheme for iOS alone
-        // publishedBuildNumber = "1001004000" // release-time guard: the next resolved number must beat this, componentwise
-        deploymentTarget = "14.0"      // required by the universal AppIcon installer; asset check only, not IPHONEOS_DEPLOYMENT_TARGET
-
-        // typed paths, defaults shown; only set the ones your tree actually moved
-        pbxproj = file("iosApp/iosApp.xcodeproj/project.pbxproj")
-        podfile = file("iosApp/Podfile")
-        infoPlist = file("iosApp/iosApp/Info.plist")
-        appDirectory = layout.projectDirectory.dir("iosApp")
-        appIconDirectory = layout.projectDirectory.dir("iosApp/iosApp/Assets.xcassets/AppIcon.appiconset")
-
-        // configuring this block IS the opt-in for the explicit Apple source tasks.
-        // it authorizes them; you still run kiteSsotSyncIosConfig / kiteSsotSanitizeIosProject yourself.
-        sync {
-            enabled = true              // false always wins, even over a configured block
-            targets("iosApp")           // default: empty, which can still select a sole application target
-            sanitizePlist = false       // true: also maintain SSOT keys in a source XML Info.plist
-            onConflict = PlistConflictPolicy.FAIL   // or .KEEP, or .REPLACE, when a plist value already differs
-            nonExemptEncryption = false // ITSAppUsesNonExemptEncryption. default: unset, key left alone
-            proMotion = true            // CADisableMinimumFrameDurationOnPhone. default: unset, key left alone
-            renameSharedModule(from = "OldShared", to = "Shared") // one call: Podfile + Swift import migration
+    version("1.4.0") {
+        // one formula: version to every store build number
+        formula { v -> 1_000_000 * v.major + 10_000 * v.minor + 100 * v.patch + v.reupload }
+        android {
+            reupload = 1               // re-upload same version to Play
+            shipped  = 1001003090      // highest code ever shipped, guard floor
+            // pin = 123               // hard versionCode, formula skipped
         }
+        ios {
+            shipped = "1001003090"
+            // pin = "42"              // hard buildNumber
+            // marketingVersion = "1.4.0"
+        }
+        desktop { shipped = "1001003090" }
     }
 
-    // ---- app icon: configuring this block IS the opt-in for the logo-install tasks ----
+    locales {
+        // omit the block entirely to auto-detect from Compose resources
+        pin("en", "ar", "fr")          // hand list, detection skipped
+        filterAndroidRes = true        // drop Android res outside the list
+    }
+
     logo {
-        enabled = true                  // false always wins, even over a configured block
-        foreground = file("art/logo_fg.png")
-        backgroundColor = "#102A43"     // or background = file(...); set exactly one, never both
-        androidSafeZone = 66.0 / 108.0  // default. Fraction of the adaptive icon canvas the foreground fills
-        takeOverLegacyIcons = false     // true: claim known legacy/colliding icon files; still backed up first
+        foreground = file("art/logo-fg.png")
+        backgroundColor = "#0B0B0F"
+        android { safeZone = 0.611 }   // launcher icon safe zone
+        desktop { roundMac = true }    // desktop icons flow from presence
+        rewrite { replaceOld = true }  // arms kiteRewriteLogo, source edits
     }
 
-    // ---- Kotlin/Native interop opt-ins: configuring this block IS the opt-in ----
-    nativeOptIns {
-        builtIns = true                 // KiteSSOT's own marker set. false: opt in to nothing but what you add
+    optIns {
         add("kotlinx.cinterop.ExperimentalForeignApi")
-        projects(":shared")             // default: empty, which means modules.shared
+        projects(":shared")
+        builtIns = true
     }
 
-    // ---- browser Kotlin/JS worker helper: configuring this block IS the opt-in ----
-    web {
-        ioWorker {
-            enabled = true               // false always wins, even over a configured block
-            targets("js")                // required while enabled; KiteSSOT never guesses browser vs Node
-            projects(":shared")          // default: empty, which means modules.shared
-            packageName = "kitessot.generated"
+    android {
+        sdk(min = 26, target = 36, compile = 36)
+        ndk = "27.1.12297006"
+    }
+
+    ios {
+        deploymentTarget = "15.0"
+        // pbxproj / podfile / infoPlist / appDirectory / appIconDirectory
+        //   only when detection guesses wrong
+        rewrite {                      // arms kiteRewriteXcode, source edits
+            targets("iosApp")
+            cleanPlist = true
+            onConflict = io.github.yuroyami.kitessot.PlistConflictPolicy.FAIL
+            renameSharedModule(from = "shared", to = "Shared")
         }
     }
 
-    // ---- generated runtime constants for commonMain: configuring this block IS the opt-in ----
-    buildConfig {
-        enabled = true                  // false always wins, even over a configured block
-        packageName = "kitessot.generated"
-        className = "BuildConfig"
-        includeIdentity = true          // false: fields-only object, no appName/version/appId/locales
-        allowBuildCache = false         // true only when every field here is public, non-secret data
-
-        stringField("BASE_URL", "https://api.example.com")
-        stringField("CHANNEL", providers.gradleProperty("publicChannel").orElse("stable")) // provider overload; without orElse, an unset -P fails the build naming this field
-        intField("API_TIMEOUT_MS", 30_000)
-        longField("CACHE_BYTES", 5_000_000L)
-        booleanField("ANALYTICS_ENABLED", true)
-        doubleField("SAMPLE_RATE", 0.25)
-    }
-
-    // ---- desktop (Compose Multiplatform): configuring this block IS the opt-in ----
     desktop {
-        enabled = true                  // false always wins, even over a configured block
-        idSuffix = ".desktop"           // default: empty, so the desktop bundle ID equals appId
-        // buildNumber = "42"           // default: the root scheme, rendered as text; assign to bypass it
-        rebuild = 2                     // default: 0. Bump it for a re-package that does not bump the version
-        // scheme { v -> ... }          // rare: override the root scheme for desktop alone
-        // publishedBuildNumber = "1001004000" // release guard: the next resolved number must beat this, componentwise
-        icons = true                    // default: true while logo { } is configured; writes only to build/
-        roundMacOsIcon = true           // default: true. Apple's rounded-square mask; macOS icon only
-        linuxPackageName = "jetzy"      // default: a Debian-legal slug derived from appName
-        deriveUpgradeUuid = true        // default: false. Stable UUIDv5 from appId, so an MSI upgrades in place
+        linuxPackageName  = "jetzy"
+        deriveUpgradeUuid = true       // stable Windows MSI upgrade id from id
     }
+
+    web { ioWorker { targets("js") } }       // presence generates the worker
+
+    buildConfig {                      // presence generates into build/
+        packageName = "com.example.jetzy"
+        className   = "AppInfo"
+        stringField("API_HOST", "api.jetzy.app")
+    }
+
+    modules {                          // only when detection guesses wrong
+        shared = ":shared"
+        androidApps(":androidApp")
+        desktopApps(":desktopApp")
+    }
+
+    // skip(desktop)                   // root master: platform receives nothing
+
+    dryRun  = false                    // armed rewrites print, write nothing
+    backups = true                     // recovery copy before any rewrite
 }
 ```
 
 Five read-only providers are worth wiring into your own build logic: `versionCode`,
-`androidApplicationId`, `iosBundleId`, `canonicalLocales`, and
+`androidApplicationId`, `iosBundleId`, `desktopBundleId`, `canonicalLocales`, and
 `resolvedSharedProjectPath`. Hand any of them straight to another plugin's
 `Property`, no `.get()` needed:
 
@@ -214,66 +182,34 @@ val ssot = extensions.getByType<io.github.yuroyami.kitessot.KiteSsotExtension>()
 someOtherTask.someProperty.set(ssot.androidApplicationId)
 ```
 
-Run `./gradlew kiteSsotVerify` after any change. It resolves the whole model
+Run `./gradlew kiteVerify` after any change. It resolves the whole model
 above and prints it. It writes nothing.
 
-## Upgrading from 2.x
+## The reshape, old name to new
 
-Your 2.x build still compiles on 3.0.
+The 2.x compatibility layer is gone and the 3.0 surface was reshaped into the
+topic form above. The renames:
 
-**Old root properties still work.** They warn as deprecated and name their
-replacement, so the IDE can rename them for you. The common ones:
-
-| 2.x | 3.0 |
+| Before | Now |
 | --- | --- |
-| `versionName` | `version` |
-| `bundleIdBase` | `appId` |
-| `javaVersion` | `jvmTarget` |
-| `sharedProjectPath` | `modules { shared }` |
-| `versionCodeOverride` | `android { versionCode }` |
-| `iosBundleSuffix` | `ios { bundleIdSuffix }` |
+| `appId` | `id` |
+| `scheme { }` | `version("x") { formula { } }` |
+| `rebuild` | `reupload` inside a `version` corner |
+| `versionCode` / `buildNumber` overrides | `pin` inside a `version` corner |
+| `publishedVersionCode` / `publishedBuildNumber` | `shipped` inside a `version` corner |
+| `android { idSuffix }`, `ios { bundleIdSuffix }` | `id("base") { android { suffix } }` |
+| `android { filterResourcesToLocales }` | `locales { filterAndroidRes }` |
+| `logo { androidSafeZone }` | `logo { android { safeZone } }` |
+| `desktop { roundMacOsIcon }` | `logo { desktop { roundMac } }` |
+| `logo { takeOverLegacyIcons }` | `logo { rewrite { replaceOld } }` |
+| `ios { sync { } }` | `ios { rewrite { } }` |
+| `sanitizePlist` | `cleanPlist` |
+| `nativeOptIns { }` | `optIns { }` |
+| `propagate { x = false }` | `skip(platform)` beside the fact, or at the root |
+| every `enabled` flag | delete the block, or `skip()` the platform |
 
-**A block is its own switch.** Writing `logo { }` or `ios { sync { } }` turns
-that feature on, so drop `propagateLogo = true` and `syncIos = true`. To force a
-configured feature off, set `enabled = false` inside its block.
-
-**Derived version codes grow.** `1.4.1` gave `1001004001` and now gives
-`1001004010`. Bigger is safe: Play only rejects a code that shrinks.
-
-[CHANGELOG.md](CHANGELOG.md) lists every rename.
-
-## Two tiers of switch
-
-Some settings act on every build. Others only unlock a task that you run
-yourself. Configuring a block therefore does not always make something happen.
-
-**Gradle configuration is automatic and continuous.** The four `propagate { }`
-switches, plus `android { applySdkLevels }`, `android { filterResourcesToLocales }`,
-`buildConfig { }`, `web { ioWorker { } }` and `desktop { }`, govern the values
-KiteSSOT applies on every build: Android identity and SDK levels, Java and
-Kotlin JVM alignment, Kotlin source generated into `build/`, and Compose
-Desktop identity and build number. Desktop installer icons follow a
-different rule, covered next.
-
-**Source-tree edits are opt-in and manual.** `ios { sync { } }` and `logo { }`
-are authorization gates. They unlock tasks and never run them. `logo { }` is the
-one that surprises people: it looks automatic, but on its own it writes nothing
-for Android or Apple.
-
-Desktop breaks that pattern on purpose. The same `logo { }` art that only
-*unlocks* the Android and Apple installers *feeds* the desktop icon generator
-directly: once `desktop { }` and `logo { }` are both configured, the macOS,
-Windows and Linux installer icons generate whenever a packaging task runs,
-wired in automatically with no task for you to run yourself. The output
-never leaves `build/`, so it carries none of the source-tree safety
-machinery below either.
-
-Installing the Apple app icon needs three things: a `logo { }` block, an
-`ios { sync { } }` block, and `ios { deploymentTarget }`. You then still run
-`./gradlew kiteSsotSyncIosLogo` yourself.
-
-When one of the tasks they unlock does write an edit, it first passes
-containment, ownership, checksum, backup and rollback checks.
+Desktop identity now flows automatically when a Compose Desktop app module
+exists, exactly like Android and iOS. Derived version codes are unchanged.
 
 ## Tasks
 
@@ -282,18 +218,19 @@ lifecycle task, so the mutating ones run only when named.
 
 | Task | Writes | What it does |
 | --- | --- | --- |
-| `kiteSsotVerify` | nothing | Prints the resolved model |
-| `kiteSsotDoctor` | nothing | Diagnoses the setup; never fails the build |
-| `kiteSsotPlan` | nothing | Lists the mutations the current config authorizes, and their exact paths |
-| `kiteSsotCheck` | `build/` | Same checks, writes a JSON or SARIF report, fails on ERROR findings |
-| `generateKiteSsotBuildConfig` | `build/` | The `commonMain` constants object |
-| `generateKiteSsotIoWorker<Target>` | `build/` | The browser worker helper |
-| `generateKiteSsotDesktopIcons` | `build/` | The desktop `.icns`, `.ico` and `.png` icons |
-| `kiteSsotSanitizeIosProject` | source | Maintains the SSOT keys in a source XML `Info.plist` |
-| `kiteSsotSyncIosConfig` | source | Applies Xcode build settings, plist, Podfile and Swift plans |
-| `kiteSsotSyncIosLogo` | source | Installs the Apple `AppIcon.appiconset` |
-| `kiteSsotSyncAndroidLogo` | source | Installs the Android launcher icon tree |
-| `kiteSsotCleanupLegacyAppLogoArtifacts` | source | Backs up, records, then removes legacy Android icon files |
+| `kiteVerify` | nothing | Prints the resolved model |
+| `kiteDoctor` | nothing | Diagnoses the setup; never fails the build |
+| `kitePlan` | nothing | Lists the mutations the armed config authorizes, and their exact paths |
+| `kiteCheck` | `build/` | Same checks, writes a JSON or SARIF report, fails on ERROR findings |
+| `kiteRewriteLogo` | source | Installs the logo into Android res and the iOS asset catalog |
+| `kiteRewriteXcode` | source | Applies Xcode build settings, plist, Podfile and Swift plans |
+| `kiteInternalBuildConfig` | `build/` | The `commonMain` constants object, wired automatically |
+| `kiteInternalIoWorker<Target>` | `build/` | The browser worker helper, wired automatically |
+| `kiteInternalDesktopIcons` | `build/` | The desktop `.icns`, `.ico` and `.png` icons, wired automatically |
+
+The `kiteInternal*` tasks run on their own as part of ordinary builds; the two
+`kiteRewrite*` umbrellas run only when armed by a `rewrite { }` block and only
+when you invoke them.
 
 There is deliberately no aggregate "sync everything" task. Each source-tree
 mutation is a separate decision, with its own review, backup and recovery
@@ -357,9 +294,9 @@ unchanged.
   created from a blob URL. That normally means `worker-src blob:`.
 - `buildConfig` is not a secret store. Every value reaches generated source, task
   inputs, build scans and shipped binaries.
-- The desktop build-number scheme reaches macOS only. Windows and Linux
-  packaging have no separate build-number field, so `desktop { buildNumber }`
-  and `desktop { rebuild }` affect the macOS bundle version alone.
+- The desktop build number reaches macOS only. Windows and Linux packaging
+  have no separate build-number field, so the desktop `version` corner affects
+  the macOS bundle version alone.
 - Locales are not propagated to desktop packaging. `desktop { }` also does not
   manage `vendor`, `description` or `copyright`; set those directly on the
   Compose `nativeDistributions` block.

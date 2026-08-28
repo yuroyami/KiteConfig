@@ -5,7 +5,14 @@ import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.Property
 import javax.inject.Inject
 
-/** Details for [KiteSsotExtension.id]: per-platform suffixes and flow. */
+/**
+ * Details for [KiteSsotExtension.id]: per-platform suffixes and flow.
+ *
+ * | member | meaning | default | flow class |
+ * |---|---|---|---|
+ * | `android { suffix }` etc | appended to the base id | none | memory |
+ * | `skip(p)` / `only(p)` | flow control | flow everywhere | n/a |
+ */
 abstract class KiteIdScope @Inject constructor(objects: ObjectFactory) : KiteFlowScope() {
 
     /** One platform's identity deviation: [suffix] appended to the base. */

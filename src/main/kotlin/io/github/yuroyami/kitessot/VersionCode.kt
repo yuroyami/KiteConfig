@@ -5,7 +5,7 @@ import org.gradle.api.GradleException
 internal const val MAX_ANDROID_VERSION_CODE: Int = 2_100_000_000
 
 /** Validate a Play-compatible Android version code and return it unchanged. */
-internal fun validateVersionCode(value: Int, property: String = "android { versionCode }"): Int {
+internal fun validateVersionCode(value: Int, property: String = "version { android { pin } }"): Int {
     if (value !in 1..MAX_ANDROID_VERSION_CODE) {
         throw GradleException(
             "kiteSsot { $property } must be in 1..$MAX_ANDROID_VERSION_CODE " +
@@ -25,7 +25,7 @@ internal fun validatePublishedVersionCode(next: Int?, published: Int): Int {
     if (candidate <= published) {
         throw GradleException(
             "kiteSsot resolved Android versionCode $candidate must be greater than the published " +
-                "baseline $published. Increase version, or bump android { rebuild }, before release.",
+                "baseline $published. Increase version, or bump version { android { reupload } }, before release.",
         )
     }
     return candidate
