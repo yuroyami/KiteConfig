@@ -94,6 +94,25 @@ abstract class KiteSsotExtension {
      */
     abstract val appName: Property<String>
 
+    /** Detailed form of [appName]: per-platform overrides and flow modifiers. */
+    fun appName(value: String, action: Action<in KiteAppNameScope>) {
+        if (appName.isPresent) doubleSetWarnings.add("appName")
+        appName.set(value)
+        action.execute(appNameScope)
+    }
+
+    internal val appNameScope: KiteAppNameScope
+        get() = nested()
+
+    /** Facts set twice through mixed forms; kiteSsotDoctor warns on these. */
+    internal abstract val doubleSetWarnings: org.gradle.api.provider.SetProperty<String>
+
+    internal fun effectiveAppNameFor(p: KitePlatform): Provider<String> =
+        appNameScope.overrideFor(p).orElse(appName)
+
+    internal fun appNameFlowsTo(p: KitePlatform): Provider<Boolean> =
+        appNameScope.flowsTo(p)
+
     /**
      * The release version you show to users, as `x.y.z`.
      *

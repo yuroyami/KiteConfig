@@ -68,6 +68,7 @@ class KiteSsotPlugin : Plugin<Project> {
             desktopApps.convention(emptyList())
         }
         extAware.extensions.create<KiteSsotPropagateExtension>("propagate")
+        extAware.extensions.create<KiteAppNameScope>("appNameScope")
         extAware.extensions.create<KiteSsotAndroidExtension>("android").apply {
             rebuild.convention(0)
         }
