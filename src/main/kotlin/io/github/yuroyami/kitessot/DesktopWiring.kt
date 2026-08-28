@@ -151,7 +151,7 @@ internal object DesktopWiring {
             foreground.set(ext.effectiveLogoForeground)
             background.set(ext.effectiveLogoBackground)
             backgroundColor.set(ext.effectiveLogoBackgroundColor)
-            roundMacOsIcon.set(ext.desktop.roundMacOsIcon.orElse(true))
+            roundMacOsIcon.set(ext.logo.desktop.roundMac.orElse(true))
             outputDir.set(project.layout.buildDirectory.dir("generated/kitessot/desktop-icons"))
             dryRun.set(ext.effectiveDryRun)
         }

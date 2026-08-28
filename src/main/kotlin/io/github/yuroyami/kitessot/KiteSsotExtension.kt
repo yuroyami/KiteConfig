@@ -252,6 +252,7 @@ abstract class KiteSsotExtension {
     /** Point KiteSSOT at your foreground and background art. */
     fun logo(action: Action<in KiteSsotLogoExtension>) {
         logoConfigured.set(true)
+        logo.declared.set(true)
         action.execute(logo)
     }
 
@@ -566,10 +567,13 @@ abstract class KiteSsotExtension {
 
     // --- logo ---
 
+    /** True when `logo { rewrite { } }` armed the source-writing tasks. */
+    internal val effectiveLogoRewriteArmed: Provider<Boolean>
+        get() = logo.rewriteArmed.orElse(false)
+            .zip(propagateLogo.orElse(false)) { armed, legacy -> armed || legacy }
+
     internal val effectivePropagateLogo: Provider<Boolean>
-        get() = logoConfigured.orElse(false)
-            .zip(propagateLogo.orElse(false)) { configured, legacy -> configured || legacy }
-            .zip(logo.enabled.orElse(true)) { on, enabled -> on && enabled }
+        get() = effectiveLogoRewriteArmed
 
     internal val effectiveLogoForeground: Provider<org.gradle.api.file.RegularFile>
         get() = logo.foreground.orElse(appLogoPngForeground)
@@ -581,12 +585,12 @@ abstract class KiteSsotExtension {
         get() = logo.backgroundColor.orElse(appLogoBackgroundColor)
 
     internal val effectiveLogoSafeZone: Provider<Double>
-        get() = logo.androidSafeZone.orElse(appLogoAndroidSafeZoneRatio).orElse(DEFAULT_ANDROID_SAFE_ZONE)
+        get() = logo.android.safeZone.orElse(appLogoAndroidSafeZoneRatio).orElse(DEFAULT_ANDROID_SAFE_ZONE)
 
     internal val effectiveTakeOverLegacyIcons: Provider<Boolean>
-        get() = effectivePropagateLogo.zip(
-            logo.takeOverLegacyIcons.orElse(cleanupLegacyLogoArtifacts).orElse(false),
-        ) { logoOn, takeOver -> logoOn && takeOver }
+        get() = effectiveLogoRewriteArmed.zip(
+            logo.rewriteSpec.replaceOld.orElse(cleanupLegacyLogoArtifacts).orElse(false),
+        ) { armed, takeOver -> armed && takeOver }
 
     // --- native opt-ins ---
 
@@ -650,10 +654,11 @@ abstract class KiteSsotExtension {
                 },
             )
 
+    // Logo art flowing to desktop: presence of art, not an armed rewrite.
     internal val effectiveDesktopIcons: Provider<Boolean>
-        get() = effectiveDesktopEnabled
-            .zip(desktop.icons.orElse(true)) { on, icons -> on && icons }
-            .zip(effectivePropagateLogo) { wanted, logo -> wanted && logo }
+        get() = logo.declared.orElse(false)
+            .zip(desktop.icons.orElse(true)) { declared, icons -> declared && icons }
+            .zip(logo.flowsTo(KitePlatform.DESKTOP)) { wanted, flows -> wanted && flows }
 
     internal companion object {
         internal const val DEFAULT_ANDROID_SAFE_ZONE: Double = 66.0 / 108.0

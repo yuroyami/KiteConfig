@@ -326,14 +326,14 @@ class KiteSsotPlugin : Plugin<Project> {
                     (!ext.effectiveLogoBackground.isPresent && !ext.effectiveLogoBackgroundColor.isPresent)
                 ) {
                     throw GradleException(
-                        "kiteSsot { logo { takeOverLegacyIcons } } requires a complete replacement " +
+                        "kiteSsot { logo { rewrite { replaceOld } } } requires a complete replacement " +
                             "logo plan: a foreground plus exactly one background."
                     )
                 }
             }
             // Leaving logo { } unconfigured turns desktop icons off quietly
             // (effectiveDesktopIcons), so this only fires for an explicit icons = true.
-            if (ext.desktop.icons.orNull == true && !ext.effectivePropagateLogo.get()) {
+            if (ext.desktop.icons.orNull == true && ext.logo.declared.orNull != true) {
                 throw GradleException(
                     "kiteSsot { desktop { icons = true } } needs a logo { } block with a foreground and " +
                         "exactly one of background or backgroundColor. Configure logo { }, or remove " +
@@ -1558,8 +1558,9 @@ class KiteSsotPlugin : Plugin<Project> {
             ext.ios.sync.nonExemptEncryption, ext.ios.sync.proMotion,
             ext.ios.sync.previousSharedModuleName, ext.ios.sync.newSharedModuleName,
         ) + listOf(
-            ext.logo.enabled, ext.logo.foreground, ext.logo.background,
-            ext.logo.backgroundColor, ext.logo.androidSafeZone, ext.logo.takeOverLegacyIcons,
+            ext.logo.declared, ext.logo.rewriteArmed, ext.logo.foreground, ext.logo.background,
+            ext.logo.backgroundColor, ext.logo.android.safeZone, ext.logo.desktop.roundMac,
+            ext.logo.rewriteSpec.replaceOld,
             ext.nativeOptIns.enabled, ext.nativeOptIns.builtIns,
             ext.nativeOptIns.markers, ext.nativeOptIns.projects,
         ) + listOf(

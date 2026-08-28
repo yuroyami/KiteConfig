@@ -302,7 +302,7 @@ abstract class SyncAndroidLogoTask : DefaultTask() {
                         "    ${diagnosticSafeText(it.relativeToOrSelf(resDir).path)}"
                     } +
                     (if (omitted > 0) "\n    … and $omitted more" else "") +
-                    "\n  Back them up/remove them, or opt into logo { takeOverLegacyIcons } for a reversible migration."
+                    "\n  Back them up/remove them, or opt into logo { rewrite { replaceOld } } for a reversible migration."
         )
     }
 
