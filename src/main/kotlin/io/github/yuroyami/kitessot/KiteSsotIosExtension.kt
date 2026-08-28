@@ -68,85 +68,13 @@ abstract class KiteSsotIosExtension {
 
     // --- Identity -------------------------------------------------------------
 
-    /**
-     * Appended to the root `appId` to build the Apple bundle ID.
-     *
-     * Default: empty, so the bundle ID equals `appId`. A common value is
-     * `".iosApp"`, which turns `com.example.jetzy` into `com.example.jetzy.iosApp`.
-     */
-    abstract val bundleIdSuffix: Property<String>
 
     // --- Versions -------------------------------------------------------------
 
-    /**
-     * The version users read in the App Store, written as
-     * `CFBundleShortVersionString` and `MARKETING_VERSION`.
-     *
-     * Default: the root `version`. It needs three numeric parts, like `1.4.0`.
-     *
-     * @throws org.gradle.api.GradleException during configuration when the value
-     *   is not three numeric dot-separated parts.
-     */
-    abstract val marketingVersion: Property<String>
 
-    /**
-     * The upload counter, written as `CURRENT_PROJECT_VERSION`. One to three
-     * numeric dot parts, for example `"42"` or `"1001004000"`.
-     *
-     * Default: the result of the root `scheme`, rendered as a string. Assigning
-     * a value bypasses the scheme, so [rebuild] stops having any effect.
-     *
-     * @throws org.gradle.api.GradleException during configuration when the value
-     *   is not one to three numeric dot-separated parts.
-     */
-    abstract val buildNumber: Property<String>
 
-    /**
-     * Feeds the scheme as `v.reupload`, so a value of `3` turns `1001004000` into
-     * `1001004003`.
-     *
-     * Default: `0`. TestFlight refuses a build number it has already seen for the
-     * same marketing version, so bump this for every re-upload that does not
-     * bump the version.
-     *
-     * It is separate from `android.rebuild` on purpose. Play and TestFlight burn
-     * numbers on different days.
-     */
-    abstract val rebuild: Property<Int>
 
-    /**
-     * The formula that turns the version into a build number, for Apple only.
-     *
-     * Default: the root `scheme`. Set it only when the two platforms genuinely
-     * need different formulas, which is rare.
-     */
-    abstract val scheme: Property<VersionCodeScheme>
 
-    /**
-     * Set [scheme] from a lambda: `scheme { v -> ... }`.
-     *
-     * The lambda receives `v.major`, `v.minor`, `v.patch`, and `v.reupload`.
-     * KiteSSOT renders the returned number as the Apple build number.
-     */
-    fun scheme(s: VersionCodeScheme) {
-        scheme.set(s)
-    }
-
-    /**
-     * The highest build number you already uploaded for the current marketing
-     * version. The next resolved number must beat it.
-     *
-     * Default: unset, so no check runs. Comparison is componentwise and numeric,
-     * with missing parts read as `0`, so `"2.1"` outranks `"2"`.
-     *
-     * The check is offline. KiteSSOT never contacts App Store Connect, and it
-     * never writes this value into any file.
-     *
-     * @throws org.gradle.api.GradleException during configuration when the
-     *   resolved build number does not beat this baseline.
-     * @see KiteSsotAndroidExtension.publishedVersionCode for the Play equivalent.
-     */
-    abstract val publishedBuildNumber: Property<String>
 
     // --- Assets ---------------------------------------------------------------
 
@@ -209,7 +137,7 @@ abstract class KiteSsotIosExtension {
      * Apple source sync policy. Configure it with
      * `kiteSsot { ios { sync { ... } } }`.
      */
-    val sync: KiteSsotIosSyncExtension
+    val rewrite: KiteSsotIosSyncExtension
         get() = (this as ExtensionAware).extensions.getByType(KiteSsotIosSyncExtension::class.java)
 
     /**
@@ -218,8 +146,8 @@ abstract class KiteSsotIosExtension {
      * Calling this authorizes the explicit Apple source tasks. It does not run
      * them. See [KiteSsotIosSyncExtension].
      */
-    fun sync(action: Action<in KiteSsotIosSyncExtension>) {
-        sync.configured.set(true)
-        action.execute(sync)
+    fun rewrite(action: Action<in KiteSsotIosSyncExtension>) {
+        rewrite.rewriteArmed.set(true)
+        action.execute(rewrite)
     }
 }

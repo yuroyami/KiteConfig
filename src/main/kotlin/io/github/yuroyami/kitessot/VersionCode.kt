@@ -17,9 +17,9 @@ internal fun validateVersionCode(value: Int, property: String = "android { versi
 
 /** Validate the optional offline store baseline against a resolved next code. */
 internal fun validatePublishedVersionCode(next: Int?, published: Int): Int {
-    validateVersionCode(published, "android { publishedVersionCode }")
+    validateVersionCode(published, "version { android { shipped } }")
     val candidate = next ?: throw GradleException(
-        "kiteSsot { android { publishedVersionCode } } requires version or android { versionCode }.",
+        "kiteSsot { version { android { shipped } } } requires a version or a pinned versionCode.",
     )
     validateVersionCode(candidate)
     if (candidate <= published) {

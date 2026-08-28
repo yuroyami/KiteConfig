@@ -14,7 +14,7 @@ import org.gradle.api.provider.Property
  *     ios {
  *         sync {
  *             targets("iosApp")
- *             sanitizePlist = true
+ *             cleanPlist = true
  *             onConflict = PlistConflictPolicy.KEEP
  *
  *             renameSharedModule(from = "OldShared", to = "Shared")
@@ -35,7 +35,7 @@ import org.gradle.api.provider.Property
  * | Task | Writes | Also needs |
  * |---|---|---|
  * | `kiteSsotSyncIosConfig` | `project.pbxproj`, Podfile, Swift imports | nothing else |
- * | `kiteSsotSanitizeIosProject` | source `Info.plist` | [sanitizePlist] |
+ * | `kiteSsotSanitizeIosProject` | source `Info.plist` | [cleanPlist] |
  * | `kiteSsotSyncIosLogo` | `AppIcon.appiconset` | a `logo { }` block and [KiteSsotIosExtension.deploymentTarget] |
  *
  * ## What happens on a plist conflict
@@ -51,14 +51,6 @@ import org.gradle.api.provider.Property
  */
 abstract class KiteSsotIosSyncExtension {
 
-    /**
-     * Whether the Apple source tasks stay authorized.
-     *
-     * Default: `true` once this block has been configured. Set it to `false` to
-     * force the feature off without deleting your configuration, which is handy
-     * for CI or a convention plugin.
-     */
-    abstract val enabled: Property<Boolean>
 
     /**
      * The exact Xcode application targets whose build configurations may change.
@@ -90,7 +82,7 @@ abstract class KiteSsotIosSyncExtension {
      *   generates its `Info.plist` (`GENERATE_INFOPLIST_FILE`), because there is
      *   no source file to maintain.
      */
-    abstract val sanitizePlist: Property<Boolean>
+    abstract val cleanPlist: Property<Boolean>
 
     /**
      * What to do when an existing `Info.plist` value differs from the requested
@@ -150,8 +142,8 @@ abstract class KiteSsotIosSyncExtension {
         newSharedModuleName.set(to)
     }
 
-    /** Set when the enclosing `sync { }` block is opened. Presence is the opt-in. */
-    internal abstract val configured: Property<Boolean>
+    /** Set when `ios { rewrite { } }` arms the Xcode tasks. */
+    internal abstract val rewriteArmed: Property<Boolean>
 
     /** Backing field for the `from` argument of [renameSharedModule]. */
     internal abstract val previousSharedModuleName: Property<String>

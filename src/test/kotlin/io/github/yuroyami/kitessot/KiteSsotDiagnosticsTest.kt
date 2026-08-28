@@ -485,12 +485,12 @@ class KiteSsotDiagnosticsTest {
     }
 
     @Test
-    fun `desktop icons is an ERROR for icons = true with no usable logo, even with desktop disabled`() {
+    fun `desktop icons is SKIPPED when logo skips desktop`() {
         val finding = KiteSsotDiagnosticEngine.evaluate(
-            quietContext().copy(propagateDesktop = false, desktopIconsExplicit = true, propagateLogo = false),
+            quietContext().copy(propagateDesktop = true, desktopIconsExplicit = false),
         ).single { it.id == "KMPS081" }
-        assertEquals(KiteSsotDiagnosticSeverity.ERROR, finding.severity, finding.toString())
-        assertTrue(finding.detail.contains("desktop { icons = true }"), finding.detail)
+        assertEquals(KiteSsotDiagnosticSeverity.SKIPPED, finding.severity, finding.toString())
+        assertTrue(finding.detail.contains("skips desktop"), finding.detail)
     }
 
     @Test
@@ -502,9 +502,9 @@ class KiteSsotDiagnosticsTest {
     }
 
     @Test
-    fun `desktop icons is SKIPPED when unset and no logo block is configured`() {
+    fun `desktop icons is SKIPPED when no logo art flows`() {
         val finding = KiteSsotDiagnosticEngine.evaluate(
-            quietContext().copy(propagateDesktop = true),
+            quietContext().copy(propagateDesktop = true, desktopIconsExplicit = false),
         ).single { it.id == "KMPS081" }
         assertEquals(KiteSsotDiagnosticSeverity.SKIPPED, finding.severity, finding.toString())
     }

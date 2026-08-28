@@ -70,15 +70,15 @@ class KiteSsotPlugin : Plugin<Project> {
         extAware.extensions.create<KiteSsotPropagateExtension>("propagate")
         extAware.extensions.create<KiteAppNameScope>("appNameScope")
         extAware.extensions.create<KiteIdScope>("idScope")
-        extAware.extensions.create<KiteVersionScope>("versionScope")
+        extAware.extensions.create<KiteVersionScope>("versionScope").apply {
+            android.reupload.convention(0)
+            ios.reupload.convention(0)
+            desktop.reupload.convention(0)
+        }
         extAware.extensions.create<KiteLocalesScope>("localesScope")
-        extAware.extensions.create<KiteSsotAndroidExtension>("android").apply {
-            rebuild.convention(0)
-        }
-        val iosExtension = extAware.extensions.create<KiteSsotIosExtension>("ios").apply {
-            rebuild.convention(0)
-        }
-        (iosExtension as ExtensionAware).extensions.create<KiteSsotIosSyncExtension>("sync").apply {
+        extAware.extensions.create<KiteSsotAndroidExtension>("android")
+        val iosExtension = extAware.extensions.create<KiteSsotIosExtension>("ios")
+        (iosExtension as ExtensionAware).extensions.create<KiteSsotIosSyncExtension>("rewrite").apply {
             targets.convention(emptyList())
         }
         extAware.extensions.create<KiteSsotLogoExtension>("logo")
@@ -99,9 +99,7 @@ class KiteSsotPlugin : Plugin<Project> {
             allowBuildCache.convention(false)
             fields.convention(emptyList())
         }
-        extAware.extensions.create<KiteSsotDesktopExtension>("desktop").apply {
-            rebuild.convention(0)
-        }
+        extAware.extensions.create<KiteSsotDesktopExtension>("desktop")
 
         // Resolve console colour once. Tasks receive only the Boolean, which keeps
         // them configuration-cache safe and stops every task action re-detecting.
@@ -331,15 +329,6 @@ class KiteSsotPlugin : Plugin<Project> {
                     )
                 }
             }
-            // Leaving logo { } unconfigured turns desktop icons off quietly
-            // (effectiveDesktopIcons), so this only fires for an explicit icons = true.
-            if (ext.desktop.icons.orNull == true && ext.logo.declared.orNull != true) {
-                throw GradleException(
-                    "kiteSsot { desktop { icons = true } } needs a logo { } block with a foreground and " +
-                        "exactly one of background or backgroundColor. Configure logo { }, or remove " +
-                        "desktop { icons }.",
-                )
-            }
             finalizeModel(ext)
         }
 
@@ -559,17 +548,17 @@ class KiteSsotPlugin : Plugin<Project> {
                 ext.android.ndk.orNull?.let(::validateNdkVersion)
             }
             if (detectedAndroidApplications.isNotEmpty() && ext.effectivePropagateVersion.get()) {
-                ext.android.publishedVersionCode.orNull?.let { published ->
+                ext.versionScope.android.shipped.orNull?.let { published ->
                     validatePublishedVersionCode(ext.effectiveAndroidVersionCode.orNull, published)
                 }
             }
             if (ext.effectiveSyncIos.get() && ext.effectivePropagateVersion.get()) {
-                ext.ios.publishedBuildNumber.orNull?.let { published ->
+                ext.versionScope.ios.shipped.orNull?.let { published ->
                     validatePublishedBuildNumber(ext.effectiveIosBuildNumber.orNull, published)
                 }
             }
             if (detectedDesktopApplications.isNotEmpty() && ext.effectivePropagateVersion.get()) {
-                ext.desktop.publishedBuildNumber.orNull?.let { published ->
+                ext.versionScope.desktop.shipped.orNull?.let { published ->
                     validatePublishedBuildNumber(ext.effectiveDesktopBuildNumber.orNull, published, platform = "desktop")
                 }
             }
@@ -792,7 +781,7 @@ class KiteSsotPlugin : Plugin<Project> {
             }
             if (ext.effectiveFilterAndroidResources.get() && ext.canonicalLocales.get().isEmpty()) {
                 throw GradleException(
-                    "kiteSsot { android { filterResourcesToLocales } } requires at least one locale. " +
+                    "kiteSsot { locales { filterAndroidRes } } requires at least one locale. " +
                         "Configure locales explicitly or add a supported values-<locale> resource directory."
                 )
             }
@@ -1303,7 +1292,7 @@ class KiteSsotPlugin : Plugin<Project> {
                 mapOf(
                     "backups" to ext.effectiveBackups.get().toString(),
                     "dryRun" to ext.effectiveDryRun.get().toString(),
-                    "ios.sync.onConflict" to ext.effectivePlistConflictPolicy.get().name,
+                    "ios.rewrite.onConflict" to ext.effectivePlistConflictPolicy.get().name,
                     "ios.deploymentTarget" to ext.ios.deploymentTarget.orNull.orEmpty(),
                     "pbxprojScope" to if (ext.effectiveIosTargets.get().isEmpty()) {
                         "sole application target only"
@@ -1446,12 +1435,12 @@ class KiteSsotPlugin : Plugin<Project> {
             }
         )
         propagateDesktop.set(ext.effectiveDesktopEnabled)
-        desktopIconsExplicit.set(ext.desktop.icons)
+        desktopIconsExplicit.set(ext.logo.declared.orElse(false).zip(ext.logo.flowsTo(KitePlatform.DESKTOP)) { d, f -> d && f })
         composeOnClasspath.set(COMPOSE_ON_CLASSPATH)
         if (COMPOSE_ON_CLASSPATH) runtimeComposeVersion()?.let(this.activeComposeVersion::set)
         desktopApplicationProjects.set(ext.effectiveDesktopApps)
         appId.set(ext.effectiveAppId)
-        desktopBundleId.set(ext.effectiveAppId.zip(ext.desktop.idSuffix.orElse("")) { base, suffix -> base + suffix })
+        desktopBundleId.set(ext.effectiveIdFor(KitePlatform.DESKTOP))
         desktopLinuxPackageName.set(ext.desktop.linuxPackageName)
         desktopDeriveUpgradeUuid.set(ext.desktop.deriveUpgradeUuid.orElse(false))
     }
@@ -1543,20 +1532,26 @@ class KiteSsotPlugin : Plugin<Project> {
             ext.propagate.appName, ext.propagate.bundleId,
             ext.propagate.version, ext.propagate.locales,
         ) + listOf(
-            ext.android.idSuffix, ext.android.versionCode, ext.android.rebuild,
-            ext.android.scheme, ext.android.compileSdk, ext.android.minSdk,
-            ext.android.targetSdk, ext.android.ndk, ext.android.publishedVersionCode,
-            ext.android.applySdkLevels, ext.android.filterResourcesToLocales,
+            ext.android.compileSdk, ext.android.minSdk,
+            ext.android.targetSdk, ext.android.ndk,
+            ext.versionScope.formulaProp,
+            ext.versionScope.android.reupload, ext.versionScope.android.shipped,
+            ext.versionScope.android.pin, ext.versionScope.android.formulaProp,
+            ext.versionScope.ios.reupload, ext.versionScope.ios.shipped,
+            ext.versionScope.ios.pin, ext.versionScope.ios.marketingVersion,
+            ext.versionScope.ios.formulaProp,
+            ext.versionScope.desktop.reupload, ext.versionScope.desktop.shipped,
+            ext.versionScope.desktop.pin, ext.versionScope.desktop.formulaProp,
+            ext.idScope.android.suffix, ext.idScope.ios.suffix, ext.idScope.desktop.suffix,
+            ext.localesScope.pinned, ext.localesScope.filterAndroidRes,
         ) + listOf(
-            ext.ios.bundleIdSuffix, ext.ios.marketingVersion, ext.ios.buildNumber,
-            ext.ios.rebuild, ext.ios.scheme, ext.ios.publishedBuildNumber,
             ext.ios.deploymentTarget, ext.ios.pbxproj, ext.ios.podfile,
             ext.ios.infoPlist, ext.ios.appDirectory, ext.ios.appIconDirectory,
         ) + listOf(
-            ext.ios.sync.enabled, ext.ios.sync.configured, ext.ios.sync.targets,
-            ext.ios.sync.sanitizePlist, ext.ios.sync.onConflict,
-            ext.ios.sync.nonExemptEncryption, ext.ios.sync.proMotion,
-            ext.ios.sync.previousSharedModuleName, ext.ios.sync.newSharedModuleName,
+            ext.ios.rewrite.rewriteArmed, ext.ios.rewrite.targets,
+            ext.ios.rewrite.cleanPlist, ext.ios.rewrite.onConflict,
+            ext.ios.rewrite.nonExemptEncryption, ext.ios.rewrite.proMotion,
+            ext.ios.rewrite.previousSharedModuleName, ext.ios.rewrite.newSharedModuleName,
         ) + listOf(
             ext.logo.declared, ext.logo.rewriteArmed, ext.logo.foreground, ext.logo.background,
             ext.logo.backgroundColor, ext.logo.android.safeZone, ext.logo.desktop.roundMac,
@@ -1568,10 +1563,7 @@ class KiteSsotPlugin : Plugin<Project> {
             ext.buildConfig.packageName, ext.buildConfig.className,
             ext.buildConfig.includeIdentity, ext.buildConfig.allowBuildCache, ext.buildConfig.fields,
         ) + listOf(
-            ext.desktop.enabled, ext.desktop.configured, ext.desktop.idSuffix,
-            ext.desktop.buildNumber, ext.desktop.rebuild, ext.desktop.scheme,
-            ext.desktop.publishedBuildNumber, ext.desktop.icons,
-            ext.desktop.roundMacOsIcon, ext.desktop.linuxPackageName,
+            ext.desktop.configured, ext.desktop.linuxPackageName,
             ext.desktop.deriveUpgradeUuid, ext.modules.desktopApps,
         ) + legacyModelValues(ext)
 

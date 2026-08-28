@@ -92,7 +92,7 @@ abstract class SanitizeIosProjectTask : DefaultTask() {
         if (!file.exists()) {
             throw GradleException(
                 "Configured source Info.plist does not exist: ${file.path}. " +
-                    "For GENERATE_INFOPLIST_FILE projects, disable ios { sync { sanitizePlist } } and configure Xcode build settings instead."
+                    "For GENERATE_INFOPLIST_FILE projects, disable ios { rewrite { cleanPlist } } and configure Xcode build settings instead."
             )
         }
 

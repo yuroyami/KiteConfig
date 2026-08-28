@@ -126,7 +126,7 @@ class VersionCodeTest {
         val invalidBaseline = assertThrows(GradleException::class.java) {
             validatePublishedVersionCode(101, 0)
         }
-        assertTrue(invalidBaseline.message.orEmpty().contains("android { publishedVersionCode }"))
+        assertTrue(invalidBaseline.message.orEmpty().contains("version { android { shipped } }"))
     }
 
     @Test

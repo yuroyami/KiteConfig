@@ -260,7 +260,7 @@ abstract class SyncIosConfigTask : DefaultTask() {
         if (!file.exists()) {
             throw GradleException(
                 "Configured source Info.plist does not exist: ${file.path}. " +
-                    "For a generated plist, disable ios { sync { sanitizePlist } } and configure Xcode build settings instead.",
+                    "For a generated plist, disable ios { rewrite { cleanPlist } } and configure Xcode build settings instead.",
             )
         }
         val stringEntries = buildList {

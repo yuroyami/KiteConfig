@@ -169,13 +169,13 @@ internal fun validatePublishedBuildNumber(next: String?, published: String, plat
     }
     if (!isValidAppleBuildNumber(published)) {
         throw GradleException(
-            "kiteSsot { $dsl publishedBuildNumber } } \"${diagnosticSafeText(published, 32)}\" is invalid. " +
+            "kiteSsot { $dsl shipped } } \"${diagnosticSafeText(published, 32)}\" is invalid. " +
                 "CFBundleVersion requires one to three numeric components, each at most " +
                 "$MAX_APPLE_BUILD_COMPONENT_DIGITS digits, and a first component that is not zero.",
         )
     }
     val candidate = next ?: throw GradleException(
-        "kiteSsot { $dsl publishedBuildNumber } } requires a resolvable $dsl buildNumber }.",
+        "kiteSsot { $dsl shipped } } requires a resolvable build number.",
     )
     if (!isValidAppleBuildNumber(candidate)) {
         throw GradleException(

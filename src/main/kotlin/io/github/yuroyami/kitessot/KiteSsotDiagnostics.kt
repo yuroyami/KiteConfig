@@ -165,30 +165,13 @@ internal object KiteSsotDiagnosticEngine {
      */
     private fun MutableList<KiteSsotDiagnostic>.diagnoseDesktopIcons(context: KiteSsotDiagnosticContext) {
         when {
-            context.desktopIconsExplicit == true && !context.propagateLogo -> add(
-                diagnostic(
-                    "KMPS081",
-                    KiteSsotDiagnosticSeverity.ERROR,
-                    "Desktop app icons",
-                    "desktop { icons = true } is set, but no usable logo { } block is configured.",
-                    "Configure logo { } with a foreground and exactly one of background or backgroundColor, " +
-                        "or remove desktop { icons }.",
-                ),
-            )
             context.desktopIconsExplicit == false -> add(
-                diagnostic("KMPS081", KiteSsotDiagnosticSeverity.SKIPPED, "Desktop app icons", "desktop { icons = false }; icon generation is off."),
+                diagnostic("KMPS081", KiteSsotDiagnosticSeverity.SKIPPED, "Desktop app icons", "logo { } is absent or skips desktop; icon generation is off."),
             )
             !context.propagateDesktop -> add(
                 diagnostic("KMPS081", KiteSsotDiagnosticSeverity.SKIPPED, "Desktop app icons", "desktop { } is not enabled."),
             )
-            !context.propagateLogo -> add(
-                diagnostic(
-                    "KMPS081",
-                    KiteSsotDiagnosticSeverity.SKIPPED,
-                    "Desktop app icons",
-                    "logo { } is not configured; desktop icon generation defaults to off.",
-                ),
-            )
+
             else -> add(
                 diagnostic(
                     "KMPS081",

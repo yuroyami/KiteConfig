@@ -330,7 +330,7 @@ abstract class KiteSsotExtension {
         val legacySuffix = when (p) {
             KitePlatform.ANDROID -> effectiveAndroidIdSuffix
             KitePlatform.IOS -> effectiveIosBundleSuffix
-            KitePlatform.DESKTOP -> desktop.idSuffix
+            KitePlatform.DESKTOP -> idScope.desktop.suffix
         }
         return base.zip(idScope.suffixFor(p).orElse(legacySuffix).orElse("")) { b, s -> b + s }
     }
@@ -448,11 +448,15 @@ abstract class KiteSsotExtension {
         get() = propagate.locales.orElse(propagateLocaleList).orElse(true)
 
     internal val effectiveApplySdkLevels: Provider<Boolean>
-        get() = android.applySdkLevels.orElse(propagateAndroidSdk).orElse(true)
+        get() = android.minSdk.map { true }
+            .orElse(android.targetSdk.map { true })
+            .orElse(android.compileSdk.map { true })
+            .orElse(android.ndk.map { true })
+            .orElse(false)
 
     internal val effectiveFilterAndroidResources: Provider<Boolean>
         get() = localesScope.filterAndroidRes
-            .orElse(android.filterResourcesToLocales).orElse(filterAndroidResources).orElse(false)
+            .orElse(filterAndroidResources).orElse(false)
 
     // --- version numbers ---
 
@@ -470,20 +474,16 @@ abstract class KiteSsotExtension {
 
     // Transition bridge: corner formula > topic formula > legacy platform scheme
     // > legacy root scheme > default. The purge task deletes the legacy legs.
-    private fun activeFormula(
-        corner: Provider<VersionCodeScheme>,
-        legacyPlatform: Provider<VersionCodeScheme>,
-    ): Provider<VersionCodeScheme> =
-        corner.orElse(versionScope.formulaProp).orElse(legacyPlatform).orElse(schemeOrDefault)
+    private fun activeFormula(corner: Provider<VersionCodeScheme>): Provider<VersionCodeScheme> =
+        corner.orElse(versionScope.formulaProp).orElse(schemeOrDefault)
 
     internal val effectiveAndroidVersionCode: Provider<Int>
         get() = versionScope.android.pin
-            .orElse(android.versionCode)
             .orElse(versionCodeOverride)
             .orElse(
                 effectiveVersion.zip(
-                    versionScope.android.reupload.orElse(android.rebuild).orElse(0)
-                        .zip(activeFormula(versionScope.android.formulaProp, android.scheme)) { r, s -> r to s },
+                    versionScope.android.reupload.orElse(0)
+                        .zip(activeFormula(versionScope.android.formulaProp)) { r, s -> r to s },
                 ) { version, (reupload, activeScheme) ->
                     computeVersionCode(activeScheme, version, reupload, "android")
                 },
@@ -491,18 +491,16 @@ abstract class KiteSsotExtension {
 
     /** True only when a code was pinned by hand, so no formula was consulted. */
     internal val effectiveHasExplicitVersionCode: Provider<Boolean>
-        get() = versionScope.android.pin
-            .orElse(android.versionCode).orElse(versionCodeOverride)
+        get() = versionScope.android.pin.orElse(versionCodeOverride)
             .map { true }.orElse(false)
 
     internal val effectiveIosBuildNumber: Provider<String>
         get() = versionScope.ios.pin
-            .orElse(ios.buildNumber)
             .orElse(iosBuildNumber)
             .orElse(
                 effectiveVersion.zip(
-                    versionScope.ios.reupload.orElse(ios.rebuild).orElse(0)
-                        .zip(activeFormula(versionScope.ios.formulaProp, ios.scheme)) { r, s -> r to s },
+                    versionScope.ios.reupload.orElse(0)
+                        .zip(activeFormula(versionScope.ios.formulaProp)) { r, s -> r to s },
                 ) { version, (reupload, activeScheme) ->
                     computeVersionCode(activeScheme, version, reupload, "ios").toString()
                 },
@@ -510,7 +508,7 @@ abstract class KiteSsotExtension {
 
     internal val effectiveIosMarketingVersion: Provider<String>
         get() = versionScope.ios.marketingVersion
-            .orElse(ios.marketingVersion).orElse(iosMarketingVersion).orElse(effectiveVersion)
+            .orElse(iosMarketingVersion).orElse(effectiveVersion)
 
     private val schemeOrDefault: Provider<VersionCodeScheme>
         get() = scheme.orElse(VersionSchemes.DEFAULT)
@@ -518,7 +516,7 @@ abstract class KiteSsotExtension {
     // --- ios ---
 
     internal val effectiveIosBundleSuffix: Provider<String>
-        get() = ios.bundleIdSuffix.orElse(iosBundleSuffix)
+        get() = iosBundleSuffix
 
     internal val effectiveIosPbxproj: Provider<org.gradle.api.file.RegularFile>
         get() = ios.pbxproj.orElse(iosPbxprojFile)
@@ -536,33 +534,32 @@ abstract class KiteSsotExtension {
         get() = ios.appIconDirectory.orElse(iosAppIconDirectory)
 
     internal val effectiveSyncIos: Provider<Boolean>
-        get() = ios.sync.configured.orElse(false)
-            .zip(syncIos.orElse(false)) { configured, legacy -> configured || legacy }
-            .zip(ios.sync.enabled.orElse(true)) { on, enabled -> on && enabled }
+        get() = ios.rewrite.rewriteArmed.orElse(false)
+            .zip(syncIos.orElse(false)) { armed, legacy -> armed || legacy }
 
     internal val effectiveSanitizeIosProject: Provider<Boolean>
-        get() = ios.sync.sanitizePlist.orElse(sanitizeIosProject).orElse(false)
+        get() = ios.rewrite.cleanPlist.orElse(sanitizeIosProject).orElse(false)
 
     internal val effectiveIosTargets: Provider<List<String>>
-        get() = ios.sync.targets
+        get() = ios.rewrite.targets
 
     internal val effectivePlistConflictPolicy: Provider<PlistConflictPolicy>
-        get() = ios.sync.onConflict.orElse(PlistConflictPolicy.FAIL)
+        get() = ios.rewrite.onConflict.orElse(PlistConflictPolicy.FAIL)
 
     internal val effectiveNonExemptEncryption: Provider<Boolean>
-        get() = ios.sync.nonExemptEncryption
+        get() = ios.rewrite.nonExemptEncryption
 
     internal val effectiveProMotion: Provider<Boolean>
-        get() = ios.sync.proMotion
+        get() = ios.rewrite.proMotion
 
     internal val effectiveIosSharedModuleName: Provider<String>
-        get() = ios.sync.newSharedModuleName.orElse(iosSharedModuleName)
+        get() = ios.rewrite.newSharedModuleName.orElse(iosSharedModuleName)
 
     internal val effectiveIosPreviousSharedModuleName: Provider<String>
-        get() = ios.sync.previousSharedModuleName.orElse(iosPreviousSharedModuleName)
+        get() = ios.rewrite.previousSharedModuleName.orElse(iosPreviousSharedModuleName)
 
     internal val effectivePropagateSharedModule: Provider<Boolean>
-        get() = ios.sync.newSharedModuleName.map { true }.orElse(false)
+        get() = ios.rewrite.newSharedModuleName.map { true }.orElse(false)
             .zip(propagateSharedModule.orElse(false)) { block, legacy -> block || legacy }
 
     // --- logo ---
@@ -602,7 +599,7 @@ abstract class KiteSsotExtension {
         get() = optIns.builtIns.orElse(true)
 
     internal val effectiveAndroidIdSuffix: Provider<String>
-        get() = android.idSuffix.orElse(androidApplicationIdSuffix)
+        get() = androidApplicationIdSuffix
 
     internal val effectiveNativeOptInMarkers: Provider<List<String>>
         get() = optIns.markers.map { it.ifEmpty { extraOptIns.getOrElse(emptyList()) } }
@@ -631,9 +628,9 @@ abstract class KiteSsotExtension {
 
     // --- desktop ---
 
+    // Desktop identity flows automatically; module presence gates the wiring.
     internal val effectiveDesktopEnabled: Provider<Boolean>
-        get() = desktop.configured.orElse(false)
-            .zip(desktop.enabled.orElse(true)) { configured, enabled -> configured && enabled }
+        get() = modules.desktopApps.map { true }.orElse(true)
 
     /** No 2.x fallback chain: `desktop { }` has no deprecated predecessor. */
     internal val effectiveDesktopApps: Provider<List<String>>
@@ -641,11 +638,10 @@ abstract class KiteSsotExtension {
 
     internal val effectiveDesktopBuildNumber: Provider<String>
         get() = versionScope.desktop.pin
-            .orElse(desktop.buildNumber)
             .orElse(
                 effectiveVersion.zip(
-                    versionScope.desktop.reupload.orElse(desktop.rebuild).orElse(0)
-                        .zip(activeFormula(versionScope.desktop.formulaProp, desktop.scheme)) { r, s -> r to s },
+                    versionScope.desktop.reupload.orElse(0)
+                        .zip(activeFormula(versionScope.desktop.formulaProp)) { r, s -> r to s },
                 ) { version, (reupload, activeScheme) ->
                     computeVersionCode(activeScheme, version, reupload, "desktop").toString()
                 },
@@ -654,8 +650,7 @@ abstract class KiteSsotExtension {
     // Logo art flowing to desktop: presence of art, not an armed rewrite.
     internal val effectiveDesktopIcons: Provider<Boolean>
         get() = logo.declared.orElse(false)
-            .zip(desktop.icons.orElse(true)) { declared, icons -> declared && icons }
-            .zip(logo.flowsTo(KitePlatform.DESKTOP)) { wanted, flows -> wanted && flows }
+            .zip(logo.flowsTo(KitePlatform.DESKTOP)) { declared, flows -> declared && flows }
 
     internal companion object {
         internal const val DEFAULT_ANDROID_SAFE_ZONE: Double = 66.0 / 108.0
