@@ -445,34 +445,61 @@ abstract class KiteSsotExtension {
 
     // --- version numbers ---
 
+    /** Detailed form of [version]: the shared formula and platform corners. */
+    fun version(value: String, action: Action<in KiteVersionScope>) {
+        if (version.isPresent) doubleSetWarnings.add("version")
+        version.set(value)
+        action.execute(versionScope)
+    }
+
+    internal val versionScope: KiteVersionScope
+        get() = nested()
+
+    internal fun versionFlowsTo(p: KitePlatform): Provider<Boolean> = versionScope.flowsTo(p)
+
+    // Transition bridge: corner formula > topic formula > legacy platform scheme
+    // > legacy root scheme > default. The purge task deletes the legacy legs.
+    private fun activeFormula(
+        corner: Provider<VersionCodeScheme>,
+        legacyPlatform: Provider<VersionCodeScheme>,
+    ): Provider<VersionCodeScheme> =
+        corner.orElse(versionScope.formulaProp).orElse(legacyPlatform).orElse(schemeOrDefault)
+
     internal val effectiveAndroidVersionCode: Provider<Int>
-        get() = android.versionCode
+        get() = versionScope.android.pin
+            .orElse(android.versionCode)
             .orElse(versionCodeOverride)
             .orElse(
                 effectiveVersion.zip(
-                    android.rebuild.orElse(0).zip(android.scheme.orElse(schemeOrDefault)) { r, s -> r to s },
-                ) { version, (rebuild, activeScheme) ->
-                    computeVersionCode(activeScheme, version, rebuild, "android")
+                    versionScope.android.reupload.orElse(android.rebuild).orElse(0)
+                        .zip(activeFormula(versionScope.android.formulaProp, android.scheme)) { r, s -> r to s },
+                ) { version, (reupload, activeScheme) ->
+                    computeVersionCode(activeScheme, version, reupload, "android")
                 },
             )
 
-    /** True only when a code was pinned by hand, so no scheme was consulted. */
+    /** True only when a code was pinned by hand, so no formula was consulted. */
     internal val effectiveHasExplicitVersionCode: Provider<Boolean>
-        get() = android.versionCode.orElse(versionCodeOverride).map { true }.orElse(false)
+        get() = versionScope.android.pin
+            .orElse(android.versionCode).orElse(versionCodeOverride)
+            .map { true }.orElse(false)
 
     internal val effectiveIosBuildNumber: Provider<String>
-        get() = ios.buildNumber
+        get() = versionScope.ios.pin
+            .orElse(ios.buildNumber)
             .orElse(iosBuildNumber)
             .orElse(
                 effectiveVersion.zip(
-                    ios.rebuild.orElse(0).zip(ios.scheme.orElse(schemeOrDefault)) { r, s -> r to s },
-                ) { version, (rebuild, activeScheme) ->
-                    computeVersionCode(activeScheme, version, rebuild, "ios").toString()
+                    versionScope.ios.reupload.orElse(ios.rebuild).orElse(0)
+                        .zip(activeFormula(versionScope.ios.formulaProp, ios.scheme)) { r, s -> r to s },
+                ) { version, (reupload, activeScheme) ->
+                    computeVersionCode(activeScheme, version, reupload, "ios").toString()
                 },
             )
 
     internal val effectiveIosMarketingVersion: Provider<String>
-        get() = ios.marketingVersion.orElse(iosMarketingVersion).orElse(effectiveVersion)
+        get() = versionScope.ios.marketingVersion
+            .orElse(ios.marketingVersion).orElse(iosMarketingVersion).orElse(effectiveVersion)
 
     private val schemeOrDefault: Provider<VersionCodeScheme>
         get() = scheme.orElse(VersionSchemes.DEFAULT)
@@ -602,13 +629,16 @@ abstract class KiteSsotExtension {
         get() = modules.desktopApps
 
     internal val effectiveDesktopBuildNumber: Provider<String>
-        get() = desktop.buildNumber.orElse(
-            effectiveVersion.zip(
-                desktop.rebuild.orElse(0).zip(desktop.scheme.orElse(schemeOrDefault)) { r, s -> r to s },
-            ) { version, (rebuild, activeScheme) ->
-                computeVersionCode(activeScheme, version, rebuild, "desktop").toString()
-            },
-        )
+        get() = versionScope.desktop.pin
+            .orElse(desktop.buildNumber)
+            .orElse(
+                effectiveVersion.zip(
+                    versionScope.desktop.reupload.orElse(desktop.rebuild).orElse(0)
+                        .zip(activeFormula(versionScope.desktop.formulaProp, desktop.scheme)) { r, s -> r to s },
+                ) { version, (reupload, activeScheme) ->
+                    computeVersionCode(activeScheme, version, reupload, "desktop").toString()
+                },
+            )
 
     internal val effectiveDesktopIcons: Provider<Boolean>
         get() = effectiveDesktopEnabled
