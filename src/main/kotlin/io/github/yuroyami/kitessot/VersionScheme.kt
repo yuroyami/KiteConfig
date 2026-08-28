@@ -7,7 +7,7 @@ private const val PLAY_VERSION_CODE_CEILING = 2_100_000_000
 private const val DEFAULT_MAX_MAJOR = 999
 private const val DEFAULT_MAX_MINOR = 999
 private const val DEFAULT_MAX_PATCH = 99
-private const val DEFAULT_MAX_REBUILD = 9
+private const val DEFAULT_MAX_REUPLOAD = 9
 
 private const val LEGACY_SCHEME_SNIPPET =
     "scheme { v -> (\"1\" + listOf(v.major, v.minor, v.patch)" +
@@ -16,14 +16,14 @@ private const val LEGACY_SCHEME_SNIPPET =
 /**
  * The four numbers KiteSSOT hands to a build-number scheme.
  *
- * `version = "1.4.0"` splits into [major], [minor], and [patch]. [rebuild] is the
+ * `version = "1.4.0"` splits into [major], [minor], and [patch]. [reupload] is the
  * extra dial you turn when a store burns an upload. A scheme reads all four and
  * returns one build number.
  *
  * ```kotlin
  * kiteSsot {
  *     version = "1.4.0"
- *     scheme { v -> 1_000_000 * v.major + 10_000 * v.minor + 100 * v.patch + v.rebuild }
+ *     scheme { v -> 1_000_000 * v.major + 10_000 * v.minor + 100 * v.patch + v.reupload }
  * }
  * ```
  *
@@ -35,7 +35,7 @@ private const val LEGACY_SCHEME_SNIPPET =
  * | `version` | [major] | `1` |
  * | `version` | [minor] | `4` |
  * | `version` | [patch] | `0` |
- * | `android { rebuild }` or `ios { rebuild }` | [rebuild] | `2` |
+ * | `android { rebuild }` or `ios { rebuild }` | [reupload] | `2` |
  *
  * @see VersionCodeScheme for the formula that consumes these.
  */
@@ -47,15 +47,15 @@ class SsotVersion(
     /** Third number of `version`, so `0` in `1.4.0`. Range 0..99 in the default scheme. */
     val patch: Int,
     /**
-     * How many times this same version was rebuilt for a store. Default: `0`.
+     * Counter to re-upload the same version to a store. Feeds the formula.
      *
      * Comes from `android { rebuild = 1 }` or `ios { rebuild = 3 }`, whichever
-     * platform is asking. Range 0..9 in the default scheme.
+     * platform is asking. Default: `0`. Range 0..9 in the default scheme.
      */
-    val rebuild: Int,
+    val reupload: Int,
 ) {
     /** Diagnostic form only, such as `1.4.0+2`. No store ever sees this text. */
-    override fun toString(): String = "$major.$minor.$patch+$rebuild"
+    override fun toString(): String = "$major.$minor.$patch+$reupload"
 }
 
 /**
@@ -76,7 +76,7 @@ class SsotVersion(
  *     version = "1.4.0"
  *
  *     // 1.4.0 -> 1040000, 1.4.1 -> 1040100
- *     scheme { v -> 1_000_000 * v.major + 10_000 * v.minor + 100 * v.patch + v.rebuild }
+ *     scheme { v -> 1_000_000 * v.major + 10_000 * v.minor + 100 * v.patch + v.reupload }
  * }
  * ```
  *
@@ -132,7 +132,7 @@ object VersionSchemes {
      * // 1.4.0 -> 1010040000, 1.4.0 rebuild 42 -> 1010040042
      * scheme { v ->
      *     fun pad(value: Int, width: Int) = value.toString().padStart(width, '0')
-     *     "1${pad(v.major, 2)}${pad(v.minor, 3)}${pad(v.patch, 2)}${pad(v.rebuild, 2)}".toInt()
+     *     "1${pad(v.major, 2)}${pad(v.minor, 3)}${pad(v.patch, 2)}${pad(v.reupload, 2)}".toInt()
      * }
      * ```
      */
@@ -143,7 +143,7 @@ object VersionSchemes {
                 version.major.padTo(3) +
                 version.minor.padTo(3) +
                 version.patch.padTo(2) +
-                version.rebuild.padTo(1)
+                version.reupload.padTo(1)
             ).toInt()
     }
 }
@@ -158,7 +158,8 @@ internal fun validateSchemeInput(version: SsotVersion) {
     requireSegment(version, "major", version.major, DEFAULT_MAX_MAJOR)
     requireSegment(version, "minor", version.minor, DEFAULT_MAX_MINOR)
     requireSegment(version, "patch", version.patch, DEFAULT_MAX_PATCH)
-    requireSegment(version, "rebuild", version.rebuild, DEFAULT_MAX_REBUILD)
+    // The label stays "rebuild": that is still the name of the DSL dial the reader can turn.
+    requireSegment(version, "rebuild", version.reupload, DEFAULT_MAX_REUPLOAD)
 }
 
 /**

@@ -25,7 +25,7 @@ internal fun parseSsotVersion(version: String, rebuild: Int, property: String): 
         major = segments[0].toIntOrNull() ?: outOfRange(version, property),
         minor = segments[1].toIntOrNull() ?: outOfRange(version, property),
         patch = segments[2].toIntOrNull() ?: outOfRange(version, property),
-        rebuild = rebuild,
+        reupload = rebuild,
     )
 }
 

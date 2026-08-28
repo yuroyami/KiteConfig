@@ -102,7 +102,7 @@ abstract class KiteSsotIosExtension {
     abstract val buildNumber: Property<String>
 
     /**
-     * Feeds the scheme as `v.rebuild`, so a value of `3` turns `1001004000` into
+     * Feeds the scheme as `v.reupload`, so a value of `3` turns `1001004000` into
      * `1001004003`.
      *
      * Default: `0`. TestFlight refuses a build number it has already seen for the
@@ -125,7 +125,7 @@ abstract class KiteSsotIosExtension {
     /**
      * Set [scheme] from a lambda: `scheme { v -> ... }`.
      *
-     * The lambda receives `v.major`, `v.minor`, `v.patch`, and `v.rebuild`.
+     * The lambda receives `v.major`, `v.minor`, `v.patch`, and `v.reupload`.
      * KiteSSOT renders the returned number as the Apple build number.
      */
     fun scheme(s: VersionCodeScheme) {

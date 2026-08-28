@@ -152,7 +152,7 @@ abstract class KiteSsotExtension {
      * per version for re-uploads.
      *
      * ```kotlin
-     * scheme { v -> 1_000_000 * v.major + 10_000 * v.minor + 100 * v.patch + v.rebuild }
+     * scheme { v -> 1_000_000 * v.major + 10_000 * v.minor + 100 * v.patch + v.reupload }
      * ```
      *
      * Google Play compares codes as plain integers and remembers every one you

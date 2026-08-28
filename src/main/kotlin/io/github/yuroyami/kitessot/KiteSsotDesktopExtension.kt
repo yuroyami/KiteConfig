@@ -86,7 +86,7 @@ abstract class KiteSsotDesktopExtension {
     abstract val buildNumber: Property<String>
 
     /**
-     * Feeds the scheme as `v.rebuild`, so a value of `3` turns `1001004000` into
+     * Feeds the scheme as `v.reupload`, so a value of `3` turns `1001004000` into
      * `1001004003`.
      *
      * Default: `0`. Bump it for a re-package that does not bump the version.
@@ -107,7 +107,7 @@ abstract class KiteSsotDesktopExtension {
     /**
      * Set [scheme] from a lambda: `scheme { v -> ... }`.
      *
-     * The lambda receives `v.major`, `v.minor`, `v.patch`, and `v.rebuild`.
+     * The lambda receives `v.major`, `v.minor`, `v.patch`, and `v.reupload`.
      * KiteSSOT renders the returned number as the desktop build number.
      */
     fun scheme(s: VersionCodeScheme) {
