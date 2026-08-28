@@ -26,8 +26,8 @@ import org.gradle.api.Project
  * for every Android module shape. Leave a field unset in `kiteSsot { }` to keep
  * whatever the module declares.
  *
- * The wiring also runs on the diagnostic invocations (`kiteSsotVerify`,
- * `kiteSsotDoctor`, `kiteSsotCheck`, `kiteSsotPlan`): AGP validates its DSL on
+ * The wiring also runs on the diagnostic invocations (`kiteVerify`,
+ * `kiteDoctor`, `kiteCheck`, `kitePlan`): AGP validates its DSL on
  * every invocation, so a consumer that declares `compileSdk` only in
  * `kiteSsot { }` needs the wiring alive there too. On those runs each value
  * group goes through [wireValueGroup], which skips a failing provider so the

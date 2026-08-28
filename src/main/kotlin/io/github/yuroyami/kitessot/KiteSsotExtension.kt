@@ -104,7 +104,7 @@ abstract class KiteSsotExtension : KiteFlowScope() {
     internal val appNameScope: KiteAppNameScope
         get() = nested()
 
-    /** Facts set twice through mixed forms; kiteSsotDoctor warns on these. */
+    /** Facts set twice through mixed forms; kiteDoctor warns on these. */
     internal abstract val doubleSetWarnings: org.gradle.api.provider.SetProperty<String>
 
     internal fun effectiveAppNameFor(p: KitePlatform): Provider<String> =

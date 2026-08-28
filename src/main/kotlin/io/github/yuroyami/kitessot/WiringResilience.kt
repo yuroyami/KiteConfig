@@ -6,8 +6,8 @@ import org.gradle.api.Project
  * Runs one SSOT value group inside an AGP `finalizeDsl` callback.
  *
  * On a normal build a resolution failure aborts configuration, exactly as it
- * always did. On a resilient diagnostic invocation (`kiteSsotVerify`,
- * `kiteSsotDoctor`, `kiteSsotCheck`, `kiteSsotPlan`) the failure is logged and
+ * always did. On a resilient diagnostic invocation (`kiteVerify`,
+ * `kiteDoctor`, `kiteCheck`, `kitePlan`) the failure is logged and
  * the group is skipped instead: those tasks resolve the same providers
  * themselves and report the problem as a finding, and aborting configuration
  * here would kill the very task that explains what is wrong. Every group that

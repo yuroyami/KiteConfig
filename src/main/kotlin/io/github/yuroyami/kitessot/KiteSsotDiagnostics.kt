@@ -159,7 +159,7 @@ internal object KiteSsotDiagnosticEngine {
     /**
      * The one check that carries real weight. `desktop { icons = true }` with no
      * usable `logo { }` is a hard configuration failure that runs after the
-     * resilient-diagnostic early return, so a real build fails but kiteSsotDoctor
+     * resilient-diagnostic early return, so a real build fails but kiteDoctor
      * would otherwise stay silent about it. This mirrors that exact condition,
      * regardless of whether desktop { } itself is enabled.
      */
@@ -364,7 +364,7 @@ internal object KiteSsotDiagnosticEngine {
      * Windows is the only real failure mode, and only when Msi or Exe is an
      * enabled target format, which this read-only diagnostic cannot see. A numeric
      * version that would exceed the cap is reported as a warning rather than an
-     * error, so kiteSsotCheck does not fail CI over a format the project may
+     * error, so kiteCheck does not fail CI over a format the project may
      * never enable.
      */
     private fun MutableList<KiteSsotDiagnostic>.diagnoseDesktopPackageVersion(context: KiteSsotDiagnosticContext) {
@@ -405,7 +405,7 @@ internal object KiteSsotDiagnosticEngine {
                         "Desktop package version",
                         diagnosticExceptionSummary(failure),
                         "This only fails the real build when Msi or Exe is an enabled desktop target format, " +
-                            "which kiteSsotDoctor cannot see; lower the offending version component or confirm " +
+                            "which kiteDoctor cannot see; lower the offending version component or confirm " +
                             "those formats stay disabled.",
                     ),
                 )
@@ -464,7 +464,7 @@ internal object KiteSsotDiagnosticEngine {
         )
     }
 
-    /** kiteSsotDoctor always prints the resolved UUID, whether derived or not, so it can be checked before release. */
+    /** kiteDoctor always prints the resolved UUID, whether derived or not, so it can be checked before release. */
     private fun MutableList<KiteSsotDiagnostic>.diagnoseWindowsUpgradeCode(context: KiteSsotDiagnosticContext) {
         val appId = context.appId
         when {
@@ -1033,7 +1033,7 @@ internal object KiteSsotDiagnosticEngine {
                                 KiteSsotDiagnosticSeverity.ERROR,
                                 "iOS pbxproj configuration drift",
                                 "Configured setting(s) differ: ${result.changedSettings.sorted().joinToString()}.",
-                                "Review the bounded dry-run diff, then run kiteSsotSyncIosConfig explicitly.",
+                                "Review the bounded dry-run diff, then run kiteRewriteXcode explicitly.",
                                 location = pbxproj.path,
                             ),
                         )
@@ -1120,7 +1120,7 @@ internal object KiteSsotDiagnosticEngine {
                             KiteSsotDiagnosticSeverity.ERROR,
                             "iOS app icon set",
                             problems.joinToString("; "),
-                            "Review and explicitly rerun kiteSsotSyncIosLogo; unowned files are never repaired automatically.",
+                            "Review and explicitly rerun kiteRewriteLogo; unowned files are never repaired automatically.",
                             location = icons.path,
                         ),
                     )
@@ -1200,7 +1200,7 @@ private fun MutableList<KiteSsotDiagnostic>.diagnoseAndroidIcons(context: KiteSs
                     KiteSsotDiagnosticSeverity.ERROR,
                     "Android launcher icons",
                     ownershipProblems.joinToString("; "),
-                    "Review and explicitly rerun kiteSsotSyncAndroidLogo; modified or unowned files are never overwritten automatically.",
+                    "Review and explicitly rerun kiteRewriteLogo; modified or unowned files are never overwritten automatically.",
                     location = res.path,
                 ),
             )

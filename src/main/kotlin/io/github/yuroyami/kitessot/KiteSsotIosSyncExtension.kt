@@ -24,8 +24,8 @@ import org.gradle.api.provider.Property
  * ```
  *
  * Authorizing is not running. This block starts nothing. An ordinary build
- * still never touches an Apple source file. You run `kiteSsotSyncIosConfig`,
- * `kiteSsotSanitizeIosProject`, or `kiteSsotSyncIosLogo` yourself, and every
+ * still never touches an Apple source file. You run `kiteInternalIosConfig`,
+ * `kiteInternalPlistClean`, or `kiteInternalIosLogo` yourself, and every
  * safety rail still applies: the root `dryRun` previews instead of writing, the
  * root `backups` keeps recovery copies, and [onConflict] decides what happens
  * when an existing plist value disagrees with yours.
@@ -34,9 +34,9 @@ import org.gradle.api.provider.Property
  *
  * | Task | Writes | Also needs |
  * |---|---|---|
- * | `kiteSsotSyncIosConfig` | `project.pbxproj`, Podfile, Swift imports | nothing else |
- * | `kiteSsotSanitizeIosProject` | source `Info.plist` | [cleanPlist] |
- * | `kiteSsotSyncIosLogo` | `AppIcon.appiconset` | a `logo { }` block and [KiteSsotIosExtension.deploymentTarget] |
+ * | `kiteInternalIosConfig` | `project.pbxproj`, Podfile, Swift imports | nothing else |
+ * | `kiteInternalPlistClean` | source `Info.plist` | [cleanPlist] |
+ * | `kiteInternalIosLogo` | `AppIcon.appiconset` | a `logo { }` block and [KiteSsotIosExtension.deploymentTarget] |
  *
  * ## What happens on a plist conflict
  *

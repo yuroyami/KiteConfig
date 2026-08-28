@@ -157,6 +157,16 @@ class KiteSsotPlugin : Plugin<Project> {
         registerSyncIosLogoTask(target, ext)
         registerSyncAndroidLogoTask(target, ext, resolvedAndroidAppDirectory, androidOutputApproved)
         registerCleanupLegacyLogoTask(target, ext, resolvedAndroidAppDirectory, androidOutputApproved)
+        target.tasks.register("kiteRewriteLogo") {
+            group = "kite ssot"
+            description = "Installs the logo into Android res and the iOS asset catalog."
+            dependsOn("kiteInternalAndroidLogo", "kiteInternalIosLogo", "kiteInternalLegacyIconCleanup")
+        }
+        target.tasks.register("kiteRewriteXcode") {
+            group = "kite ssot"
+            description = "Rewrites the Xcode project files from the declared facts."
+            dependsOn("kiteInternalIosConfig", "kiteInternalPlistClean")
+        }
         val verifyTask = registerVerifyTask(target, ext, colorSupported)
         val doctorTask = registerDoctorTask(target, ext, resolvedAndroidAppDirectory, colorSupported)
         val checkTask = registerCheckTask(target, ext, resolvedAndroidAppDirectory, colorSupported)
@@ -917,7 +927,7 @@ class KiteSsotPlugin : Plugin<Project> {
             val name = target.targetName
             val capital = name.replaceFirstChar { it.uppercase() }
             val genDir = project.layout.buildDirectory.dir("generated/kitessot/${name}Main/kotlin")
-            val genTask = project.tasks.register<GenerateIoWorkerTask>("generateKiteSsotIoWorker$capital") {
+            val genTask = project.tasks.register<GenerateIoWorkerTask>("kiteInternalIoWorker$capital") {
                 workerPackage.set(ext.effectiveIoWorkerPackage)
                 outputDir.set(genDir)
                 dryRun.set(ext.effectiveDryRun)
@@ -957,7 +967,7 @@ class KiteSsotPlugin : Plugin<Project> {
         }
 
         val genDir = project.layout.buildDirectory.dir("generated/kitessot/commonMain/kotlin")
-        val genTask = project.tasks.register<GenerateBuildConfigTask>("generateKiteSsotBuildConfig") {
+        val genTask = project.tasks.register<GenerateBuildConfigTask>("kiteInternalBuildConfig") {
             packageName.set(cfg.packageName)
             className.set(cfg.className)
             includeIdentity.set(cfg.includeIdentity)
@@ -1010,7 +1020,7 @@ class KiteSsotPlugin : Plugin<Project> {
         root: Project,
         ext: KiteSsotExtension,
     ): TaskProvider<SanitizeIosProjectTask> =
-        root.tasks.register<SanitizeIosProjectTask>("kiteSsotSanitizeIosProject") {
+        root.tasks.register<SanitizeIosProjectTask>("kiteInternalPlistClean") {
             val runCondition = ext.effectiveSyncIos.zip(ext.effectiveSanitizeIosProject) { a, b -> a && b }
             onlyIf { runCondition.get() }
             projectRootDir.set(root.layout.projectDirectory)
@@ -1033,7 +1043,7 @@ class KiteSsotPlugin : Plugin<Project> {
         root: Project,
         ext: KiteSsotExtension,
     ): TaskProvider<SyncIosConfigTask> =
-        root.tasks.register<SyncIosConfigTask>("kiteSsotSyncIosConfig") {
+        root.tasks.register<SyncIosConfigTask>("kiteInternalIosConfig") {
             val runCondition = ext.effectiveSyncIos
             onlyIf { runCondition.get() }
             projectRootDir.set(root.layout.projectDirectory)
@@ -1070,7 +1080,7 @@ class KiteSsotPlugin : Plugin<Project> {
         root: Project,
         ext: KiteSsotExtension,
     ): TaskProvider<SyncIosLogoTask> =
-        root.tasks.register<SyncIosLogoTask>("kiteSsotSyncIosLogo") {
+        root.tasks.register<SyncIosLogoTask>("kiteInternalIosLogo") {
             val runCondition = ext.effectiveSyncIos.zip(ext.effectivePropagateLogo) { a, b -> a && b }
             onlyIf { runCondition.get() }
             foregroundPng.set(ext.effectiveLogoForeground)
@@ -1089,7 +1099,7 @@ class KiteSsotPlugin : Plugin<Project> {
         resolvedAndroidAppDirectory: org.gradle.api.file.DirectoryProperty,
         androidOutputApproved: Provider<Boolean>,
     ): TaskProvider<SyncAndroidLogoTask> =
-        root.tasks.register<SyncAndroidLogoTask>("kiteSsotSyncAndroidLogo") {
+        root.tasks.register<SyncAndroidLogoTask>("kiteInternalAndroidLogo") {
             val runCondition = ext.effectivePropagateLogo
             onlyIf { runCondition.get() }
             foregroundPng.set(ext.effectiveLogoForeground)
@@ -1113,7 +1123,7 @@ class KiteSsotPlugin : Plugin<Project> {
         resolvedAndroidAppDirectory: org.gradle.api.file.DirectoryProperty,
         androidOutputApproved: Provider<Boolean>,
     ): TaskProvider<CleanupLegacyAppLogoArtifactsTask> =
-        root.tasks.register<CleanupLegacyAppLogoArtifactsTask>("kiteSsotCleanupLegacyAppLogoArtifacts") {
+        root.tasks.register<CleanupLegacyAppLogoArtifactsTask>("kiteInternalLegacyIconCleanup") {
             val runCondition = ext.effectiveTakeOverLegacyIcons
             onlyIf { runCondition.get() }
             projectRootDir.set(root.layout.projectDirectory)
@@ -1127,7 +1137,7 @@ class KiteSsotPlugin : Plugin<Project> {
         ext: KiteSsotExtension,
         colorSupported: Provider<Boolean>,
     ): TaskProvider<KiteSsotVerifyTask> =
-        root.tasks.register<KiteSsotVerifyTask>("kiteSsotVerify") {
+        root.tasks.register<KiteSsotVerifyTask>("kiteVerify") {
             colorEnabled.set(colorSupported)
             projectRootDir.set(root.layout.projectDirectory)
             appName.set(ext.effectiveAppName)
@@ -1187,7 +1197,7 @@ class KiteSsotPlugin : Plugin<Project> {
         resolvedAndroidAppDirectory: org.gradle.api.file.DirectoryProperty,
         colorSupported: Provider<Boolean>,
     ): TaskProvider<KiteSsotDoctorTask> =
-        root.tasks.register<KiteSsotDoctorTask>("kiteSsotDoctor") {
+        root.tasks.register<KiteSsotDoctorTask>("kiteDoctor") {
             bindDiagnosticInputs(root, ext, resolvedAndroidAppDirectory, colorSupported)
         }
 
@@ -1197,7 +1207,7 @@ class KiteSsotPlugin : Plugin<Project> {
         resolvedAndroidAppDirectory: org.gradle.api.file.DirectoryProperty,
         colorSupported: Provider<Boolean>,
     ): TaskProvider<KiteSsotCheckTask> =
-        root.tasks.register<KiteSsotCheckTask>("kiteSsotCheck") {
+        root.tasks.register<KiteSsotCheckTask>("kiteCheck") {
             bindDiagnosticInputs(root, ext, resolvedAndroidAppDirectory, colorSupported)
         }
 
@@ -1205,7 +1215,7 @@ class KiteSsotPlugin : Plugin<Project> {
         root: Project,
         colorSupported: Provider<Boolean>,
     ): TaskProvider<KiteSsotPlanTask> =
-        root.tasks.register<KiteSsotPlanTask>("kiteSsotPlan") {
+        root.tasks.register<KiteSsotPlanTask>("kitePlan") {
             colorEnabled.set(colorSupported)
         }
 
@@ -1570,10 +1580,10 @@ class KiteSsotPlugin : Plugin<Project> {
     companion object {
         private const val MIN_GRADLE = "8.5"
         private val RESILIENT_DIAGNOSTIC_TASKS = setOf(
-            "kiteSsotVerify",
-            "kiteSsotDoctor",
-            "kiteSsotCheck",
-            "kiteSsotPlan",
+            "kiteVerify",
+            "kiteDoctor",
+            "kiteCheck",
+            "kitePlan",
         )
 
         /**

@@ -19,10 +19,10 @@ import org.gradle.work.DisableCachingByDefault
  *
  * | Task | Answers | Fails the build |
  * |---|---|---|
- * | `kiteSsotVerify` | which values did KiteSSOT resolve? | no |
- * | `kiteSsotDoctor` | what is wrong with my setup? | no |
- * | `kiteSsotCheck` | the same, for CI | yes, on ERROR findings |
- * | `kiteSsotPlan` | what would the mutation tasks write? | no |
+ * | `kiteVerify` | which values did KiteSSOT resolve? | no |
+ * | `kiteDoctor` | what is wrong with my setup? | no |
+ * | `kiteCheck` | the same, for CI | yes, on ERROR findings |
+ * | `kitePlan` | what would the mutation tasks write? | no |
  *
  * None of the four writes to your source tree, and none of them needs `dryRun`.
  * Colour is added when a real terminal is attached; `NO_COLOR`, `TERM=dumb`, and
@@ -150,7 +150,7 @@ abstract class KiteSsotVerifyTask : DefaultTask() {
                 ).forEach(::appendLine)
                 append(
                     console.paint(
-                        "  Inspect selected mutation paths and policies with: ./gradlew kiteSsotPlan",
+                        "  Inspect selected mutation paths and policies with: ./gradlew kitePlan",
                         KiteSsotStyle.MUTED,
                     ),
                 )

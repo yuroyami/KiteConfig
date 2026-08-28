@@ -672,15 +672,15 @@ class AgpCompatibilityFunctionalTest {
 
         // The diagnostic tasks used to skip the wiring, so AGP failed configuration
         // ("does not specify compileSdk") before the diagnostic could report anything.
-        val verify = runSsotOnlyFixture("kiteSsotVerify")
+        val verify = runSsotOnlyFixture("kiteVerify")
         assertTrue(Regex("""compileSdk\s+= 35""").containsMatchIn(verify.output), verify.output)
 
-        val doctor = runSsotOnlyFixture("kiteSsotDoctor")
+        val doctor = runSsotOnlyFixture("kiteDoctor")
         assertTrue(doctor.output.contains("Doctor report"), doctor.output)
     }
 
     @Test
-    fun `kiteSsotDoctor survives a version its scheme cannot encode while the SSOT supplies compileSdk`() {
+    fun `kiteDoctor survives a version its scheme cannot encode while the SSOT supplies compileSdk`() {
         // patch 150 exceeds the default scheme's 0..99 budget, so the versionCode
         // provider throws when the wiring resolves it. On a diagnostic invocation
         // that failure must be skipped, not fatal: the SDK levels still reach AGP
@@ -688,7 +688,7 @@ class AgpCompatibilityFunctionalTest {
         // the version problem as a finding.
         writeSsotOnlySdkLevelsFixture(version = "1.4.150")
 
-        val doctor = runSsotOnlyFixture("kiteSsotDoctor")
+        val doctor = runSsotOnlyFixture("kiteDoctor")
         assertTrue(doctor.output.contains("Doctor report"), doctor.output)
         assertTrue(doctor.output.contains("KMPS050"), doctor.output)
     }

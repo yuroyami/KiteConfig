@@ -147,7 +147,7 @@ internal object DesktopWiring {
             iconsEnabled = ext.effectiveDesktopIcons.get()
         }
         if (!iconsEnabled) return null
-        return project.tasks.register<GenerateDesktopIconsTask>("generateKiteSsotDesktopIcons") {
+        return project.tasks.register<GenerateDesktopIconsTask>("kiteInternalDesktopIcons") {
             foreground.set(ext.effectiveLogoForeground)
             background.set(ext.effectiveLogoBackground)
             backgroundColor.set(ext.effectiveLogoBackgroundColor)
@@ -198,7 +198,7 @@ internal object DesktopWiring {
             }
         }
         // A provider carrying task provenance, never a resolved File: this is what lets
-        // Gradle infer that packaging depends on generateKiteSsotDesktopIcons.
+        // Gradle infer that packaging depends on kiteInternalDesktopIcons.
         if (iconTask != null) {
             project.wireValueGroup(resilient, "the desktop macOS icon") {
                 macOS.iconFile.set(iconTask.flatMap { it.outputDir.file("app.icns") })

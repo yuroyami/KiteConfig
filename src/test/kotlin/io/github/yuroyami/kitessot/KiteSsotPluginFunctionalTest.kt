@@ -169,7 +169,7 @@ class KiteSsotPluginFunctionalTest {
 
         // The config task plans plist + pbxproj changes as one transaction; both
         // operations are explicit opt-ins and neither is attached to compilation.
-        run("kiteSsotSyncIosConfig")
+        run("kiteInternalIosConfig")
 
         val pbx = File(projectDir, "iosApp/iosApp.xcodeproj/project.pbxproj").readText()
         assertTrue(pbx.contains("MARKETING_VERSION = 1.2.3;"), pbx)
@@ -206,7 +206,7 @@ class KiteSsotPluginFunctionalTest {
         val original = pbxProject("Phone", "TV")
         write("iosApp/iosApp.xcodeproj/project.pbxproj", original)
 
-        val ambiguous = runAndFail("kiteSsotSyncIosConfig")
+        val ambiguous = runAndFail("kiteInternalIosConfig")
         assertTrue(ambiguous.output.contains("multiple application targets"), ambiguous.output)
         assertTrue(
             File(projectDir, "iosApp/iosApp.xcodeproj/project.pbxproj").readText() == original,
@@ -214,7 +214,7 @@ class KiteSsotPluginFunctionalTest {
         )
 
         write("build.gradle.kts", build("targets(\"Phone\")"))
-        run("kiteSsotSyncIosConfig")
+        run("kiteInternalIosConfig")
         val selected = File(projectDir, "iosApp/iosApp.xcodeproj/project.pbxproj").readText()
         assertTrue(selected.contains("PRODUCT_NAME = \"Demo\";"), selected)
         assertTrue(selected.contains("PRODUCT_NAME = TV;"), selected)
@@ -239,7 +239,7 @@ class KiteSsotPluginFunctionalTest {
             """.trimIndent(),
         )
 
-        val failure = runAndFail("kiteSsotSyncIosConfig")
+        val failure = runAndFail("kiteInternalIosConfig")
         assertTrue(failure.output.contains("Configured pbxproj does not exist"), failure.output)
         assertTrue(failure.output.contains("project.pbxproj"), failure.output)
     }
@@ -264,7 +264,7 @@ class KiteSsotPluginFunctionalTest {
         write("iosApp/Podfile", "pod 'Utils', :path => '../Utils'\npod 'shared', :path => '../shared'\n")
         write("iosApp/iosApp/ContentView.swift", "import Utils\nimport shared\n")
 
-        run("kiteSsotSyncIosConfig")
+        run("kiteInternalIosConfig")
 
         val podfile = File(projectDir, "iosApp/Podfile").readText()
         assertTrue(podfile.contains("pod 'Utils', :path => '../Utils'"), podfile)
@@ -305,7 +305,7 @@ class KiteSsotPluginFunctionalTest {
         write(shallowSwiftPath, originalSwift)
         write(deepSwiftPath, originalSwift)
 
-        val failure = runAndFail("kiteSsotSyncIosConfig")
+        val failure = runAndFail("kiteInternalIosConfig")
 
         assertTrue(
             failure.output.contains("maximum depth $MAX_IOS_SWIFT_TRAVERSAL_DEPTH"),
@@ -341,7 +341,7 @@ class KiteSsotPluginFunctionalTest {
         write("$appiconset/Contents.json", "{ \"user-authored\" : true }")
         writePng("$appiconset/AppIcon-40.png", 40)
 
-        val result = run("kiteSsotSyncIosLogo")
+        val result = run("kiteInternalIosLogo")
 
         val catalogIdentity = SyncIosLogoTask.catalogIdentity(projectDir, File(projectDir, appiconset))
         val recoveryRoot = File(projectDir, ".kitessot/recovery/ios-appicon/$catalogIdentity")
@@ -417,7 +417,7 @@ class KiteSsotPluginFunctionalTest {
 
         // A package move must delete only the previous manifest-owned source.
         write("build.gradle.kts", rootBuild("com.acme.other"))
-        run(":shared:generateKiteSsotIoWorkerJs")
+        run(":shared:kiteInternalIoWorkerJs")
         val moved = File(
             projectDir,
             "shared/build/generated/kitessot/jsMain/kotlin/com/acme/other/KiteSsotIoWorker.kt",
@@ -546,7 +546,7 @@ class KiteSsotPluginFunctionalTest {
             }
             """.trimIndent(),
         )
-        val identityOnly = run(":shared:generateKiteSsotBuildConfig")
+        val identityOnly = run(":shared:kiteInternalBuildConfig")
         assertTrue(identityOnly.output.contains("BUILD SUCCESSFUL"), identityOnly.output)
         val identityOnlySource = generated.readText()
         assertTrue(identityOnlySource.contains("public const val appName"), identityOnlySource)
@@ -585,7 +585,7 @@ class KiteSsotPluginFunctionalTest {
                 error("fields-only generation realized the locales provider")
             }
             gradle.projectsEvaluated {
-                project(":shared").tasks.named<GenerateBuildConfigTask>("generateKiteSsotBuildConfig") {
+                project(":shared").tasks.named<GenerateBuildConfigTask>("kiteInternalBuildConfig") {
                     appName.set(unreadString)
                     versionName.set(unreadString)
                     versionCode.set(unreadInt)
@@ -604,7 +604,7 @@ class KiteSsotPluginFunctionalTest {
             """.trimIndent(),
         )
 
-        val result = run(":shared:generateKiteSsotBuildConfig")
+        val result = run(":shared:kiteInternalBuildConfig")
         assertTrue(result.output.contains("BUILD SUCCESSFUL"), result.output)
 
         val source = File(
@@ -648,7 +648,7 @@ class KiteSsotPluginFunctionalTest {
         write("androidApp/src/main/res/mipmap-anydpi-v26/ic_launcher.xml", "<old-adaptive-icon/>")
         write("androidApp/src/main/res/mipmap-mdpi/ic_launcher.webp", "old template")
 
-        run("kiteSsotSyncAndroidLogo")
+        run("kiteInternalAndroidLogo")
 
         val themed = File(projectDir, "androidApp/src/main/res/mipmap-anydpi-v33/ic_launcher.xml")
         assertTrue(themed.isFile, "Android 13 adaptive icon wrapper missing")
@@ -659,25 +659,25 @@ class KiteSsotPluginFunctionalTest {
             File(projectDir, ".kitessot/recovery/android-logo/removal-provenance.tsv").isFile,
             "legacy takeover provenance missing",
         )
-        val alignedDiagnostics = run("kiteSsotDoctor")
+        val alignedDiagnostics = run("kiteDoctor")
         assertTrue(alignedDiagnostics.output.contains("[PASS] KMPS003"), alignedDiagnostics.output)
         assertTrue(alignedDiagnostics.output.contains("[PASS] KMPS031"), alignedDiagnostics.output)
 
         // Ownership hashes alone still describe the old outputs after an input
         // change; provenance must make that stale installation visible.
         writePng("art/fg.png", 513)
-        val inputDrift = run("kiteSsotDoctor")
+        val inputDrift = run("kiteDoctor")
         assertTrue(inputDrift.output.contains("[FAIL] KMPS031"), inputDrift.output)
         assertTrue(inputDrift.output.contains("different logo inputs"), inputDrift.output)
 
         val generated = File(projectDir, "androidApp/src/main/res/mipmap-mdpi/ic_launcher.png")
         val installedBytes = generated.readBytes()
-        run("kiteSsotCleanupLegacyAppLogoArtifacts")
+        run("kiteInternalLegacyIconCleanup")
         assertTrue(generated.isFile, "standalone cleanup removed a manifest-owned current icon")
         assertTrue(generated.readBytes().contentEquals(installedBytes), "standalone cleanup changed a managed icon")
 
         generated.writeText("manual edit")
-        val failure = runAndFail("kiteSsotSyncAndroidLogo")
+        val failure = runAndFail("kiteInternalAndroidLogo")
         assertTrue(failure.output.contains("modified generated output"), failure.output)
         assertTrue(generated.readText() == "manual edit", "failed ownership check overwrote user changes")
     }
@@ -693,7 +693,7 @@ class KiteSsotPluginFunctionalTest {
             """.trimIndent(),
         )
 
-        val failure = runAndFail("kiteSsotSyncAndroidLogo")
+        val failure = runAndFail("kiteInternalAndroidLogo")
 
         assertTrue(failure.output.contains("logo { } } requires foreground"), failure.output)
         assertTrue(!failure.output.contains("SKIPPED"), failure.output)
@@ -718,7 +718,7 @@ class KiteSsotPluginFunctionalTest {
         )
         writePng("art/fg.png", 64)
 
-        val failure = runAndFail("kiteSsotSyncIosLogo")
+        val failure = runAndFail("kiteInternalIosLogo")
 
         assertTrue(failure.output.contains("ios.deploymentTarget >= 12.0"), failure.output)
         assertTrue(failure.output.contains("Xcode 14"), failure.output)
@@ -741,7 +741,7 @@ class KiteSsotPluginFunctionalTest {
             """.trimIndent(),
         )
 
-        val failure = runAndFail("kiteSsotSyncAndroidLogo")
+        val failure = runAndFail("kiteInternalAndroidLogo")
 
         assertTrue(failure.output.contains("points to a missing file"), failure.output)
         assertTrue(failure.output.contains("art/missing.png"), failure.output)
@@ -801,10 +801,10 @@ class KiteSsotPluginFunctionalTest {
                 requestAppSink = false,
             ),
         )
-        val ambiguousDoctor = run("kiteSsotDoctor")
+        val ambiguousDoctor = run("kiteDoctor")
         assertTrue(ambiguousDoctor.output.contains("[FAIL] KMPS070"), ambiguousDoctor.output)
         assertTrue(ambiguousDoctor.output.contains("Multiple Android application projects"), ambiguousDoctor.output)
-        val ambiguousCheck = runAndFail("kiteSsotCheck")
+        val ambiguousCheck = runAndFail("kiteCheck")
         assertTrue(ambiguousCheck.output.contains("[FAIL] KMPS070"), ambiguousCheck.output)
         val ambiguousReport = File(projectDir, "build/reports/kitessot/diagnostics.json").readText()
         assertTrue(ambiguousReport.contains("\"id\": \"KMPS070\""), ambiguousReport)
@@ -820,7 +820,7 @@ class KiteSsotPluginFunctionalTest {
             "build.gradle.kts",
             rootBuild("modules { androidApps(\":missing\") }", requestAppSink = false),
         )
-        val missingDiagnostic = run("kiteSsotDoctor")
+        val missingDiagnostic = run("kiteDoctor")
         assertTrue(missingDiagnostic.output.contains("[FAIL] KMPS070"), missingDiagnostic.output)
         assertTrue(missingDiagnostic.output.contains("\":missing\""), missingDiagnostic.output)
 
@@ -828,7 +828,7 @@ class KiteSsotPluginFunctionalTest {
             "build.gradle.kts",
             rootBuild("modules { androidApps(\"phone\") }", requestAppSink = false),
         )
-        val invalidDiagnostic = run("kiteSsotDoctor")
+        val invalidDiagnostic = run("kiteDoctor")
         assertTrue(invalidDiagnostic.output.contains("[FAIL] KMPS070"), invalidDiagnostic.output)
         assertTrue(invalidDiagnostic.output.contains("invalid absolute Gradle project path"), invalidDiagnostic.output)
 
@@ -869,7 +869,7 @@ class KiteSsotPluginFunctionalTest {
             }
             """.trimIndent(),
         )
-        val diagnostic = run("kiteSsotDoctor")
+        val diagnostic = run("kiteDoctor")
         assertTrue(diagnostic.output.contains("[PASS] KMPS002"), diagnostic.output)
         assertTrue(diagnostic.output.contains("[FAIL] KMPS002"), diagnostic.output)
     }
@@ -966,7 +966,7 @@ class KiteSsotPluginFunctionalTest {
             ),
         )
 
-        val result = run("kiteSsotDoctor")
+        val result = run("kiteDoctor")
         assertTrue(result.output.contains("Doctor report"), result.output)
         assertTrue(result.output.contains("[PASS]"), result.output)
         assertTrue(result.output.contains("[FAIL]"), result.output)
@@ -998,7 +998,7 @@ class KiteSsotPluginFunctionalTest {
             ),
         )
 
-        val result = run("kiteSsotDoctor")
+        val result = run("kiteDoctor")
         assertTrue(result.output.contains("[WARN] KMPS011"), result.output)
         assertTrue(result.output.contains("conflictPolicy=KEEP"), result.output)
         assertFalse(result.output.contains("[FAIL] KMPS011"), result.output)
@@ -1016,7 +1016,7 @@ class KiteSsotPluginFunctionalTest {
                 locales { pin("not_a_locale") }
             }
             tasks.register("inspectSsot") {
-                dependsOn("kiteSsotDoctor", "kiteSsotVerify", "kiteSsotPlan")
+                dependsOn("kiteDoctor", "kiteVerify", "kitePlan")
             }
             """.trimIndent(),
         )
@@ -1027,16 +1027,16 @@ class KiteSsotPluginFunctionalTest {
         assertTrue(alias.output.contains("Mutation plan (read-only)"), alias.output)
         assertTrue(alias.output.contains("BUILD SUCCESSFUL"), alias.output)
 
-        val doctor = run("kiteSsotDoctor")
+        val doctor = run("kiteDoctor")
         assertTrue(doctor.output.contains("[FAIL] KMPS040"), doctor.output)
         assertTrue(doctor.output.contains("[FAIL] KMPS050"), doctor.output)
         assertTrue(doctor.output.contains("BUILD SUCCESSFUL"), doctor.output)
 
-        val abbreviatedDoctor = run("kiteSsotDoc")
+        val abbreviatedDoctor = run("kiteDoc")
         assertTrue(abbreviatedDoctor.output.contains("Doctor report"), abbreviatedDoctor.output)
         assertTrue(abbreviatedDoctor.output.contains("BUILD SUCCESSFUL"), abbreviatedDoctor.output)
 
-        val check = runAndFail("kiteSsotCheck")
+        val check = runAndFail("kiteCheck")
         assertTrue(check.output.contains("KMPS040"), check.output)
         assertTrue(check.output.contains("KMPS050"), check.output)
         val report = File(projectDir, "build/reports/kitessot/diagnostics.json")
@@ -1060,7 +1060,7 @@ class KiteSsotPluginFunctionalTest {
                 })
             }
             tasks.register("inspectSsot") {
-                dependsOn("kiteSsotDoctor", "kiteSsotVerify", "kiteSsotPlan")
+                dependsOn("kiteDoctor", "kiteVerify", "kitePlan")
             }
             """.trimIndent(),
         )
@@ -1071,7 +1071,7 @@ class KiteSsotPluginFunctionalTest {
         assertTrue(alias.output.contains("appName              = [error:"), alias.output)
         assertTrue(alias.output.contains("BUILD SUCCESSFUL"), alias.output)
 
-        val check = runAndFail("kiteSsotCheck")
+        val check = runAndFail("kiteCheck")
         assertTrue(check.output.contains("KMPS902"), check.output)
         val report = File(projectDir, "build/reports/kitessot/diagnostics.json")
         assertTrue(report.isFile, "provider diagnostic report was not written before failure")
@@ -1094,12 +1094,12 @@ class KiteSsotPluginFunctionalTest {
             """.trimIndent(),
         )
 
-        val doctor = run("kiteSsotDoctor")
+        val doctor = run("kiteDoctor")
         assertTrue(doctor.output.contains("[FAIL] KMPS071"), doctor.output)
         assertTrue(doctor.output.contains("duplicate target name(s): \"Phone\""), doctor.output)
         assertTrue(doctor.output.contains("BUILD SUCCESSFUL"), doctor.output)
 
-        val check = runAndFail("kiteSsotCheck")
+        val check = runAndFail("kiteCheck")
         assertTrue(check.output.contains("[FAIL] KMPS071"), check.output)
         val report = File(projectDir, "build/reports/kitessot/diagnostics.json").readText()
         assertTrue(report.contains("\"id\": \"KMPS071\""), report)
@@ -1126,7 +1126,7 @@ class KiteSsotPluginFunctionalTest {
             """.trimIndent(),
         )
 
-        val result = run("kiteSsotPlan")
+        val result = run("kitePlan")
 
         assertTrue(result.output.contains("sanitize source Info.plist"), result.output)
         assertTrue(result.output.contains("migrate selected Xcode build settings"), result.output)
@@ -1162,8 +1162,8 @@ class KiteSsotPluginFunctionalTest {
             """.trimIndent(),
         )
         val arguments = arrayOf(
-            "kiteSsotVerify",
-            "kiteSsotPlan",
+            "kiteVerify",
+            "kitePlan",
             "--configuration-cache",
             "--configuration-cache-problems=fail",
         )
@@ -1204,7 +1204,7 @@ class KiteSsotPluginFunctionalTest {
             """.trimIndent(),
         )
         val arguments = arrayOf(
-            "kiteSsotSyncAndroidLogo",
+            "kiteInternalAndroidLogo",
             "--configuration-cache",
             "--configuration-cache-problems=fail",
         )
@@ -1218,7 +1218,7 @@ class KiteSsotPluginFunctionalTest {
 
     @Test
     fun `resilient diagnostics report a malformed version instead of failing the configuration cache`() {
-        // Regression test: kiteSsotDoctor/kiteSsotCheck bound the scheme-derived
+        // Regression test: kiteDoctor/kiteCheck bound the scheme-derived
         // versionCode and iosBuildNumber providers directly. Those throw on a
         // version their scheme cannot encode, and the configuration cache
         // evaluates bound task inputs while storing the cache entry, before the
@@ -1235,7 +1235,7 @@ class KiteSsotPluginFunctionalTest {
             """.trimIndent(),
         )
         val arguments = arrayOf(
-            "kiteSsotDoctor",
+            "kiteDoctor",
             "--configuration-cache",
             "--configuration-cache-problems=fail",
         )
@@ -1308,11 +1308,11 @@ class KiteSsotPluginFunctionalTest {
             """.trimIndent(),
         )
 
-        val previewed = run("kiteSsotSyncAndroidLogo", "-Pkitessot.dryRun=true")
+        val previewed = run("kiteInternalAndroidLogo", "-Pkitessot.dryRun=true")
         assertTrue(previewed.output.contains("dry-run"), previewed.output)
         assertFalse(File(projectDir, "androidApp/src/main/res").exists())
 
-        val written = run("kiteSsotSyncAndroidLogo")
+        val written = run("kiteInternalAndroidLogo")
         assertFalse(written.output.contains("dry-run"), written.output)
         assertTrue(File(projectDir, "androidApp/src/main/res").exists())
     }
@@ -1346,7 +1346,7 @@ class KiteSsotPluginFunctionalTest {
             """.trimIndent(),
         )
 
-        val result = run(":shared:generateKiteSsotBuildConfig")
+        val result = run(":shared:kiteInternalBuildConfig")
 
         assertTrue(result.output.contains("BUILD SUCCESSFUL"), result.output)
         val generated = File(
@@ -1383,7 +1383,7 @@ class KiteSsotPluginFunctionalTest {
         write("shared/src/commonMain/composeResources/values-en/strings.xml", "<resources/>")
         write("shared/src/commonMain/composeResources/values-fr/strings.xml", "<resources/>")
 
-        val result = run("kiteSsotVerify")
+        val result = run("kiteVerify")
 
         assertTrue(result.output.contains("BUILD SUCCESSFUL"), result.output)
         assertTrue(result.output.contains("en, fr"), result.output)
@@ -1475,7 +1475,7 @@ class KiteSsotPluginFunctionalTest {
             """.trimIndent(),
         )
 
-        val failure = runAndFail("kiteSsotSyncAndroidLogo")
+        val failure = runAndFail("kiteInternalAndroidLogo")
 
         assertTrue(failure.output.contains("Android application"), failure.output)
         assertFalse(
@@ -1508,7 +1508,7 @@ class KiteSsotPluginFunctionalTest {
             """.trimIndent(),
         )
 
-        val preview = run("kiteSsotSyncAndroidLogo", "-Pkitessot.dryRun=true")
+        val preview = run("kiteInternalAndroidLogo", "-Pkitessot.dryRun=true")
 
         // The write half was always previewed.
         assertTrue(preview.output.contains("would write Android logo"), preview.output)
@@ -1538,13 +1538,13 @@ class KiteSsotPluginFunctionalTest {
         )
 
         // "treu" used to parse as false, turning a requested preview into a real write.
-        val failure = runAndFail("kiteSsotSyncAndroidLogo", "-Pkitessot.dryRun=treu")
+        val failure = runAndFail("kiteInternalAndroidLogo", "-Pkitessot.dryRun=treu")
         assertTrue(failure.output.contains("kitessot.dryRun"), failure.output)
         assertTrue(failure.output.contains("treu"), failure.output)
         assertFalse(File(projectDir, "src/main/res").exists(), "no source may be written")
 
         // Same for backups, where the default is ON, so a typo would silently remove protection.
-        val backupsFailure = runAndFail("kiteSsotSyncAndroidLogo", "-Pkitessot.backups=treu")
+        val backupsFailure = runAndFail("kiteInternalAndroidLogo", "-Pkitessot.backups=treu")
         assertTrue(backupsFailure.output.contains("kitessot.backups"), backupsFailure.output)
         assertFalse(File(projectDir, "src/main/res").exists(), "no source may be written")
     }
@@ -1573,17 +1573,17 @@ class KiteSsotPluginFunctionalTest {
             kotlin { jvm() }
         """.trimIndent())
 
-        val result = run("kiteSsotVerify")
+        val result = run("kiteVerify")
         assertTrue(result.output.contains("com.acme.app.desktop"), result.output)
     }
 
     /**
      * Design section 9 requires the resolved Windows upgrade code always be
-     * printed by both `kiteSsotVerify` and `kiteSsotDoctor`, and section 10
+     * printed by both `kiteVerify` and `kiteDoctor`, and section 10
      * requires the same of the derived Linux package name; only doctor had them.
      */
     @Test
-    fun `kiteSsotVerify prints the resolved Windows upgrade code and Linux package name`() {
+    fun `kiteVerify prints the resolved Windows upgrade code and Linux package name`() {
         write("settings.gradle.kts", settingsWithShared())
         write(
             "build.gradle.kts",
@@ -1608,7 +1608,7 @@ class KiteSsotPluginFunctionalTest {
             kotlin { jvm() }
         """.trimIndent())
 
-        val result = run("kiteSsotVerify")
+        val result = run("kiteVerify")
 
         assertTrue(result.output.contains(deriveUpgradeUuid("com.acme.app")), result.output)
         assertTrue(result.output.contains(deriveLinuxPackageName("Demo")), result.output)
@@ -1830,7 +1830,7 @@ class KiteSsotPluginFunctionalTest {
         val result = run(":desktopApp:packageDistributionForCurrentOS", "--dry-run")
 
         assertTrue(
-            result.output.contains(":desktopApp:generateKiteSsotDesktopIcons SKIPPED"),
+            result.output.contains(":desktopApp:kiteInternalDesktopIcons SKIPPED"),
             "the icon task must be in the packaging graph: ${result.output}",
         )
     }
@@ -1838,13 +1838,13 @@ class KiteSsotPluginFunctionalTest {
 
     /**
      * The hard configuration failure above used to sit before the resilient-diagnostic
-     * early return, so `kiteSsotDoctor` itself died on the exact misconfiguration it
+     * early return, so `kiteDoctor` itself died on the exact misconfiguration it
      * exists to explain. It now sits after that return, so this must both report
      * KMPS081 and exit successfully: doctor never fails the build (README.md).
      */
 
     @Test
-    fun `kiteSsotDoctor reports compose compatibility and desktop application selection for a real project`() {
+    fun `kiteDoctor reports compose compatibility and desktop application selection for a real project`() {
         write("settings.gradle.kts", settingsWithSharedAndDesktop(":desktopApp"))
         write(
             "build.gradle.kts",
@@ -1870,7 +1870,7 @@ class KiteSsotPluginFunctionalTest {
             """.trimIndent(),
         )
 
-        val result = run("kiteSsotDoctor")
+        val result = run("kiteDoctor")
 
         assertTrue(result.output.contains("[PASS] KMPS082 Compose Gradle plugin compatibility"), result.output)
         // No explicit modules { desktopApps } selector; the sole detected app is
