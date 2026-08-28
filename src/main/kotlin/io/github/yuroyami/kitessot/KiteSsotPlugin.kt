@@ -71,6 +71,7 @@ class KiteSsotPlugin : Plugin<Project> {
         extAware.extensions.create<KiteAppNameScope>("appNameScope")
         extAware.extensions.create<KiteIdScope>("idScope")
         extAware.extensions.create<KiteVersionScope>("versionScope")
+        extAware.extensions.create<KiteLocalesScope>("localesScope")
         extAware.extensions.create<KiteSsotAndroidExtension>("android").apply {
             rebuild.convention(0)
         }

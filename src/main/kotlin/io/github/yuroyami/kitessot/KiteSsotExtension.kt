@@ -392,8 +392,17 @@ abstract class KiteSsotExtension {
     internal val effectiveJvmTarget: Provider<Int>
         get() = jvmTarget.orElse(javaVersion)
 
+    /** The locales topic: pinned list, Android res filter, and flow modifiers. */
+    fun locales(action: Action<in KiteLocalesScope>) = action.execute(localesScope)
+
+    internal val localesScope: KiteLocalesScope
+        get() = nested()
+
+    internal fun localesFlowsTo(p: KitePlatform): Provider<Boolean> = localesScope.flowsTo(p)
+
+    // Transition bridge: the pinned list wins, the legacy root list follows.
     internal val effectiveLocales: Provider<List<String>>
-        get() = locales
+        get() = localesScope.pinned.map { it.ifEmpty { locales.getOrElse(emptyList()) } }
 
     internal val effectiveDryRun: Provider<Boolean>
         get() = dryRunOverride.orElse(dryRun).orElse(false)
@@ -441,7 +450,8 @@ abstract class KiteSsotExtension {
         get() = android.applySdkLevels.orElse(propagateAndroidSdk).orElse(true)
 
     internal val effectiveFilterAndroidResources: Provider<Boolean>
-        get() = android.filterResourcesToLocales.orElse(filterAndroidResources).orElse(false)
+        get() = localesScope.filterAndroidRes
+            .orElse(android.filterResourcesToLocales).orElse(filterAndroidResources).orElse(false)
 
     // --- version numbers ---
 
