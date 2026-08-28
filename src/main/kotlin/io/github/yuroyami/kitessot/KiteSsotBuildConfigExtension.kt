@@ -82,18 +82,6 @@ abstract class KiteSsotBuildConfigExtension {
     protected abstract val providerFactory: ProviderFactory
 
     /**
-     * Whether the object is generated.
-     *
-     * Default: `true` once this block is configured. Set it to `false` to keep
-     * the configuration in place and skip the work, for example from CI. `false`
-     * always wins.
-     *
-     * Generation needs `modules.shared`, and that project must apply Kotlin
-     * Multiplatform and contain `commonMain`.
-     */
-    abstract val enabled: Property<Boolean>
-
-    /**
      * Kotlin package of the generated object, written as dot-separated
      * identifiers such as `com.acme.app.generated`.
      *

@@ -57,7 +57,7 @@ import org.gradle.api.provider.Provider
  * | [android], [ios], [propagate], [modules] | always present | configuration only |
  * | [buildConfig] | being configured | generates Kotlin into `build/` |
  * | [desktop] | being configured | applies identity to Compose Desktop packaging |
- * | [nativeOptIns], [web] | being configured | affects compilation |
+ * | [optIns], [web] | being configured | affects compilation |
  * | [logo], `ios { sync { } }` | being configured | **authorizes** source-writing tasks; never runs them |
  *
  * ## What runs, and when
@@ -258,15 +258,15 @@ abstract class KiteSsotExtension {
 
     /**
      * Kotlin/Native interop opt-in markers. Configure with
-     * `kiteSsot { nativeOptIns { } }`.
+     * `kiteSsot { optIns { } }`.
      */
-    val nativeOptIns: KiteSsotNativeOptInsExtension
+    val optIns: KiteSsotNativeOptInsExtension
         get() = nested()
 
     /** Add opt-in markers to the selected Kotlin/Native compilations. */
-    fun nativeOptIns(action: Action<in KiteSsotNativeOptInsExtension>) {
-        nativeOptInsConfigured.set(true)
-        action.execute(nativeOptIns)
+    fun optIns(action: Action<in KiteSsotNativeOptInsExtension>) {
+        optInsDeclared.set(true)
+        action.execute(optIns)
     }
 
     /** Browser Kotlin/JS helpers. Configure with `kiteSsot { web { } }`. */
@@ -287,7 +287,7 @@ abstract class KiteSsotExtension {
 
     /** Generate a Kotlin object of public runtime configuration. */
     fun buildConfig(action: Action<in KiteSsotBuildConfigExtension>) {
-        buildConfigConfigured.set(true)
+        buildConfigDeclared.set(true)
         action.execute(buildConfig)
     }
 
@@ -378,8 +378,8 @@ abstract class KiteSsotExtension {
     internal abstract val backupsOverride: Property<Boolean>
 
     internal abstract val logoConfigured: Property<Boolean>
-    internal abstract val nativeOptInsConfigured: Property<Boolean>
-    internal abstract val buildConfigConfigured: Property<Boolean>
+    internal abstract val optInsDeclared: Property<Boolean>
+    internal abstract val buildConfigDeclared: Property<Boolean>
 
     internal val effectiveAppName: Provider<String>
         get() = appName
@@ -595,27 +595,25 @@ abstract class KiteSsotExtension {
     // --- native opt-ins ---
 
     internal val effectiveNativeOptInsEnabled: Provider<Boolean>
-        get() = nativeOptInsConfigured.orElse(false)
-            .zip(propagateInteropOptIns.orElse(false)) { configured, legacy -> configured || legacy }
-            .zip(nativeOptIns.enabled.orElse(true)) { on, enabled -> on && enabled }
+        get() = optInsDeclared.orElse(false)
+            .zip(propagateInteropOptIns.orElse(false)) { declared, legacy -> declared || legacy }
 
     internal val effectiveNativeOptInBuiltIns: Provider<Boolean>
-        get() = nativeOptIns.builtIns.orElse(true)
+        get() = optIns.builtIns.orElse(true)
 
     internal val effectiveAndroidIdSuffix: Provider<String>
         get() = android.idSuffix.orElse(androidApplicationIdSuffix)
 
     internal val effectiveNativeOptInMarkers: Provider<List<String>>
-        get() = nativeOptIns.markers.map { it.ifEmpty { extraOptIns.getOrElse(emptyList()) } }
+        get() = optIns.markers.map { it.ifEmpty { extraOptIns.getOrElse(emptyList()) } }
 
     internal val effectiveNativeOptInProjects: Provider<List<String>>
-        get() = nativeOptIns.projects.map { it.ifEmpty { interopProjectPaths.getOrElse(emptyList()) } }
+        get() = optIns.projects.map { it.ifEmpty { interopProjectPaths.getOrElse(emptyList()) } }
 
     // --- web ---
 
     internal val effectiveIoWorkerEnabled: Provider<Boolean>
-        get() = web.ioWorker.configured.orElse(false)
-            .zip(web.ioWorker.enabled.orElse(true)) { configured, enabled -> configured && enabled }
+        get() = web.ioWorker.declared.orElse(false)
 
     internal val effectiveIoWorkerTargets: Provider<List<String>>
         get() = web.ioWorker.targets
@@ -629,8 +627,7 @@ abstract class KiteSsotExtension {
     // --- build config ---
 
     internal val effectiveBuildConfigEnabled: Provider<Boolean>
-        get() = buildConfigConfigured.orElse(false)
-            .zip(buildConfig.enabled.orElse(true)) { configured, enabled -> configured && enabled }
+        get() = buildConfigDeclared.orElse(false)
 
     // --- desktop ---
 
@@ -808,16 +805,16 @@ abstract class KiteSsotExtension {
     @Deprecated("Call ios { sync { renameSharedModule() } } instead.")
     abstract val propagateSharedModule: Property<Boolean>
 
-    /** Configure `nativeOptIns { }` instead. Configuring the block is the opt-in. */
-    @Deprecated("Configure the nativeOptIns { } block instead.")
+    /** Configure `optIns { }` instead. Configuring the block is the opt-in. */
+    @Deprecated("Configure the optIns { } block instead.")
     abstract val propagateInteropOptIns: Property<Boolean>
 
-    /** Use `nativeOptIns { add(...) }`. */
-    @Deprecated("Moved to nativeOptIns { add() }.", ReplaceWith("nativeOptIns.markers"))
+    /** Use `optIns { add(...) }`. */
+    @Deprecated("Moved to optIns { add() }.", ReplaceWith("optIns.markers"))
     abstract val extraOptIns: ListProperty<String>
 
-    /** Use `nativeOptIns { projects(...) }`. */
-    @Deprecated("Moved to nativeOptIns { projects() }.", ReplaceWith("nativeOptIns.projects"))
+    /** Use `optIns { projects(...) }`. */
+    @Deprecated("Moved to optIns { projects() }.", ReplaceWith("optIns.projects"))
     abstract val interopProjectPaths: ListProperty<String>
 
     /** Use [backups]. */

@@ -41,7 +41,7 @@ abstract class KiteSsotWebExtension {
 
     /** Configure the nested worker helper model. Opening the block turns it on. */
     fun ioWorker(action: Action<in KiteSsotIoWorkerExtension>) {
-        ioWorker.configured.set(true)
+        ioWorker.declared.set(true)
         action.execute(ioWorker)
     }
 }

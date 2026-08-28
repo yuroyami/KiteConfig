@@ -126,7 +126,7 @@ abstract class KiteSsotVerifyTask : DefaultTask() {
                 ).forEach(::appendLine)
                 appendLine(section("Toolchain"))
                 rows(
-                    "nativeOptIns" to show(propagateInteropOptIns),
+                    "optIns" to show(propagateInteropOptIns),
                     "web.ioWorker" to show(generateIoWorker),
                 ).forEach(::appendLine)
                 appendLine(section("App logo"))

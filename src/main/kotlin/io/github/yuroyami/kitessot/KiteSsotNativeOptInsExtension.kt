@@ -39,15 +39,6 @@ import org.gradle.api.provider.Property
 abstract class KiteSsotNativeOptInsExtension {
 
     /**
-     * Forces the whole block off without deleting it.
-     *
-     * Default: `true` as soon as the block is configured. `false` always wins,
-     * so CI or a convention plugin can silence the feature while the
-     * configuration stays in the build file.
-     */
-    abstract val enabled: Property<Boolean>
-
-    /**
      * Whether KiteSSOT's own interop set is applied:
      * `kotlinx.cinterop.ExperimentalForeignApi`,
      * `kotlin.experimental.ExperimentalObjCName`, and

@@ -19,7 +19,7 @@ internal val DEFAULT_INTEROP_OPT_INS: List<String> = listOf(
 
 /**
  * KiteSSOT's built-in interop markers, when [includeBuiltIns] is true, plus any
- * [extra] the user added via `nativeOptIns { add("...") }`, de-duplicated and
+ * [extra] the user added via `optIns { add("...") }`, de-duplicated and
  * order-stable (built-ins first, then extras in declared order).
  */
 internal fun interopOptIns(extra: List<String>, includeBuiltIns: Boolean = true): List<String> =

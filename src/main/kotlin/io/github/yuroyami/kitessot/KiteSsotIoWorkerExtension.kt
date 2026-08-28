@@ -53,16 +53,8 @@ import org.gradle.api.provider.Property
  */
 abstract class KiteSsotIoWorkerExtension {
 
-    /**
-     * Whether the helper is generated.
-     *
-     * Default: `true` once this block is configured. Set it to `false` to keep
-     * the configuration in place and skip the work, for example from CI.
-     */
-    abstract val enabled: Property<Boolean>
-
     /** Set when the enclosing `ioWorker { }` block is opened. Presence is the opt-in. */
-    internal abstract val configured: Property<Boolean>
+    internal abstract val declared: Property<Boolean>
 
     /**
      * Exact Kotlin/JS target names that run in a browser.

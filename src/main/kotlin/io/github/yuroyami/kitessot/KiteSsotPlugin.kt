@@ -82,7 +82,7 @@ class KiteSsotPlugin : Plugin<Project> {
             targets.convention(emptyList())
         }
         extAware.extensions.create<KiteSsotLogoExtension>("logo")
-        extAware.extensions.create<KiteSsotNativeOptInsExtension>("nativeOptIns").apply {
+        extAware.extensions.create<KiteSsotNativeOptInsExtension>("optIns").apply {
             builtIns.convention(true)
             markers.convention(emptyList())
             projects.convention(emptyList())
@@ -237,9 +237,9 @@ class KiteSsotPlugin : Plugin<Project> {
             if (ext.effectiveNativeOptInsEnabled.get()) {
                 val interopProjects = ext.effectiveNativeOptInProjects.get()
                 ext.effectiveNativeOptInMarkers.get().forEach(::validateOptInMarker)
-                interopProjects.forEach { validateGradleProjectPath(it, "nativeOptIns { projects }") }
+                interopProjects.forEach { validateGradleProjectPath(it, "optIns { projects }") }
                 if (interopProjects.distinct().size != interopProjects.size) {
-                    throw GradleException("kiteSsot { nativeOptIns { projects } } contains duplicate project paths.")
+                    throw GradleException("kiteSsot { optIns { projects } } contains duplicate project paths.")
                 }
             }
             // The locale and shared-project checks moved to projectsEvaluated: both can
@@ -814,7 +814,7 @@ class KiteSsotPlugin : Plugin<Project> {
                 if (interopProjects.isEmpty()) {
                     throw GradleException(
                         "kiteSsot interop opt-ins need an explicit KMP scope. Set " +
-                            "nativeOptIns { projects(\":shared\") } or modules { shared = \":shared\" }."
+                            "optIns { projects(\":shared\") } or modules { shared = \":shared\" }."
                     )
                 }
                 val invalid = interopProjects.toSet() - detectedKmpProjects
@@ -1536,7 +1536,7 @@ class KiteSsotPlugin : Plugin<Project> {
         listOf(
             ext.appName, ext.version, ext.appId, ext.locales, ext.jvmTarget,
             ext.scheme, ext.dryRun, ext.backups,
-            ext.logoConfigured, ext.nativeOptInsConfigured, ext.buildConfigConfigured,
+            ext.logoConfigured, ext.optInsDeclared, ext.buildConfigDeclared,
         ) + listOf(
             ext.modules.shared, ext.modules.androidApps,
             ext.modules.androidAppDirectory, ext.modules.composeResources,
@@ -1561,12 +1561,11 @@ class KiteSsotPlugin : Plugin<Project> {
             ext.logo.declared, ext.logo.rewriteArmed, ext.logo.foreground, ext.logo.background,
             ext.logo.backgroundColor, ext.logo.android.safeZone, ext.logo.desktop.roundMac,
             ext.logo.rewriteSpec.replaceOld,
-            ext.nativeOptIns.enabled, ext.nativeOptIns.builtIns,
-            ext.nativeOptIns.markers, ext.nativeOptIns.projects,
+            ext.optIns.builtIns, ext.optIns.markers, ext.optIns.projects,
         ) + listOf(
-            ext.web.ioWorker.enabled, ext.web.ioWorker.configured,
+            ext.web.ioWorker.declared,
             ext.web.ioWorker.targets, ext.web.ioWorker.projects, ext.web.ioWorker.packageName,
-            ext.buildConfig.enabled, ext.buildConfig.packageName, ext.buildConfig.className,
+            ext.buildConfig.packageName, ext.buildConfig.className,
             ext.buildConfig.includeIdentity, ext.buildConfig.allowBuildCache, ext.buildConfig.fields,
         ) + listOf(
             ext.desktop.enabled, ext.desktop.configured, ext.desktop.idSuffix,
