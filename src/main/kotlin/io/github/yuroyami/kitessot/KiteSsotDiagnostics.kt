@@ -90,6 +90,12 @@ internal data class KiteSsotDiagnosticContext(
     val desktopBundleId: String? = null,
     val desktopLinuxPackageName: String? = null,
     val desktopDeriveUpgradeUuid: Boolean = false,
+    val splashAndroid: Boolean = false,
+    val splashDesktop: Boolean = false,
+    val splashIosArmed: Boolean = false,
+    val splashIos: Boolean = false,
+    val splashThemeSet: Boolean = false,
+    val splashManifestPlaceholderPresent: Boolean? = null,
 )
 
 /** Pure orchestration around guarded filesystem reads and fail-closed parsers. */
@@ -109,6 +115,67 @@ internal object KiteSsotDiagnosticEngine {
         diagnoseKgp(context)
         diagnosePluginCompatibility(context)
         diagnoseDesktop(context)
+        diagnoseSplash(context)
+    }
+
+    /** KMPS090-092: splash delivery status and its two Android prerequisites. */
+    private fun MutableList<KiteSsotDiagnostic>.diagnoseSplash(context: KiteSsotDiagnosticContext) {
+        when {
+            !context.splashAndroid && !context.splashDesktop && !context.splashIosArmed -> add(
+                diagnostic("KMPS090", KiteSsotDiagnosticSeverity.SKIPPED, "Splash screen", "splash { } is not configured."),
+            )
+            else -> add(
+                diagnostic(
+                    "KMPS090",
+                    KiteSsotDiagnosticSeverity.PASS,
+                    "Splash screen",
+                    buildString {
+                        append("android=").append(if (context.splashAndroid) "on" else "off")
+                        append(", desktop=").append(if (context.splashDesktop) "on" else "off")
+                        append(", ios=").append(
+                            when {
+                                context.splashIos -> "on"
+                                context.splashIosArmed -> "armed, waiting for ios { rewrite { } }"
+                                else -> "off"
+                            },
+                        )
+                    },
+                ),
+            )
+        }
+        if (context.splashAndroid && !context.splashThemeSet) {
+            add(
+                diagnostic(
+                    "KMPS091",
+                    KiteSsotDiagnosticSeverity.ERROR,
+                    "Splash Android theme",
+                    "splash { } flows to Android, but splash { android { theme } } is not set.",
+                    "Set it to your app theme name, for example android { theme = \"AppTheme\" }.",
+                ),
+            )
+        }
+        if (context.splashAndroid && context.splashManifestPlaceholderPresent == false) {
+            add(
+                diagnostic(
+                    "KMPS092",
+                    KiteSsotDiagnosticSeverity.ERROR,
+                    "Splash manifest placeholder",
+                    "The Android manifest does not reference the generated splash theme.",
+                    "Add android:theme=\"\${kiteSplashTheme}\" to the application or launcher activity element once.",
+                ),
+            )
+        }
+        if (context.splashIosArmed && !context.splashIos) {
+            add(
+                diagnostic(
+                    "KMPS093",
+                    KiteSsotDiagnosticSeverity.WARNING,
+                    "Splash iOS delivery",
+                    "splash { rewrite { } } is armed, but the Xcode rewrite is not.",
+                    "Add ios { rewrite { } } so kiteRewriteXcode can deliver the launch screen.",
+                ),
+            )
+        }
     }
 
     private fun MutableList<KiteSsotDiagnostic>.diagnoseDesktop(context: KiteSsotDiagnosticContext) {

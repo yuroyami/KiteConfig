@@ -99,6 +99,12 @@ abstract class KiteSsotDiagnosticTaskBase : DefaultTask() {
     @get:Internal abstract val desktopBundleId: Property<String>
     @get:Internal abstract val desktopLinuxPackageName: Property<String>
     @get:Internal abstract val desktopDeriveUpgradeUuid: Property<Boolean>
+    @get:Internal abstract val splashAndroid: Property<Boolean>
+    @get:Internal abstract val splashDesktop: Property<Boolean>
+    @get:Internal abstract val splashIosArmed: Property<Boolean>
+    @get:Internal abstract val splashIos: Property<Boolean>
+    @get:Internal abstract val splashThemeSet: Property<Boolean>
+    @get:Internal abstract val splashManifestPlaceholderPresent: Property<Boolean>
 
     internal fun diagnosticFindings(): List<KiteSsotDiagnostic> {
         val resolutionFindings = mutableListOf<KiteSsotDiagnostic>()
@@ -201,6 +207,14 @@ abstract class KiteSsotDiagnosticTaskBase : DefaultTask() {
             },
             desktopDeriveUpgradeUuid = resolve("KMPS951", "desktop { deriveUpgradeUuid }", false) {
                 desktopDeriveUpgradeUuid.getOrElse(false)
+            },
+            splashAndroid = resolve("KMPS960", "splash { }", false) { splashAndroid.getOrElse(false) },
+            splashDesktop = resolve("KMPS961", "splash { }", false) { splashDesktop.getOrElse(false) },
+            splashIosArmed = resolve("KMPS962", "splash { rewrite }", false) { splashIosArmed.getOrElse(false) },
+            splashIos = resolve("KMPS963", "splash { rewrite }", false) { splashIos.getOrElse(false) },
+            splashThemeSet = resolve("KMPS964", "splash { android { theme } }", false) { splashThemeSet.getOrElse(false) },
+            splashManifestPlaceholderPresent = resolve<Boolean?>("KMPS965", "splash manifest placeholder", null) {
+                splashManifestPlaceholderPresent.orNull
             },
         )
 

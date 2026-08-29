@@ -76,6 +76,14 @@ import org.gradle.api.provider.Provider
  *         rewrite { replaceOld = true }  // arms kiteRewriteLogo (source edits)
  *     }
  *
+ *     splash {
+ *         // empty block already works: art defaults to logo, plate to its color
+ *         dark { backgroundColor = "#000000" }
+ *         android { theme = "AppTheme" }     // your app theme; the generated
+ *                                            //   KiteSplash style inherits it
+ *         rewrite { }                        // arms the iOS launch-screen delivery
+ *     }
+ *
  *     optIns {
  *         add("kotlinx.cinterop.ExperimentalForeignApi")
  *     }
@@ -110,13 +118,14 @@ import org.gradle.api.provider.Provider
  *
  * | You can inject | Works in | Meaning |
  * |---|---|---|
- * | `skip(p...)` / `only(p...)` | root, `appName`, `id`, `version`, `locales`, `logo` | flow control, at root = platform master |
+ * | `skip(p...)` / `only(p...)` | root, `appName`, `id`, `version`, `locales`, `logo`, `splash` | flow control, at root = platform master |
  * | `android("v")` / `ios("v")` / `desktop("v")` | `appName` | platform value override |
  * | `android { }` / `ios { }` / `desktop { }` corner | `id`, `version`, `logo` | platform detail scope |
  * | `pin` | `version` corners, `locales` | manual value, machinery skipped |
  * | `reupload`, `shipped`, `formula` | `version` and its corners | store counter, guard floor, number formula |
  * | `suffix` | `id` corners | appended to the base id |
- * | `rewrite { }` | `logo`, `ios` | the only acting word, arms a task |
+ * | `rewrite { }` | `logo`, `splash`, `ios` | the only acting word, arms a task |
+ * | `dark { }` | `splash` | dark-mode variant |
  * | typed `*Field(...)` | `buildConfig` | generated constants |
  *
  * ## Tasks
@@ -137,6 +146,7 @@ import org.gradle.api.provider.Provider
  * @see KiteVersionScope for the formula and version corners.
  * @see KiteLocalesScope for the pinned list and the Android res filter.
  * @see KiteSsotLogoExtension for icon art and the armed logo rewrite.
+ * @see KiteSplashScope for launch-screen art on all three platforms.
  * @see VersionCodeScheme for the build-number formula input.
  */
 abstract class KiteSsotExtension : KiteFlowScope() {

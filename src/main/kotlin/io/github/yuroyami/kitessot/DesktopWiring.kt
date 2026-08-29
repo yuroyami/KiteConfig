@@ -3,6 +3,7 @@ package io.github.yuroyami.kitessot
 import org.gradle.api.GradleException
 import org.gradle.api.Project
 import org.gradle.api.plugins.ExtensionAware
+import org.gradle.api.tasks.JavaExec
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.kotlin.dsl.register
 import org.jetbrains.compose.desktop.DesktopExtension
@@ -262,5 +263,106 @@ internal object DesktopWiring {
         null
     } catch (e: LinkageError) {
         null
+    }
+
+    // ------------------------------------------------------------------ Splash
+    //
+    // Everything below is the splash topic and is purely additive. Nothing above
+    // it changes, so the identity wiring keeps its registration-order contract.
+
+    /** What the packaged launcher receives. jpackage expands `APPDIR` at run time. */
+    private const val PACKAGED_SPLASH_JVM_ARG = "-splash:\$APPDIR/resources/splash.png"
+
+    private const val SPLASH_JVM_ARG_PREFIX = "-splash:"
+
+    /** Compose registers one `JavaExec` run task per build type: default plus release. */
+    private val COMPOSE_RUN_TASKS = setOf("run", "runRelease")
+
+    /** Where the generator writes the Compose app-resources root for this project. */
+    private const val SPLASH_OUTPUT_DIR = "generated/kitessot/desktop-splash"
+
+    /**
+     * Registers the desktop splash generator and delivers its image as the
+     * packaged application's JVM `-splash:`. No-op unless `splash { }` flows here.
+     *
+     * [resilient] mirrors [write]: on a diagnostic invocation a failing provider is
+     * logged and its group skipped instead of aborting configuration.
+     */
+    fun wireDesktopSplash(project: Project, ext: KiteSsotExtension, resilient: Boolean = false) {
+        val desktop = desktopExtension(project) ?: return
+        // Read before anything below touches desktop.application: that access
+        // initializes the lazy delegate, after which every probe reports
+        // APPLICATION regardless of what this project actually configured.
+        val appProbe = probe(project)
+        val jvmApplication = initialized(desktop, JVM_APPLICATION_FLAG)
+        val nativeApplication = initialized(desktop, NATIVE_APPLICATION_FLAG)
+
+        var enabled = false
+        project.wireValueGroup(resilient, "the desktop splash selection") {
+            val selected = ext.effectiveDesktopApps.get()
+            val receivesDesktopValues = if (selected.isEmpty()) {
+                appProbe == DesktopAppProbe.APPLICATION
+            } else {
+                project.path in selected
+            }
+            enabled = receivesDesktopValues && ext.effectiveDesktopSplash.get()
+        }
+        // `-splash:` is a JVM launcher feature. The Kotlin/Native application model
+        // has no jvmArgs and no JVM launcher to read them.
+        if (!enabled || (nativeApplication && !jvmApplication)) return
+
+        val application = desktop.application
+        val distributions = application.nativeDistributions
+        if (distributions.appResourcesRootDir.isPresent) {
+            skipDesktopSplash(project, "it already sets nativeDistributions.appResourcesRootDir")
+            return
+        }
+        if (application.jvmArgs.any { it.startsWith(SPLASH_JVM_ARG_PREFIX) }) {
+            skipDesktopSplash(project, "it already passes its own -splash: launcher argument")
+            return
+        }
+
+        val splashTask = project.tasks.register<GenerateDesktopSplashTask>("kiteInternalDesktopSplash") {
+            image.set(ext.effectiveSplashImage)
+            backgroundColor.set(ext.effectiveSplashColor)
+            outputDir.set(project.layout.buildDirectory.dir(SPLASH_OUTPUT_DIR))
+        }
+
+        // A provider carrying task provenance, the same shape macOS.iconFile uses.
+        // That is what makes Compose's prepareAppResources depend on the generator.
+        project.wireValueGroup(resilient, "the desktop splash resources directory") {
+            distributions.appResourcesRootDir.set(splashTask.flatMap { it.outputDir })
+        }
+        project.wireValueGroup(resilient, "the desktop splash launcher argument") {
+            application.jvmArgs(PACKAGED_SPLASH_JVM_ARG)
+        }
+        wireDesktopSplashRunTasks(project, splashTask)
+    }
+
+    /** Names what blocked the write, the way [SsotDriftLog] names a replaced value. */
+    private fun skipDesktopSplash(project: Project, because: String) {
+        project.logger.warn(
+            "[kiteSsot] ${project.path} keeps its own desktop launch image because $because. " +
+                "The kiteSsot { splash { } } desktop image was not wired here.",
+        )
+    }
+
+    /**
+     * `APPDIR` exists only inside the packaged launcher, so `run` gets the build
+     * directory path instead. Applied in `doFirst` because Compose assigns the whole
+     * `jvmArgs` list inside its own configuration action, which would drop an append.
+     */
+    private fun wireDesktopSplashRunTasks(
+        project: Project,
+        splashTask: TaskProvider<GenerateDesktopSplashTask>,
+    ) {
+        val splashArgument = splashTask.flatMap { it.outputDir.file(DESKTOP_SPLASH_RESOURCE_PATH) }
+            .map { SPLASH_JVM_ARG_PREFIX + it.asFile.absolutePath }
+        project.tasks.withType(JavaExec::class.java).configureEach {
+            if (name !in COMPOSE_RUN_TASKS) return@configureEach
+            dependsOn(splashTask)
+            val exec: JavaExec = this
+            doFirst { exec.jvmArgs(splashArgument.get()) }
+        }
     }
 }

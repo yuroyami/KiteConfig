@@ -11,6 +11,8 @@ import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.TaskAction
 import org.gradle.work.DisableCachingByDefault
+import java.awt.Color
+import java.awt.image.BufferedImage
 import java.nio.charset.StandardCharsets
 import java.nio.file.FileVisitResult
 import java.nio.file.FileVisitOption
@@ -157,6 +159,10 @@ internal fun discoverIosSwiftFiles(
  * [iosPreviousSharedModuleName] and [iosSharedModuleName]; it never guesses from
  * a Podfile.
  *
+ * When [splashEnabled] is on, the same plist transaction also writes the
+ * `UILaunchScreen` dictionary, and the splash color/image sets are installed in
+ * the asset catalog that holds the configured [appiconsetDir].
+ *
  * ## Safety rails on every source-writing task
  *
  * | Rail | Behaviour |
@@ -179,6 +185,7 @@ abstract class SyncIosConfigTask : DefaultTask() {
         description = "Plan/apply a fail-closed iOS project and explicit shared-module migration."
         targetNames.convention(emptyList())
         projectRootDir.convention(project.layout.projectDirectory)
+        splashEnabled.convention(false)
     }
 
     @get:Internal abstract val projectRootDir: DirectoryProperty
@@ -211,6 +218,16 @@ abstract class SyncIosConfigTask : DefaultTask() {
     @get:Input abstract val dryRun: Property<Boolean>
     @get:Input abstract val backup: Property<Boolean>
 
+    /** Off by default, so a project without `splash { rewrite { } }` stays byte-identical. */
+    @get:Input abstract val splashEnabled: Property<Boolean>
+
+    @get:Input @get:Optional abstract val splashColor: Property<String>
+    @get:Input @get:Optional abstract val splashDarkColor: Property<String>
+
+    /** Validated at execution like the other source paths, so a missing file gets an actionable message. */
+    @get:Internal abstract val splashImage: RegularFileProperty
+    @get:Internal abstract val splashDarkImage: RegularFileProperty
+
     @TaskAction
     fun sync() {
         val root = try {
@@ -221,7 +238,7 @@ abstract class SyncIosConfigTask : DefaultTask() {
         val plan = mutableListOf<PlannedTextChange>()
         val summary = mutableListOf<String>()
         val budget = IosTextRewriteBudget()
-        if (sanitizeSourcePlist.get()) planInfoPlist(root, plan, summary, budget)
+        if (sanitizeSourcePlist.get() || splashEnabled.get()) planInfoPlist(root, plan, summary, budget)
         planPbxproj(root, plan, summary, budget)
         if (propagateSharedModule.get()) {
             val iosRoot = try {
@@ -234,15 +251,18 @@ abstract class SyncIosConfigTask : DefaultTask() {
 
         if (plan.isEmpty()) {
             logger.info("[kiteSsot] iOS migration plan is empty; no source files need changes.")
-            return
-        }
-        budget.verifyBeforeCommit(plan)
-        val applied = applyTextRewritePlan(root, plan, backup.get(), dryRun.get(), logger)
-        if (applied.dryRun) {
-            logger.lifecycle("[kiteSsot] iOS migration plan: ${applied.planned} file(s); dry-run left all files untouched.")
         } else {
-            logger.lifecycle("[kiteSsot] iOS migration committed ${applied.written} file(s): ${summary.joinToString("; ")}.")
+            budget.verifyBeforeCommit(plan)
+            val applied = applyTextRewritePlan(root, plan, backup.get(), dryRun.get(), logger)
+            if (applied.dryRun) {
+                logger.lifecycle("[kiteSsot] iOS migration plan: ${applied.planned} file(s); dry-run left all files untouched.")
+            } else {
+                logger.lifecycle("[kiteSsot] iOS migration committed ${applied.written} file(s): ${summary.joinToString("; ")}.")
+            }
         }
+        // The catalog entries follow the committed plist, so a refused plist plan
+        // never leaves splash assets behind that nothing references.
+        if (splashEnabled.get()) installSplashAssets(root)
     }
 
     private fun planInfoPlist(
@@ -258,51 +278,76 @@ abstract class SyncIosConfigTask : DefaultTask() {
             throw GradleException("Unsafe Info.plist path: ${failure.message}", failure)
         }
         if (!file.exists()) {
+            val disableHint = if (splashEnabled.get()) {
+                "disable ios { rewrite { cleanPlist } } and splash { rewrite { } }"
+            } else {
+                "disable ios { rewrite { cleanPlist } }"
+            }
             throw GradleException(
                 "Configured source Info.plist does not exist: ${file.path}. " +
-                    "For a generated plist, disable ios { rewrite { cleanPlist } } and configure Xcode build settings instead.",
+                    "For a generated plist, $disableHint and configure Xcode build settings instead.",
             )
         }
+        val sanitize = sanitizeSourcePlist.get()
+        val splash = splashEnabled.get()
         val stringEntries = buildList {
-            if (propagateAppName.get()) {
+            if (sanitize && propagateAppName.get()) {
                 add(PlistStringEntry("CFBundleDisplayName", "\$(PRODUCT_NAME)"))
                 add(PlistStringEntry("CFBundleName", "\$(PRODUCT_NAME)"))
             }
-            if (propagateVersion.get() && marketingVersion.isPresent) {
+            if (sanitize && propagateVersion.get() && marketingVersion.isPresent) {
                 add(PlistStringEntry("CFBundleShortVersionString", "\$(MARKETING_VERSION)"))
             }
-            if (propagateVersion.get() && buildNumber.isPresent) {
+            if (sanitize && propagateVersion.get() && buildNumber.isPresent) {
                 add(PlistStringEntry("CFBundleVersion", "\$(CURRENT_PROJECT_VERSION)"))
             }
         }
         val boolEntries = buildList {
-            if (usesNonExemptEncryption.isPresent) {
+            if (sanitize && usesNonExemptEncryption.isPresent) {
                 add(PlistBoolEntry("ITSAppUsesNonExemptEncryption", usesNonExemptEncryption.get()))
             }
-            if (proMotion120Hz.isPresent) {
+            if (sanitize && proMotion120Hz.isPresent) {
                 add(PlistBoolEntry("CADisableMinimumFrameDurationOnPhone", proMotion120Hz.get()))
             }
         }
-        if (stringEntries.isEmpty() && boolEntries.isEmpty()) return
+        if (stringEntries.isEmpty() && boolEntries.isEmpty() && !splash) return
         val snapshot = readUtf8SnapshotStrict(file)
         budget.recordSnapshot(snapshot, "Info.plist")
-        val result = sanitizeInfoPlist(
-            snapshot.text,
-            stringEntries,
-            boolEntries,
-            plistConflictPolicy.get(),
-        )
+        val policy = plistConflictPolicy.get()
+        val inserted = mutableListOf<String>()
+        val overwritten = mutableListOf<String>()
+        var text = snapshot.text
+
+        val result = sanitizeInfoPlist(snapshot.text, stringEntries, boolEntries, policy)
         result.warnings.forEach { logger.warn("[kiteSsot] $it") }
         if (result.errors.isNotEmpty()) {
             throw GradleException("Info.plist migration refused:\n- ${result.errors.joinToString("\n- ")}")
         }
-        result.text?.let { updated ->
-            budget.recordOutput(updated, "Info.plist")
-            planTextChange(root, file, updated, "Info.plist", snapshot)?.let {
-                plan += it
-                summary += "Info.plist inserted=${result.inserted.joinToString().ifEmpty { "none" }} " +
-                    "replaced=${result.overwritten.joinToString().ifEmpty { "none" }}"
+        text = result.text ?: text
+        inserted += result.inserted
+        overwritten += result.overwritten
+
+        // Chained on the sanitized text so both edits land in one planned change;
+        // Info.plist may appear only once in a rewrite plan.
+        if (splash) {
+            val splashResult = mergeIosSplashLaunchScreen(text, conflictPolicy = policy)
+            splashResult.warnings.forEach { logger.warn("[kiteSsot] $it") }
+            if (splashResult.errors.isNotEmpty()) {
+                throw GradleException(
+                    "Info.plist splash migration refused:\n- ${splashResult.errors.joinToString("\n- ")}",
+                )
             }
+            text = splashResult.text ?: text
+            inserted += splashResult.inserted
+            overwritten += splashResult.overwritten
+        }
+
+        if (text == snapshot.text) return
+        budget.recordOutput(text, "Info.plist")
+        planTextChange(root, file, text, "Info.plist", snapshot)?.let {
+            plan += it
+            summary += "Info.plist inserted=${inserted.joinToString().ifEmpty { "none" }} " +
+                "replaced=${overwritten.joinToString().ifEmpty { "none" }}"
         }
     }
 
@@ -432,4 +477,68 @@ abstract class SyncIosConfigTask : DefaultTask() {
         }
     }
 
+    /**
+     * Installs the splash color set and image set into the asset catalog that
+     * holds [appiconsetDir]. Respects dryRun and backups like every other installer.
+     */
+    private fun installSplashAssets(root: java.io.File) {
+        val appicon = appiconsetDir.asFile.get()
+        val assets = appicon.parentFile ?: throw GradleException(
+            "[kiteSsot] iOS splash needs an Assets.xcassets directory; ${appicon.path} has no parent catalog.",
+        )
+        OwnedOutputSafety.requireInstallerInsideProject(assets, root, "iOS splash asset catalog")
+        OwnedOutputSafety.requireSafePath(assets, "iOS splash asset catalog")
+
+        val colorHex = splashColor.orNull ?: throw GradleException(
+            "[kiteSsot] The iOS splash has no plate color. " +
+                "Set splash { backgroundColor } or logo { backgroundColor }.",
+        )
+        val imageFile = splashImage.asFile.orNull ?: throw GradleException(
+            "[kiteSsot] The iOS splash has no art. Set splash { image } or logo { foreground }.",
+        )
+        requireSplashArt(root, imageFile, "splash { image }", assets)
+        val darkImageFile = splashDarkImage.asFile.orNull
+            ?.also { requireSplashArt(root, it, "splash { dark { image } }", assets) }
+
+        val rendered = renderIosSplashAssets(
+            color = splashColorOf(colorHex, "splash { backgroundColor }"),
+            darkColor = splashDarkColor.orNull?.let { splashColorOf(it, "splash { dark { backgroundColor } }") },
+            image = decodeSplashArt(imageFile, "splash { image }"),
+            darkImage = darkImageFile?.let { decodeSplashArt(it, "splash { dark { image } }") },
+        )
+
+        if (dryRun.get()) {
+            iosSplashOwnedPaths(assets, darkImageFile != null).forEach {
+                logger.lifecycle("[kiteSsot][dry-run] would write iOS splash asset: ${it.path}")
+            }
+            return
+        }
+        val written = writeIosSplashAssets(assets, rendered, backup.get(), logger)
+        logger.lifecycle(
+            "[kiteSsot] iOS splash installed into ${displayProjectPath(root, assets)}: " +
+                "$IOS_SPLASH_COLORSET.colorset and $IOS_SPLASH_IMAGESET.imageset ($written file(s) changed).",
+        )
+    }
+
+    private fun requireSplashArt(root: java.io.File, file: java.io.File, label: String, assets: java.io.File) {
+        if (!file.exists()) {
+            throw GradleException(
+                "[kiteSsot] $label points to a missing file: ${displayProjectPath(root, file)}. " +
+                    "Fix the path or drop splash { rewrite { } }.",
+            )
+        }
+        OwnedOutputSafety.requireInputOutsideOutput(file, assets, label)
+    }
+
+    private fun splashColorOf(hex: String, label: String): Color = try {
+        parseIosSplashColor(hex, label)
+    } catch (failure: IllegalArgumentException) {
+        throw GradleException("[kiteSsot] ${failure.message}", failure)
+    }
+
+    private fun decodeSplashArt(file: java.io.File, label: String): BufferedImage = try {
+        readBoundedLogoPng(file, label)
+    } catch (failure: IllegalArgumentException) {
+        throw GradleException("[kiteSsot] ${failure.message}", failure)
+    }
 }

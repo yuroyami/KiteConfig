@@ -6,6 +6,7 @@ import com.android.build.api.variant.ApplicationAndroidComponentsExtension
 import com.android.build.api.variant.LibraryAndroidComponentsExtension
 import org.gradle.api.JavaVersion
 import org.gradle.api.Project
+import org.gradle.kotlin.dsl.register
 
 /**
  * Wiring for the classic AGP plugins: `com.android.application` and
@@ -160,4 +161,57 @@ internal object ClassicAndroidWiring {
         }
     }
 
+}
+
+// -------------------------------------------------------------------- Splash
+
+/**
+ * Wires the Android splash onto one `com.android.application` module: the
+ * generator task, its output as a generated res dir, and the `kiteSplashTheme`
+ * manifest placeholder. Everything is gated on `splash { }` flowing to Android.
+ *
+ * Lives beside [ClassicAndroidWiring] for the reason its KDoc states: the AGP DSL
+ * types stay in this file's descriptors and out of [KiteSsotPlugin]. Pass
+ * `resilient = true` on the diagnostic invocations, as the value wiring does, so
+ * an unresolvable provider is reported instead of killing configuration.
+ */
+internal fun wireAndroidSplash(project: Project, ext: KiteSsotExtension, resilient: Boolean = false) {
+    val components = project.extensions
+        .findByType(ApplicationAndroidComponentsExtension::class.java) ?: return
+    components.finalizeDsl { android ->
+        // Fails closed: when the gate cannot resolve on a diagnostic run, nothing
+        // is registered and no resource directory is added. The app selection is
+        // part of the gate because the placeholder is an app-scoped value, exactly
+        // like appName.
+        var splashFlows = false
+        project.wireValueGroup(resilient, "the Android splash selection") {
+            val selectedApplications = ext.effectiveAndroidApps.get()
+            val selectedHere = selectedApplications.isEmpty() || project.path in selectedApplications
+            splashFlows = selectedHere && ext.effectiveAndroidSplash.get()
+        }
+        if (!splashFlows) return@finalizeDsl
+
+        val splashTask = project.tasks.register<GenerateAndroidSplashTask>("kiteInternalAndroidSplash") {
+            image.set(ext.effectiveSplashImage)
+            darkImage.set(ext.effectiveSplashDarkImage)
+            backgroundColor.set(ext.effectiveSplashColor)
+            darkBackgroundColor.set(ext.effectiveSplashDarkColor)
+            theme.set(ext.effectiveSplashAndroidTheme)
+            outputDir.set(project.layout.buildDirectory.dir("generated/kitessot/splash-res"))
+        }
+        project.wireValueGroup(resilient, "the generated splash resources") {
+            // A provider carrying task provenance, never a resolved File: this is what
+            // makes the ordinary resource merge depend on kiteInternalAndroidSplash.
+            android.sourceSets.getByName("main").res.srcDir(splashTask.flatMap { it.outputDir })
+        }
+        project.wireValueGroup(resilient, "the kiteSplashTheme placeholder") {
+            // The lambda form on purpose: AGP 9 narrowed the `defaultConfig` GETTER
+            // descriptor, so reading the property would break on the AGP 8 floor the
+            // way the value wiring does. Passing a lambda keeps one binary call for
+            // both AGP lines, which is why this needs no floor adapter.
+            android.defaultConfig {
+                manifestPlaceholders["kiteSplashTheme"] = "@style/$ANDROID_SPLASH_STYLE"
+            }
+        }
+    }
 }

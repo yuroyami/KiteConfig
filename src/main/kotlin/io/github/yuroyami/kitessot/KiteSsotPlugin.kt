@@ -362,6 +362,7 @@ class KiteSsotPlugin : Plugin<Project> {
                 if (!COMPOSE_ON_CLASSPATH || !KGP_ON_CLASSPATH) return@afterEvaluate
                 if (!ext.effectiveDesktopEnabled.get()) return@afterEvaluate
                 DesktopWiring.write(consumerProject, ext, isResilientDiagnosticInvocation(target))
+                DesktopWiring.wireDesktopSplash(consumerProject, ext, isResilientDiagnosticInvocation(target))
             }
             plugins.withId("org.jetbrains.compose") {
                 detectedComposeProjects += consumerProject.path
@@ -381,6 +382,7 @@ class KiteSsotPlugin : Plugin<Project> {
                     } else {
                         ClassicAndroidWiring.wireApplication(consumerProject, ext, resilient)
                     }
+                    wireAndroidSplash(consumerProject, ext, resilient)
                 } else if (!AGP_ON_CLASSPATH) {
                     androidProjectsWithoutSharedClassloader += consumerProject.path
                 }
@@ -1069,6 +1071,11 @@ class KiteSsotPlugin : Plugin<Project> {
             )
             propagateSharedModule.set(ext.effectivePropagateSharedModule)
             propagateLogo.set(ext.effectivePropagateLogo)
+            splashEnabled.set(ext.effectiveIosSplash)
+            splashColor.set(ext.effectiveSplashColor)
+            splashDarkColor.set(ext.effectiveSplashDarkColor)
+            splashImage.set(ext.effectiveSplashImage)
+            splashDarkImage.set(ext.effectiveSplashDarkImage)
             sanitizeSourcePlist.set(ext.effectiveSanitizeIosProject)
             usesNonExemptEncryption.set(ext.effectiveNonExemptEncryption)
             proMotion120Hz.set(ext.effectiveProMotion)
@@ -1242,6 +1249,7 @@ class KiteSsotPlugin : Plugin<Project> {
                     if (ext.effectiveTakeOverLegacyIcons.get()) {
                         add("transactionally take over legacy Android logo artifacts")
                     }
+                    if (ext.effectiveIosSplash.get()) add("install iOS splash launch-screen assets")
                 }
             })
             mutationPaths.set(root.provider {
@@ -1254,8 +1262,16 @@ class KiteSsotPlugin : Plugin<Project> {
                         addTextTarget(ext.effectiveIosPbxproj.get().asFile)
                         add(root.layout.projectDirectory.file(".gradle/kitessot/rewrite.lock").asFile.path)
                     }
-                    if (ext.effectiveSyncIos.get() && ext.effectiveSanitizeIosProject.get()) {
+                    if (ext.effectiveSyncIos.get() &&
+                        (ext.effectiveSanitizeIosProject.get() || ext.effectiveIosSplash.get())
+                    ) {
                         addTextTarget(ext.effectiveIosInfoPlist.get().asFile)
+                    }
+                    if (ext.effectiveIosSplash.get()) {
+                        iosSplashOwnedPaths(
+                            ext.effectiveIosAppIconDirectory.get().asFile.parentFile,
+                            ext.effectiveSplashDarkImage.isPresent,
+                        ).forEach { add(it.path) }
                     }
                     if (ext.effectiveSyncIos.get() && ext.effectivePropagateSharedModule.get()) {
                         addTextTarget(ext.effectiveIosPodfile.get().asFile)
@@ -1443,6 +1459,20 @@ class KiteSsotPlugin : Plugin<Project> {
         )
         propagateDesktop.set(ext.effectiveDesktopEnabled)
         desktopIconsExplicit.set(ext.logo.declared.orElse(false).zip(ext.logo.flowsTo(KitePlatform.DESKTOP)) { d, f -> d && f })
+        splashAndroid.set(ext.effectiveAndroidSplash)
+        splashDesktop.set(ext.effectiveDesktopSplash)
+        splashIosArmed.set(ext.splash.rewriteArmed.orElse(false))
+        splashIos.set(ext.effectiveIosSplash)
+        splashThemeSet.set(ext.effectiveSplashAndroidTheme.map { true }.orElse(false))
+        splashManifestPlaceholderPresent.set(root.resilientValue {
+            val appDir = resolvedAndroidAppDirectory.orNull ?: ext.effectiveAndroidAppDirectory.orNull
+            if (!ext.effectiveAndroidSplash.get() || appDir == null) {
+                null
+            } else {
+                val manifest = appDir.file("src/main/AndroidManifest.xml").asFile
+                manifest.isFile && manifest.readText().contains("\${kiteSplashTheme}")
+            }
+        })
         composeOnClasspath.set(COMPOSE_ON_CLASSPATH)
         if (COMPOSE_ON_CLASSPATH) runtimeComposeVersion()?.let(this.activeComposeVersion::set)
         desktopApplicationProjects.set(ext.effectiveDesktopApps)

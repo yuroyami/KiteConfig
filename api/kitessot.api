@@ -27,6 +27,18 @@ public abstract class io/github/yuroyami/kitessot/CleanupLegacyAppLogoArtifactsT
 	public abstract fun getProjectRootDir ()Lorg/gradle/api/file/DirectoryProperty;
 }
 
+public abstract class io/github/yuroyami/kitessot/GenerateAndroidSplashTask : org/gradle/api/DefaultTask {
+	public fun <init> ()V
+	public final fun generate ()V
+	public abstract fun getBackgroundColor ()Lorg/gradle/api/provider/Property;
+	public abstract fun getDarkBackgroundColor ()Lorg/gradle/api/provider/Property;
+	public abstract fun getDarkImage ()Lorg/gradle/api/file/RegularFileProperty;
+	public abstract fun getGeneratedRoot ()Lorg/gradle/api/file/DirectoryProperty;
+	public abstract fun getImage ()Lorg/gradle/api/file/RegularFileProperty;
+	public abstract fun getOutputDir ()Lorg/gradle/api/file/DirectoryProperty;
+	public abstract fun getTheme ()Lorg/gradle/api/provider/Property;
+}
+
 public abstract class io/github/yuroyami/kitessot/GenerateBuildConfigTask : org/gradle/api/DefaultTask {
 	public fun <init> ()V
 	public final fun generate ()V
@@ -57,6 +69,17 @@ public abstract class io/github/yuroyami/kitessot/GenerateDesktopIconsTask : org
 	public abstract fun getGeneratedRoot ()Lorg/gradle/api/file/DirectoryProperty;
 	public abstract fun getOutputDir ()Lorg/gradle/api/file/DirectoryProperty;
 	public abstract fun getRoundMacOsIcon ()Lorg/gradle/api/provider/Property;
+}
+
+public abstract class io/github/yuroyami/kitessot/GenerateDesktopSplashTask : org/gradle/api/DefaultTask {
+	public fun <init> ()V
+	public final fun generate ()V
+	public abstract fun getBackgroundColor ()Lorg/gradle/api/provider/Property;
+	public abstract fun getCanvasHeight ()Lorg/gradle/api/provider/Property;
+	public abstract fun getCanvasWidth ()Lorg/gradle/api/provider/Property;
+	public abstract fun getGeneratedRoot ()Lorg/gradle/api/file/DirectoryProperty;
+	public abstract fun getImage ()Lorg/gradle/api/file/RegularFileProperty;
+	public abstract fun getOutputDir ()Lorg/gradle/api/file/DirectoryProperty;
 }
 
 public abstract class io/github/yuroyami/kitessot/GenerateIoWorkerTask : org/gradle/api/DefaultTask {
@@ -118,6 +141,35 @@ public final class io/github/yuroyami/kitessot/KitePlatform : java/lang/Enum {
 
 public abstract interface class io/github/yuroyami/kitessot/KitePlatformRef {
 	public abstract fun getPlatform ()Lio/github/yuroyami/kitessot/KitePlatform;
+}
+
+public abstract class io/github/yuroyami/kitessot/KiteSplashScope : io/github/yuroyami/kitessot/KiteFlowScope {
+	public fun <init> (Lorg/gradle/api/model/ObjectFactory;)V
+	public final fun android (Lorg/gradle/api/Action;)V
+	public final fun dark (Lorg/gradle/api/Action;)V
+	public final fun getAndroid ()Lio/github/yuroyami/kitessot/KiteSplashScope$AndroidCorner;
+	public abstract fun getBackgroundColor ()Lorg/gradle/api/provider/Property;
+	public final fun getDark ()Lio/github/yuroyami/kitessot/KiteSplashScope$DarkVariant;
+	public final fun getDesktop ()Lio/github/yuroyami/kitessot/KitePlatformRef;
+	public abstract fun getImage ()Lorg/gradle/api/file/RegularFileProperty;
+	public final fun getIos ()Lio/github/yuroyami/kitessot/KitePlatformRef;
+	public final fun rewrite (Lorg/gradle/api/Action;)V
+}
+
+public abstract class io/github/yuroyami/kitessot/KiteSplashScope$AndroidCorner : io/github/yuroyami/kitessot/KitePlatformRef {
+	public fun <init> ()V
+	public final fun getPlatform ()Lio/github/yuroyami/kitessot/KitePlatform;
+	public abstract fun getTheme ()Lorg/gradle/api/provider/Property;
+}
+
+public abstract class io/github/yuroyami/kitessot/KiteSplashScope$DarkVariant {
+	public fun <init> ()V
+	public abstract fun getBackgroundColor ()Lorg/gradle/api/provider/Property;
+	public abstract fun getImage ()Lorg/gradle/api/file/RegularFileProperty;
+}
+
+public abstract class io/github/yuroyami/kitessot/KiteSplashScope$KiteSplashRewrite {
+	public fun <init> ()V
 }
 
 public final class io/github/yuroyami/kitessot/KiteSsotAccessKt {
@@ -226,6 +278,12 @@ public abstract class io/github/yuroyami/kitessot/KiteSsotDiagnosticTaskBase : o
 	public abstract fun getPropagateVersion ()Lorg/gradle/api/provider/Property;
 	public abstract fun getResolvedVersionCode ()Lorg/gradle/api/provider/Property;
 	public abstract fun getSanitizeIosProject ()Lorg/gradle/api/provider/Property;
+	public abstract fun getSplashAndroid ()Lorg/gradle/api/provider/Property;
+	public abstract fun getSplashDesktop ()Lorg/gradle/api/provider/Property;
+	public abstract fun getSplashIos ()Lorg/gradle/api/provider/Property;
+	public abstract fun getSplashIosArmed ()Lorg/gradle/api/provider/Property;
+	public abstract fun getSplashManifestPlaceholderPresent ()Lorg/gradle/api/provider/Property;
+	public abstract fun getSplashThemeSet ()Lorg/gradle/api/provider/Property;
 	public abstract fun getSyncIos ()Lorg/gradle/api/provider/Property;
 	public abstract fun getUsesNonExemptEncryption ()Lorg/gradle/api/provider/Property;
 	public abstract fun getVersionName ()Lorg/gradle/api/provider/Property;
@@ -270,6 +328,7 @@ public abstract class io/github/yuroyami/kitessot/KiteSsotExtension : io/github/
 	public final fun modules (Lorg/gradle/api/Action;)V
 	public final fun optIns (Lorg/gradle/api/Action;)V
 	public final fun scheme (Lio/github/yuroyami/kitessot/VersionCodeScheme;)V
+	public final fun splash (Lorg/gradle/api/Action;)V
 	public final fun version (Ljava/lang/String;Lorg/gradle/api/Action;)V
 	public final fun web (Lorg/gradle/api/Action;)V
 }
@@ -539,6 +598,11 @@ public abstract class io/github/yuroyami/kitessot/SyncIosConfigTask : org/gradle
 	public abstract fun getPropagateSharedModule ()Lorg/gradle/api/provider/Property;
 	public abstract fun getPropagateVersion ()Lorg/gradle/api/provider/Property;
 	public abstract fun getSanitizeSourcePlist ()Lorg/gradle/api/provider/Property;
+	public abstract fun getSplashColor ()Lorg/gradle/api/provider/Property;
+	public abstract fun getSplashDarkColor ()Lorg/gradle/api/provider/Property;
+	public abstract fun getSplashDarkImage ()Lorg/gradle/api/file/RegularFileProperty;
+	public abstract fun getSplashEnabled ()Lorg/gradle/api/provider/Property;
+	public abstract fun getSplashImage ()Lorg/gradle/api/file/RegularFileProperty;
 	public abstract fun getTargetNames ()Lorg/gradle/api/provider/ListProperty;
 	public abstract fun getUsesNonExemptEncryption ()Lorg/gradle/api/provider/Property;
 	public final fun sync ()V
