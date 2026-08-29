@@ -75,6 +75,7 @@ class KiteSsotPlugin : Plugin<Project> {
             desktop.reupload.convention(0)
         }
         extAware.extensions.create<KiteLocalesScope>("localesScope")
+        extAware.extensions.create<KiteSplashScope>("splash")
         extAware.extensions.create<KiteSsotAndroidExtension>("android")
         val iosExtension = extAware.extensions.create<KiteSsotIosExtension>("ios")
         (iosExtension as ExtensionAware).extensions.create<KiteSsotIosSyncExtension>("rewrite").apply {
@@ -1539,6 +1540,10 @@ class KiteSsotPlugin : Plugin<Project> {
             ext.versionScope.skipped, ext.versionScope.allowed,
             ext.localesScope.skipped, ext.localesScope.allowed, ext.localesScope.pinned,
             ext.logo.skipped, ext.logo.allowed,
+            ext.splash.declared, ext.splash.rewriteArmed, ext.splash.skipped, ext.splash.allowed,
+            ext.splash.image, ext.splash.backgroundColor,
+            ext.splash.dark.image, ext.splash.dark.backgroundColor,
+            ext.splash.android.theme,
             ext.modules.shared, ext.modules.androidApps,
             ext.modules.androidAppDirectory, ext.modules.composeResources,
         ) + listOf(

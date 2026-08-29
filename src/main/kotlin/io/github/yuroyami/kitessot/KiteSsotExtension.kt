@@ -168,6 +168,48 @@ abstract class KiteSsotExtension : KiteFlowScope() {
     internal fun effectiveAppNameFor(p: KitePlatform): Provider<String> =
         appNameScope.overrideFor(p).orElse(appName)
 
+    // ------------------------------------------------------------------ Splash
+
+    /** The splash topic: launch-screen art. Presence flows Android and desktop. */
+    fun splash(action: Action<in KiteSplashScope>) {
+        splash.declared.set(true)
+        action.execute(splash)
+    }
+
+    internal val splash: KiteSplashScope
+        get() = nested()
+
+    internal fun splashFlowsTo(p: KitePlatform): Provider<Boolean> =
+        flowsTo(p).zip(splash.flowsTo(p)) { root, topic -> root && topic }
+
+    internal val effectiveSplashImage: Provider<org.gradle.api.file.RegularFile>
+        get() = splash.image.orElse(logo.foreground)
+
+    internal val effectiveSplashColor: Provider<String>
+        get() = splash.backgroundColor.orElse(logo.backgroundColor)
+
+    internal val effectiveSplashDarkImage: Provider<org.gradle.api.file.RegularFile>
+        get() = splash.dark.image
+
+    internal val effectiveSplashDarkColor: Provider<String>
+        get() = splash.dark.backgroundColor
+
+    internal val effectiveSplashAndroidTheme: Provider<String>
+        get() = splash.android.theme
+
+    internal val effectiveAndroidSplash: Provider<Boolean>
+        get() = splash.declared.orElse(false)
+            .zip(splashFlowsTo(KitePlatform.ANDROID)) { d, f -> d && f }
+
+    internal val effectiveDesktopSplash: Provider<Boolean>
+        get() = splash.declared.orElse(false)
+            .zip(splashFlowsTo(KitePlatform.DESKTOP)) { d, f -> d && f }
+
+    internal val effectiveIosSplash: Provider<Boolean>
+        get() = splash.rewriteArmed.orElse(false)
+            .zip(effectiveSyncIos) { armed, sync -> armed && sync }
+            .zip(splashFlowsTo(KitePlatform.IOS)) { on, flows -> on && flows }
+
     internal fun appNameFlowsTo(p: KitePlatform): Provider<Boolean> =
         flowsTo(p).zip(appNameScope.flowsTo(p)) { root, topic -> root && topic }
 
