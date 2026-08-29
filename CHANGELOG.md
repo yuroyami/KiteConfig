@@ -4,7 +4,7 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions track the
 Gradle Plugin Portal releases.
 
-## Unreleased
+## 4.1.0
 
 Added `rewrite { auto = true }` on the logo and Xcode rewrites, behind
 `@DiscouragedKiteApi`: the armed rewrite rides ordinary builds (Android

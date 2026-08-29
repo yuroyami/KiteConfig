@@ -55,7 +55,7 @@ Apply the plugin to the **root** project only:
 
 ```kotlin
 plugins {
-    id("io.github.yuroyami.kitessot") version "4.0.0"
+    id("io.github.yuroyami.kitessot") version "4.1.0"
 }
 ```
 
@@ -336,22 +336,6 @@ and writes nothing.
   deep AGP/KGP access turn off and tell you why. `ignoreVersionGuards = true`
   (with its required `@OptIn` line) keeps them on. If it breaks, that is the
   risk you chose.
-
-## Caveats
-
-- Nobody has yet verified a full store release made from these outputs end
-  to end (App Store archive, signed DMG, MSI upgrade). Read the `kitePlan`
-  output before you run any rewrite.
-- `buildConfig` is not a secret store. Every value reaches generated source,
-  task inputs, build scans, and shipped binaries.
-- The desktop build number reaches macOS only; Windows and Linux packaging
-  have no separate build-number field.
-- Desktop application detection reads internal Compose members reflectively.
-  If a future Compose release renames them, detection degrades to requiring
-  `modules { desktopApps(...) }` instead of failing.
-- The iOS splash writes `UILaunchScreen`. A project still carrying a
-  `UILaunchStoryboardName` key keeps showing the storyboard until that key
-  is removed; the sync warns about it.
 
 ## License
 
