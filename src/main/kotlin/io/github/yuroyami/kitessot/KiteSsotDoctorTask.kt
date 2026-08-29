@@ -105,6 +105,7 @@ abstract class KiteSsotDiagnosticTaskBase : DefaultTask() {
     @get:Internal abstract val splashIos: Property<Boolean>
     @get:Internal abstract val splashThemeSet: Property<Boolean>
     @get:Internal abstract val splashManifestPlaceholderPresent: Property<Boolean>
+    @get:Internal abstract val versionGuardsIgnored: Property<Boolean>
 
     internal fun diagnosticFindings(): List<KiteSsotDiagnostic> {
         val resolutionFindings = mutableListOf<KiteSsotDiagnostic>()
@@ -215,6 +216,9 @@ abstract class KiteSsotDiagnosticTaskBase : DefaultTask() {
             splashThemeSet = resolve("KMPS964", "splash { android { theme } }", false) { splashThemeSet.getOrElse(false) },
             splashManifestPlaceholderPresent = resolve<Boolean?>("KMPS965", "splash manifest placeholder", null) {
                 splashManifestPlaceholderPresent.orNull
+            },
+            versionGuardsIgnored = resolve("KMPS966", "ignoreVersionGuards", false) {
+                versionGuardsIgnored.getOrElse(false)
             },
         )
 

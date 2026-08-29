@@ -376,7 +376,7 @@ class KiteSsotPlugin : Plugin<Project> {
                 detectedAndroidApplications += consumerProject.path
                 detectedAndroidProjects += consumerProject.path
                 val resilient = isResilientDiagnosticInvocation(target)
-                if (agpAdaptersUsable) {
+                if (agpAdaptersUsable || ext.effectiveIgnoreVersionGuards.get()) {
                     if (useAgp8ClassicAdapter) {
                         Agp8ClassicAndroidWiringBridge.wireApplication(consumerProject, ext, resilient)
                     } else {
@@ -390,7 +390,7 @@ class KiteSsotPlugin : Plugin<Project> {
             plugins.withId("com.android.library") {
                 detectedAndroidProjects += consumerProject.path
                 val resilient = isResilientDiagnosticInvocation(target)
-                if (agpAdaptersUsable) {
+                if (agpAdaptersUsable || ext.effectiveIgnoreVersionGuards.get()) {
                     if (useAgp8ClassicAdapter) {
                         Agp8ClassicAndroidWiringBridge.wireLibrary(consumerProject, ext, resilient)
                     } else {
@@ -424,7 +424,7 @@ class KiteSsotPlugin : Plugin<Project> {
                 if (isResilientDiagnosticInvocation(target)) {
                     // Diagnostic/report tasks resolve provider failures themselves;
                     // do not let peer-plugin adapters pre-empt those reports.
-                } else if (kgpAdaptersUsable) {
+                } else if (kgpAdaptersUsable || ext.effectiveIgnoreVersionGuards.get()) {
                     propagateInteropOptIns(consumerProject, ext)
                     // withId fires during the subproject's `plugins {}` block, BEFORE its
                     // `kotlin { js() … }` body runs. The targets container is still empty
@@ -450,7 +450,7 @@ class KiteSsotPlugin : Plugin<Project> {
                     detectedKotlinJvmProjects += consumerProject.path
                     if (isResilientDiagnosticInvocation(target)) {
                         // See the KMP branch above.
-                    } else if (kgpAdaptersUsable) {
+                    } else if (kgpAdaptersUsable || ext.effectiveIgnoreVersionGuards.get()) {
                         consumerProject.afterEvaluate {
                             ext.effectiveJvmTarget.orNull?.let { javaVersion ->
                                 val targetVersion = org.gradle.api.JavaVersion
@@ -678,16 +678,30 @@ class KiteSsotPlugin : Plugin<Project> {
                         "apply false in the root plugins block. No requested Android value was silently skipped."
                 )
             }
+            if (ext.effectiveIgnoreVersionGuards.get()) {
+                val offMatrix = buildList {
+                    activeAgpVersion?.takeIf { !isSupportedAgpVersion(it) }?.let { add("AGP $it") }
+                    activeKgpVersion?.takeIf { !isSupportedKgpVersion(it) }?.let { add("KGP $it") }
+                }
+                if (offMatrix.isNotEmpty()) {
+                    target.logger.warn(
+                        "[kiteSsot] ignoreVersionGuards is on: " + offMatrix.joinToString() +
+                            " is outside the tested range. Typed integrations stay active; " +
+                            "breakage on these versions is expected to be yours to keep.",
+                    )
+                }
+            }
             if (needsAndroidIntegration && AGP_ON_CLASSPATH) {
                 val agpVersion = activeAgpVersion
                     ?: throw GradleException(
                         "[KITESSOT-COMPAT-001] Could not determine the active Android Gradle plugin version. " +
                             "Supported AGP range is 8.5.2 through 9.3.x."
                     )
-                if (!isSupportedAgpVersion(agpVersion)) {
+                if (!isSupportedAgpVersion(agpVersion) && !ext.effectiveIgnoreVersionGuards.get()) {
                     throw GradleException(
                         "[KITESSOT-COMPAT-002] Unsupported Android Gradle plugin $agpVersion; " +
-                            "this kitessot build supports AGP 8.5.2 through 9.3.x."
+                            "this kitessot build supports AGP 8.5.2 through 9.3.x. " +
+                            "Set kiteSsot { ignoreVersionGuards = true } to proceed anyway."
                     )
                 }
             }
@@ -706,10 +720,11 @@ class KiteSsotPlugin : Plugin<Project> {
                         "[KITESSOT-COMPAT-003] Could not determine the active Kotlin Gradle plugin version. " +
                             "This kitessot build supports KGP 2.4.x."
                     )
-                if (!isSupportedKgpVersion(kgpVersion)) {
+                if (!isSupportedKgpVersion(kgpVersion) && !ext.effectiveIgnoreVersionGuards.get()) {
                     throw GradleException(
                         "[KITESSOT-COMPAT-004] Unsupported Kotlin Gradle plugin $kgpVersion; " +
-                            "this kitessot build supports KGP 2.4.x."
+                            "this kitessot build supports KGP 2.4.x. " +
+                            "Set kiteSsot { ignoreVersionGuards = true } to proceed anyway."
                     )
                 }
             }
@@ -797,7 +812,7 @@ class KiteSsotPlugin : Plugin<Project> {
             // Shared-scoped generation, wired once the shared module is settled. Each
             // function still self-selects (web can name projects beyond the shared one),
             // so simply offer every detected KMP project.
-            if (kgpAdaptersUsable) {
+            if (kgpAdaptersUsable || ext.effectiveIgnoreVersionGuards.get()) {
                 detectedKmpProjects.forEach { path ->
                     target.findProject(path)?.let { kmpProject ->
                         wireWebIoWorker(kmpProject, ext)
@@ -1464,6 +1479,7 @@ class KiteSsotPlugin : Plugin<Project> {
         splashIosArmed.set(ext.splash.rewriteArmed.orElse(false))
         splashIos.set(ext.effectiveIosSplash)
         splashThemeSet.set(ext.effectiveSplashAndroidTheme.map { true }.orElse(false))
+        versionGuardsIgnored.set(ext.effectiveIgnoreVersionGuards)
         splashManifestPlaceholderPresent.set(root.resilientValue {
             val appDir = resolvedAndroidAppDirectory.orNull ?: ext.effectiveAndroidAppDirectory.orNull
             if (!ext.effectiveAndroidSplash.get() || appDir == null) {
@@ -1561,7 +1577,7 @@ class KiteSsotPlugin : Plugin<Project> {
     private fun modelValues(ext: KiteSsotExtension): List<HasConfigurableValue> =
         listOf(
             ext.appName, ext.version, ext.id, ext.jvmTarget,
-            ext.dryRun, ext.backups,
+            ext.dryRun, ext.backups, ext.ignoreVersionGuards,
             ext.logoConfigured, ext.optInsDeclared, ext.buildConfigDeclared,
             ext.skipped, ext.allowed, ext.doubleSetWarnings,
         ) + listOf(

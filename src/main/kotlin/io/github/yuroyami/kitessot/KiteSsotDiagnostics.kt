@@ -96,6 +96,7 @@ internal data class KiteSsotDiagnosticContext(
     val splashIos: Boolean = false,
     val splashThemeSet: Boolean = false,
     val splashManifestPlaceholderPresent: Boolean? = null,
+    val versionGuardsIgnored: Boolean = false,
 )
 
 /** Pure orchestration around guarded filesystem reads and fail-closed parsers. */
@@ -283,9 +284,10 @@ internal object KiteSsotDiagnosticEngine {
             !isSupportedComposeVersion(context.activeComposeVersion) -> add(
                 diagnostic(
                     "KMPS082",
-                    KiteSsotDiagnosticSeverity.ERROR,
+                    if (context.versionGuardsIgnored) KiteSsotDiagnosticSeverity.WARNING else KiteSsotDiagnosticSeverity.ERROR,
                     "Compose Gradle plugin compatibility",
-                    "Active Compose Gradle plugin ${context.activeComposeVersion} is unsupported.",
+                    "Active Compose Gradle plugin ${context.activeComposeVersion} is unsupported." +
+                        if (context.versionGuardsIgnored) " ignoreVersionGuards keeps it active." else "",
                     "Use a Compose release in the supported range 1.11.0 through 1.12.x.",
                     expected = "1.11.0..1.12.x",
                     actual = context.activeComposeVersion,
@@ -1412,9 +1414,10 @@ private fun MutableList<KiteSsotDiagnostic>.diagnoseAndroidIcons(context: KiteSs
             !isSupportedAgpVersion(context.activeAgpVersion) -> add(
                 diagnostic(
                     "KMPS061",
-                    KiteSsotDiagnosticSeverity.ERROR,
+                    if (context.versionGuardsIgnored) KiteSsotDiagnosticSeverity.WARNING else KiteSsotDiagnosticSeverity.ERROR,
                     "Android Gradle plugin compatibility",
-                    "Active Android Gradle plugin ${context.activeAgpVersion} is unsupported.",
+                    "Active Android Gradle plugin ${context.activeAgpVersion} is unsupported." +
+                        if (context.versionGuardsIgnored) " ignoreVersionGuards keeps it active." else "",
                     "Use an AGP release in the supported range 8.5.2 through 9.3.x.",
                     expected = "8.5.2..9.3.x",
                     actual = context.activeAgpVersion,
@@ -1464,9 +1467,10 @@ private fun MutableList<KiteSsotDiagnostic>.diagnoseAndroidIcons(context: KiteSs
             !isSupportedKgpVersion(context.activeKgpVersion) -> add(
                 diagnostic(
                     "KMPS062",
-                    KiteSsotDiagnosticSeverity.ERROR,
+                    if (context.versionGuardsIgnored) KiteSsotDiagnosticSeverity.WARNING else KiteSsotDiagnosticSeverity.ERROR,
                     "Kotlin Gradle plugin compatibility",
-                    "Active Kotlin Gradle plugin ${context.activeKgpVersion} is unsupported.",
+                    "Active Kotlin Gradle plugin ${context.activeKgpVersion} is unsupported." +
+                        if (context.versionGuardsIgnored) " ignoreVersionGuards keeps it active." else "",
                     "Use a KGP 2.4.x release.",
                     expected = "2.4.x",
                     actual = context.activeKgpVersion,

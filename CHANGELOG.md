@@ -6,6 +6,11 @@ Gradle Plugin Portal releases.
 
 ## Unreleased: the splash topic
 
+Added `ignoreVersionGuards`: a root fact that treats AGP, KGP, and Compose
+versions outside the tested range as supported. Typed integrations stay active,
+the hard compatibility failures step aside, and doctor findings soften from
+error to warning with one loud console warning naming the off-matrix versions.
+
 `splash { }` delivers a launch screen from one block: Android themed splash
 generated into `build/` (native Android 12 attributes, `values-v31` only, one
 manifest placeholder line, doctor-checked), a desktop JVM `-splash:` image wired

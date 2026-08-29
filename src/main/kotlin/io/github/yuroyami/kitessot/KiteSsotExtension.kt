@@ -111,6 +111,7 @@ import org.gradle.api.provider.Provider
  *
  *     dryRun  = false
  *     backups = true
+ *     // ignoreVersionGuards = true  // off the tested AGP/KGP/Compose matrix, on your own head
  * }
  * ```
  *
@@ -286,6 +287,15 @@ abstract class KiteSsotExtension : KiteFlowScope() {
      * change to your source tree.
      */
     abstract val dryRun: Property<Boolean>
+
+    /**
+     * Treat AGP, KGP, and Compose versions outside the tested range as supported.
+     *
+     * Default: `false`. The guards exist because only that range is exercised by
+     * this release's tests; switching this on trades that proof for one loud
+     * warning and keeps every typed integration active on your versions.
+     */
+    abstract val ignoreVersionGuards: Property<Boolean>
 
     /**
      * Keep a first-contact recovery copy before rewriting a file.
@@ -482,6 +492,9 @@ abstract class KiteSsotExtension : KiteFlowScope() {
 
     internal val effectiveLocales: Provider<List<String>>
         get() = localesScope.pinned
+
+    internal val effectiveIgnoreVersionGuards: Provider<Boolean>
+        get() = ignoreVersionGuards.orElse(false)
 
     internal val effectiveDryRun: Provider<Boolean>
         get() = dryRunOverride.orElse(dryRun).orElse(false)

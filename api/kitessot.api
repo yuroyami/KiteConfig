@@ -286,6 +286,7 @@ public abstract class io/github/yuroyami/kitessot/KiteSsotDiagnosticTaskBase : o
 	public abstract fun getSplashThemeSet ()Lorg/gradle/api/provider/Property;
 	public abstract fun getSyncIos ()Lorg/gradle/api/provider/Property;
 	public abstract fun getUsesNonExemptEncryption ()Lorg/gradle/api/provider/Property;
+	public abstract fun getVersionGuardsIgnored ()Lorg/gradle/api/provider/Property;
 	public abstract fun getVersionName ()Lorg/gradle/api/provider/Property;
 }
 
@@ -310,6 +311,7 @@ public abstract class io/github/yuroyami/kitessot/KiteSsotExtension : io/github/
 	public final fun getDesktopBundleId ()Lorg/gradle/api/provider/Provider;
 	public abstract fun getDryRun ()Lorg/gradle/api/provider/Property;
 	public abstract fun getId ()Lorg/gradle/api/provider/Property;
+	public abstract fun getIgnoreVersionGuards ()Lorg/gradle/api/provider/Property;
 	public final fun getIos ()Lio/github/yuroyami/kitessot/KiteSsotIosExtension;
 	public final fun getIosBundleId ()Lorg/gradle/api/provider/Provider;
 	public abstract fun getJvmTarget ()Lorg/gradle/api/provider/Property;
