@@ -309,7 +309,10 @@ class AgpCompatibilityFunctionalTest {
                 appName = 'Matrix App'
                 version = '2.3.4'
                 id = 'dev.matrix.ssot'
-                locales.addAll(['en', 'pt-BR'])
+                locales {
+                    pin('en', 'pt-BR')
+                    filterAndroidRes = true
+                }
                 jvmTarget = 17
                 modules {
                     androidApps(':app')
@@ -318,7 +321,6 @@ class AgpCompatibilityFunctionalTest {
                     compileSdk = 35
                     minSdk = 24
                     targetSdk = 35
-                    filterResourcesToLocales = true
                 }
             }
 
@@ -734,7 +736,7 @@ class AgpCompatibilityFunctionalTest {
             kiteSsot {
                 appName = 'Ssot Only App'
                 version = '$version'
-                appId = 'dev.matrix.ssotonly'
+                id = 'dev.matrix.ssotonly'
                 android {
                     compileSdk = 35
                     minSdk = 24

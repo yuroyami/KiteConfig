@@ -1,10 +1,11 @@
 # KiteSSOT
 
-A Gradle plugin for Kotlin Multiplatform projects. You declare your app's facts
-once, in one block, at the root: app name, app id, version, version code, build
-number, locales, app logo, splash screen, generated build config, SDK levels,
-JVM level. KiteSSOT carries them to Android, iOS, and Compose Desktop, so the
-copies that normally drift apart stop existing.
+A Gradle plugin for Kotlin Multiplatform projects. You write your app's values
+once, in one block, in the root build file: app name, app id, version, version
+code, build number, locales, app logo, splash screen, generated build config,
+SDK levels, JVM level. KiteSSOT applies them to Android, iOS, and Compose
+Desktop for you. Without it, each platform keeps its own copy of these values,
+and the copies slowly stop matching.
 
 [![Gradle Plugin Portal](https://img.shields.io/gradle-plugin-portal/v/io.github.yuroyami.kitessot?label=plugin%20portal)](https://plugins.gradle.org/plugin/io.github.yuroyami.kitessot)
 [![CI](https://img.shields.io/github/actions/workflow/status/yuroyami/KiteSSOT/ci.yml?branch=main&label=CI)](https://github.com/yuroyami/KiteSSOT/actions/workflows/ci.yml)
@@ -13,21 +14,24 @@ copies that normally drift apart stop existing.
 **[Documentation](https://yuroyami.github.io/KiteSSOT/)** has the setup guide
 and the generated API reference.
 
-## The one law
+## Three rules
 
-The whole DSL follows three rules. Learn them once and nothing in it can
-surprise you:
+The whole DSL works by three simple rules:
 
-1. **Facts always flow.** A declared fact reaches every platform found, on
-   every build, either in memory or as files under `build/`. Declaring the
-   fact is the consent. `skip()` and `only()` beside the fact are the only
-   flow control.
-2. **`rewrite { }` is the only word that acts on your files.** It arms a
-   task that edits source, and that task runs only when you invoke it by
-   name. `dryRun`, `backups`, and `onConflict` always apply to it.
-3. **One topic, one block.** Everything about a concern lives inside that
-   concern's block. Platform corners nest inside topics. Platform blocks
-   hold only platform-exclusive things.
+1. **Every value you write is applied automatically.** On every build, to
+   every platform that exists in your project. It is applied in memory, or
+   as generated files under `build/`. Writing the value is all you have to
+   do. To stop one value from reaching one platform, put `skip(platform)`
+   next to it. `only(platform)` is the allowlist version of the same thing.
+2. **Your own files are never edited during a normal build.** The only way
+   KiteSSOT ever touches a file you own (Xcode project, Info.plist, Android
+   res) is: you write a `rewrite { }` block, AND you run the matching
+   `kiteRewrite*` task yourself. Even then, `dryRun`, `backups`, and
+   `onConflict` protect you.
+3. **Everything about one thing is in one place.** All version settings live
+   in `version { }`. All id settings live in `id { }`. Platform details go
+   inside the topic (like `version { android { ... } }`), not the other way
+   around.
 
 ## Usage
 
@@ -61,12 +65,12 @@ Every property, function, corner, and modifier that exists, in one block.
 kiteSsot {
 
     /**
-     * THE LAW
-     * 1. Facts always flow: in memory, or as files under build/.
-     *    Declaring the fact is the consent. skip()/only() stop it.
-     * 2. rewrite { } is the only word that acts on YOUR files.
-     *    It arms a by-name task. dryRun and backups always apply.
-     * 3. One topic, one block. Platform corners inside topics.
+     * THE THREE RULES
+     * 1. Every value here is applied automatically, on every build,
+     *    to every platform found. skip()/only() stop it per platform.
+     * 2. Your own files are only edited by a rewrite { } block PLUS
+     *    you running the kiteRewrite* task yourself.
+     * 3. Everything about one thing lives in one block.
      */
 
     /** APP NAME. Simple form: appName = "Jetzy". Detailed form below. */
@@ -291,35 +295,36 @@ source-editing tasks run only when you name them.
 Run `./gradlew kitePlan` before any rewrite. It shows the full mutation plan
 and writes nothing.
 
-## Confusion deleters
+## Common questions
 
-Plain answers to the questions that used to need archaeology:
-
-- **When does a value get SSOT-ed?** Always, to every platform found, on
-  every build, unless a `skip()` says otherwise. That is the whole answer.
-- **Does opening a block do something?** Declaring facts makes them flow
-  (rule 1). Only `rewrite { }` arms anything that touches your source, and
-  arming still is not running.
-- **What does dryRun cover?** Rewrites only. Generators into `build/` ignore
-  it, because their output is disposable and your build depends on it.
-- **Why did nothing happen on iOS?** iOS deliveries are source edits. They
-  need `ios { rewrite { } }` (plus `splash { rewrite { } }` for the splash)
-  and an explicit `./gradlew kiteRewriteXcode`.
-- **Why is my desktop app getting icons I never asked for?** You declared
-  `logo { }` art and a desktop app exists, so the fact flowed (rule 1).
-  `logo { skip(desktop) }` stops it.
-- **Simple form or detailed form?** `version = "1.4.0"` and
-  `version("1.4.0") { }` write the same property; last write wins, and
-  `kiteDoctor` warns when both were used.
-- **Unsupported AGP/KGP version?** Typed integrations switch off and the
-  features that need them fail with guidance. `ignoreVersionGuards = true`
-  (with its forced `@OptIn`) keeps them active at your own risk.
+- **When is a value applied?** Always. Every build, every platform in your
+  project, unless you wrote `skip()` next to it. That is the whole answer.
+- **Does opening a block do something by itself?** Writing a value applies
+  it (rule 1). Nothing touches your own files unless you wrote
+  `rewrite { }` AND ran the task (rule 2).
+- **What does dryRun cover?** Only the `kiteRewrite*` tasks. Files generated
+  into `build/` ignore it, because your build needs them and they are safe
+  to delete.
+- **I set up iOS values, why did nothing change?** iOS changes edit your
+  files, so rule 2 applies: add `ios { rewrite { } }` (and
+  `splash { rewrite { } }` for the splash), then run
+  `./gradlew kiteRewriteXcode`.
+- **Why did my desktop app get icons I never asked for?** You wrote
+  `logo { }` and a desktop app exists, so the icons were applied (rule 1).
+  Write `logo { skip(desktop) }` to stop that.
+- **`version = "1.4.0"` or `version("1.4.0") { }`?** Both set the same
+  value. Use the short one when you have no details. If you use both, the
+  last one wins and `kiteDoctor` warns you.
+- **My AGP/KGP version is unsupported. Now what?** The features that need
+  deep AGP/KGP access turn off and tell you why. `ignoreVersionGuards = true`
+  (with its required `@OptIn` line) keeps them on. If it breaks, that is the
+  risk you chose.
 
 ## Caveats
 
-- Store uploads driven by these outputs (App Store archive, signed DMG, MSI
-  upgrade across versions) have not been verified end to end by a release
-  pipeline yet. Read `kitePlan` output before rewrites.
+- Nobody has yet verified a full store release made from these outputs end
+  to end (App Store archive, signed DMG, MSI upgrade). Read the `kitePlan`
+  output before you run any rewrite.
 - `buildConfig` is not a secret store. Every value reaches generated source,
   task inputs, build scans, and shipped binaries.
 - The desktop build number reaches macOS only; Windows and Linux packaging
