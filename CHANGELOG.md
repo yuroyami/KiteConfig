@@ -4,6 +4,16 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions track the
 Gradle Plugin Portal releases.
 
+## Unreleased: the splash topic
+
+`splash { }` delivers a launch screen from one block: Android themed splash
+generated into `build/` (native Android 12 attributes, `values-v31` only, one
+manifest placeholder line, doctor-checked), a desktop JVM `-splash:` image wired
+into Compose packaging, and an armed iOS delivery (`UILaunchScreen` plus asset
+catalog entries) riding `kiteRewriteXcode`. Art defaults to `logo { }`, a
+`dark { }` variant covers dark mode, and `skip()` / `only()` work as everywhere.
+Diagnostics: KMPS090 to KMPS093.
+
 ## Unreleased: the topic reshape
 
 One law now covers the whole DSL: facts always flow (`skip()` / `only()` are the

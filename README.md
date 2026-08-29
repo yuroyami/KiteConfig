@@ -123,6 +123,15 @@ kiteSsot {
         rewrite { replaceOld = true }  // arms kiteRewriteLogo, source edits
     }
 
+    splash {
+        // empty block already works: art defaults to logo, plate to its color
+        dark { backgroundColor = "#000000" }
+        android { theme = "AppTheme" }  // your app theme; generated KiteSplash inherits it,
+                                        //   and your Manifest points at it once:
+                                        //   android:theme="${'$'}{kiteSplashTheme}"
+        rewrite { }                     // arms the iOS launch-screen delivery
+    }
+
     optIns {
         add("kotlinx.cinterop.ExperimentalForeignApi")
         projects(":shared")

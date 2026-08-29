@@ -315,7 +315,7 @@ Unchanged on purpose: `appName`, `jvmTarget`, `marketingVersion`, `deploymentTar
 Round one covers Android, iOS, and Desktop. Web is out.
 
 * Facts: `image`, `backgroundColor`, optional `dark { }` variant. Every fact defaults to the matching `logo` fact, so an empty `splash { }` is a complete setup.
-* **Android** (flow): themed splash screen resources (theme XML plus drawable) generated under `build/` and wired into the Android app module as a generated res directory. The user adds one line to their Manifest once: `android:theme="${kiteSplashTheme}"`. `kiteDoctor` verifies the placeholder is present. Pre-12 devices go through the core-splashscreen compat route.
+* **Android** (flow): themed splash screen resources (style XML plus icon drawables) generated under `build/` and wired into the Android app module as a res directory. The generated `KiteSplash` style inherits the app theme named in `splash { android { theme } }` and only the `values-v31` variant adds splash attributes, so pre-12 devices see a plain alias and no behavior change (no compat library, no app code). The user adds one line to their Manifest once: `android:theme="${kiteSplashTheme}"`. `kiteDoctor` verifies the placeholder and the theme corner.
 * **iOS** (`rewrite`): `UILaunchScreen` dictionary in Info.plist plus a color and image in the asset catalog. No storyboard. Runs with `kiteRewriteXcode`.
 * **Desktop** (flow): a composed splash PNG under `build/`, wired into Compose Desktop packaging as a JVM `-splash:` argument.
 * Dark variant: Android `values-night` resources, iOS dark appearance on the named color and image.
