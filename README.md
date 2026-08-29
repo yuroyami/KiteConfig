@@ -23,11 +23,22 @@ The whole DSL works by three simple rules:
    as generated files under `build/`. Writing the value is all you have to
    do. To stop one value from reaching one platform, put `skip(platform)`
    next to it. `only(platform)` is the allowlist version of the same thing.
-2. **Your own files are never edited during a normal build.** The only way
-   KiteSSOT ever touches a file you own (Xcode project, Info.plist, Android
-   res) is: you write a `rewrite { }` block, AND you run the matching
-   `kiteRewrite*` task yourself. Even then, `dryRun`, `backups`, and
-   `onConflict` protect you.
+2. **KiteSSOT never edits your project files by itself.**
+   A normal build (`assemble`, `run`, anything) only sets values in memory
+   and writes into the `build/` folder. Files like `project.pbxproj`,
+   `Info.plist`, `Podfile`, and your Android `res/` stay untouched.
+
+   Editing those files takes two separate steps, and you do both:
+
+   1. Write a `rewrite { }` block in the DSL. This only gives permission.
+      Nothing happens yet.
+   2. Run the matching task yourself: `./gradlew kiteRewriteXcode` or
+      `./gradlew kiteRewriteLogo`.
+
+   Skip either step and no file is touched. Ever. And when a rewrite does
+   run: `dryRun = true` prints the planned changes instead of writing them,
+   `backups = true` saves a copy of each file first, and `onConflict`
+   decides what happens when a file already holds a different value.
 3. **Everything about one thing is in one place.** All version settings live
    in `version { }`. All id settings live in `id { }`. Platform details go
    inside the topic (like `version { android { ... } }`), not the other way
@@ -68,8 +79,8 @@ kiteSsot {
      * THE THREE RULES
      * 1. Every value here is applied automatically, on every build,
      *    to every platform found. skip()/only() stop it per platform.
-     * 2. Your own files are only edited by a rewrite { } block PLUS
-     *    you running the kiteRewrite* task yourself.
+     * 2. Your project files are edited only when BOTH happened:
+     *    you wrote rewrite { }, and you ran the kiteRewrite* task.
      * 3. Everything about one thing lives in one block.
      */
 
