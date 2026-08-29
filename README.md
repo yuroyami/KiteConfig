@@ -55,7 +55,7 @@ Apply the plugin to the **root** project only:
 
 ```kotlin
 plugins {
-    id("io.github.yuroyami.kitessot") version "4.1.0"
+    id("io.github.yuroyami.kitessot") version "4.2.0"
 }
 ```
 

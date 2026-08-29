@@ -4,6 +4,13 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions track the
 Gradle Plugin Portal releases.
 
+## 4.2.0
+
+Identical to 4.1.1 in code. The 4.1.1 pipeline uploaded the plugin to the
+Gradle Plugin Portal, then a rerun tripped on the duplicate upload and the
+GitHub release and GitHub Packages steps never ran. Portal versions cannot be
+replaced, so 4.2.0 republishes the same code through the full pipeline.
+
 ## 4.1.1
 
 The pbxproj reader now accepts non-hex object ids. Xcode generates 24 hex
