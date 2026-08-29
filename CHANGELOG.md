@@ -4,6 +4,14 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions track the
 Gradle Plugin Portal releases.
 
+## 4.1.1
+
+The pbxproj reader now accepts non-hex object ids. Xcode generates 24 hex
+digits but only requires unique 24-character tokens, and external generators
+and hand edits use the full alphanumeric alphabet. Such projects previously
+failed the whole parse (KMPS021 reported zero PBXProject objects) and could
+never run `kiteRewriteXcode`.
+
 ## 4.1.0
 
 Added `rewrite { auto = true }` on the logo and Xcode rewrites, behind
