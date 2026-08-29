@@ -4,7 +4,9 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions track the
 Gradle Plugin Portal releases.
 
-## Unreleased: the splash topic
+## 4.0.0
+
+### The splash topic
 
 Added `ignoreVersionGuards`: a root fact that treats AGP, KGP, and Compose
 versions outside the tested range as supported. Typed integrations stay active,
@@ -22,7 +24,7 @@ catalog entries) riding `kiteRewriteXcode`. Art defaults to `logo { }`, a
 `dark { }` variant covers dark mode, and `skip()` / `only()` work as everywhere.
 Diagnostics: KMPS090 to KMPS093.
 
-## Unreleased: the topic reshape
+### The topic reshape
 
 One law now covers the whole DSL: facts always flow (`skip()` / `only()` are the
 only flow control), `rewrite { }` is the only word that acts on source files,
