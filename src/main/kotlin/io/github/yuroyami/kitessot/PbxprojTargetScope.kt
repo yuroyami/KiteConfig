@@ -11,7 +11,9 @@ package io.github.yuroyami.kitessot
  * untouched. Parse uncertainty never broadens a rewrite.
  */
 
-private const val PBX_ID_PATTERN = "[0-9A-Fa-f]{24}"
+// Xcode generates 24 hex digits but only requires unique 24-character tokens;
+// external generators and hand edits use the full alphanumeric alphabet.
+private const val PBX_ID_PATTERN = "[0-9A-Za-z]{24}"
 private val PBX_ID = Regex(PBX_ID_PATTERN)
 
 private enum class TokenKind { ATOM, STRING, SYMBOL }

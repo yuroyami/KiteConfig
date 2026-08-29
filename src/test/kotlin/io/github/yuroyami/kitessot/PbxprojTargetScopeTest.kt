@@ -220,6 +220,39 @@ class PbxprojTargetScopeTest {
     }
 
     @Test
+    fun `non-hex 24-character object ids parse and resolve`() {
+        // Xcode only requires object ids to be unique 24-character tokens; external
+        // generators and hand edits produce non-hex ids (real case: Peerora's JZWA…).
+        val text = """
+            {
+                objects = {
+                    JZWA01000001000000000002 = {
+                        isa = PBXNativeTarget;
+                        name = App;
+                        buildConfigurationList = JZWA01000001000000000003;
+                        productType = "com.apple.product-type.application";
+                    };
+                    JZWA01000001000000000003 = {
+                        isa = XCConfigurationList;
+                        buildConfigurations = ( JZWA01000001000000000004, );
+                    };
+                    JZWA01000001000000000004 = {
+                        isa = XCBuildConfiguration;
+                        buildSettings = { PRODUCT_NAME = App; };
+                    };
+                    JZRT01000001000000000001 = { isa = PBXProject; };
+                };
+                rootObject = JZRT01000001000000000001;
+            }
+        """.trimIndent()
+
+        val result = resolveApplicationBuildConfigSpans(text)
+
+        assertTrue(result.errors.isEmpty(), result.errors.toString())
+        assertEquals(1, result.spans.size)
+    }
+
+    @Test
     fun `malformed direct object entry invalidates the graph`() {
         val text = strictProject().replace(
             "EE00000000000000000000EE = {",
