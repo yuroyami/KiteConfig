@@ -497,6 +497,16 @@ abstract class KiteSsotExtension : KiteFlowScope() {
     internal val effectiveLocales: Provider<List<String>>
         get() = localesScope.pinned
 
+    /** Armed logo rewrite that also asked to ride ordinary Android builds. */
+    internal val effectiveAutoRewriteLogo: Provider<Boolean>
+        @OptIn(DiscouragedKiteApi::class)
+        get() = effectiveLogoRewriteArmed.zip(logo.rewriteSpec.auto.orElse(false)) { armed, auto -> armed && auto }
+
+    /** Armed Xcode rewrite that also asked to ride ordinary iOS builds. */
+    internal val effectiveAutoRewriteXcode: Provider<Boolean>
+        @OptIn(DiscouragedKiteApi::class)
+        get() = effectiveSyncIos.zip(ios.rewrite.auto.orElse(false)) { armed, auto -> armed && auto }
+
     internal val effectiveIgnoreVersionGuards: Provider<Boolean>
         @OptIn(DiscouragedKiteApi::class)
         get() = ignoreVersionGuards.orElse(false)

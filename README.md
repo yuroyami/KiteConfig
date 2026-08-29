@@ -39,6 +39,11 @@ The whole DSL works by three simple rules:
    run: `dryRun = true` prints the planned changes instead of writing them,
    `backups = true` saves a copy of each file first, and `onConflict`
    decides what happens when a file already holds a different value.
+
+   If you hate running tasks, `rewrite { auto = true }` makes the rewrite
+   run before ordinary builds. It needs the `@OptIn(DiscouragedKiteApi)`
+   line, because builds then edit committed files and clean checkouts
+   build dirty. `kiteDoctor` reminds you it is on.
 3. **Everything about one thing is in one place.** All version settings live
    in `version { }`. All id settings live in `id { }`. Platform details go
    inside the topic (like `version { android { ... } }`), not the other way
@@ -161,6 +166,7 @@ kiteSsot {
         /**
          * Arms kiteRewriteLogo: writes Android res + the iOS asset catalog.
          * replaceOld also claims and removes legacy launcher icons (backed up).
+         * auto = true runs it before Android app builds (discouraged, @OptIn).
          */
         rewrite { replaceOld = true }
     }

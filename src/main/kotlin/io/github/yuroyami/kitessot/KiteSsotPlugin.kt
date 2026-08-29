@@ -2,6 +2,7 @@
 
 package io.github.yuroyami.kitessot
 
+import org.gradle.api.Action
 import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
@@ -168,6 +169,7 @@ class KiteSsotPlugin : Plugin<Project> {
             description = "Rewrites the Xcode project files from the declared facts."
             dependsOn("kiteInternalIosConfig", "kiteInternalPlistClean")
         }
+        wireAutoRewrites(target, ext)
         val verifyTask = registerVerifyTask(target, ext, colorSupported)
         val doctorTask = registerDoctorTask(target, ext, resolvedAndroidAppDirectory, colorSupported)
         val checkTask = registerCheckTask(target, ext, resolvedAndroidAppDirectory, colorSupported)
@@ -1392,6 +1394,25 @@ class KiteSsotPlugin : Plugin<Project> {
      * configuration-cache serialization. A thrown [GradleException] becomes an
      * absent value; the diagnostics engine already reports that as a finding.
      */
+    /**
+     * The discouraged auto mode: armed rewrites ride ordinary builds. Android
+     * app preBuild pulls kiteRewriteLogo; iOS framework link/embed tasks pull
+     * kiteRewriteXcode. Gates stay lazy so plain configuration never arms them.
+     */
+    private fun wireAutoRewrites(root: Project, ext: KiteSsotExtension) {
+        root.allprojects(Action {
+            tasks.matching { it.name == "preBuild" }.configureEach(Action {
+                if (ext.effectiveAutoRewriteLogo.get()) dependsOn(root.tasks.named("kiteRewriteLogo"))
+            })
+            tasks.matching {
+                it.name == "embedAndSignAppleFrameworkForXcode" ||
+                    (it.name.startsWith("link") && it.name.contains("Framework") && it.name.contains("Ios"))
+            }.configureEach(Action {
+                if (ext.effectiveAutoRewriteXcode.get()) dependsOn(root.tasks.named("kiteRewriteXcode"))
+            })
+        })
+    }
+
     private fun <T : Any> Project.resilientValue(compute: () -> T?): Provider<T> {
         @Suppress("UNCHECKED_CAST")
         return provider { runCatching(compute).getOrNull() } as Provider<T>
@@ -1480,6 +1501,9 @@ class KiteSsotPlugin : Plugin<Project> {
         splashIos.set(ext.effectiveIosSplash)
         splashThemeSet.set(ext.effectiveSplashAndroidTheme.map { true }.orElse(false))
         versionGuardsIgnored.set(ext.effectiveIgnoreVersionGuards)
+        autoRewrites.set(
+            ext.effectiveAutoRewriteLogo.zip(ext.effectiveAutoRewriteXcode) { a, b -> a || b },
+        )
         splashManifestPlaceholderPresent.set(root.resilientValue {
             val appDir = resolvedAndroidAppDirectory.orNull ?: ext.effectiveAndroidAppDirectory.orNull
             if (!ext.effectiveAndroidSplash.get() || appDir == null) {

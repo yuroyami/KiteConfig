@@ -91,6 +91,14 @@ abstract class KiteSsotLogoExtension @Inject constructor(objects: ObjectFactory)
          * Default: false. Claimed files are copied to `.kitessot/recovery` first.
          */
         abstract val replaceOld: Property<Boolean>
+
+        /**
+         * Run this rewrite automatically before Android app builds instead of
+         * waiting for kiteRewriteLogo. Default: false. Discouraged: ordinary
+         * builds then edit committed files, and clean checkouts build dirty.
+         */
+        @DiscouragedKiteApi
+        abstract val auto: Property<Boolean>
     }
 
     val android: AndroidCorner = objects.newInstance(AndroidCorner::class.java)

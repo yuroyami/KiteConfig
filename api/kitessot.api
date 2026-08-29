@@ -245,6 +245,7 @@ public abstract class io/github/yuroyami/kitessot/KiteSsotDiagnosticTaskBase : o
 	public abstract fun getAppId ()Lorg/gradle/api/provider/Property;
 	public abstract fun getAppName ()Lorg/gradle/api/provider/Property;
 	public abstract fun getAppiconsetDir ()Lorg/gradle/api/file/DirectoryProperty;
+	public abstract fun getAutoRewrites ()Lorg/gradle/api/provider/Property;
 	public abstract fun getCleanupLegacyLogoArtifacts ()Lorg/gradle/api/provider/Property;
 	public abstract fun getColorEnabled ()Lorg/gradle/api/provider/Property;
 	public abstract fun getComposeOnClasspath ()Lorg/gradle/api/provider/Property;
@@ -362,6 +363,7 @@ public abstract class io/github/yuroyami/kitessot/KiteSsotIosExtension : io/gith
 
 public abstract class io/github/yuroyami/kitessot/KiteSsotIosSyncExtension {
 	public fun <init> ()V
+	public abstract fun getAuto ()Lorg/gradle/api/provider/Property;
 	public abstract fun getCleanPlist ()Lorg/gradle/api/provider/Property;
 	public abstract fun getNonExemptEncryption ()Lorg/gradle/api/provider/Property;
 	public abstract fun getOnConflict ()Lorg/gradle/api/provider/Property;
@@ -397,6 +399,7 @@ public abstract class io/github/yuroyami/kitessot/KiteSsotLogoExtension$DesktopC
 
 public abstract class io/github/yuroyami/kitessot/KiteSsotLogoExtension$LogoRewrite {
 	public fun <init> ()V
+	public abstract fun getAuto ()Lorg/gradle/api/provider/Property;
 	public abstract fun getReplaceOld ()Lorg/gradle/api/provider/Property;
 }
 

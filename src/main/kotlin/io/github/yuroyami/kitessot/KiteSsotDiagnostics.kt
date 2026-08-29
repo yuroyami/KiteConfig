@@ -97,6 +97,7 @@ internal data class KiteSsotDiagnosticContext(
     val splashThemeSet: Boolean = false,
     val splashManifestPlaceholderPresent: Boolean? = null,
     val versionGuardsIgnored: Boolean = false,
+    val autoRewrites: Boolean = false,
 )
 
 /** Pure orchestration around guarded filesystem reads and fail-closed parsers. */
@@ -163,6 +164,17 @@ internal object KiteSsotDiagnosticEngine {
                     "Splash manifest placeholder",
                     "The Android manifest does not reference the generated splash theme.",
                     "Add android:theme=\"\${kiteSplashTheme}\" to the application or launcher activity element once.",
+                ),
+            )
+        }
+        if (context.autoRewrites) {
+            add(
+                diagnostic(
+                    "KMPS094",
+                    KiteSsotDiagnosticSeverity.WARNING,
+                    "Auto rewrites",
+                    "rewrite { auto = true } is on: ordinary builds edit committed source files.",
+                    "Expect dirty git trees on clean checkouts. Turn auto off to go back to explicit kiteRewrite* runs.",
                 ),
             )
         }

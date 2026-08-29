@@ -4,6 +4,13 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions track the
 Gradle Plugin Portal releases.
 
+## Unreleased
+
+Added `rewrite { auto = true }` on the logo and Xcode rewrites, behind
+`@DiscouragedKiteApi`: the armed rewrite rides ordinary builds (Android
+`preBuild`, iOS framework link/embed) instead of waiting for an explicit
+`kiteRewrite*` run. `kiteDoctor` warns while it is on (`KMPS094`).
+
 ## 4.0.0
 
 ### The splash topic

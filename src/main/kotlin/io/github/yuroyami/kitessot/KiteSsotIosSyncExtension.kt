@@ -85,6 +85,15 @@ abstract class KiteSsotIosSyncExtension {
     abstract val cleanPlist: Property<Boolean>
 
     /**
+     * Run this rewrite automatically before the iOS framework builds instead of
+     * waiting for kiteRewriteXcode. Default: false. Discouraged twice over:
+     * ordinary builds edit committed files, and when Xcode drives Gradle the
+     * pbxproj is rewritten while Xcode is reading it.
+     */
+    @DiscouragedKiteApi
+    abstract val auto: Property<Boolean>
+
+    /**
      * What to do when an existing `Info.plist` value differs from the requested
      * value.
      *

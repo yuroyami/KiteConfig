@@ -106,6 +106,7 @@ abstract class KiteSsotDiagnosticTaskBase : DefaultTask() {
     @get:Internal abstract val splashThemeSet: Property<Boolean>
     @get:Internal abstract val splashManifestPlaceholderPresent: Property<Boolean>
     @get:Internal abstract val versionGuardsIgnored: Property<Boolean>
+    @get:Internal abstract val autoRewrites: Property<Boolean>
 
     internal fun diagnosticFindings(): List<KiteSsotDiagnostic> {
         val resolutionFindings = mutableListOf<KiteSsotDiagnostic>()
@@ -219,6 +220,9 @@ abstract class KiteSsotDiagnosticTaskBase : DefaultTask() {
             },
             versionGuardsIgnored = resolve("KMPS966", "ignoreVersionGuards", false) {
                 versionGuardsIgnored.getOrElse(false)
+            },
+            autoRewrites = resolve("KMPS967", "rewrite { auto }", false) {
+                autoRewrites.getOrElse(false)
             },
         )
 
