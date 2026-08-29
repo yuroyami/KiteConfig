@@ -27,6 +27,9 @@ public abstract class io/github/yuroyami/kitessot/CleanupLegacyAppLogoArtifactsT
 	public abstract fun getProjectRootDir ()Lorg/gradle/api/file/DirectoryProperty;
 }
 
+public abstract interface annotation class io/github/yuroyami/kitessot/DiscouragedKiteApi : java/lang/annotation/Annotation {
+}
+
 public abstract class io/github/yuroyami/kitessot/GenerateAndroidSplashTask : org/gradle/api/DefaultTask {
 	public fun <init> ()V
 	public final fun generate ()V

@@ -20,6 +20,7 @@ class VersionGuardFlagTest {
     }
 
     @Test
+    @OptIn(DiscouragedKiteApi::class)
     fun `the flag flips the effective value`() {
         val e = ext()
         e.ignoreVersionGuards.set(true)

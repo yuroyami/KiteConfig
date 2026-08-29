@@ -1574,6 +1574,7 @@ class KiteSsotPlugin : Plugin<Project> {
      * Derived `effective*` views are deliberately absent: they are read-only
      * providers over these values, so locking the sources locks the views too.
      */
+    @OptIn(DiscouragedKiteApi::class)
     private fun modelValues(ext: KiteSsotExtension): List<HasConfigurableValue> =
         listOf(
             ext.appName, ext.version, ext.id, ext.jvmTarget,

@@ -10,6 +10,9 @@ Added `ignoreVersionGuards`: a root fact that treats AGP, KGP, and Compose
 versions outside the tested range as supported. Typed integrations stay active,
 the hard compatibility failures step aside, and doctor findings soften from
 error to warning with one loud console warning naming the off-matrix versions.
+The switch is marked `@DiscouragedKiteApi`, a `@RequiresOptIn` marker: a build
+script must declare `@file:OptIn(io.github.yuroyami.kitessot.DiscouragedKiteApi::class)`
+before it compiles.
 
 `splash { }` delivers a launch screen from one block: Android themed splash
 generated into `build/` (native Android 12 attributes, `values-v31` only, one

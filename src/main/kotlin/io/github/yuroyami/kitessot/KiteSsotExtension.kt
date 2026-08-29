@@ -294,7 +294,11 @@ abstract class KiteSsotExtension : KiteFlowScope() {
      * Default: `false`. The guards exist because only that range is exercised by
      * this release's tests; switching this on trades that proof for one loud
      * warning and keeps every typed integration active on your versions.
+     *
+     * Requires `@file:OptIn(io.github.yuroyami.kitessot.DiscouragedKiteApi::class)`
+     * in the build script.
      */
+    @DiscouragedKiteApi
     abstract val ignoreVersionGuards: Property<Boolean>
 
     /**
@@ -494,6 +498,7 @@ abstract class KiteSsotExtension : KiteFlowScope() {
         get() = localesScope.pinned
 
     internal val effectiveIgnoreVersionGuards: Provider<Boolean>
+        @OptIn(DiscouragedKiteApi::class)
         get() = ignoreVersionGuards.orElse(false)
 
     internal val effectiveDryRun: Provider<Boolean>

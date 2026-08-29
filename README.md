@@ -179,7 +179,8 @@ kiteSsot {
     dryRun  = false                    // armed rewrites print, write nothing
     backups = true                     // recovery copy before any rewrite
     // ignoreVersionGuards = true      // run on AGP/KGP/Compose outside the tested
-                                       //   range: guards become one loud warning
+                                       //   range: guards become one loud warning.
+                                       //   Needs @file:OptIn(...DiscouragedKiteApi::class)
 }
 ```
 
