@@ -3,6 +3,7 @@ package io.github.yuroyami.kiteconfig
 import org.gradle.api.GradleException
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
@@ -134,6 +135,7 @@ class VersionCodeTest {
         val failure = assertThrows(GradleException::class.java) {
             computeVersionCode(VersionSchemes.DEFAULT, "1.2.3-rc1", 0, "desktop")
         }
-        assertTrue(failure.message!!.contains("desktop { buildNumber"), failure.message)
+        assertTrue(failure.message!!.contains("desktop { pin"), failure.message)
+        assertFalse(failure.message!!.contains("android { pin"), failure.message)
     }
 }

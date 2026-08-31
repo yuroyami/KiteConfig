@@ -12,8 +12,18 @@ import java.io.File
  */
 class MessageHygieneTest {
 
-    /** Every 2.x property the 3.0 DSL renamed or absorbed. */
+    /**
+     * DSL spellings retired by the 3.0 reshape and the 4.0 topic reshape.
+     *
+     * These reached users through error messages and doctor labels long after the
+     * DSL dropped them, telling people to set properties that no longer exist.
+     * Matching is substring-based inside string literals, so entries here are the
+     * distinctive fragment rather than the whole snippet.
+     */
     private val retiredNames = listOf(
+        "propagate {", "ios { sync", "filterResourcesToLocales", "sanitizePlist",
+        "android { versionCode", "ios { buildNumber", "desktop { buildNumber",
+        "nativeOptIns {", "publishedVersionCode", "takeOverLegacyIcons",
         "androidAppDirectory", "androidApplicationIdSuffix", "androidApplicationProjects",
         "appLogoAndroidSafeZoneRatio", "appLogoBackgroundColor", "appLogoPngBackground",
         "appLogoPngForeground", "backupBeforeRewrite", "bundleIdBase",

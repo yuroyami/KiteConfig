@@ -931,7 +931,7 @@ internal object KiteConfigDiagnosticEngine {
                     KiteConfigDiagnosticSeverity.ERROR,
                     "iOS Info.plist",
                     "Configured source Info.plist does not exist at ${context.shortPath(plist)}.",
-                    "Correct ios { infoPlist } or disable ios { sync { sanitizePlist } } for a generated plist.",
+                    "Correct ios { infoPlist } or disable ios { rewrite { cleanPlist } } for a generated plist.",
                     location = plist.path,
                 ),
             )
@@ -1074,7 +1074,7 @@ internal object KiteConfigDiagnosticEngine {
                         KiteConfigDiagnosticSeverity.ERROR,
                         "iOS pbxproj",
                         "Project file not found at ${context.shortPath(pbxproj)}.",
-                        "Correct ios { pbxproj } or remove the ios { sync { } } block.",
+                        "Correct ios { pbxproj } or remove the ios { rewrite { } } block.",
                     ),
                 )
             } else if (pbxprojExists == true) {
@@ -1369,7 +1369,7 @@ private fun MutableList<KiteConfigDiagnostic>.diagnoseAndroidIcons(context: Kite
                     "Android versionCode",
                     "No Android versionCode could be derived from version \"$version\".",
                     "Use three numeric segments (x.y.z), supply version(\"x\") { formula { } }, " +
-                        "or set android { versionCode }.",
+                        "or set version(\"x\") { android { pin } }.",
                 ),
             )
         }

@@ -413,7 +413,7 @@ abstract class SyncIosConfigTask : DefaultTask() {
         if (oldName == null || newName == null) {
             logger.info(
                 "[kiteConfig] Shared-module migration skipped: call " +
-                    "ios { sync { renameSharedModule(from, to) } } " +
+                    "ios { rewrite { renameSharedModule(from, to) } } " +
                     "for an explicit from/to migration. Podfile auto-detection is intentionally disabled."
             )
             return

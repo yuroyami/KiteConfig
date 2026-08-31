@@ -231,12 +231,13 @@ class KiteConfigPlugin : Plugin<Project> {
                 if (iosTargetNames.distinct().size != iosTargetNames.size ||
                     iosTargetNames.any { it.isBlank() || it.any(Char::isISOControl) }
                 ) {
-                    throw GradleException("kiteConfig { ios { sync { targets } } } must contain unique, non-blank names without controls.")
+                    throw GradleException("kiteConfig { ios { rewrite { targets } } } must contain unique, non-blank names without controls.")
                 }
                 if (iosTargetNames.size > 1 && ext.idFlowsAnywhere().get() && ext.id.isPresent) {
                     throw GradleException(
                         "kiteConfig refuses to assign one Apple bundle identifier to multiple application targets " +
-                            "(${iosTargetNames.joinToString()}). Select one target, or set propagate { bundleId = false }."
+                            "(${iosTargetNames.joinToString()}). Select one target, or stop the id flowing to iOS " +
+                            "with id(\"base\") { skip(KitePlatform.IOS) }."
                     )
                 }
             }
@@ -255,7 +256,7 @@ class KiteConfigPlugin : Plugin<Project> {
                 val missing = buildList {
                     if (!ext.effectiveAppName.isPresent) add("appName")
                     if (!ext.effectiveVersion.isPresent) add("version")
-                    if (!ext.effectiveAndroidVersionCode.isPresent) add("version or android { versionCode }")
+                    if (!ext.effectiveAndroidVersionCode.isPresent) add("version or version(\"x\") { android { pin } }")
                     if (!ext.id.isPresent) add("appId")
                 }
                 if (missing.isNotEmpty()) {
@@ -269,7 +270,7 @@ class KiteConfigPlugin : Plugin<Project> {
                 if (!ext.effectiveIosSharedModuleName.isPresent || !ext.effectiveIosPreviousSharedModuleName.isPresent) {
                     throw GradleException(
                         "kiteConfig shared-module migration needs both names. Call " +
-                            "ios { sync { renameSharedModule(from = \"old\", to = \"new\") } }. " +
+                            "ios { rewrite { renameSharedModule(from = \"old\", to = \"new\") } }. " +
                             "Automatic Pod/Swift rename inference is disabled."
                     )
                 }
@@ -611,7 +612,7 @@ class KiteConfigPlugin : Plugin<Project> {
                         throw GradleException(
                             "kiteConfig refuses to assign one Android applicationId to multiple selected apps " +
                                 "(${selectedApplications.joinToString()}). Select one app, or set " +
-                                "propagate { bundleId = false } and give each app module its own id."
+                                "id(\"base\") { skip(KitePlatform.ANDROID) } and give each app module its own id."
                         )
                     }
                 }

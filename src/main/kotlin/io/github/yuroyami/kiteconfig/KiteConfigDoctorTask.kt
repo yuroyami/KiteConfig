@@ -124,27 +124,27 @@ abstract class KiteConfigDiagnosticTaskBase : DefaultTask() {
             }
 
         val context = KiteConfigDiagnosticContext(
-            propagateAppName = resolve("KTCNFG901", "propagate { appName }", false) { propagateAppName.getOrElse(false) },
+            propagateAppName = resolve("KTCNFG901", "appName flow (skip/only)", false) { propagateAppName.getOrElse(false) },
             appName = resolve<String?>("KTCNFG902", "appName", null) { appName.orNull },
-            propagateBundleId = resolve("KTCNFG921", "propagate { bundleId }", false) { propagateBundleId.getOrElse(false) },
+            propagateBundleId = resolve("KTCNFG921", "id flow (skip/only)", false) { propagateBundleId.getOrElse(false) },
             iosBundleId = resolve<String?>("KTCNFG922", "iosBundleId", null) { iosBundleId.orNull },
-            propagateVersion = resolve("KTCNFG903", "propagate { version }", false) { propagateVersion.getOrElse(false) },
+            propagateVersion = resolve("KTCNFG903", "version flow (skip/only)", false) { propagateVersion.getOrElse(false) },
             versionName = resolve<String?>("KTCNFG904", "version", null) { versionName.orNull },
-            hasVersionCodeOverride = resolve("KTCNFG905", "android { versionCode }", false) { hasVersionCodeOverride.getOrElse(false) },
+            hasVersionCodeOverride = resolve("KTCNFG905", "version { android { pin } }", false) { hasVersionCodeOverride.getOrElse(false) },
             resolvedVersionCode = resolve<Int?>("KTCNFG952", "versionCode", null) { resolvedVersionCode.orNull },
-            propagateLocaleList = resolve("KTCNFG906", "propagate { locales }", false) { propagateLocaleList.getOrElse(false) },
+            propagateLocaleList = resolve("KTCNFG906", "locales flow (skip/only)", false) { propagateLocaleList.getOrElse(false) },
             locales = resolve("KTCNFG907", "locales", emptyList()) { locales.getOrElse(emptyList()) },
-            filterAndroidResources = resolve("KTCNFG938", "android { filterResourcesToLocales }", false) {
+            filterAndroidResources = resolve("KTCNFG938", "locales { filterAndroidRes }", false) {
                 filterAndroidResources.getOrElse(false)
             },
-            syncIos = resolve("KTCNFG908", "ios { sync }", false) { syncIos.getOrElse(false) },
-            sanitizeIosProject = resolve("KTCNFG918", "ios { sync { sanitizePlist } }", false) { sanitizeIosProject.getOrElse(false) },
+            syncIos = resolve("KTCNFG908", "ios { rewrite }", false) { syncIos.getOrElse(false) },
+            sanitizeIosProject = resolve("KTCNFG918", "ios { rewrite { cleanPlist } }", false) { sanitizeIosProject.getOrElse(false) },
             propagateLogo = resolve("KTCNFG917", "logo { }", false) { propagateLogo.getOrElse(false) },
-            cleanupLegacyLogoArtifacts = resolve("KTCNFG939", "logo { takeOverLegacyIcons }", false) {
+            cleanupLegacyLogoArtifacts = resolve("KTCNFG939", "logo { rewrite { replaceOld } }", false) {
                 cleanupLegacyLogoArtifacts.getOrElse(false)
             },
             iosMarketingVersion = resolve<String?>("KTCNFG919", "ios { marketingVersion }", null) { iosMarketingVersion.orNull },
-            iosBuildNumber = resolve<String?>("KTCNFG920", "ios { buildNumber }", null) { iosBuildNumber.orNull },
+            iosBuildNumber = resolve<String?>("KTCNFG920", "version { ios { pin } }", null) { iosBuildNumber.orNull },
             iosDeploymentTarget = resolve<String?>("KTCNFG940", "iosDeploymentTarget", null) {
                 iosDeploymentTarget.orNull
             },

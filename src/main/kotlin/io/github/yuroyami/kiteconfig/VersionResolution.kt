@@ -42,9 +42,9 @@ internal fun computeVersionCode(
     platform: String,
 ): Int {
     val property = when (platform) {
-        "ios" -> "ios { buildNumber = ... }"
-        "desktop" -> "desktop { buildNumber = ... }"
-        else -> "android { versionCode = ... }"
+        "ios" -> "version(\"x\") { ios { pin = \"...\" } }"
+        "desktop" -> "version(\"x\") { desktop { pin = \"...\" } }"
+        else -> "version(\"x\") { android { pin = ... } }"
     }
     requireRebuild(rebuild, platform)
     val parsed = parseConfigVersion(version, rebuild, property)

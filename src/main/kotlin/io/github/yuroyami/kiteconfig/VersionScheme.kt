@@ -173,7 +173,7 @@ internal fun validateResolvedVersionCode(value: Int): Int {
             "kiteConfig: the resolved build number $value is outside 1..$PLAY_VERSION_CODE_CEILING, " +
                 "the Google Play versionCode limit. Fix the formula in " +
                 "version(\"x\") { formula { v -> ... } }, or set the number yourself with " +
-                "android { versionCode = ... } or ios { buildNumber = ... }.",
+                "version(\"x\") { android { pin = ... } } or version(\"x\") { ios { pin = \"...\" } }.",
         )
     }
     return value
@@ -185,7 +185,8 @@ private fun requireSegment(version: ConfigVersion, property: String, value: Int,
         "kiteConfig: the default build-number scheme cannot encode $property=$value " +
             "(version $version). Its layout allows $property in 0..$max. Supply your own formula " +
             "with version(\"x\") { formula { v -> ... } }, or set the number yourself with " +
-            "android { versionCode = ... } or ios { buildNumber = ... }." + segmentAdvice(property),
+            "version(\"x\") { android { pin = ... } } or version(\"x\") { ios { pin = \"...\" } }." +
+            segmentAdvice(property),
     )
 }
 
