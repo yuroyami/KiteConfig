@@ -1,0 +1,32 @@
+package io.github.yuroyami.kiteconfig
+
+import org.gradle.api.GradleException
+
+internal const val MAX_ANDROID_VERSION_CODE: Int = 2_100_000_000
+
+/** Validate a Play-compatible Android version code and return it unchanged. */
+internal fun validateVersionCode(value: Int, property: String = "version { android { pin } }"): Int {
+    if (value !in 1..MAX_ANDROID_VERSION_CODE) {
+        throw GradleException(
+            "kiteConfig { $property } must be in 1..$MAX_ANDROID_VERSION_CODE " +
+                "(the Google Play limit); got $value."
+        )
+    }
+    return value
+}
+
+/** Validate the optional offline store baseline against a resolved next code. */
+internal fun validatePublishedVersionCode(next: Int?, published: Int): Int {
+    validateVersionCode(published, "version { android { shipped } }")
+    val candidate = next ?: throw GradleException(
+        "kiteConfig { version { android { shipped } } } requires a version or a pinned versionCode.",
+    )
+    validateVersionCode(candidate)
+    if (candidate <= published) {
+        throw GradleException(
+            "kiteConfig resolved Android versionCode $candidate must be greater than the published " +
+                "baseline $published. Increase version, or bump version { android { reupload } }, before release.",
+        )
+    }
+    return candidate
+}
