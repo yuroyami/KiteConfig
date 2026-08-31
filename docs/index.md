@@ -168,6 +168,30 @@ remove.
 Reading across projects means this is not compatible with Gradle Isolated
 Projects. Neither is the rest of the plugin.
 
+### When values resolve
+
+Most values are settled before any subproject build file runs, so reading them
+eagerly during configuration is safe:
+
+```kotlin
+versionCode = kiteConfig.versionCode.get()
+```
+
+Two resolve later, because they depend on inspecting every project first:
+
+| Value | Reading it eagerly |
+| --- | --- |
+| `canonicalLocales` | returns an empty list, unless the list is pinned |
+| `resolvedSharedProjectPath` | has no value, unless `modules { shared }` is declared |
+
+Neither affects what the build itself uses; the cost is only to the caller that
+asked too early. Wire them into a task instead and let them resolve at execution
+time:
+
+```kotlin
+someTask.localeList.set(kiteConfig.canonicalLocales)
+```
+
 ## Compatibility
 
 Gradle 8.5 and newer, AGP 8.5.2 through 9.3.x, KGP 2.4.x, on a JDK 17 or 21

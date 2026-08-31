@@ -333,6 +333,30 @@ file, and quietly falling back to something like `?: 24` would put a second copy
 of that number in the consumer, which is the duplication this plugin exists to
 remove.
 
+### When values resolve
+
+Most values are settled before any subproject build file runs, so reading them
+eagerly during configuration is safe:
+
+```kotlin
+versionCode = kiteConfig.versionCode.get()
+```
+
+Two resolve later, because they depend on inspecting every project first:
+
+| Value | Reading it eagerly |
+| --- | --- |
+| `canonicalLocales` | returns an empty list, unless the list is pinned |
+| `resolvedSharedProjectPath` | has no value, unless `modules { shared }` is declared |
+
+Neither affects what the build itself uses; the cost is only to the caller that
+asked too early. Wire them into a task instead and let them resolve at execution
+time:
+
+```kotlin
+someTask.localeList.set(kiteConfig.canonicalLocales)
+```
+
 ### Limits
 
 Configure the plugin in the root build file and read it everywhere else. The

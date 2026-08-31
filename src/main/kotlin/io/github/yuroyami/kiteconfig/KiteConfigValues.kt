@@ -66,13 +66,36 @@ interface KiteConfigValues {
 
     // -------------------------------------------------------------------- build
 
-    /** Normalized, de-duplicated locale tags. */
+    /**
+     * Normalized, de-duplicated locale tags.
+     *
+     * Resolves later than the rest of this view. When the list is auto-detected
+     * rather than pinned, it depends on finding the shared module, which is only
+     * known after every project has been evaluated. Wire it into a task and let
+     * it resolve at execution time:
+     *
+     * ```kotlin
+     * someTask.localeList.set(kiteConfig.canonicalLocales)
+     * ```
+     *
+     * Calling `get()` during configuration returns an empty list, because
+     * detection has not run yet. That answer is local to the caller and does not
+     * affect the list the build uses.
+     */
     val canonicalLocales: Provider<List<String>>
 
     /** The Java release level applied to JVM compilation. */
     val jvmTarget: Provider<Int>
 
-    /** The selected shared KMP project path. */
+    /**
+     * The selected shared KMP project path.
+     *
+     * Resolves later than the rest of this view unless `modules { shared }` is
+     * declared. Without it the path comes from detecting a sole Kotlin
+     * Multiplatform project, which is only known after every project has been
+     * evaluated, so `get()` during configuration fails with no value. Either
+     * declare the module or read this through a task input.
+     */
     val resolvedSharedProjectPath: Provider<String>
 
     /** Lowest Android API level the app runs on. */
