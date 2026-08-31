@@ -239,33 +239,41 @@ public abstract class io/github/yuroyami/kiteconfig/KiteConfigDoctorTask : io/gi
 	public final fun diagnose ()V
 }
 
-public abstract class io/github/yuroyami/kiteconfig/KiteConfigExtension : io/github/yuroyami/kiteconfig/KiteFlowScope {
+public abstract class io/github/yuroyami/kiteconfig/KiteConfigExtension : io/github/yuroyami/kiteconfig/KiteFlowScope, io/github/yuroyami/kiteconfig/KiteConfigValues {
 	public fun <init> ()V
 	public final fun android (Lorg/gradle/api/Action;)V
 	public final fun appName (Ljava/lang/String;Lorg/gradle/api/Action;)V
+	public fun appNameFor (Lio/github/yuroyami/kiteconfig/KitePlatform;)Lorg/gradle/api/provider/Provider;
 	public final fun buildConfig (Lorg/gradle/api/Action;)V
 	public final fun desktop (Lorg/gradle/api/Action;)V
 	public final fun getAndroid ()Lio/github/yuroyami/kiteconfig/KiteConfigAndroidExtension;
-	public final fun getAndroidApplicationId ()Lorg/gradle/api/provider/Provider;
+	public fun getAndroidApplicationId ()Lorg/gradle/api/provider/Provider;
 	public abstract fun getAppName ()Lorg/gradle/api/provider/Property;
 	public abstract fun getBackups ()Lorg/gradle/api/provider/Property;
 	public final fun getBuildConfig ()Lio/github/yuroyami/kiteconfig/KiteConfigBuildConfigExtension;
-	public final fun getCanonicalLocales ()Lorg/gradle/api/provider/Provider;
+	public fun getCanonicalLocales ()Lorg/gradle/api/provider/Provider;
+	public fun getCompileSdk ()Lorg/gradle/api/provider/Provider;
 	public final fun getDesktop ()Lio/github/yuroyami/kiteconfig/KiteConfigDesktopExtension;
-	public final fun getDesktopBundleId ()Lorg/gradle/api/provider/Provider;
+	public fun getDesktopBuildNumber ()Lorg/gradle/api/provider/Provider;
+	public fun getDesktopBundleId ()Lorg/gradle/api/provider/Provider;
 	public abstract fun getDryRun ()Lorg/gradle/api/provider/Property;
 	public abstract fun getId ()Lorg/gradle/api/provider/Property;
 	public abstract fun getIgnoreVersionGuards ()Lorg/gradle/api/provider/Property;
 	public final fun getIos ()Lio/github/yuroyami/kiteconfig/KiteConfigIosExtension;
-	public final fun getIosBundleId ()Lorg/gradle/api/provider/Provider;
+	public fun getIosBuildNumber ()Lorg/gradle/api/provider/Provider;
+	public fun getIosBundleId ()Lorg/gradle/api/provider/Provider;
+	public fun getIosMarketingVersion ()Lorg/gradle/api/provider/Provider;
 	public abstract fun getJvmTarget ()Lorg/gradle/api/provider/Property;
 	public final fun getLogo ()Lio/github/yuroyami/kiteconfig/KiteConfigLogoExtension;
+	public fun getMinSdk ()Lorg/gradle/api/provider/Provider;
 	public final fun getModules ()Lio/github/yuroyami/kiteconfig/KiteConfigModulesExtension;
+	public fun getNdk ()Lorg/gradle/api/provider/Provider;
 	public final fun getOptIns ()Lio/github/yuroyami/kiteconfig/KiteConfigNativeOptInsExtension;
-	public final fun getResolvedSharedProjectPath ()Lorg/gradle/api/provider/Provider;
+	public fun getResolvedSharedProjectPath ()Lorg/gradle/api/provider/Provider;
 	public abstract fun getScheme ()Lorg/gradle/api/provider/Property;
+	public fun getTargetSdk ()Lorg/gradle/api/provider/Provider;
 	public abstract fun getVersion ()Lorg/gradle/api/provider/Property;
-	public final fun getVersionCode ()Lorg/gradle/api/provider/Provider;
+	public fun getVersionCode ()Lorg/gradle/api/provider/Provider;
 	public final fun getWeb ()Lio/github/yuroyami/kiteconfig/KiteConfigWebExtension;
 	public final fun id (Ljava/lang/String;Lorg/gradle/api/Action;)V
 	public final fun ios (Lorg/gradle/api/Action;)V
@@ -384,6 +392,27 @@ public final class io/github/yuroyami/kiteconfig/KiteConfigPlugin : org/gradle/a
 }
 
 public final class io/github/yuroyami/kiteconfig/KiteConfigPlugin$Companion {
+}
+
+public abstract interface class io/github/yuroyami/kiteconfig/KiteConfigValues {
+	public abstract fun appNameFor (Lio/github/yuroyami/kiteconfig/KitePlatform;)Lorg/gradle/api/provider/Provider;
+	public abstract fun getAndroidApplicationId ()Lorg/gradle/api/provider/Provider;
+	public abstract fun getAppName ()Lorg/gradle/api/provider/Provider;
+	public abstract fun getCanonicalLocales ()Lorg/gradle/api/provider/Provider;
+	public abstract fun getCompileSdk ()Lorg/gradle/api/provider/Provider;
+	public abstract fun getDesktopBuildNumber ()Lorg/gradle/api/provider/Provider;
+	public abstract fun getDesktopBundleId ()Lorg/gradle/api/provider/Provider;
+	public abstract fun getId ()Lorg/gradle/api/provider/Provider;
+	public abstract fun getIosBuildNumber ()Lorg/gradle/api/provider/Provider;
+	public abstract fun getIosBundleId ()Lorg/gradle/api/provider/Provider;
+	public abstract fun getIosMarketingVersion ()Lorg/gradle/api/provider/Provider;
+	public abstract fun getJvmTarget ()Lorg/gradle/api/provider/Provider;
+	public abstract fun getMinSdk ()Lorg/gradle/api/provider/Provider;
+	public abstract fun getNdk ()Lorg/gradle/api/provider/Provider;
+	public abstract fun getResolvedSharedProjectPath ()Lorg/gradle/api/provider/Provider;
+	public abstract fun getTargetSdk ()Lorg/gradle/api/provider/Provider;
+	public abstract fun getVersion ()Lorg/gradle/api/provider/Provider;
+	public abstract fun getVersionCode ()Lorg/gradle/api/provider/Provider;
 }
 
 public abstract class io/github/yuroyami/kiteconfig/KiteConfigVerifyTask : org/gradle/api/DefaultTask {

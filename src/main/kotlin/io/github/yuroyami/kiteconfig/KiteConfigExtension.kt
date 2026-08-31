@@ -150,7 +150,7 @@ import org.gradle.api.provider.Provider
  * @see KiteSplashScope for launch-screen art on all three platforms.
  * @see VersionCodeScheme for the build-number formula input.
  */
-abstract class KiteConfigExtension : KiteFlowScope() {
+abstract class KiteConfigExtension : KiteFlowScope(), KiteConfigValues {
 
     // ---------------------------------------------------------------- Identity
 
@@ -161,7 +161,7 @@ abstract class KiteConfigExtension : KiteFlowScope() {
      * Apple sync tasks use it for `PRODUCT_NAME`, `CFBundleName`, and
      * `CFBundleDisplayName`.
      */
-    abstract val appName: Property<String>
+    abstract override val appName: Property<String>
 
     /** Detailed form of [appName]: per-platform overrides and flow modifiers. */
     fun appName(value: String, action: Action<in KiteAppNameScope>) {
@@ -230,7 +230,7 @@ abstract class KiteConfigExtension : KiteFlowScope() {
      * Android uses it for `versionName`, Apple for the marketing version, and
      * the build-number formula derives every store counter from it.
      */
-    abstract val version: Property<String>
+    abstract override val version: Property<String>
 
     /**
      * Java and Kotlin JVM level for the whole build, for example `21`.
@@ -239,7 +239,7 @@ abstract class KiteConfigExtension : KiteFlowScope() {
      * Kotlin JVM compile tasks. It is a build-wide policy, so project
      * selectors do not narrow it.
      */
-    abstract val jvmTarget: Property<Int>
+    abstract override val jvmTarget: Property<Int>
 
     // ---------------------------------------------------------- Build numbers
 
@@ -402,7 +402,7 @@ abstract class KiteConfigExtension : KiteFlowScope() {
     // ------------------------------------------------------ Derived, read-only
 
     /** Reverse-DNS id base shared by every platform. Simple form of [id]. */
-    abstract val id: Property<String>
+    abstract override val id: Property<String>
 
     /** Detailed form of [id]: per-platform suffix corners and flow modifiers. */
     fun id(value: String, action: Action<in KiteIdScope>) {
@@ -425,11 +425,11 @@ abstract class KiteConfigExtension : KiteFlowScope() {
         flowsTo(p).zip(idScope.flowsTo(p)) { root, topic -> root && topic }
 
     /** Android application id: [id] plus its android corner suffix. */
-    val androidApplicationId: Provider<String>
+    override val androidApplicationId: Provider<String>
         get() = effectiveIdFor(KitePlatform.ANDROID)
 
     /** Apple bundle id: [id] plus its ios corner suffix. */
-    val iosBundleId: Provider<String>
+    override val iosBundleId: Provider<String>
         get() = effectiveIdFor(KitePlatform.IOS)
 
     /**
@@ -438,20 +438,52 @@ abstract class KiteConfigExtension : KiteFlowScope() {
      * @throws org.gradle.api.GradleException when read, if the result is not a
      *   valid reverse-DNS identifier.
      */
-    val desktopBundleId: Provider<String>
+    override val desktopBundleId: Provider<String>
         get() = effectiveIdFor(KitePlatform.DESKTOP).map(::validateAppleBundleId)
 
     /** The resolved Android `versionCode` for this build. */
-    val versionCode: Provider<Int>
+    override val versionCode: Provider<Int>
         get() = effectiveAndroidVersionCode
 
     /** Normalized, de-duplicated locale tags. */
-    val canonicalLocales: Provider<List<String>>
+    override val canonicalLocales: Provider<List<String>>
         get() = effectiveLocales.map(::canonicalizeLocales)
 
     /** The selected shared KMP project path. */
-    val resolvedSharedProjectPath: Provider<String>
+    override val resolvedSharedProjectPath: Provider<String>
         get() = effectiveSharedProjectPath
+
+    /** The resolved Apple build number, `CFBundleVersion`. */
+    override val iosBuildNumber: Provider<String>
+        get() = effectiveIosBuildNumber
+
+    /** The resolved Apple marketing version, `CFBundleShortVersionString`. */
+    override val iosMarketingVersion: Provider<String>
+        get() = effectiveIosMarketingVersion
+
+    /** The resolved desktop build number. */
+    override val desktopBuildNumber: Provider<String>
+        get() = effectiveDesktopBuildNumber
+
+    /** The app name as [platform] receives it, corner overrides applied. */
+    override fun appNameFor(platform: KitePlatform): Provider<String> =
+        effectiveAppNameFor(platform)
+
+    /** Lowest Android API level the app runs on. */
+    override val minSdk: Provider<Int>
+        get() = android.minSdk
+
+    /** Android API level the app targets. */
+    override val targetSdk: Provider<Int>
+        get() = android.targetSdk
+
+    /** Android API level the app compiles against. */
+    override val compileSdk: Provider<Int>
+        get() = android.compileSdk
+
+    /** Pinned Android NDK version, in Android's `major.minor.build` form. */
+    override val ndk: Provider<String>
+        get() = android.ndk
 
     // ============================================================ INTERNAL MODEL
     // The engine reads these, never the public properties, so that a value set
