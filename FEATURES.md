@@ -70,21 +70,21 @@ supported.
 | `android.locales { filterAndroidRes }` | `false` | Locales do not prune packaged Android resources unless you opt in. |
 | `logo {}` | Not configured | App icon installers are disabled. |
 | `ios { rewrite {} }` | Not armed | Apple source files are not changed. |
-| `ios.sync.cleanPlist` | `false` | The source Info.plist is not changed. |
-| `ios.sync.renameSharedModule(...)` | Not called | Podfile and Swift module-reference migration is disabled. |
+| `ios.rewrite.cleanPlist` | `false` | The source Info.plist is not changed. |
+| `ios.rewrite.renameSharedModule(...)` | Not called | Podfile and Swift module-reference migration is disabled. |
 | `optIns {}` | Not configured | Kotlin/Native opt-ins are not added. |
 | `logo.rewrite { replaceOld }` | `false` | Legacy Android icon takeover is not allowed. |
 | `backups` | `true` | Eligible user-owned files receive a recovery copy before first replacement. |
 | `dryRun` | `false` | Explicit installers and migrations apply their reviewed plan. Build-owned generators ignore this switch. |
 | `logo.logo { android { safeZone } }` | `66.0 / 108.0` | The adaptive-icon foreground uses Android's standard safe area. |
-| `ios.sync.targets(...)` | Empty | KiteConfig selects an Xcode app automatically only when there is exactly one. |
-| `ios.sync.onConflict` | `FAIL` | A conflicting plist value stops the complete plist plan. |
+| `ios.rewrite.targets(...)` | Empty | KiteConfig selects an Xcode app automatically only when there is exactly one. |
+| `ios.rewrite.onConflict` | `FAIL` | A conflicting plist value stops the complete plist plan. |
 | `web { ioWorker {} }` | Not configured | No browser helper is generated. |
 | `web.ioWorker.projects(...)` and `web.ioWorker.targets(...)` | Empty | A browser runtime is never guessed. Project scope may fall back only to the selected shared project. |
 | `web.ioWorker.packageName` | `kiteconfig.generated` | Generated worker source uses this package. |
 | `buildConfig {}` | Not configured | No runtime constants object is generated. |
 | `buildConfig.packageName` | `kiteconfig.generated` | Generated BuildConfig source uses this package. |
-| `buildConfig.className` | `BuildConfig` | The generated object uses this name. |
+| `buildConfig.className` | `KiteBuildConfig` | The generated object uses this name. It does not clash with the `BuildConfig` that AGP generates. |
 | `buildConfig.includeIdentity` | `true` | Enabling BuildConfig requires complete identity values unless this is set to `false`. |
 | `buildConfig.allowBuildCache` | `false` | Generated values do not enter local or remote Gradle build caches unless you opt in. |
 | `desktop {}` | Not configured | No values reach Compose Desktop, and no installer icons are generated. |
@@ -95,22 +95,21 @@ supported.
 
 ## Reading values in Gradle build logic
 
-The root extension exposes each configured value as a Gradle `Property` or
-`Provider`. Keep it lazy when another API accepts a provider:
+Every resolved value is readable from any build file through the `kiteConfig`
+accessor. One import, then use it:
 
 ```kotlin
-import io.github.yuroyami.kiteconfig.KiteConfigExtension
-import org.gradle.kotlin.dsl.getByType
-
-val ssot = extensions.getByType<KiteConfigExtension>()
-val minSdkProvider = ssot.android.minSdk
+import io.github.yuroyami.kiteconfig.kiteConfig
 
 // Replace this with the other plugin's actual extension.
-otherPluginExtension.minimumSdk.set(minSdkProvider)
+otherPluginExtension.minimumSdk.set(kiteConfig.minSdk)
 ```
 
-Call `get()` only when the receiving API needs a plain value and the property is
-known to be set. Use `orNull` when it is optional:
+The accessor returns a read-only view, so a consuming module cannot write to the
+model. See the README section "Reading values back" for the full list of values.
+
+Every member is a lazy `Provider`. Keep it lazy whenever the receiving API takes
+one, and call `get()` only when it needs a plain value:
 
 ```kotlin
 val requiredMinSdk: Int = ssot.android.minSdk.get()
@@ -166,7 +165,7 @@ formula at root feeds both:
 kiteConfig {
     version = "1.4.0"
 
-    scheme { v -> ... }   // optional
+    formula { v -> ... }  // optional
 }
 ```
 
@@ -189,13 +188,13 @@ When a consumer needs a derived number, `version` must use exactly `x.y.z` with
 no leading zeroes. Under the default formula, major and minor must be in
 `0..999`, patch must be in `0..99`, and reupload must be in `0..9`.
 
-Do you need a different shape? Write your own `scheme { }`, or assign
+Do you need a different shape? Write your own `formula { }`, or assign
 `android.versionCode` and `version { ios { pin } }` directly.
 
 Upgrade note: the pre-3.0 formula gave `1.4.1` the code `1001004001`. The 3.0
 default gives `1001004010`. Derived version codes therefore change in 3.0. The
 new numbers are higher, so Play stays happy. Bring your old formula as a
-`scheme { }` if you need the exact previous numbers.
+`formula { }` if you need the exact previous numbers.
 
 ## Project and target selection
 
@@ -209,7 +208,7 @@ Selectors tell KiteConfig exactly where a value or generated file belongs.
 | `optIns.projects(...)` | Exact KMP projects that may receive Kotlin/Native opt-ins. Without a call, the scope can fall back to `modules.shared`. |
 | `web.ioWorker.projects(...)` | Exact KMP projects that may receive browser-worker source. Without a call, the scope can fall back to `modules.shared`. |
 | `web.ioWorker.targets(...)` | Exact Kotlin/JS targets that use a browser runtime. This list is required when the `ioWorker` block is configured. |
-| `ios.sync.targets(...)` | Exact Xcode application targets whose build configurations explicit Xcode sync may change. Without a call, an app-setting update can auto-select only a sole app target. Project-level locales and file-based plist, Podfile, and Swift work use their own scopes and do not require this selector. |
+| `ios.rewrite.targets(...)` | Exact Xcode application targets whose build configurations explicit Xcode sync may change. Without a call, an app-setting update can auto-select only a sole app target. Project-level locales and file-based plist, Podfile, and Swift work use their own scopes and do not require this selector. |
 
 Active selectors are validated and must contain unique entries. Unknown
 projects, projects with the wrong plugin, ambiguous apps, ambiguous Xcode
@@ -310,7 +309,7 @@ entries.
 | Kotlin JVM target | When KGP is visible | When KGP is visible | Compatible Kotlin targets |
 
 App-scoped identity values are applied during AGP DSL finalization, after the
-module's own `android {}` block. A configured KiteConfig value therefore wins.
+module's own `android {}` block. A value declared in `kiteConfig { }` therefore wins.
 Leaving a value unset preserves the module's value.
 
 SDK levels and the NDK version live in `android { }`. Use `android.ndk` for the
@@ -528,11 +527,11 @@ It:
 - requires a lossless baseline round trip;
 - can add KiteConfig build-setting references;
 - can manage `ITSAppUsesNonExemptEncryption` through
-  `ios.sync.nonExemptEncryption`;
+  `ios.rewrite.nonExemptEncryption`;
 - can manage `CADisableMinimumFrameDurationOnPhone` through
-  `ios.sync.proMotion`.
+  `ios.rewrite.proMotion`.
 
-Conflict behavior is explicit and set with `ios.sync.onConflict`:
+Conflict behavior is explicit and set with `ios.rewrite.onConflict`:
 
 | Policy | Result |
 |---|---|
@@ -679,7 +678,7 @@ Stable diagnostic families are:
 | `KTCNFG901` to `KTCNFG952` | Provider, path, and input-fingerprint resolution |
 | `KTCNFG999` | Unexpected diagnostic-engine failure |
 
-`KTCNFG011` follows `ios.sync.onConflict`. `FAIL` is an error. `KEEP` is a
+`KTCNFG011` follows `ios.rewrite.onConflict`. `FAIL` is an error. `KEEP` is a
 warning that describes intentionally preserved drift. `REPLACE` remains an
 error until the explicit migration applies the replacement.
 
