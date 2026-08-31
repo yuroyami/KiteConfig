@@ -160,12 +160,12 @@ class KiteConfigPlugin : Plugin<Project> {
         registerSyncAndroidLogoTask(target, ext, resolvedAndroidAppDirectory, androidOutputApproved)
         registerCleanupLegacyLogoTask(target, ext, resolvedAndroidAppDirectory, androidOutputApproved)
         target.tasks.register("kiteRewriteLogo") {
-            group = "kite ssot"
+            group = "kiteconfig"
             description = "Installs the logo into Android res and the iOS asset catalog."
             dependsOn("kiteInternalAndroidLogo", "kiteInternalIosLogo", "kiteInternalLegacyIconCleanup")
         }
         target.tasks.register("kiteRewriteXcode") {
-            group = "kite ssot"
+            group = "kiteconfig"
             description = "Rewrites the Xcode project files from the declared facts."
             dependsOn("kiteInternalIosConfig", "kiteInternalPlistClean")
         }
@@ -1358,7 +1358,7 @@ class KiteConfigPlugin : Plugin<Project> {
                     }
                     if (ext.effectiveSyncIos.get() && ext.effectiveSanitizeIosProject.get()) {
                         add(
-                            "Info.plist: include the configured KiteConfig references/flags under " +
+                            "Info.plist: include the configured references/flags under " +
                                 "${ext.effectivePlistConflictPolicy.get()} policy",
                         )
                     }

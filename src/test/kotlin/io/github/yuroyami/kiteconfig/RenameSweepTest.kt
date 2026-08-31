@@ -30,6 +30,9 @@ class RenameSweepTest {
 
     private val oldNames = listOf(
         "kitessot", "kiteSsot", "KiteSsot", "KiteSSOT", "KITESSOT", "KITE_SSOT", "KMPS",
+        // Separated spellings: a task group read "kite ssot" and survived a
+        // rename pass that only looked for the joined forms.
+        "kite ssot", "Kite SSOT", "kite-ssot", "kmp-ssot",
     )
 
     private fun repoRoot(): File {
