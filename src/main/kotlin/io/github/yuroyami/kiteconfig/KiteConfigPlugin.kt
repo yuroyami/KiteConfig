@@ -1187,7 +1187,7 @@ class KiteConfigPlugin : Plugin<Project> {
             logoBackgroundColor.set(ext.effectiveLogoBackgroundColor)
             desktopBundleId.set(root.resilientValue { ext.desktopBundleId.orNull })
             desktopBuildNumber.set(root.resilientValue { ext.effectiveDesktopBuildNumber.orNull })
-            // Mirrors the KMPS087 PASS gate exactly, so verify and doctor never show
+            // Mirrors the KTCNFG087 PASS gate exactly, so verify and doctor never show
             // conflicting states for the same inputs: desktop enabled, derivation
             // opted in, bundle-id propagation on, and an appId to derive from.
             desktopUpgradeCode.set(root.resilientValue {
@@ -1201,7 +1201,7 @@ class KiteConfigPlugin : Plugin<Project> {
                     null
                 }
             })
-            // Mirrors the KMPS086 gate: an explicit override always wins, otherwise
+            // Mirrors the KTCNFG086 gate: an explicit override always wins, otherwise
             // the derived slug, so a release engineer sees exactly what will apply.
             desktopLinuxPackageName.set(root.resilientValue {
                 if (ext.effectiveDesktopEnabled.get() &&
@@ -1371,7 +1371,7 @@ class KiteConfigPlugin : Plugin<Project> {
                         }
                         add(
                             "Android icons: render density PNGs plus v26$versionQualifier wrappers " +
-                                "after ownership validation; KMPS003 verifies the user-owned manifest references",
+                                "after ownership validation; KTCNFG003 verifies the user-owned manifest references",
                         )
                     }
                 }

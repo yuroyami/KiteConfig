@@ -35,8 +35,8 @@ class VersionGuardFlagTest {
                 kgpOnClasspath = true, kgpRequired = true, activeKgpVersion = "2.9.0",
             ),
         )
-        assertEquals(KiteConfigDiagnosticSeverity.ERROR, hard.single { it.id == "KMPS061" }.severity)
-        assertEquals(KiteConfigDiagnosticSeverity.ERROR, hard.single { it.id == "KMPS062" }.severity)
+        assertEquals(KiteConfigDiagnosticSeverity.ERROR, hard.single { it.id == "KTCNFG061" }.severity)
+        assertEquals(KiteConfigDiagnosticSeverity.ERROR, hard.single { it.id == "KTCNFG062" }.severity)
 
         val soft = KiteConfigDiagnosticEngine.evaluate(
             KiteConfigDiagnosticContext(
@@ -45,8 +45,8 @@ class VersionGuardFlagTest {
                 versionGuardsIgnored = true,
             ),
         )
-        assertEquals(KiteConfigDiagnosticSeverity.WARNING, soft.single { it.id == "KMPS061" }.severity)
-        assertEquals(KiteConfigDiagnosticSeverity.WARNING, soft.single { it.id == "KMPS062" }.severity)
-        assertTrue(soft.single { it.id == "KMPS061" }.detail.contains("ignoreVersionGuards"))
+        assertEquals(KiteConfigDiagnosticSeverity.WARNING, soft.single { it.id == "KTCNFG061" }.severity)
+        assertEquals(KiteConfigDiagnosticSeverity.WARNING, soft.single { it.id == "KTCNFG062" }.severity)
+        assertTrue(soft.single { it.id == "KTCNFG061" }.detail.contains("ignoreVersionGuards"))
     }
 }

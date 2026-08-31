@@ -12,7 +12,7 @@ import org.junit.jupiter.api.Test
  */
 class DiagnosticIdUniquenessTest {
 
-    private val resolveId = Regex("""resolve(?:<[^>]*>)?\("(KMPS\d{3})"""")
+    private val resolveId = Regex("""resolve(?:<[^>]*>)?\("(KTCNFG\d{3})"""")
 
     @Test
     fun `no two provider resolutions share a diagnostic id`() {

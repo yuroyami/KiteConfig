@@ -19,7 +19,7 @@ class KiteConfigDiagnosticsTest {
             quietContext(syncIos = true, pbxprojFile = pbxproj),
         )
 
-        val scope = findings.single { it.id == "KMPS021" }
+        val scope = findings.single { it.id == "KTCNFG021" }
         assertEquals(KiteConfigDiagnosticSeverity.ERROR, scope.severity)
         assertTrue(scope.detail.contains("root must be exactly one dictionary"), scope.detail)
         assertTrue(scope.remediation!!.contains("never rewritten globally"), scope.remediation)
@@ -35,7 +35,7 @@ class KiteConfigDiagnosticsTest {
             ),
         )
 
-        val manifest = findings.single { it.id == "KMPS002" }
+        val manifest = findings.single { it.id == "KTCNFG002" }
         assertEquals(KiteConfigDiagnosticSeverity.ERROR, manifest.severity)
         assertTrue(manifest.detail.contains(tempDir.path), manifest.detail)
     }
@@ -54,7 +54,7 @@ class KiteConfigDiagnosticsTest {
                 manifestFile = outside,
                 projectRootDir = project,
             ),
-        ).single { it.id == "KMPS001" }
+        ).single { it.id == "KTCNFG001" }
 
         assertEquals(KiteConfigDiagnosticSeverity.ERROR, finding.severity)
         assertTrue(finding.detail.contains("outside the root project directory"), finding.detail)
@@ -75,7 +75,7 @@ class KiteConfigDiagnosticsTest {
 
         val finding = KiteConfigDiagnosticEngine.evaluate(
             quietContext(propagateAppName = true, appName = "Demo", manifestFile = manifest),
-        ).single { it.id == "KMPS002" }
+        ).single { it.id == "KTCNFG002" }
 
         assertEquals(KiteConfigDiagnosticSeverity.ERROR, finding.severity)
         assertEquals("\${appName}", finding.expected)
@@ -96,7 +96,7 @@ class KiteConfigDiagnosticsTest {
             )
             return KiteConfigDiagnosticEngine.evaluate(
                 quietContext(propagateLogo = true, manifestFile = manifest),
-            ).single { it.id == "KMPS003" }
+            ).single { it.id == "KTCNFG003" }
         }
 
         val stale = finding("@mipmap/legacy_icon", "@mipmap/legacy_round")
@@ -133,7 +133,7 @@ class KiteConfigDiagnosticsTest {
                 sanitizeIosProject = true,
                 infoPlistFile = plist,
             ),
-        ).single { it.id == "KMPS011" }
+        ).single { it.id == "KTCNFG011" }
 
         assertEquals(KiteConfigDiagnosticSeverity.ERROR, finding.severity)
         assertTrue(finding.detail.contains("duplicate root key"), finding.detail)
@@ -161,7 +161,7 @@ class KiteConfigDiagnosticsTest {
                 sanitizeIosProject = true,
                 infoPlistFile = plist,
             ),
-        ).single { it.id == "KMPS011" }
+        ).single { it.id == "KTCNFG011" }
 
         assertEquals(KiteConfigDiagnosticSeverity.ERROR, finding.severity)
         assertTrue(finding.detail.contains("internal DTD"), finding.detail)
@@ -184,7 +184,7 @@ class KiteConfigDiagnosticsTest {
                 infoPlistFile = plist,
                 usesNonExemptEncryption = false,
             ),
-        ).single { it.id == "KMPS011" }
+        ).single { it.id == "KTCNFG011" }
 
         assertEquals(KiteConfigDiagnosticSeverity.ERROR, finding.severity)
         assertTrue(finding.detail.contains("ITSAppUsesNonExemptEncryption"), finding.detail)
@@ -211,7 +211,7 @@ class KiteConfigDiagnosticsTest {
                 infoPlistFile = plist,
                 plistConflictPolicy = PlistConflictPolicy.KEEP,
             ),
-        ).single { it.id == "KMPS011" }
+        ).single { it.id == "KTCNFG011" }
 
         assertEquals(KiteConfigDiagnosticSeverity.WARNING, finding.severity)
         assertTrue(finding.detail.contains("preserved by conflictPolicy=KEEP"), finding.detail)
@@ -237,7 +237,7 @@ class KiteConfigDiagnosticsTest {
                 infoPlistFile = plist,
                 plistConflictPolicy = PlistConflictPolicy.REPLACE,
             ),
-        ).single { it.id == "KMPS011" }
+        ).single { it.id == "KTCNFG011" }
 
         assertEquals(KiteConfigDiagnosticSeverity.ERROR, finding.severity)
         assertTrue(finding.detail.contains("conflictPolicy=REPLACE"), finding.detail)
@@ -257,7 +257,7 @@ class KiteConfigDiagnosticsTest {
             pbxprojFile = pbxproj,
         )
 
-        val drift = KiteConfigDiagnosticEngine.evaluate(context).single { it.id == "KMPS021" }
+        val drift = KiteConfigDiagnosticEngine.evaluate(context).single { it.id == "KTCNFG021" }
         assertEquals(KiteConfigDiagnosticSeverity.ERROR, drift.severity)
         assertTrue(drift.detail.contains("PRODUCT_NAME"), drift.detail)
 
@@ -272,7 +272,7 @@ class KiteConfigDiagnosticsTest {
         assertTrue(rewritten.errors.isEmpty(), rewritten.errors.joinToString())
         pbxproj.writeText(rewritten.text)
 
-        val aligned = KiteConfigDiagnosticEngine.evaluate(context).single { it.id == "KMPS021" }
+        val aligned = KiteConfigDiagnosticEngine.evaluate(context).single { it.id == "KTCNFG021" }
         assertEquals(KiteConfigDiagnosticSeverity.PASS, aligned.severity)
     }
 
@@ -299,7 +299,7 @@ class KiteConfigDiagnosticsTest {
                 androidResDir = res,
                 projectRootDir = project,
             ),
-        ).single { it.id == "KMPS031" }
+        ).single { it.id == "KTCNFG031" }
 
         assertEquals(KiteConfigDiagnosticSeverity.ERROR, finding.severity)
         assertTrue(finding.detail.contains("checksum differs"), finding.detail)
@@ -327,7 +327,7 @@ class KiteConfigDiagnosticsTest {
                 appiconsetDir = icons,
                 projectRootDir = project,
             ),
-        ).single { it.id == "KMPS022" }
+        ).single { it.id == "KTCNFG022" }
 
         assertEquals(KiteConfigDiagnosticSeverity.ERROR, finding.severity)
         assertTrue(finding.detail.contains("missing"), finding.detail)
@@ -340,7 +340,7 @@ class KiteConfigDiagnosticsTest {
                 androidApplicationProjects = listOf("phone", ":missing", ":phone", ":phone"),
                 detectedAndroidApplicationProjects = listOf(":phone", ":tablet"),
             ),
-        ).single { it.id == "KMPS070" }
+        ).single { it.id == "KTCNFG070" }
 
         assertEquals(KiteConfigDiagnosticSeverity.ERROR, finding.severity)
         assertTrue(finding.detail.contains("invalid absolute Gradle project path"), finding.detail)
@@ -354,7 +354,7 @@ class KiteConfigDiagnosticsTest {
             quietContext(propagateAppName = true, appName = "Demo").copy(
                 detectedAndroidApplicationProjects = listOf(":phone", ":tablet"),
             ),
-        ).single { it.id == "KMPS070" }
+        ).single { it.id == "KTCNFG070" }
 
         assertEquals(KiteConfigDiagnosticSeverity.ERROR, active.severity)
         assertTrue(active.detail.contains(":phone, :tablet"), active.detail)
@@ -362,7 +362,7 @@ class KiteConfigDiagnosticsTest {
 
         val inactive = KiteConfigDiagnosticEngine.evaluate(
             quietContext().copy(detectedAndroidApplicationProjects = listOf(":phone", ":tablet")),
-        ).single { it.id == "KMPS070" }
+        ).single { it.id == "KTCNFG070" }
         assertEquals(KiteConfigDiagnosticSeverity.SKIPPED, inactive.severity)
     }
 
@@ -370,7 +370,7 @@ class KiteConfigDiagnosticsTest {
     fun `iOS selector diagnostic preserves and reports duplicate target names`() {
         val finding = KiteConfigDiagnosticEngine.evaluate(
             quietContext(syncIos = true).copy(iosTargetNames = listOf("Phone", "Phone")),
-        ).single { it.id == "KMPS071" }
+        ).single { it.id == "KTCNFG071" }
 
         assertEquals(KiteConfigDiagnosticSeverity.ERROR, finding.severity)
         assertTrue(finding.detail.contains("duplicate target name(s): \"Phone\""), finding.detail)
@@ -383,7 +383,7 @@ class KiteConfigDiagnosticsTest {
                 androidApplicationProjects = listOf(":phone", ":tablet"),
                 detectedAndroidApplicationProjects = listOf(":phone", ":tablet"),
             ),
-        ).single { it.id == "KMPS070" }
+        ).single { it.id == "KTCNFG070" }
 
         assertEquals(KiteConfigDiagnosticSeverity.ERROR, finding.severity)
         assertTrue(finding.detail.contains("at most one effective Android application"), finding.detail)
@@ -397,7 +397,7 @@ class KiteConfigDiagnosticsTest {
                 iosBundleId = "com.example.demo",
                 propagateBundleId = true,
             ),
-        ).single { it.id == "KMPS071" }
+        ).single { it.id == "KTCNFG071" }
 
         assertEquals(KiteConfigDiagnosticSeverity.ERROR, finding.severity)
         assertTrue(finding.detail.contains("one propagated bundle identifier"), finding.detail)
@@ -407,7 +407,7 @@ class KiteConfigDiagnosticsTest {
     fun `long cross-platform app name warns for Apple bundle-name UX`() {
         val finding = KiteConfigDiagnosticEngine.evaluate(
             quietContext(syncIos = true, propagateAppName = true, appName = "Sixteen CharName"),
-        ).single { it.id == "KMPS012" }
+        ).single { it.id == "KTCNFG012" }
 
         assertEquals(KiteConfigDiagnosticSeverity.WARNING, finding.severity)
         assertTrue(finding.detail.contains("fewer than 16"), finding.detail)
@@ -417,12 +417,12 @@ class KiteConfigDiagnosticsTest {
     fun `universal AppIcon diagnostic requires a compatible deployment target`() {
         val missing = KiteConfigDiagnosticEngine.evaluate(
             quietContext(syncIos = true, propagateLogo = true),
-        ).single { it.id == "KMPS023" }
+        ).single { it.id == "KTCNFG023" }
         assertEquals(KiteConfigDiagnosticSeverity.ERROR, missing.severity)
 
         val compatible = KiteConfigDiagnosticEngine.evaluate(
             quietContext(syncIos = true, propagateLogo = true).copy(iosDeploymentTarget = "12.0"),
-        ).single { it.id == "KMPS023" }
+        ).single { it.id == "KTCNFG023" }
         assertEquals(KiteConfigDiagnosticSeverity.PASS, compatible.severity)
     }
 
@@ -439,10 +439,10 @@ class KiteConfigDiagnosticsTest {
             ),
         )
 
-        val agp = relevant.single { it.id == "KMPS061" }
+        val agp = relevant.single { it.id == "KTCNFG061" }
         assertEquals(KiteConfigDiagnosticSeverity.ERROR, agp.severity)
         assertEquals("9.4.0", agp.actual)
-        val kgp = relevant.single { it.id == "KMPS062" }
+        val kgp = relevant.single { it.id == "KTCNFG062" }
         assertEquals(KiteConfigDiagnosticSeverity.ERROR, kgp.severity)
         assertEquals("2.5.0", kgp.actual)
 
@@ -456,23 +456,23 @@ class KiteConfigDiagnosticsTest {
         )
         assertEquals(
             KiteConfigDiagnosticSeverity.SKIPPED,
-            irrelevant.single { it.id == "KMPS061" }.severity,
+            irrelevant.single { it.id == "KTCNFG061" }.severity,
         )
         assertEquals(
             KiteConfigDiagnosticSeverity.SKIPPED,
-            irrelevant.single { it.id == "KMPS062" }.severity,
+            irrelevant.single { it.id == "KTCNFG062" }.severity,
         )
     }
 
     @Test
     fun `desktop identity reports SKIPPED when the block is off and PASS listing what propagates when on`() {
         val off = KiteConfigDiagnosticEngine.evaluate(quietContext().copy(propagateDesktop = false))
-            .single { it.id == "KMPS080" }
+            .single { it.id == "KTCNFG080" }
         assertEquals(KiteConfigDiagnosticSeverity.SKIPPED, off.severity, off.toString())
 
         val on = KiteConfigDiagnosticEngine.evaluate(
             quietContext(propagateAppName = true, appName = "Demo").copy(propagateDesktop = true),
-        ).single { it.id == "KMPS080" }
+        ).single { it.id == "KTCNFG080" }
         assertEquals(KiteConfigDiagnosticSeverity.PASS, on.severity, on.toString())
         assertTrue(on.detail.contains("packageName"), on.detail)
     }
@@ -480,7 +480,7 @@ class KiteConfigDiagnosticsTest {
     @Test
     fun `desktop identity warns when enabled with nothing configured to propagate`() {
         val finding = KiteConfigDiagnosticEngine.evaluate(quietContext().copy(propagateDesktop = true))
-            .single { it.id == "KMPS080" }
+            .single { it.id == "KTCNFG080" }
         assertEquals(KiteConfigDiagnosticSeverity.WARNING, finding.severity, finding.toString())
     }
 
@@ -488,7 +488,7 @@ class KiteConfigDiagnosticsTest {
     fun `desktop icons is SKIPPED when logo skips desktop`() {
         val finding = KiteConfigDiagnosticEngine.evaluate(
             quietContext().copy(propagateDesktop = true, desktopIconsExplicit = false),
-        ).single { it.id == "KMPS081" }
+        ).single { it.id == "KTCNFG081" }
         assertEquals(KiteConfigDiagnosticSeverity.SKIPPED, finding.severity, finding.toString())
         assertTrue(finding.detail.contains("skips desktop"), finding.detail)
     }
@@ -497,7 +497,7 @@ class KiteConfigDiagnosticsTest {
     fun `desktop icons passes an explicit icons = true backed by a logo block`() {
         val finding = KiteConfigDiagnosticEngine.evaluate(
             quietContext(propagateLogo = true).copy(propagateDesktop = true, desktopIconsExplicit = true),
-        ).single { it.id == "KMPS081" }
+        ).single { it.id == "KTCNFG081" }
         assertEquals(KiteConfigDiagnosticSeverity.PASS, finding.severity, finding.toString())
     }
 
@@ -505,14 +505,14 @@ class KiteConfigDiagnosticsTest {
     fun `desktop icons is SKIPPED when no logo art flows`() {
         val finding = KiteConfigDiagnosticEngine.evaluate(
             quietContext().copy(propagateDesktop = true, desktopIconsExplicit = false),
-        ).single { it.id == "KMPS081" }
+        ).single { it.id == "KTCNFG081" }
         assertEquals(KiteConfigDiagnosticSeverity.SKIPPED, finding.severity, finding.toString())
     }
 
     @Test
     fun `compose compatibility is SKIPPED unless a desktop app requires it`() {
         val finding = KiteConfigDiagnosticEngine.evaluate(quietContext().copy(composeRequired = false))
-            .single { it.id == "KMPS082" }
+            .single { it.id == "KTCNFG082" }
         assertEquals(KiteConfigDiagnosticSeverity.SKIPPED, finding.severity, finding.toString())
     }
 
@@ -520,7 +520,7 @@ class KiteConfigDiagnosticsTest {
     fun `compose compatibility rejects an unsupported active version`() {
         val finding = KiteConfigDiagnosticEngine.evaluate(
             quietContext().copy(composeRequired = true, composeOnClasspath = true, activeComposeVersion = "1.13.0"),
-        ).single { it.id == "KMPS082" }
+        ).single { it.id == "KTCNFG082" }
         assertEquals(KiteConfigDiagnosticSeverity.ERROR, finding.severity, finding.toString())
         assertEquals("1.13.0", finding.actual)
     }
@@ -529,7 +529,7 @@ class KiteConfigDiagnosticsTest {
     fun `compose compatibility passes a supported active version`() {
         val finding = KiteConfigDiagnosticEngine.evaluate(
             quietContext().copy(composeRequired = true, composeOnClasspath = true, activeComposeVersion = "1.12.0-rc01"),
-        ).single { it.id == "KMPS082" }
+        ).single { it.id == "KTCNFG082" }
         assertEquals(KiteConfigDiagnosticSeverity.PASS, finding.severity, finding.toString())
     }
 
@@ -540,7 +540,7 @@ class KiteConfigDiagnosticsTest {
                 propagateDesktop = true,
                 detectedDesktopApplicationProjects = listOf(":deskA", ":deskB"),
             ),
-        ).single { it.id == "KMPS083" }
+        ).single { it.id == "KTCNFG083" }
         assertEquals(KiteConfigDiagnosticSeverity.ERROR, finding.severity, finding.toString())
         assertTrue(finding.detail.contains(":deskA, :deskB"), finding.detail)
     }
@@ -553,7 +553,7 @@ class KiteConfigDiagnosticsTest {
                 desktopApplicationProjects = listOf(":missing"),
                 detectedDesktopApplicationProjects = listOf(":deskA"),
             ),
-        ).single { it.id == "KMPS083" }
+        ).single { it.id == "KTCNFG083" }
         assertEquals(KiteConfigDiagnosticSeverity.ERROR, finding.severity, finding.toString())
         assertTrue(finding.detail.contains("do not identify a detected Compose Desktop application"), finding.detail)
     }
@@ -566,7 +566,7 @@ class KiteConfigDiagnosticsTest {
                 desktopApplicationProjects = listOf(":deskA"),
                 detectedDesktopApplicationProjects = listOf(":deskA"),
             ),
-        ).single { it.id == "KMPS083" }
+        ).single { it.id == "KTCNFG083" }
         assertEquals(KiteConfigDiagnosticSeverity.PASS, finding.severity, finding.toString())
     }
 
@@ -574,7 +574,7 @@ class KiteConfigDiagnosticsTest {
     fun `desktop bundle identifier rejects an illegal derived value`() {
         val finding = KiteConfigDiagnosticEngine.evaluate(
             quietContext().copy(propagateDesktop = true, propagateBundleId = true, desktopBundleId = "com.acme_app"),
-        ).single { it.id == "KMPS084" }
+        ).single { it.id == "KTCNFG084" }
         assertEquals(KiteConfigDiagnosticSeverity.ERROR, finding.severity, finding.toString())
     }
 
@@ -582,7 +582,7 @@ class KiteConfigDiagnosticsTest {
     fun `desktop bundle identifier passes a legal derived value`() {
         val finding = KiteConfigDiagnosticEngine.evaluate(
             quietContext().copy(propagateDesktop = true, propagateBundleId = true, desktopBundleId = "com.acme.app"),
-        ).single { it.id == "KMPS084" }
+        ).single { it.id == "KTCNFG084" }
         assertEquals(KiteConfigDiagnosticSeverity.PASS, finding.severity, finding.toString())
     }
 
@@ -590,7 +590,7 @@ class KiteConfigDiagnosticsTest {
     fun `desktop package version warns on an over-cap or unparseable component but passes within-cap or absent ones`() {
         val overCap = KiteConfigDiagnosticEngine.evaluate(
             quietContext().copy(propagateDesktop = true, propagateVersion = true, versionName = "1.300.0"),
-        ).single { it.id == "KMPS085" }
+        ).single { it.id == "KTCNFG085" }
         assertEquals(KiteConfigDiagnosticSeverity.WARNING, overCap.severity)
 
         // "0-beta1" is a PRESENT build component that does not parse as an Int, which
@@ -598,19 +598,19 @@ class KiteConfigDiagnosticsTest {
         // Doctor must warn, not PASS: a PASS here would contradict a real build failure.
         val suffixed = KiteConfigDiagnosticEngine.evaluate(
             quietContext().copy(propagateDesktop = true, propagateVersion = true, versionName = "1.4.0-beta1"),
-        ).single { it.id == "KMPS085" }
+        ).single { it.id == "KTCNFG085" }
         assertEquals(KiteConfigDiagnosticSeverity.WARNING, suffixed.severity)
 
         val withinCap = KiteConfigDiagnosticEngine.evaluate(
             quietContext().copy(propagateDesktop = true, propagateVersion = true, versionName = "1.4.0"),
-        ).single { it.id == "KMPS085" }
+        ).single { it.id == "KTCNFG085" }
         assertEquals(KiteConfigDiagnosticSeverity.PASS, withinCap.severity)
 
         // The build component is ABSENT here, not unparseable, so it defaults to 0
         // and still passes; only a component that is present and fails to parse warns.
         val absentComponent = KiteConfigDiagnosticEngine.evaluate(
             quietContext().copy(propagateDesktop = true, propagateVersion = true, versionName = "1.4"),
-        ).single { it.id == "KMPS085" }
+        ).single { it.id == "KTCNFG085" }
         assertEquals(KiteConfigDiagnosticSeverity.PASS, absentComponent.severity)
     }
 
@@ -618,13 +618,13 @@ class KiteConfigDiagnosticsTest {
     fun `desktop Linux package name reports the derived slug or a resolution failure`() {
         val derived = KiteConfigDiagnosticEngine.evaluate(
             quietContext(propagateAppName = true, appName = "Jetzy").copy(propagateDesktop = true),
-        ).single { it.id == "KMPS086" }
+        ).single { it.id == "KTCNFG086" }
         assertEquals(KiteConfigDiagnosticSeverity.PASS, derived.severity, derived.toString())
         assertTrue(derived.detail.contains("jetzy"), derived.detail)
 
         val unresolvable = KiteConfigDiagnosticEngine.evaluate(
             quietContext(propagateAppName = true, appName = "!!!").copy(propagateDesktop = true),
-        ).single { it.id == "KMPS086" }
+        ).single { it.id == "KTCNFG086" }
         assertEquals(KiteConfigDiagnosticSeverity.ERROR, unresolvable.severity, unresolvable.toString())
     }
 
@@ -635,7 +635,7 @@ class KiteConfigDiagnosticsTest {
                 propagateDesktop = true,
                 desktopLinuxPackageName = "jetzy-linux",
             ),
-        ).single { it.id == "KMPS086" }
+        ).single { it.id == "KTCNFG086" }
         assertEquals(KiteConfigDiagnosticSeverity.PASS, finding.severity, finding.toString())
         assertTrue(finding.detail.contains("jetzy-linux"), finding.detail)
     }
@@ -643,7 +643,7 @@ class KiteConfigDiagnosticsTest {
     @Test
     fun `windows upgrade code is SKIPPED by default and PASS with the derived value once opted in`() {
         val off = KiteConfigDiagnosticEngine.evaluate(quietContext().copy(propagateDesktop = true))
-            .single { it.id == "KMPS087" }
+            .single { it.id == "KTCNFG087" }
         assertEquals(KiteConfigDiagnosticSeverity.SKIPPED, off.severity, off.toString())
 
         val on = KiteConfigDiagnosticEngine.evaluate(
@@ -653,7 +653,7 @@ class KiteConfigDiagnosticsTest {
                 desktopDeriveUpgradeUuid = true,
                 appId = "com.acme.app",
             ),
-        ).single { it.id == "KMPS087" }
+        ).single { it.id == "KTCNFG087" }
         assertEquals(KiteConfigDiagnosticSeverity.PASS, on.severity, on.toString())
         assertTrue(on.detail.contains(deriveUpgradeUuid("com.acme.app")), on.detail)
     }
@@ -661,7 +661,7 @@ class KiteConfigDiagnosticsTest {
     @Test
     fun `json report is deterministic and escapes source text`() {
         val finding = KiteConfigDiagnostic(
-            id = "KMPS777",
+            id = "KTCNFG777",
             severity = KiteConfigDiagnosticSeverity.ERROR,
             title = "A \"quoted\" title",
             detail = "line one\nline two\\tail\u2028\u2029\uD800",
@@ -683,7 +683,7 @@ class KiteConfigDiagnosticsTest {
         val raw = "line\n\u001B[31m" + "x".repeat(10_000)
         val console = renderDiagnosticConsole(
             "probe",
-            listOf(KiteConfigDiagnostic("KMPS777", KiteConfigDiagnosticSeverity.ERROR, raw, raw, raw)),
+            listOf(KiteConfigDiagnostic("KTCNFG777", KiteConfigDiagnosticSeverity.ERROR, raw, raw, raw)),
         )
 
         assertTrue(console.length < 7_000, console.length.toString())
@@ -695,16 +695,16 @@ class KiteConfigDiagnosticsTest {
     fun `sarif contains stable rule ids and only actionable results`() {
         val report = KiteConfigDiagnosticReports.sarif(
             listOf(
-                KiteConfigDiagnostic("KMPS001", KiteConfigDiagnosticSeverity.PASS, "Pass", "ok"),
-                KiteConfigDiagnostic("KMPS002", KiteConfigDiagnosticSeverity.WARNING, "Warn", "careful"),
-                KiteConfigDiagnostic("KMPS003", KiteConfigDiagnosticSeverity.ERROR, "Error", "broken"),
+                KiteConfigDiagnostic("KTCNFG001", KiteConfigDiagnosticSeverity.PASS, "Pass", "ok"),
+                KiteConfigDiagnostic("KTCNFG002", KiteConfigDiagnosticSeverity.WARNING, "Warn", "careful"),
+                KiteConfigDiagnostic("KTCNFG003", KiteConfigDiagnosticSeverity.ERROR, "Error", "broken"),
             ),
         )
 
         assertTrue(report.contains("\"version\": \"2.1.0\""), report)
-        assertTrue(report.contains("\"ruleId\": \"KMPS002\""), report)
-        assertTrue(report.contains("\"ruleId\": \"KMPS003\""), report)
-        assertTrue(!report.contains("\"ruleId\": \"KMPS001\""), report)
+        assertTrue(report.contains("\"ruleId\": \"KTCNFG002\""), report)
+        assertTrue(report.contains("\"ruleId\": \"KTCNFG003\""), report)
+        assertTrue(!report.contains("\"ruleId\": \"KTCNFG001\""), report)
     }
 
     @Test
@@ -714,7 +714,7 @@ class KiteConfigDiagnosticsTest {
         val relative = KiteConfigDiagnosticReports.sarif(
             listOf(
                 KiteConfigDiagnostic(
-                    "KMPS777",
+                    "KTCNFG777",
                     KiteConfigDiagnosticSeverity.ERROR,
                     "Path",
                     "broken",
@@ -729,7 +729,7 @@ class KiteConfigDiagnosticsTest {
         val windows = KiteConfigDiagnosticReports.sarif(
             listOf(
                 KiteConfigDiagnostic(
-                    "KMPS778",
+                    "KTCNFG778",
                     KiteConfigDiagnosticSeverity.ERROR,
                     "Windows path",
                     "broken",
@@ -743,7 +743,7 @@ class KiteConfigDiagnosticsTest {
         val hostile = KiteConfigDiagnosticReports.sarif(
             listOf(
                 KiteConfigDiagnostic(
-                    "KMPS779",
+                    "KTCNFG779",
                     KiteConfigDiagnosticSeverity.ERROR,
                     "Hostile path",
                     "broken",
@@ -751,7 +751,7 @@ class KiteConfigDiagnosticsTest {
                 ),
             ),
         )
-        assertTrue(hostile.contains("\"ruleId\": \"KMPS779\""), hostile)
+        assertTrue(hostile.contains("\"ruleId\": \"KTCNFG779\""), hostile)
         assertTrue(!hostile.contains('\u0000'), hostile)
     }
 
@@ -765,7 +765,7 @@ class KiteConfigDiagnosticsTest {
                 propagateLocaleList = false,
                 filterAndroidResources = true,
             ),
-        ).single { it.id == "KMPS040" }
+        ).single { it.id == "KTCNFG040" }
 
         assertEquals(KiteConfigDiagnosticSeverity.ERROR, finding.severity)
         assertTrue(finding.detail.contains("allow-list is empty"), finding.detail)

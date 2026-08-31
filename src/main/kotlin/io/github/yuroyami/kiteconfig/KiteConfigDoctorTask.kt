@@ -124,104 +124,104 @@ abstract class KiteConfigDiagnosticTaskBase : DefaultTask() {
             }
 
         val context = KiteConfigDiagnosticContext(
-            propagateAppName = resolve("KMPS901", "propagate { appName }", false) { propagateAppName.getOrElse(false) },
-            appName = resolve<String?>("KMPS902", "appName", null) { appName.orNull },
-            propagateBundleId = resolve("KMPS921", "propagate { bundleId }", false) { propagateBundleId.getOrElse(false) },
-            iosBundleId = resolve<String?>("KMPS922", "iosBundleId", null) { iosBundleId.orNull },
-            propagateVersion = resolve("KMPS903", "propagate { version }", false) { propagateVersion.getOrElse(false) },
-            versionName = resolve<String?>("KMPS904", "version", null) { versionName.orNull },
-            hasVersionCodeOverride = resolve("KMPS905", "android { versionCode }", false) { hasVersionCodeOverride.getOrElse(false) },
-            resolvedVersionCode = resolve<Int?>("KMPS952", "versionCode", null) { resolvedVersionCode.orNull },
-            propagateLocaleList = resolve("KMPS906", "propagate { locales }", false) { propagateLocaleList.getOrElse(false) },
-            locales = resolve("KMPS907", "locales", emptyList()) { locales.getOrElse(emptyList()) },
-            filterAndroidResources = resolve("KMPS938", "android { filterResourcesToLocales }", false) {
+            propagateAppName = resolve("KTCNFG901", "propagate { appName }", false) { propagateAppName.getOrElse(false) },
+            appName = resolve<String?>("KTCNFG902", "appName", null) { appName.orNull },
+            propagateBundleId = resolve("KTCNFG921", "propagate { bundleId }", false) { propagateBundleId.getOrElse(false) },
+            iosBundleId = resolve<String?>("KTCNFG922", "iosBundleId", null) { iosBundleId.orNull },
+            propagateVersion = resolve("KTCNFG903", "propagate { version }", false) { propagateVersion.getOrElse(false) },
+            versionName = resolve<String?>("KTCNFG904", "version", null) { versionName.orNull },
+            hasVersionCodeOverride = resolve("KTCNFG905", "android { versionCode }", false) { hasVersionCodeOverride.getOrElse(false) },
+            resolvedVersionCode = resolve<Int?>("KTCNFG952", "versionCode", null) { resolvedVersionCode.orNull },
+            propagateLocaleList = resolve("KTCNFG906", "propagate { locales }", false) { propagateLocaleList.getOrElse(false) },
+            locales = resolve("KTCNFG907", "locales", emptyList()) { locales.getOrElse(emptyList()) },
+            filterAndroidResources = resolve("KTCNFG938", "android { filterResourcesToLocales }", false) {
                 filterAndroidResources.getOrElse(false)
             },
-            syncIos = resolve("KMPS908", "ios { sync }", false) { syncIos.getOrElse(false) },
-            sanitizeIosProject = resolve("KMPS918", "ios { sync { sanitizePlist } }", false) { sanitizeIosProject.getOrElse(false) },
-            propagateLogo = resolve("KMPS917", "logo { }", false) { propagateLogo.getOrElse(false) },
-            cleanupLegacyLogoArtifacts = resolve("KMPS939", "logo { takeOverLegacyIcons }", false) {
+            syncIos = resolve("KTCNFG908", "ios { sync }", false) { syncIos.getOrElse(false) },
+            sanitizeIosProject = resolve("KTCNFG918", "ios { sync { sanitizePlist } }", false) { sanitizeIosProject.getOrElse(false) },
+            propagateLogo = resolve("KTCNFG917", "logo { }", false) { propagateLogo.getOrElse(false) },
+            cleanupLegacyLogoArtifacts = resolve("KTCNFG939", "logo { takeOverLegacyIcons }", false) {
                 cleanupLegacyLogoArtifacts.getOrElse(false)
             },
-            iosMarketingVersion = resolve<String?>("KMPS919", "ios { marketingVersion }", null) { iosMarketingVersion.orNull },
-            iosBuildNumber = resolve<String?>("KMPS920", "ios { buildNumber }", null) { iosBuildNumber.orNull },
-            iosDeploymentTarget = resolve<String?>("KMPS940", "iosDeploymentTarget", null) {
+            iosMarketingVersion = resolve<String?>("KTCNFG919", "ios { marketingVersion }", null) { iosMarketingVersion.orNull },
+            iosBuildNumber = resolve<String?>("KTCNFG920", "ios { buildNumber }", null) { iosBuildNumber.orNull },
+            iosDeploymentTarget = resolve<String?>("KTCNFG940", "iosDeploymentTarget", null) {
                 iosDeploymentTarget.orNull
             },
-            usesNonExemptEncryption = resolve<Boolean?>("KMPS923", "usesNonExemptEncryption", null) { usesNonExemptEncryption.orNull },
-            proMotion120Hz = resolve<Boolean?>("KMPS924", "proMotion120Hz", null) { proMotion120Hz.orNull },
-            plistConflictPolicy = resolve("KMPS925", "plistConflictPolicy", PlistConflictPolicy.FAIL) {
+            usesNonExemptEncryption = resolve<Boolean?>("KTCNFG923", "usesNonExemptEncryption", null) { usesNonExemptEncryption.orNull },
+            proMotion120Hz = resolve<Boolean?>("KTCNFG924", "proMotion120Hz", null) { proMotion120Hz.orNull },
+            plistConflictPolicy = resolve("KTCNFG925", "plistConflictPolicy", PlistConflictPolicy.FAIL) {
                 plistConflictPolicy.getOrElse(PlistConflictPolicy.FAIL)
             },
-            iosTargetNames = resolve("KMPS909", "iosTargetNames", emptyList()) { iosTargetNames.getOrElse(emptyList()) },
-            androidApplicationProjects = resolve("KMPS932", "modules { androidApps }", emptyList()) {
+            iosTargetNames = resolve("KTCNFG909", "iosTargetNames", emptyList()) { iosTargetNames.getOrElse(emptyList()) },
+            androidApplicationProjects = resolve("KTCNFG932", "modules { androidApps }", emptyList()) {
                 androidApplicationProjects.getOrElse(emptyList())
             },
             detectedAndroidApplicationProjects = resolve(
-                "KMPS933",
+                "KTCNFG933",
                 "detectedAndroidApplicationProjects",
                 emptyList(),
             ) { detectedAndroidApplicationProjects.getOrElse(emptyList()) },
-            manifestFile = resolve<java.io.File?>("KMPS910", "manifestFile", null) { manifestFile.asFile.orNull },
-            androidManifestFiles = resolve("KMPS928", "androidManifestPaths", emptyList()) {
+            manifestFile = resolve<java.io.File?>("KTCNFG910", "manifestFile", null) { manifestFile.asFile.orNull },
+            androidManifestFiles = resolve("KTCNFG928", "androidManifestPaths", emptyList()) {
                 androidManifestPaths.getOrElse(emptyList()).map { java.io.File(it) }
             },
-            infoPlistFile = resolve<java.io.File?>("KMPS911", "infoPlistFile", null) { infoPlistFile.asFile.orNull },
-            pbxprojFile = resolve<java.io.File?>("KMPS912", "pbxprojFile", null) { pbxprojFile.asFile.orNull },
-            appiconsetDir = resolve<java.io.File?>("KMPS913", "appiconsetDir", null) { appiconsetDir.asFile.orNull },
-            androidResDir = resolve<java.io.File?>("KMPS914", "androidResDir", null) { androidResDir.asFile.orNull },
-            androidResDirs = resolve("KMPS929", "androidResPaths", emptyList()) {
+            infoPlistFile = resolve<java.io.File?>("KTCNFG911", "infoPlistFile", null) { infoPlistFile.asFile.orNull },
+            pbxprojFile = resolve<java.io.File?>("KTCNFG912", "pbxprojFile", null) { pbxprojFile.asFile.orNull },
+            appiconsetDir = resolve<java.io.File?>("KTCNFG913", "appiconsetDir", null) { appiconsetDir.asFile.orNull },
+            androidResDir = resolve<java.io.File?>("KTCNFG914", "androidResDir", null) { androidResDir.asFile.orNull },
+            androidResDirs = resolve("KTCNFG929", "androidResPaths", emptyList()) {
                 androidResPaths.getOrElse(emptyList()).map { java.io.File(it) }
             },
-            projectRootDir = resolve<java.io.File?>("KMPS926", "projectRootDir", null) { projectRootDir.asFile.orNull },
-            androidEmitMonochrome = resolve("KMPS927", "androidEmitMonochrome", false) {
+            projectRootDir = resolve<java.io.File?>("KTCNFG926", "projectRootDir", null) { projectRootDir.asFile.orNull },
+            androidEmitMonochrome = resolve("KTCNFG927", "androidEmitMonochrome", false) {
                 androidEmitMonochrome.getOrElse(false)
             },
-            androidLogoInputFingerprint = resolve<String?>("KMPS930", "androidLogoInputFingerprint", null) {
+            androidLogoInputFingerprint = resolve<String?>("KTCNFG930", "androidLogoInputFingerprint", null) {
                 androidLogoInputFingerprint.orNull
             },
-            iosLogoInputFingerprint = resolve<String?>("KMPS931", "iosLogoInputFingerprint", null) {
+            iosLogoInputFingerprint = resolve<String?>("KTCNFG931", "iosLogoInputFingerprint", null) {
                 iosLogoInputFingerprint.orNull
             },
-            agpOnClasspath = resolve("KMPS934", "agpOnClasspath", false) { agpOnClasspath.getOrElse(false) },
-            agpRequired = resolve("KMPS935", "agpRequired", false) { agpRequired.getOrElse(false) },
-            activeAgpVersion = resolve<String?>("KMPS936", "activeAgpVersion", null) { activeAgpVersion.orNull },
-            kgpOnClasspath = resolve("KMPS915", "kgpOnClasspath", false) { kgpOnClasspath.getOrElse(false) },
-            kgpRequired = resolve("KMPS916", "kgpRequired", true) { kgpRequired.getOrElse(true) },
-            activeKgpVersion = resolve<String?>("KMPS937", "activeKgpVersion", null) { activeKgpVersion.orNull },
-            propagateDesktop = resolve("KMPS941", "desktop { }", false) { propagateDesktop.getOrElse(false) },
-            desktopIconsExplicit = resolve<Boolean?>("KMPS942", "desktop { icons }", null) { desktopIconsExplicit.orNull },
-            composeOnClasspath = resolve("KMPS943", "composeOnClasspath", false) { composeOnClasspath.getOrElse(false) },
-            composeRequired = resolve("KMPS944", "composeRequired", false) { composeRequired.getOrElse(false) },
-            activeComposeVersion = resolve<String?>("KMPS945", "activeComposeVersion", null) { activeComposeVersion.orNull },
-            desktopApplicationProjects = resolve("KMPS946", "modules { desktopApps }", emptyList()) {
+            agpOnClasspath = resolve("KTCNFG934", "agpOnClasspath", false) { agpOnClasspath.getOrElse(false) },
+            agpRequired = resolve("KTCNFG935", "agpRequired", false) { agpRequired.getOrElse(false) },
+            activeAgpVersion = resolve<String?>("KTCNFG936", "activeAgpVersion", null) { activeAgpVersion.orNull },
+            kgpOnClasspath = resolve("KTCNFG915", "kgpOnClasspath", false) { kgpOnClasspath.getOrElse(false) },
+            kgpRequired = resolve("KTCNFG916", "kgpRequired", true) { kgpRequired.getOrElse(true) },
+            activeKgpVersion = resolve<String?>("KTCNFG937", "activeKgpVersion", null) { activeKgpVersion.orNull },
+            propagateDesktop = resolve("KTCNFG941", "desktop { }", false) { propagateDesktop.getOrElse(false) },
+            desktopIconsExplicit = resolve<Boolean?>("KTCNFG942", "desktop { icons }", null) { desktopIconsExplicit.orNull },
+            composeOnClasspath = resolve("KTCNFG943", "composeOnClasspath", false) { composeOnClasspath.getOrElse(false) },
+            composeRequired = resolve("KTCNFG944", "composeRequired", false) { composeRequired.getOrElse(false) },
+            activeComposeVersion = resolve<String?>("KTCNFG945", "activeComposeVersion", null) { activeComposeVersion.orNull },
+            desktopApplicationProjects = resolve("KTCNFG946", "modules { desktopApps }", emptyList()) {
                 desktopApplicationProjects.getOrElse(emptyList())
             },
             detectedDesktopApplicationProjects = resolve(
-                "KMPS947",
+                "KTCNFG947",
                 "detectedDesktopApplicationProjects",
                 emptyList(),
             ) { detectedDesktopApplicationProjects.getOrElse(emptyList()) },
-            appId = resolve<String?>("KMPS948", "appId", null) { appId.orNull },
-            desktopBundleId = resolve<String?>("KMPS949", "desktopBundleId", null) { desktopBundleId.orNull },
-            desktopLinuxPackageName = resolve<String?>("KMPS950", "desktop { linuxPackageName }", null) {
+            appId = resolve<String?>("KTCNFG948", "appId", null) { appId.orNull },
+            desktopBundleId = resolve<String?>("KTCNFG949", "desktopBundleId", null) { desktopBundleId.orNull },
+            desktopLinuxPackageName = resolve<String?>("KTCNFG950", "desktop { linuxPackageName }", null) {
                 desktopLinuxPackageName.orNull
             },
-            desktopDeriveUpgradeUuid = resolve("KMPS951", "desktop { deriveUpgradeUuid }", false) {
+            desktopDeriveUpgradeUuid = resolve("KTCNFG951", "desktop { deriveUpgradeUuid }", false) {
                 desktopDeriveUpgradeUuid.getOrElse(false)
             },
-            splashAndroid = resolve("KMPS960", "splash { }", false) { splashAndroid.getOrElse(false) },
-            splashDesktop = resolve("KMPS961", "splash { }", false) { splashDesktop.getOrElse(false) },
-            splashIosArmed = resolve("KMPS962", "splash { rewrite }", false) { splashIosArmed.getOrElse(false) },
-            splashIos = resolve("KMPS963", "splash { rewrite }", false) { splashIos.getOrElse(false) },
-            splashThemeSet = resolve("KMPS964", "splash { android { theme } }", false) { splashThemeSet.getOrElse(false) },
-            splashManifestPlaceholderPresent = resolve<Boolean?>("KMPS965", "splash manifest placeholder", null) {
+            splashAndroid = resolve("KTCNFG960", "splash { }", false) { splashAndroid.getOrElse(false) },
+            splashDesktop = resolve("KTCNFG961", "splash { }", false) { splashDesktop.getOrElse(false) },
+            splashIosArmed = resolve("KTCNFG962", "splash { rewrite }", false) { splashIosArmed.getOrElse(false) },
+            splashIos = resolve("KTCNFG963", "splash { rewrite }", false) { splashIos.getOrElse(false) },
+            splashThemeSet = resolve("KTCNFG964", "splash { android { theme } }", false) { splashThemeSet.getOrElse(false) },
+            splashManifestPlaceholderPresent = resolve<Boolean?>("KTCNFG965", "splash manifest placeholder", null) {
                 splashManifestPlaceholderPresent.orNull
             },
-            versionGuardsIgnored = resolve("KMPS966", "ignoreVersionGuards", false) {
+            versionGuardsIgnored = resolve("KTCNFG966", "ignoreVersionGuards", false) {
                 versionGuardsIgnored.getOrElse(false)
             },
-            autoRewrites = resolve("KMPS967", "rewrite { auto }", false) {
+            autoRewrites = resolve("KTCNFG967", "rewrite { auto }", false) {
                 autoRewrites.getOrElse(false)
             },
         )
@@ -229,7 +229,7 @@ abstract class KiteConfigDiagnosticTaskBase : DefaultTask() {
         val evaluated = runCatching { KiteConfigDiagnosticEngine.evaluate(context) }.getOrElse { failure ->
             listOf(
                 KiteConfigDiagnostic(
-                    "KMPS999",
+                    "KTCNFG999",
                     KiteConfigDiagnosticSeverity.ERROR,
                     "Diagnostic engine",
                     "Unexpected diagnostic failure: ${diagnosticExceptionSummary(failure)}",
@@ -293,7 +293,7 @@ internal fun renderDiagnosticConsole(
             KiteConfigDiagnosticSeverity.ERROR -> "FAIL" to KiteConfigStyle.FAIL
         }
         // One span for the whole line: a reset between the tag and the id would
-        // break both grep and a consumer asserting on "[FAIL] KMPS021".
+        // break both grep and a consumer asserting on "[FAIL] KTCNFG021".
         val line = buildString {
             append("  [").append(status).append("] ")
             append(diagnosticSafeText(finding.id)).append(' ')

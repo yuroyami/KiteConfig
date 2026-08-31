@@ -13,7 +13,7 @@ class ConsoleStyleTest {
 
     @Test
     fun `a plain console emits the text untouched`() {
-        assertEquals("[FAIL] KMPS021", plain.paint("[FAIL] KMPS021", KiteConfigStyle.FAIL))
+        assertEquals("[FAIL] KTCNFG021", plain.paint("[FAIL] KTCNFG021", KiteConfigStyle.FAIL))
         assertFalse(plain.paint("x", KiteConfigStyle.HEADING).contains(''))
     }
 
@@ -28,9 +28,9 @@ class ConsoleStyleTest {
     @Test
     fun `color never splits the text, so a grep for a finding still matches`() {
         // The whole line is painted as one span. Colouring only the [FAIL] tag would
-        // insert a reset before the id and break `contains("[FAIL] KMPS021")`.
-        val line = rich.paint("  [FAIL] KMPS021 iOS pbxproj: broken", KiteConfigStyle.FAIL)
-        assertTrue(line.contains("[FAIL] KMPS021"), line)
+        // insert a reset before the id and break `contains("[FAIL] KTCNFG021")`.
+        val line = rich.paint("  [FAIL] KTCNFG021 iOS pbxproj: broken", KiteConfigStyle.FAIL)
+        assertTrue(line.contains("[FAIL] KTCNFG021"), line)
     }
 
     @Test

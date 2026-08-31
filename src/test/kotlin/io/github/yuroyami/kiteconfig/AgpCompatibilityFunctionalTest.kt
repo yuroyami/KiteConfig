@@ -692,7 +692,7 @@ class AgpCompatibilityFunctionalTest {
 
         val doctor = runConfigOnlyFixture("kiteDoctor")
         assertTrue(doctor.output.contains("Doctor report"), doctor.output)
-        assertTrue(doctor.output.contains("KMPS050"), doctor.output)
+        assertTrue(doctor.output.contains("KTCNFG050"), doctor.output)
     }
 
     private fun runConfigOnlyFixture(task: String): BuildResult = GradleRunner.create()

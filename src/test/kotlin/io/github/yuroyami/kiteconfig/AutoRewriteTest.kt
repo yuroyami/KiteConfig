@@ -38,8 +38,8 @@ class AutoRewriteTest {
     @Test
     fun `doctor warns while auto is on`() {
         val findings = KiteConfigDiagnosticEngine.evaluate(KiteConfigDiagnosticContext(autoRewrites = true))
-        assertTrue(findings.any { it.id == "KMPS094" && it.severity == KiteConfigDiagnosticSeverity.WARNING })
+        assertTrue(findings.any { it.id == "KTCNFG094" && it.severity == KiteConfigDiagnosticSeverity.WARNING })
         val quiet = KiteConfigDiagnosticEngine.evaluate(KiteConfigDiagnosticContext())
-        assertFalse(quiet.any { it.id == "KMPS094" })
+        assertFalse(quiet.any { it.id == "KTCNFG094" })
     }
 }

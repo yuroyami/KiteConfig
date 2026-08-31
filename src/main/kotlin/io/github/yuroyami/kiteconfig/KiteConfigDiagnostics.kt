@@ -120,15 +120,15 @@ internal object KiteConfigDiagnosticEngine {
         diagnoseSplash(context)
     }
 
-    /** KMPS090-092: splash delivery status and its two Android prerequisites. */
+    /** KTCNFG090-092: splash delivery status and its two Android prerequisites. */
     private fun MutableList<KiteConfigDiagnostic>.diagnoseSplash(context: KiteConfigDiagnosticContext) {
         when {
             !context.splashAndroid && !context.splashDesktop && !context.splashIosArmed -> add(
-                diagnostic("KMPS090", KiteConfigDiagnosticSeverity.SKIPPED, "Splash screen", "splash { } is not configured."),
+                diagnostic("KTCNFG090", KiteConfigDiagnosticSeverity.SKIPPED, "Splash screen", "splash { } is not configured."),
             )
             else -> add(
                 diagnostic(
-                    "KMPS090",
+                    "KTCNFG090",
                     KiteConfigDiagnosticSeverity.PASS,
                     "Splash screen",
                     buildString {
@@ -148,7 +148,7 @@ internal object KiteConfigDiagnosticEngine {
         if (context.splashAndroid && !context.splashThemeSet) {
             add(
                 diagnostic(
-                    "KMPS091",
+                    "KTCNFG091",
                     KiteConfigDiagnosticSeverity.ERROR,
                     "Splash Android theme",
                     "splash { } flows to Android, but splash { android { theme } } is not set.",
@@ -159,7 +159,7 @@ internal object KiteConfigDiagnosticEngine {
         if (context.splashAndroid && context.splashManifestPlaceholderPresent == false) {
             add(
                 diagnostic(
-                    "KMPS092",
+                    "KTCNFG092",
                     KiteConfigDiagnosticSeverity.ERROR,
                     "Splash manifest placeholder",
                     "The Android manifest does not reference the generated splash theme.",
@@ -170,7 +170,7 @@ internal object KiteConfigDiagnosticEngine {
         if (context.autoRewrites) {
             add(
                 diagnostic(
-                    "KMPS094",
+                    "KTCNFG094",
                     KiteConfigDiagnosticSeverity.WARNING,
                     "Auto rewrites",
                     "rewrite { auto = true } is on: ordinary builds edit committed source files.",
@@ -181,7 +181,7 @@ internal object KiteConfigDiagnosticEngine {
         if (context.splashIosArmed && !context.splashIos) {
             add(
                 diagnostic(
-                    "KMPS093",
+                    "KTCNFG093",
                     KiteConfigDiagnosticSeverity.WARNING,
                     "Splash iOS delivery",
                     "splash { rewrite { } } is armed, but the Xcode rewrite is not.",
@@ -205,7 +205,7 @@ internal object KiteConfigDiagnosticEngine {
     /** What gets written to Compose Desktop, gated on `desktop { }` being opened at all. */
     private fun MutableList<KiteConfigDiagnostic>.diagnoseDesktopIdentity(context: KiteConfigDiagnosticContext) {
         if (!context.propagateDesktop) {
-            add(diagnostic("KMPS080", KiteConfigDiagnosticSeverity.SKIPPED, "Desktop identity propagation", "desktop { } is not enabled."))
+            add(diagnostic("KTCNFG080", KiteConfigDiagnosticSeverity.SKIPPED, "Desktop identity propagation", "desktop { } is not enabled."))
             return
         }
         val propagated = buildList {
@@ -216,7 +216,7 @@ internal object KiteConfigDiagnosticEngine {
         if (propagated.isEmpty()) {
             add(
                 diagnostic(
-                    "KMPS080",
+                    "KTCNFG080",
                     KiteConfigDiagnosticSeverity.WARNING,
                     "Desktop identity propagation",
                     "desktop { } is enabled, but appName, version, and appId are all unset, so no identity value " +
@@ -227,7 +227,7 @@ internal object KiteConfigDiagnosticEngine {
         } else {
             add(
                 diagnostic(
-                    "KMPS080",
+                    "KTCNFG080",
                     KiteConfigDiagnosticSeverity.PASS,
                     "Desktop identity propagation",
                     "desktop { } writes: ${propagated.joinToString("; ")}.",
@@ -246,15 +246,15 @@ internal object KiteConfigDiagnosticEngine {
     private fun MutableList<KiteConfigDiagnostic>.diagnoseDesktopIcons(context: KiteConfigDiagnosticContext) {
         when {
             context.desktopIconsExplicit == false -> add(
-                diagnostic("KMPS081", KiteConfigDiagnosticSeverity.SKIPPED, "Desktop app icons", "logo { } is absent or skips desktop; icon generation is off."),
+                diagnostic("KTCNFG081", KiteConfigDiagnosticSeverity.SKIPPED, "Desktop app icons", "logo { } is absent or skips desktop; icon generation is off."),
             )
             !context.propagateDesktop -> add(
-                diagnostic("KMPS081", KiteConfigDiagnosticSeverity.SKIPPED, "Desktop app icons", "desktop { } is not enabled."),
+                diagnostic("KTCNFG081", KiteConfigDiagnosticSeverity.SKIPPED, "Desktop app icons", "desktop { } is not enabled."),
             )
 
             else -> add(
                 diagnostic(
-                    "KMPS081",
+                    "KTCNFG081",
                     KiteConfigDiagnosticSeverity.PASS,
                     "Desktop app icons",
                     "Desktop icon generation is enabled from the configured logo { } art.",
@@ -263,12 +263,12 @@ internal object KiteConfigDiagnosticEngine {
         }
     }
 
-    /** Mirrors KMPS061/KMPS062: a soft diagnostic for the same classpath and version gate. */
+    /** Mirrors KTCNFG061/KTCNFG062: a soft diagnostic for the same classpath and version gate. */
     private fun MutableList<KiteConfigDiagnostic>.diagnoseComposeCompatibility(context: KiteConfigDiagnosticContext) {
         when {
             !context.composeRequired -> add(
                 diagnostic(
-                    "KMPS082",
+                    "KTCNFG082",
                     KiteConfigDiagnosticSeverity.SKIPPED,
                     "Compose Gradle plugin compatibility",
                     "No detected Compose Desktop project needs an enabled typed Compose integration.",
@@ -276,7 +276,7 @@ internal object KiteConfigDiagnosticEngine {
             )
             !context.composeOnClasspath -> add(
                 diagnostic(
-                    "KMPS082",
+                    "KTCNFG082",
                     KiteConfigDiagnosticSeverity.ERROR,
                     "Compose Gradle plugin compatibility",
                     "Compose types are not visible to kiteconfig, so the active version cannot be verified.",
@@ -285,7 +285,7 @@ internal object KiteConfigDiagnosticEngine {
             )
             context.activeComposeVersion == null -> add(
                 diagnostic(
-                    "KMPS082",
+                    "KTCNFG082",
                     KiteConfigDiagnosticSeverity.ERROR,
                     "Compose Gradle plugin compatibility",
                     "Could not determine the active Compose Gradle plugin version.",
@@ -295,7 +295,7 @@ internal object KiteConfigDiagnosticEngine {
             )
             !isSupportedComposeVersion(context.activeComposeVersion) -> add(
                 diagnostic(
-                    "KMPS082",
+                    "KTCNFG082",
                     if (context.versionGuardsIgnored) KiteConfigDiagnosticSeverity.WARNING else KiteConfigDiagnosticSeverity.ERROR,
                     "Compose Gradle plugin compatibility",
                     "Active Compose Gradle plugin ${context.activeComposeVersion} is unsupported." +
@@ -307,7 +307,7 @@ internal object KiteConfigDiagnosticEngine {
             )
             else -> add(
                 diagnostic(
-                    "KMPS082",
+                    "KTCNFG082",
                     KiteConfigDiagnosticSeverity.PASS,
                     "Compose Gradle plugin compatibility",
                     "Active Compose Gradle plugin ${context.activeComposeVersion} is supported.",
@@ -316,10 +316,10 @@ internal object KiteConfigDiagnosticEngine {
         }
     }
 
-    /** Mirrors KMPS070 (Android application selection) for `modules { desktopApps }`. */
+    /** Mirrors KTCNFG070 (Android application selection) for `modules { desktopApps }`. */
     private fun MutableList<KiteConfigDiagnostic>.diagnoseDesktopApplicationSelection(context: KiteConfigDiagnosticContext) {
         if (!context.propagateDesktop) {
-            add(diagnostic("KMPS083", KiteConfigDiagnosticSeverity.SKIPPED, "Desktop application selection", "desktop { } is not enabled."))
+            add(diagnostic("KTCNFG083", KiteConfigDiagnosticSeverity.SKIPPED, "Desktop application selection", "desktop { } is not enabled."))
             return
         }
         val selected = context.desktopApplicationProjects
@@ -328,7 +328,7 @@ internal object KiteConfigDiagnosticEngine {
             if (detected.size > 1) {
                 add(
                     diagnostic(
-                        "KMPS083",
+                        "KTCNFG083",
                         KiteConfigDiagnosticSeverity.ERROR,
                         "Desktop application selection",
                         "Multiple Compose Desktop application projects are eligible for active identity values: " +
@@ -339,7 +339,7 @@ internal object KiteConfigDiagnosticEngine {
             } else {
                 add(
                     diagnostic(
-                        "KMPS083",
+                        "KTCNFG083",
                         KiteConfigDiagnosticSeverity.SKIPPED,
                         "Desktop application selection",
                         "No explicit modules { desktopApps } selector is configured; " +
@@ -380,7 +380,7 @@ internal object KiteConfigDiagnosticEngine {
         if (problems.isEmpty()) {
             add(
                 diagnostic(
-                    "KMPS083",
+                    "KTCNFG083",
                     KiteConfigDiagnosticSeverity.PASS,
                     "Desktop application selection",
                     "Every explicit Compose Desktop application selector resolves exactly: ${selected.joinToString()}.",
@@ -389,7 +389,7 @@ internal object KiteConfigDiagnosticEngine {
         } else {
             add(
                 diagnostic(
-                    "KMPS083",
+                    "KTCNFG083",
                     KiteConfigDiagnosticSeverity.ERROR,
                     "Desktop application selection",
                     problems.joinToString("; "),
@@ -406,7 +406,7 @@ internal object KiteConfigDiagnosticEngine {
         if (!context.propagateDesktop || !context.propagateBundleId || raw == null) {
             add(
                 diagnostic(
-                    "KMPS084",
+                    "KTCNFG084",
                     KiteConfigDiagnosticSeverity.SKIPPED,
                     "Desktop bundle identifier",
                     "desktop { } is not enabled, bundle-id propagation is disabled, or appId is unset.",
@@ -418,7 +418,7 @@ internal object KiteConfigDiagnosticEngine {
             onSuccess = { value ->
                 add(
                     diagnostic(
-                        "KMPS084",
+                        "KTCNFG084",
                         KiteConfigDiagnosticSeverity.PASS,
                         "Desktop bundle identifier",
                         "Resolved desktop bundle identifier \"$value\" is valid reverse-DNS.",
@@ -428,7 +428,7 @@ internal object KiteConfigDiagnosticEngine {
             onFailure = { failure ->
                 add(
                     diagnostic(
-                        "KMPS084",
+                        "KTCNFG084",
                         KiteConfigDiagnosticSeverity.ERROR,
                         "Desktop bundle identifier",
                         diagnosticExceptionSummary(failure),
@@ -453,7 +453,7 @@ internal object KiteConfigDiagnosticEngine {
         if (!context.propagateDesktop || !context.propagateVersion || version == null) {
             add(
                 diagnostic(
-                    "KMPS085",
+                    "KTCNFG085",
                     KiteConfigDiagnosticSeverity.SKIPPED,
                     "Desktop package version",
                     "desktop { } is not enabled, version propagation is disabled, or version is unset.",
@@ -471,7 +471,7 @@ internal object KiteConfigDiagnosticEngine {
             onSuccess = {
                 add(
                     diagnostic(
-                        "KMPS085",
+                        "KTCNFG085",
                         KiteConfigDiagnosticSeverity.PASS,
                         "Desktop package version",
                         "\"$version\" satisfies the Windows MSI/EXE numeric limits (255, 255, 65535).",
@@ -481,7 +481,7 @@ internal object KiteConfigDiagnosticEngine {
             onFailure = { failure ->
                 add(
                     diagnostic(
-                        "KMPS085",
+                        "KTCNFG085",
                         KiteConfigDiagnosticSeverity.WARNING,
                         "Desktop package version",
                         diagnosticExceptionSummary(failure),
@@ -500,7 +500,7 @@ internal object KiteConfigDiagnosticEngine {
         if (!context.propagateDesktop || !context.propagateAppName || appName == null) {
             add(
                 diagnostic(
-                    "KMPS086",
+                    "KTCNFG086",
                     KiteConfigDiagnosticSeverity.SKIPPED,
                     "Desktop Linux package name",
                     "desktop { } is not enabled, app-name propagation is disabled, or appName is unset.",
@@ -512,7 +512,7 @@ internal object KiteConfigDiagnosticEngine {
         if (explicit != null) {
             add(
                 diagnostic(
-                    "KMPS086",
+                    "KTCNFG086",
                     KiteConfigDiagnosticSeverity.PASS,
                     "Desktop Linux package name",
                     "desktop { linuxPackageName } is set explicitly to \"$explicit\"; no derivation is needed.",
@@ -524,7 +524,7 @@ internal object KiteConfigDiagnosticEngine {
             onSuccess = { slug ->
                 add(
                     diagnostic(
-                        "KMPS086",
+                        "KTCNFG086",
                         KiteConfigDiagnosticSeverity.PASS,
                         "Desktop Linux package name",
                         "appName derives to the Debian-legal package name \"$slug\" when Deb or Rpm is enabled.",
@@ -534,7 +534,7 @@ internal object KiteConfigDiagnosticEngine {
             onFailure = { failure ->
                 add(
                     diagnostic(
-                        "KMPS086",
+                        "KTCNFG086",
                         KiteConfigDiagnosticSeverity.ERROR,
                         "Desktop Linux package name",
                         diagnosticExceptionSummary(failure),
@@ -550,11 +550,11 @@ internal object KiteConfigDiagnosticEngine {
         val appId = context.appId
         when {
             !context.propagateDesktop -> add(
-                diagnostic("KMPS087", KiteConfigDiagnosticSeverity.SKIPPED, "Windows upgrade code", "desktop { } is not enabled."),
+                diagnostic("KTCNFG087", KiteConfigDiagnosticSeverity.SKIPPED, "Windows upgrade code", "desktop { } is not enabled."),
             )
             !context.desktopDeriveUpgradeUuid -> add(
                 diagnostic(
-                    "KMPS087",
+                    "KTCNFG087",
                     KiteConfigDiagnosticSeverity.SKIPPED,
                     "Windows upgrade code",
                     "desktop { deriveUpgradeUuid } is disabled (the default); jpackage derives an upgrade code " +
@@ -564,7 +564,7 @@ internal object KiteConfigDiagnosticEngine {
             )
             !context.propagateBundleId || appId == null -> add(
                 diagnostic(
-                    "KMPS087",
+                    "KTCNFG087",
                     KiteConfigDiagnosticSeverity.SKIPPED,
                     "Windows upgrade code",
                     "desktop { deriveUpgradeUuid } is enabled, but bundle-id propagation is disabled or appId is unset.",
@@ -572,7 +572,7 @@ internal object KiteConfigDiagnosticEngine {
             )
             else -> add(
                 diagnostic(
-                    "KMPS087",
+                    "KTCNFG087",
                     KiteConfigDiagnosticSeverity.PASS,
                     "Windows upgrade code",
                     "appId derives to Windows upgradeUuid ${deriveUpgradeUuid(appId)}. " +
@@ -598,7 +598,7 @@ internal object KiteConfigDiagnosticEngine {
             if (needsSelection && detected.size > 1) {
                 add(
                     diagnostic(
-                        "KMPS070",
+                        "KTCNFG070",
                         KiteConfigDiagnosticSeverity.ERROR,
                         "Android application selection",
                         "Multiple Android application projects are eligible for active app-scoped values: " +
@@ -609,7 +609,7 @@ internal object KiteConfigDiagnosticEngine {
             } else {
                 add(
                     diagnostic(
-                        "KMPS070",
+                        "KTCNFG070",
                         KiteConfigDiagnosticSeverity.SKIPPED,
                         "Android application selection",
                         "No explicit modules { androidApps } selector is configured; " +
@@ -660,7 +660,7 @@ internal object KiteConfigDiagnosticEngine {
         if (problems.isEmpty()) {
             add(
                 diagnostic(
-                    "KMPS070",
+                    "KTCNFG070",
                     KiteConfigDiagnosticSeverity.PASS,
                     "Android application selection",
                     "Every explicit Android application selector resolves exactly: ${selected.joinToString()}.",
@@ -669,7 +669,7 @@ internal object KiteConfigDiagnosticEngine {
         } else {
             add(
                 diagnostic(
-                    "KMPS070",
+                    "KTCNFG070",
                     KiteConfigDiagnosticSeverity.ERROR,
                     "Android application selection",
                     problems.joinToString("; "),
@@ -683,7 +683,7 @@ internal object KiteConfigDiagnosticEngine {
         if (!context.syncIos) {
             add(
                 diagnostic(
-                    "KMPS071",
+                    "KTCNFG071",
                     KiteConfigDiagnosticSeverity.SKIPPED,
                     "iOS target selection",
                     "iOS source synchronization is disabled.",
@@ -695,7 +695,7 @@ internal object KiteConfigDiagnosticEngine {
         if (selected.isEmpty()) {
             add(
                 diagnostic(
-                    "KMPS071",
+                    "KTCNFG071",
                     KiteConfigDiagnosticSeverity.PASS,
                     "iOS target selection",
                     "No explicit target is configured; pbxproj inspection will require exactly one application target.",
@@ -723,7 +723,7 @@ internal object KiteConfigDiagnosticEngine {
         if (problems.isEmpty()) {
             add(
                 diagnostic(
-                    "KMPS071",
+                    "KTCNFG071",
                     KiteConfigDiagnosticSeverity.PASS,
                     "iOS target selection",
                     "Every explicit iOS target name is unique and non-blank: ${selected.joinToString()}.",
@@ -732,7 +732,7 @@ internal object KiteConfigDiagnosticEngine {
         } else {
             add(
                 diagnostic(
-                    "KMPS071",
+                    "KTCNFG071",
                     KiteConfigDiagnosticSeverity.ERROR,
                     "iOS target selection",
                     problems.joinToString("; "),
@@ -747,7 +747,7 @@ internal object KiteConfigDiagnosticEngine {
         when {
             !context.syncIos || !context.propagateAppName || name == null -> add(
                 diagnostic(
-                    "KMPS012",
+                    "KTCNFG012",
                     KiteConfigDiagnosticSeverity.SKIPPED,
                     "Apple bundle name",
                     "Apple app-name propagation is disabled or appName is unset.",
@@ -755,7 +755,7 @@ internal object KiteConfigDiagnosticEngine {
             )
             name.length >= 16 -> add(
                 diagnostic(
-                    "KMPS012",
+                    "KTCNFG012",
                     KiteConfigDiagnosticSeverity.WARNING,
                     "Apple bundle name",
                     "appName has ${name.length} characters; Apple recommends CFBundleName contain fewer than 16.",
@@ -764,7 +764,7 @@ internal object KiteConfigDiagnosticEngine {
             )
             else -> add(
                 diagnostic(
-                    "KMPS012",
+                    "KTCNFG012",
                     KiteConfigDiagnosticSeverity.PASS,
                     "Apple bundle name",
                     "appName fits Apple's recommended CFBundleName length.",
@@ -775,7 +775,7 @@ internal object KiteConfigDiagnosticEngine {
 
     private fun MutableList<KiteConfigDiagnostic>.diagnoseAndroidManifest(context: KiteConfigDiagnosticContext) {
         if (!context.propagateAppName || context.appName == null) {
-            add(diagnostic("KMPS001", KiteConfigDiagnosticSeverity.SKIPPED, "Android manifest", "App-name propagation is disabled or appName is unset."))
+            add(diagnostic("KTCNFG001", KiteConfigDiagnosticSeverity.SKIPPED, "Android manifest", "App-name propagation is disabled or appName is unset."))
             return
         }
         val manifests = context.androidManifestFiles.ifEmpty { listOfNotNull(context.manifestFile) }
@@ -787,11 +787,11 @@ internal object KiteConfigDiagnosticEngine {
         context: KiteConfigDiagnosticContext,
         manifest: File,
     ) {
-        val manifestExists = safeExists(context, manifest, "KMPS001", "Android manifest") ?: return
+        val manifestExists = safeExists(context, manifest, "KTCNFG001", "Android manifest") ?: return
         if (!manifestExists) {
             add(
                 diagnostic(
-                    "KMPS001",
+                    "KTCNFG001",
                     KiteConfigDiagnosticSeverity.WARNING,
                     "Android manifest",
                     "Manifest not found at ${context.shortPath(manifest)}; the appName placeholder cannot be verified.",
@@ -800,17 +800,17 @@ internal object KiteConfigDiagnosticEngine {
             )
             return
         }
-        val text = safeRead(context, manifest, "KMPS002", "Android manifest") ?: return
+        val text = safeRead(context, manifest, "KTCNFG002", "Android manifest") ?: return
         val label = runCatching { androidApplicationAttributes(text).label }.getOrElse { failure ->
-            add(ioFailure("KMPS002", "Android manifest", manifest, failure))
+            add(ioFailure("KTCNFG002", "Android manifest", manifest, failure))
             return
         }
         if (label == "\${appName}") {
-            add(diagnostic("KMPS002", KiteConfigDiagnosticSeverity.PASS, "Android manifest", "android:label can resolve the \${appName} manifest placeholder."))
+            add(diagnostic("KTCNFG002", KiteConfigDiagnosticSeverity.PASS, "Android manifest", "android:label can resolve the \${appName} manifest placeholder."))
         } else {
             add(
                 diagnostic(
-                    "KMPS002",
+                    "KTCNFG002",
                     KiteConfigDiagnosticSeverity.ERROR,
                     "Android manifest",
                     "The <application> label is '${label.ifEmpty { "<unset>" }}', not the \${appName} placeholder.",
@@ -829,7 +829,7 @@ internal object KiteConfigDiagnosticEngine {
         if (!context.propagateLogo) {
             add(
                 diagnostic(
-                    "KMPS003",
+                    "KTCNFG003",
                     KiteConfigDiagnosticSeverity.SKIPPED,
                     "Android launcher icon references",
                     "Logo propagation is disabled.",
@@ -841,7 +841,7 @@ internal object KiteConfigDiagnosticEngine {
         if (manifests.isEmpty()) {
             add(
                 diagnostic(
-                    "KMPS003",
+                    "KTCNFG003",
                     KiteConfigDiagnosticSeverity.ERROR,
                     "Android launcher icon references",
                     "No selected Android application manifest is available, so installed launcher resources cannot be proven reachable.",
@@ -857,11 +857,11 @@ internal object KiteConfigDiagnosticEngine {
         context: KiteConfigDiagnosticContext,
         manifest: File,
     ) {
-        val exists = safeExists(context, manifest, "KMPS003", "Android launcher icon references") ?: return
+        val exists = safeExists(context, manifest, "KTCNFG003", "Android launcher icon references") ?: return
         if (!exists) {
             add(
                 diagnostic(
-                    "KMPS003",
+                    "KTCNFG003",
                     KiteConfigDiagnosticSeverity.ERROR,
                     "Android launcher icon references",
                     "Manifest not found at ${context.shortPath(manifest)}; installed launcher resources cannot be consumed.",
@@ -871,9 +871,9 @@ internal object KiteConfigDiagnosticEngine {
             )
             return
         }
-        val text = safeRead(context, manifest, "KMPS003", "Android launcher icon references") ?: return
+        val text = safeRead(context, manifest, "KTCNFG003", "Android launcher icon references") ?: return
         val attributes = runCatching { androidApplicationAttributes(text) }.getOrElse { failure ->
-            add(ioFailure("KMPS003", "Android launcher icon references", manifest, failure))
+            add(ioFailure("KTCNFG003", "Android launcher icon references", manifest, failure))
             return
         }
         val icon = attributes.icon
@@ -883,7 +883,7 @@ internal object KiteConfigDiagnosticEngine {
         when {
             wrongIcon || wrongRoundIcon -> add(
                 diagnostic(
-                    "KMPS003",
+                    "KTCNFG003",
                     KiteConfigDiagnosticSeverity.ERROR,
                     "Android launcher icon references",
                     "The selected <application> does not consume the launcher resources installed by kiteconfig.",
@@ -896,7 +896,7 @@ internal object KiteConfigDiagnosticEngine {
             )
             roundIcon.isEmpty() -> add(
                 diagnostic(
-                    "KMPS003",
+                    "KTCNFG003",
                     KiteConfigDiagnosticSeverity.WARNING,
                     "Android launcher icon references",
                     "android:icon consumes the generated launcher icon, but android:roundIcon is unset.",
@@ -906,7 +906,7 @@ internal object KiteConfigDiagnosticEngine {
             )
             else -> add(
                 diagnostic(
-                    "KMPS003",
+                    "KTCNFG003",
                     KiteConfigDiagnosticSeverity.PASS,
                     "Android launcher icon references",
                     "The selected application manifest consumes both generated launcher icon resources.",
@@ -918,16 +918,16 @@ internal object KiteConfigDiagnosticEngine {
 
     private fun MutableList<KiteConfigDiagnostic>.diagnoseInfoPlist(context: KiteConfigDiagnosticContext) {
         if (!context.syncIos || !context.sanitizeIosProject) {
-            add(diagnostic("KMPS010", KiteConfigDiagnosticSeverity.SKIPPED, "iOS Info.plist", "Source-plist sanitization is disabled."))
+            add(diagnostic("KTCNFG010", KiteConfigDiagnosticSeverity.SKIPPED, "iOS Info.plist", "Source-plist sanitization is disabled."))
             return
         }
         val plist = context.infoPlistFile
         if (plist == null) return
-        val plistExists = safeExists(context, plist, "KMPS010", "iOS Info.plist") ?: return
+        val plistExists = safeExists(context, plist, "KTCNFG010", "iOS Info.plist") ?: return
         if (!plistExists) {
             add(
                 diagnostic(
-                    "KMPS010",
+                    "KTCNFG010",
                     KiteConfigDiagnosticSeverity.ERROR,
                     "iOS Info.plist",
                     "Configured source Info.plist does not exist at ${context.shortPath(plist)}.",
@@ -937,7 +937,7 @@ internal object KiteConfigDiagnosticEngine {
             )
             return
         }
-        val text = safeRead(context, plist, "KMPS011", "iOS Info.plist") ?: return
+        val text = safeRead(context, plist, "KTCNFG011", "iOS Info.plist") ?: return
         val stringEntries = buildList {
             if (context.propagateAppName && context.appName != null) {
                 add(PlistStringEntry("CFBundleDisplayName", "\$(PRODUCT_NAME)"))
@@ -959,14 +959,14 @@ internal object KiteConfigDiagnosticEngine {
             }
         }
         if (stringEntries.isEmpty() && boolEntries.isEmpty()) {
-            add(diagnostic("KMPS011", KiteConfigDiagnosticSeverity.SKIPPED, "iOS Info.plist", "No source-plist key is configured for verification."))
+            add(diagnostic("KTCNFG011", KiteConfigDiagnosticSeverity.SKIPPED, "iOS Info.plist", "No source-plist key is configured for verification."))
             return
         }
         val result = sanitizeInfoPlist(text, stringEntries, boolEntries, context.plistConflictPolicy)
         when {
             result.errors.isNotEmpty() -> add(
                 diagnostic(
-                    "KMPS011",
+                    "KTCNFG011",
                     KiteConfigDiagnosticSeverity.ERROR,
                     "iOS Info.plist",
                     result.errors.joinToString("; "),
@@ -987,7 +987,7 @@ internal object KiteConfigDiagnosticEngine {
                 }
                 add(
                     diagnostic(
-                        "KMPS011",
+                        "KTCNFG011",
                         KiteConfigDiagnosticSeverity.ERROR,
                         "iOS Info.plist",
                         "The source plist is not synchronized; migration would ${changes.joinToString("; ")}.",
@@ -999,7 +999,7 @@ internal object KiteConfigDiagnosticEngine {
 
             result.warnings.isNotEmpty() -> add(
                 diagnostic(
-                    "KMPS011",
+                    "KTCNFG011",
                     KiteConfigDiagnosticSeverity.WARNING,
                     "iOS Info.plist",
                     result.warnings.joinToString("; "),
@@ -1010,7 +1010,7 @@ internal object KiteConfigDiagnosticEngine {
 
             else -> add(
                 diagnostic(
-                    "KMPS011",
+                    "KTCNFG011",
                     KiteConfigDiagnosticSeverity.PASS,
                     "iOS Info.plist",
                     "Every configured source-plist reference is structurally correct.",
@@ -1021,7 +1021,7 @@ internal object KiteConfigDiagnosticEngine {
 
     private fun MutableList<KiteConfigDiagnostic>.diagnosePbxproj(context: KiteConfigDiagnosticContext) {
         if (!context.syncIos) {
-            add(diagnostic("KMPS020", KiteConfigDiagnosticSeverity.SKIPPED, "iOS project", "iOS source synchronization is disabled."))
+            add(diagnostic("KTCNFG020", KiteConfigDiagnosticSeverity.SKIPPED, "iOS project", "iOS source synchronization is disabled."))
             return
         }
         val appIconName = when {
@@ -1029,7 +1029,7 @@ internal object KiteConfigDiagnosticEngine {
             context.appiconsetDir == null -> {
                 add(
                     diagnostic(
-                        "KMPS024",
+                        "KTCNFG024",
                         KiteConfigDiagnosticSeverity.ERROR,
                         "Xcode AppIcon selection",
                         "Logo propagation is enabled, but ios { appIconDirectory } is unset.",
@@ -1042,10 +1042,10 @@ internal object KiteConfigDiagnosticEngine {
                 onSuccess = { name ->
                     add(
                         diagnostic(
-                            "KMPS024",
+                            "KTCNFG024",
                             KiteConfigDiagnosticSeverity.PASS,
                             "Xcode AppIcon selection",
-                            "The configured catalog maps to ASSETCATALOG_COMPILER_APPICON_NAME=$name; selected-target alignment is checked with KMPS021.",
+                            "The configured catalog maps to ASSETCATALOG_COMPILER_APPICON_NAME=$name; selected-target alignment is checked with KTCNFG021.",
                         ),
                     )
                     name
@@ -1053,7 +1053,7 @@ internal object KiteConfigDiagnosticEngine {
                 onFailure = { failure ->
                     add(
                         diagnostic(
-                            "KMPS024",
+                            "KTCNFG024",
                             KiteConfigDiagnosticSeverity.ERROR,
                             "Xcode AppIcon selection",
                             diagnosticExceptionSummary(failure),
@@ -1066,11 +1066,11 @@ internal object KiteConfigDiagnosticEngine {
         }
         val pbxproj = context.pbxprojFile
         if (pbxproj != null && validIosTargetNames(context.iosTargetNames)) {
-            val pbxprojExists = safeExists(context, pbxproj, "KMPS020", "iOS pbxproj")
+            val pbxprojExists = safeExists(context, pbxproj, "KTCNFG020", "iOS pbxproj")
             if (pbxprojExists == false) {
                 add(
                     diagnostic(
-                        "KMPS020",
+                        "KTCNFG020",
                         KiteConfigDiagnosticSeverity.ERROR,
                         "iOS pbxproj",
                         "Project file not found at ${context.shortPath(pbxproj)}.",
@@ -1078,7 +1078,7 @@ internal object KiteConfigDiagnosticEngine {
                     ),
                 )
             } else if (pbxprojExists == true) {
-                val text = safeRead(context, pbxproj, "KMPS021", "iOS pbxproj")
+                val text = safeRead(context, pbxproj, "KTCNFG021", "iOS pbxproj")
                 val result = text?.let { source ->
                     runCatching {
                         rewritePbxproj(
@@ -1092,7 +1092,7 @@ internal object KiteConfigDiagnosticEngine {
                             appIconName = appIconName,
                         )
                     }.getOrElse { failure ->
-                        add(ioFailure("KMPS021", "iOS pbxproj", pbxproj, failure))
+                        add(ioFailure("KTCNFG021", "iOS pbxproj", pbxproj, failure))
                         null
                     }
                 }
@@ -1100,7 +1100,7 @@ internal object KiteConfigDiagnosticEngine {
                     when {
                         result.errors.isNotEmpty() -> add(
                             diagnostic(
-                                "KMPS021",
+                                "KTCNFG021",
                                 KiteConfigDiagnosticSeverity.ERROR,
                                 "iOS pbxproj target scope and values",
                                 result.errors.joinToString("; "),
@@ -1110,7 +1110,7 @@ internal object KiteConfigDiagnosticEngine {
                         )
                         result.text != text -> add(
                             diagnostic(
-                                "KMPS021",
+                                "KTCNFG021",
                                 KiteConfigDiagnosticSeverity.ERROR,
                                 "iOS pbxproj configuration drift",
                                 "Configured setting(s) differ: ${result.changedSettings.sorted().joinToString()}.",
@@ -1120,7 +1120,7 @@ internal object KiteConfigDiagnosticEngine {
                         )
                         else -> add(
                             diagnostic(
-                                "KMPS021",
+                                "KTCNFG021",
                                 KiteConfigDiagnosticSeverity.PASS,
                                 "iOS pbxproj target scope and values",
                                 if (result.selectedTargets.isEmpty()) {
@@ -1137,7 +1137,7 @@ internal object KiteConfigDiagnosticEngine {
         }
 
         if (!context.propagateLogo) {
-            add(diagnostic("KMPS022", KiteConfigDiagnosticSeverity.SKIPPED, "iOS app icon set", "Logo propagation is disabled."))
+            add(diagnostic("KTCNFG022", KiteConfigDiagnosticSeverity.SKIPPED, "iOS app icon set", "Logo propagation is disabled."))
             return
         }
         val deploymentTarget = context.iosDeploymentTarget
@@ -1151,7 +1151,7 @@ internal object KiteConfigDiagnosticEngine {
         if (deploymentFailure == null) {
             add(
                 diagnostic(
-                    "KMPS023",
+                    "KTCNFG023",
                     KiteConfigDiagnosticSeverity.PASS,
                     "Universal AppIcon compatibility",
                     "iOS deployment target $deploymentTarget supports the Xcode 14+ single-size AppIcon catalog.",
@@ -1160,7 +1160,7 @@ internal object KiteConfigDiagnosticEngine {
         } else {
             add(
                 diagnostic(
-                    "KMPS023",
+                    "KTCNFG023",
                     KiteConfigDiagnosticSeverity.ERROR,
                     "Universal AppIcon compatibility",
                     diagnosticExceptionSummary(deploymentFailure),
@@ -1170,13 +1170,13 @@ internal object KiteConfigDiagnosticEngine {
         }
         val icons = context.appiconsetDir
         if (icons == null) {
-            add(diagnostic("KMPS022", KiteConfigDiagnosticSeverity.WARNING, "iOS app icon set", "The appiconset path is unset."))
+            add(diagnostic("KTCNFG022", KiteConfigDiagnosticSeverity.WARNING, "iOS app icon set", "The appiconset path is unset."))
         } else {
-            val iconsExist = safeExists(context, icons, "KMPS022", "iOS app icon set") ?: return
+            val iconsExist = safeExists(context, icons, "KTCNFG022", "iOS app icon set") ?: return
             if (iconsExist && Files.isDirectory(icons.toPath(), java.nio.file.LinkOption.NOFOLLOW_LINKS)) {
                 val projectRoot = context.projectRootDir
                 if (projectRoot == null) {
-                    add(diagnostic("KMPS022", KiteConfigDiagnosticSeverity.ERROR, "iOS app icon set", "Project root is unavailable; ownership cannot be verified."))
+                    add(diagnostic("KTCNFG022", KiteConfigDiagnosticSeverity.ERROR, "iOS app icon set", "Project root is unavailable; ownership cannot be verified."))
                     return
                 }
                 val problems = runCatching {
@@ -1193,11 +1193,11 @@ internal object KiteConfigDiagnosticEngine {
                     )
                 }.getOrElse { listOf(diagnosticExceptionSummary(it)) }
                 if (problems.isEmpty()) {
-                    add(diagnostic("KMPS022", KiteConfigDiagnosticSeverity.PASS, "iOS app icon set", "Every expected AppIcon output is present and checksum-owned."))
+                    add(diagnostic("KTCNFG022", KiteConfigDiagnosticSeverity.PASS, "iOS app icon set", "Every expected AppIcon output is present and checksum-owned."))
                 } else {
                     add(
                         diagnostic(
-                            "KMPS022",
+                            "KTCNFG022",
                             KiteConfigDiagnosticSeverity.ERROR,
                             "iOS app icon set",
                             problems.joinToString("; "),
@@ -1209,7 +1209,7 @@ internal object KiteConfigDiagnosticEngine {
             } else {
                 add(
                 diagnostic(
-                    "KMPS022",
+                    "KTCNFG022",
                     KiteConfigDiagnosticSeverity.ERROR,
                     "iOS app icon set",
                     "No directory exists at ${context.shortPath(icons)}.",
@@ -1231,7 +1231,7 @@ private fun KiteConfigDiagnosticContext.shortPath(file: java.io.File): String {
 
 private fun MutableList<KiteConfigDiagnostic>.diagnoseAndroidIcons(context: KiteConfigDiagnosticContext) {
         if (!context.propagateLogo) {
-            add(diagnostic("KMPS030", KiteConfigDiagnosticSeverity.SKIPPED, "Android launcher icons", "Logo propagation is disabled."))
+            add(diagnostic("KTCNFG030", KiteConfigDiagnosticSeverity.SKIPPED, "Android launcher icons", "Logo propagation is disabled."))
             return
         }
         val resourceDirectories = context.androidResDirs.ifEmpty { listOfNotNull(context.androidResDir) }
@@ -1243,22 +1243,22 @@ private fun MutableList<KiteConfigDiagnostic>.diagnoseAndroidIcons(context: Kite
         context: KiteConfigDiagnosticContext,
         res: File,
     ) {
-        val resExists = safeExists(context, res, "KMPS030", "Android resources") ?: return
+        val resExists = safeExists(context, res, "KTCNFG030", "Android resources") ?: return
         if (!resExists) {
-            add(diagnostic("KMPS030", KiteConfigDiagnosticSeverity.ERROR, "Android resources", "No Android resource directory exists at ${context.shortPath(res)}."))
+            add(diagnostic("KTCNFG030", KiteConfigDiagnosticSeverity.ERROR, "Android resources", "No Android resource directory exists at ${context.shortPath(res)}."))
             return
         }
         if (!Files.isDirectory(res.toPath(), java.nio.file.LinkOption.NOFOLLOW_LINKS)) {
-            add(diagnostic("KMPS030", KiteConfigDiagnosticSeverity.ERROR, "Android resources", "${context.shortPath(res)} is not a directory."))
+            add(diagnostic("KTCNFG030", KiteConfigDiagnosticSeverity.ERROR, "Android resources", "${context.shortPath(res)} is not a directory."))
             return
         }
         val collisions = runCatching { SyncAndroidLogoTask.collidingTemplateIcons(res) }.getOrElse { failure ->
-            add(ioFailure("KMPS031", "Android launcher icons", res, failure))
+            add(ioFailure("KTCNFG031", "Android launcher icons", res, failure))
             return
         }
         val projectRoot = context.projectRootDir
         if (projectRoot == null) {
-            add(diagnostic("KMPS031", KiteConfigDiagnosticSeverity.ERROR, "Android launcher icons", "Project root is unavailable; ownership cannot be verified."))
+            add(diagnostic("KTCNFG031", KiteConfigDiagnosticSeverity.ERROR, "Android launcher icons", "Project root is unavailable; ownership cannot be verified."))
             return
         }
         val effectiveExpected = if (context.androidEmitMonochrome) {
@@ -1277,7 +1277,7 @@ private fun MutableList<KiteConfigDiagnostic>.diagnoseAndroidIcons(context: Kite
         if (ownershipProblems.isNotEmpty()) {
             add(
                 diagnostic(
-                    "KMPS031",
+                    "KTCNFG031",
                     KiteConfigDiagnosticSeverity.ERROR,
                     "Android launcher icons",
                     ownershipProblems.joinToString("; "),
@@ -1286,11 +1286,11 @@ private fun MutableList<KiteConfigDiagnostic>.diagnoseAndroidIcons(context: Kite
                 ),
             )
         } else if (collisions.isEmpty()) {
-            add(diagnostic("KMPS031", KiteConfigDiagnosticSeverity.PASS, "Android launcher icons", "Every expected launcher output is present and checksum-owned; no collisions were found."))
+            add(diagnostic("KTCNFG031", KiteConfigDiagnosticSeverity.PASS, "Android launcher icons", "Every expected launcher output is present and checksum-owned; no collisions were found."))
         } else {
             add(
                 diagnostic(
-                    "KMPS031",
+                    "KTCNFG031",
                     KiteConfigDiagnosticSeverity.WARNING,
                     "Android launcher icons",
                     "${collisions.size} colliding template icon(s): ${collisions.joinToString { it.relativeToOrSelf(res).path }}.",
@@ -1302,13 +1302,13 @@ private fun MutableList<KiteConfigDiagnostic>.diagnoseAndroidIcons(context: Kite
 
     private fun MutableList<KiteConfigDiagnostic>.diagnoseLocales(context: KiteConfigDiagnosticContext) {
         if (!context.propagateLocaleList && !context.filterAndroidResources) {
-            add(diagnostic("KMPS040", KiteConfigDiagnosticSeverity.SKIPPED, "Locales", "Locale propagation is disabled."))
+            add(diagnostic("KTCNFG040", KiteConfigDiagnosticSeverity.SKIPPED, "Locales", "Locale propagation is disabled."))
             return
         }
         val canonical = runCatching { canonicalizeLocales(context.locales) }.getOrElse { failure ->
             add(
                 diagnostic(
-                    "KMPS040",
+                    "KTCNFG040",
                     KiteConfigDiagnosticSeverity.ERROR,
                     "Locales",
                     diagnosticExceptionSummary(failure),
@@ -1320,18 +1320,18 @@ private fun MutableList<KiteConfigDiagnostic>.diagnoseAndroidIcons(context: Kite
         when {
             context.filterAndroidResources && canonical.isEmpty() -> add(
                 diagnostic(
-                    "KMPS040",
+                    "KTCNFG040",
                     KiteConfigDiagnosticSeverity.ERROR,
                     "Locales",
                     "Android resource filtering is enabled, but the canonical locale allow-list is empty.",
                     "Configure locales explicitly or add a supported values-<locale> resource directory.",
                 ),
             )
-            context.locales.isEmpty() -> add(diagnostic("KMPS040", KiteConfigDiagnosticSeverity.PASS, "Locales", "No explicit locale allow-list is configured."))
-            canonical == context.locales -> add(diagnostic("KMPS040", KiteConfigDiagnosticSeverity.PASS, "Locales", "All locale tags are canonical and unique."))
+            context.locales.isEmpty() -> add(diagnostic("KTCNFG040", KiteConfigDiagnosticSeverity.PASS, "Locales", "No explicit locale allow-list is configured."))
+            canonical == context.locales -> add(diagnostic("KTCNFG040", KiteConfigDiagnosticSeverity.PASS, "Locales", "All locale tags are canonical and unique."))
             else -> add(
                 diagnostic(
-                    "KMPS040",
+                    "KTCNFG040",
                     KiteConfigDiagnosticSeverity.WARNING,
                     "Locales",
                     "Configured ${context.locales.joinToString()} canonicalizes to ${canonical.joinToString()}.",
@@ -1343,19 +1343,19 @@ private fun MutableList<KiteConfigDiagnostic>.diagnoseAndroidIcons(context: Kite
 
     private fun MutableList<KiteConfigDiagnostic>.diagnoseVersion(context: KiteConfigDiagnosticContext) {
         if (!context.propagateVersion || context.hasVersionCodeOverride) {
-            add(diagnostic("KMPS050", KiteConfigDiagnosticSeverity.SKIPPED, "Android versionCode", "Version propagation is disabled or an explicit override is configured."))
+            add(diagnostic("KTCNFG050", KiteConfigDiagnosticSeverity.SKIPPED, "Android versionCode", "Version propagation is disabled or an explicit override is configured."))
             return
         }
         val version = context.versionName
         if (version == null) {
-            add(diagnostic("KMPS050", KiteConfigDiagnosticSeverity.SKIPPED, "Android versionCode", "version is unset; identity values are optional until configured."))
+            add(diagnostic("KTCNFG050", KiteConfigDiagnosticSeverity.SKIPPED, "Android versionCode", "version is unset; identity values are optional until configured."))
             return
         }
         val resolved = context.resolvedVersionCode
         if (resolved != null) {
             add(
                 diagnostic(
-                    "KMPS050",
+                    "KTCNFG050",
                     KiteConfigDiagnosticSeverity.PASS,
                     "Android versionCode",
                     "$version derives monotonically to $resolved.",
@@ -1364,7 +1364,7 @@ private fun MutableList<KiteConfigDiagnostic>.diagnoseAndroidIcons(context: Kite
         } else {
             add(
                 diagnostic(
-                    "KMPS050",
+                    "KTCNFG050",
                     KiteConfigDiagnosticSeverity.ERROR,
                     "Android versionCode",
                     "No Android versionCode could be derived from version \"$version\".",
@@ -1377,11 +1377,11 @@ private fun MutableList<KiteConfigDiagnostic>.diagnoseAndroidIcons(context: Kite
 
     private fun MutableList<KiteConfigDiagnostic>.diagnoseKgp(context: KiteConfigDiagnosticContext) {
         when {
-            !context.kgpRequired -> add(diagnostic("KMPS060", KiteConfigDiagnosticSeverity.SKIPPED, "Kotlin Gradle plugin", "No enabled feature requires typed KGP access."))
-            context.kgpOnClasspath -> add(diagnostic("KMPS060", KiteConfigDiagnosticSeverity.PASS, "Kotlin Gradle plugin", "KGP types are visible to kiteconfig."))
+            !context.kgpRequired -> add(diagnostic("KTCNFG060", KiteConfigDiagnosticSeverity.SKIPPED, "Kotlin Gradle plugin", "No enabled feature requires typed KGP access."))
+            context.kgpOnClasspath -> add(diagnostic("KTCNFG060", KiteConfigDiagnosticSeverity.PASS, "Kotlin Gradle plugin", "KGP types are visible to kiteconfig."))
             else -> add(
                 diagnostic(
-                    "KMPS060",
+                    "KTCNFG060",
                     KiteConfigDiagnosticSeverity.ERROR,
                     "Kotlin Gradle plugin",
                     "KGP types are not visible to kiteconfig's classloader, but an enabled feature requires them.",
@@ -1395,7 +1395,7 @@ private fun MutableList<KiteConfigDiagnostic>.diagnoseAndroidIcons(context: Kite
         when {
             !context.agpRequired -> add(
                 diagnostic(
-                    "KMPS061",
+                    "KTCNFG061",
                     KiteConfigDiagnosticSeverity.SKIPPED,
                     "Android Gradle plugin compatibility",
                     "No detected Android project needs an enabled typed AGP integration.",
@@ -1404,7 +1404,7 @@ private fun MutableList<KiteConfigDiagnostic>.diagnoseAndroidIcons(context: Kite
 
             !context.agpOnClasspath -> add(
                 diagnostic(
-                    "KMPS061",
+                    "KTCNFG061",
                     KiteConfigDiagnosticSeverity.ERROR,
                     "Android Gradle plugin compatibility",
                     "AGP types are not visible to kiteconfig, so the active version cannot be verified.",
@@ -1414,7 +1414,7 @@ private fun MutableList<KiteConfigDiagnostic>.diagnoseAndroidIcons(context: Kite
 
             context.activeAgpVersion == null -> add(
                 diagnostic(
-                    "KMPS061",
+                    "KTCNFG061",
                     KiteConfigDiagnosticSeverity.ERROR,
                     "Android Gradle plugin compatibility",
                     "Could not determine the active Android Gradle plugin version.",
@@ -1425,7 +1425,7 @@ private fun MutableList<KiteConfigDiagnostic>.diagnoseAndroidIcons(context: Kite
 
             !isSupportedAgpVersion(context.activeAgpVersion) -> add(
                 diagnostic(
-                    "KMPS061",
+                    "KTCNFG061",
                     if (context.versionGuardsIgnored) KiteConfigDiagnosticSeverity.WARNING else KiteConfigDiagnosticSeverity.ERROR,
                     "Android Gradle plugin compatibility",
                     "Active Android Gradle plugin ${context.activeAgpVersion} is unsupported." +
@@ -1438,7 +1438,7 @@ private fun MutableList<KiteConfigDiagnostic>.diagnoseAndroidIcons(context: Kite
 
             else -> add(
                 diagnostic(
-                    "KMPS061",
+                    "KTCNFG061",
                     KiteConfigDiagnosticSeverity.PASS,
                     "Android Gradle plugin compatibility",
                     "Active Android Gradle plugin ${context.activeAgpVersion} is supported.",
@@ -1449,7 +1449,7 @@ private fun MutableList<KiteConfigDiagnostic>.diagnoseAndroidIcons(context: Kite
         when {
             !context.kgpRequired -> add(
                 diagnostic(
-                    "KMPS062",
+                    "KTCNFG062",
                     KiteConfigDiagnosticSeverity.SKIPPED,
                     "Kotlin Gradle plugin compatibility",
                     "No enabled feature requires typed KGP integration.",
@@ -1458,16 +1458,16 @@ private fun MutableList<KiteConfigDiagnostic>.diagnoseAndroidIcons(context: Kite
 
             !context.kgpOnClasspath -> add(
                 diagnostic(
-                    "KMPS062",
+                    "KTCNFG062",
                     KiteConfigDiagnosticSeverity.SKIPPED,
                     "Kotlin Gradle plugin compatibility",
-                    "The active KGP version cannot be inspected until the KMPS060 classloader error is fixed.",
+                    "The active KGP version cannot be inspected until the KTCNFG060 classloader error is fixed.",
                 ),
             )
 
             context.activeKgpVersion == null -> add(
                 diagnostic(
-                    "KMPS062",
+                    "KTCNFG062",
                     KiteConfigDiagnosticSeverity.ERROR,
                     "Kotlin Gradle plugin compatibility",
                     "Could not determine the active Kotlin Gradle plugin version.",
@@ -1478,7 +1478,7 @@ private fun MutableList<KiteConfigDiagnostic>.diagnoseAndroidIcons(context: Kite
 
             !isSupportedKgpVersion(context.activeKgpVersion) -> add(
                 diagnostic(
-                    "KMPS062",
+                    "KTCNFG062",
                     if (context.versionGuardsIgnored) KiteConfigDiagnosticSeverity.WARNING else KiteConfigDiagnosticSeverity.ERROR,
                     "Kotlin Gradle plugin compatibility",
                     "Active Kotlin Gradle plugin ${context.activeKgpVersion} is unsupported." +
@@ -1491,7 +1491,7 @@ private fun MutableList<KiteConfigDiagnostic>.diagnoseAndroidIcons(context: Kite
 
             else -> add(
                 diagnostic(
-                    "KMPS062",
+                    "KTCNFG062",
                     KiteConfigDiagnosticSeverity.PASS,
                     "Kotlin Gradle plugin compatibility",
                     "Active Kotlin Gradle plugin ${context.activeKgpVersion} is supported.",

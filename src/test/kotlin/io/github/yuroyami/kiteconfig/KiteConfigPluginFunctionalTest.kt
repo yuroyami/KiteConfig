@@ -660,14 +660,14 @@ class KiteConfigPluginFunctionalTest {
             "legacy takeover provenance missing",
         )
         val alignedDiagnostics = run("kiteDoctor")
-        assertTrue(alignedDiagnostics.output.contains("[PASS] KMPS003"), alignedDiagnostics.output)
-        assertTrue(alignedDiagnostics.output.contains("[PASS] KMPS031"), alignedDiagnostics.output)
+        assertTrue(alignedDiagnostics.output.contains("[PASS] KTCNFG003"), alignedDiagnostics.output)
+        assertTrue(alignedDiagnostics.output.contains("[PASS] KTCNFG031"), alignedDiagnostics.output)
 
         // Ownership hashes alone still describe the old outputs after an input
         // change; provenance must make that stale installation visible.
         writePng("art/fg.png", 513)
         val inputDrift = run("kiteDoctor")
-        assertTrue(inputDrift.output.contains("[FAIL] KMPS031"), inputDrift.output)
+        assertTrue(inputDrift.output.contains("[FAIL] KTCNFG031"), inputDrift.output)
         assertTrue(inputDrift.output.contains("different logo inputs"), inputDrift.output)
 
         val generated = File(projectDir, "androidApp/src/main/res/mipmap-mdpi/ic_launcher.png")
@@ -802,12 +802,12 @@ class KiteConfigPluginFunctionalTest {
             ),
         )
         val ambiguousDoctor = run("kiteDoctor")
-        assertTrue(ambiguousDoctor.output.contains("[FAIL] KMPS070"), ambiguousDoctor.output)
+        assertTrue(ambiguousDoctor.output.contains("[FAIL] KTCNFG070"), ambiguousDoctor.output)
         assertTrue(ambiguousDoctor.output.contains("Multiple Android application projects"), ambiguousDoctor.output)
         val ambiguousCheck = runAndFail("kiteCheck")
-        assertTrue(ambiguousCheck.output.contains("[FAIL] KMPS070"), ambiguousCheck.output)
+        assertTrue(ambiguousCheck.output.contains("[FAIL] KTCNFG070"), ambiguousCheck.output)
         val ambiguousReport = File(projectDir, "build/reports/kiteconfig/diagnostics.json").readText()
-        assertTrue(ambiguousReport.contains("\"id\": \"KMPS070\""), ambiguousReport)
+        assertTrue(ambiguousReport.contains("\"id\": \"KTCNFG070\""), ambiguousReport)
 
         val ambiguous = runAndFail("help")
         assertTrue(ambiguous.output.contains("multiple Android application projects"), ambiguous.output)
@@ -821,7 +821,7 @@ class KiteConfigPluginFunctionalTest {
             rootBuild("modules { androidApps(\":missing\") }", requestAppSink = false),
         )
         val missingDiagnostic = run("kiteDoctor")
-        assertTrue(missingDiagnostic.output.contains("[FAIL] KMPS070"), missingDiagnostic.output)
+        assertTrue(missingDiagnostic.output.contains("[FAIL] KTCNFG070"), missingDiagnostic.output)
         assertTrue(missingDiagnostic.output.contains("\":missing\""), missingDiagnostic.output)
 
         write(
@@ -829,7 +829,7 @@ class KiteConfigPluginFunctionalTest {
             rootBuild("modules { androidApps(\"phone\") }", requestAppSink = false),
         )
         val invalidDiagnostic = run("kiteDoctor")
-        assertTrue(invalidDiagnostic.output.contains("[FAIL] KMPS070"), invalidDiagnostic.output)
+        assertTrue(invalidDiagnostic.output.contains("[FAIL] KTCNFG070"), invalidDiagnostic.output)
         assertTrue(invalidDiagnostic.output.contains("invalid absolute Gradle project path"), invalidDiagnostic.output)
 
         write("build.gradle.kts", rootBuild("modules { androidApps(\":phone\") }"))
@@ -870,8 +870,8 @@ class KiteConfigPluginFunctionalTest {
             """.trimIndent(),
         )
         val diagnostic = run("kiteDoctor")
-        assertTrue(diagnostic.output.contains("[PASS] KMPS002"), diagnostic.output)
-        assertTrue(diagnostic.output.contains("[FAIL] KMPS002"), diagnostic.output)
+        assertTrue(diagnostic.output.contains("[PASS] KTCNFG002"), diagnostic.output)
+        assertTrue(diagnostic.output.contains("[FAIL] KTCNFG002"), diagnostic.output)
     }
 
     @Test
@@ -999,9 +999,9 @@ class KiteConfigPluginFunctionalTest {
         )
 
         val result = run("kiteDoctor")
-        assertTrue(result.output.contains("[WARN] KMPS011"), result.output)
+        assertTrue(result.output.contains("[WARN] KTCNFG011"), result.output)
         assertTrue(result.output.contains("conflictPolicy=KEEP"), result.output)
-        assertFalse(result.output.contains("[FAIL] KMPS011"), result.output)
+        assertFalse(result.output.contains("[FAIL] KTCNFG011"), result.output)
     }
 
     @Test
@@ -1028,8 +1028,8 @@ class KiteConfigPluginFunctionalTest {
         assertTrue(alias.output.contains("BUILD SUCCESSFUL"), alias.output)
 
         val doctor = run("kiteDoctor")
-        assertTrue(doctor.output.contains("[FAIL] KMPS040"), doctor.output)
-        assertTrue(doctor.output.contains("[FAIL] KMPS050"), doctor.output)
+        assertTrue(doctor.output.contains("[FAIL] KTCNFG040"), doctor.output)
+        assertTrue(doctor.output.contains("[FAIL] KTCNFG050"), doctor.output)
         assertTrue(doctor.output.contains("BUILD SUCCESSFUL"), doctor.output)
 
         val abbreviatedDoctor = run("kiteDoc")
@@ -1037,11 +1037,11 @@ class KiteConfigPluginFunctionalTest {
         assertTrue(abbreviatedDoctor.output.contains("BUILD SUCCESSFUL"), abbreviatedDoctor.output)
 
         val check = runAndFail("kiteCheck")
-        assertTrue(check.output.contains("KMPS040"), check.output)
-        assertTrue(check.output.contains("KMPS050"), check.output)
+        assertTrue(check.output.contains("KTCNFG040"), check.output)
+        assertTrue(check.output.contains("KTCNFG050"), check.output)
         val report = File(projectDir, "build/reports/kiteconfig/diagnostics.json")
         assertTrue(report.isFile, "strict diagnostics report was not written before failure")
-        assertTrue(report.readText().contains("\"id\": \"KMPS040\""), report.readText())
+        assertTrue(report.readText().contains("\"id\": \"KTCNFG040\""), report.readText())
 
         val normal = runAndFail("help")
         assertTrue(normal.output.contains("numeric segments (x.y.z) are required"), normal.output)
@@ -1066,16 +1066,16 @@ class KiteConfigPluginFunctionalTest {
         )
 
         val alias = run("inspectConfig")
-        assertTrue(alias.output.contains("[FAIL] KMPS902"), alias.output)
+        assertTrue(alias.output.contains("[FAIL] KTCNFG902"), alias.output)
         assertTrue(alias.output.contains("deliberate appName provider failure"), alias.output)
         assertTrue(alias.output.contains("appName              = [error:"), alias.output)
         assertTrue(alias.output.contains("BUILD SUCCESSFUL"), alias.output)
 
         val check = runAndFail("kiteCheck")
-        assertTrue(check.output.contains("KMPS902"), check.output)
+        assertTrue(check.output.contains("KTCNFG902"), check.output)
         val report = File(projectDir, "build/reports/kiteconfig/diagnostics.json")
         assertTrue(report.isFile, "provider diagnostic report was not written before failure")
-        assertTrue(report.readText().contains("\"id\": \"KMPS902\""), report.readText())
+        assertTrue(report.readText().contains("\"id\": \"KTCNFG902\""), report.readText())
 
         val normal = runAndFail("help")
         assertTrue(normal.output.contains("deliberate appName provider failure"), normal.output)
@@ -1095,14 +1095,14 @@ class KiteConfigPluginFunctionalTest {
         )
 
         val doctor = run("kiteDoctor")
-        assertTrue(doctor.output.contains("[FAIL] KMPS071"), doctor.output)
+        assertTrue(doctor.output.contains("[FAIL] KTCNFG071"), doctor.output)
         assertTrue(doctor.output.contains("duplicate target name(s): \"Phone\""), doctor.output)
         assertTrue(doctor.output.contains("BUILD SUCCESSFUL"), doctor.output)
 
         val check = runAndFail("kiteCheck")
-        assertTrue(check.output.contains("[FAIL] KMPS071"), check.output)
+        assertTrue(check.output.contains("[FAIL] KTCNFG071"), check.output)
         val report = File(projectDir, "build/reports/kiteconfig/diagnostics.json").readText()
-        assertTrue(report.contains("\"id\": \"KMPS071\""), report)
+        assertTrue(report.contains("\"id\": \"KTCNFG071\""), report)
 
         val normal = runAndFail("help")
         assertTrue(normal.output.contains("must contain unique, non-blank names"), normal.output)
@@ -1242,10 +1242,10 @@ class KiteConfigPluginFunctionalTest {
 
         val first = run(*arguments)
         assertTrue(first.output.contains("Configuration cache entry stored"), first.output)
-        assertTrue(first.output.contains("[FAIL] KMPS050"), first.output)
+        assertTrue(first.output.contains("[FAIL] KTCNFG050"), first.output)
         val second = run(*arguments)
         assertTrue(second.output.contains("Reusing configuration cache"), second.output)
-        assertTrue(second.output.contains("[FAIL] KMPS050"), second.output)
+        assertTrue(second.output.contains("[FAIL] KTCNFG050"), second.output)
     }
 
 
@@ -1840,7 +1840,7 @@ class KiteConfigPluginFunctionalTest {
      * The hard configuration failure above used to sit before the resilient-diagnostic
      * early return, so `kiteDoctor` itself died on the exact misconfiguration it
      * exists to explain. It now sits after that return, so this must both report
-     * KMPS081 and exit successfully: doctor never fails the build (README.md).
+     * KTCNFG081 and exit successfully: doctor never fails the build (README.md).
      */
 
     @Test
@@ -1872,11 +1872,11 @@ class KiteConfigPluginFunctionalTest {
 
         val result = run("kiteDoctor")
 
-        assertTrue(result.output.contains("[PASS] KMPS082 Compose Gradle plugin compatibility"), result.output)
+        assertTrue(result.output.contains("[PASS] KTCNFG082 Compose Gradle plugin compatibility"), result.output)
         // No explicit modules { desktopApps } selector; the sole detected app is
-        // unambiguous, which KMPS070 (its Android counterpart) also reports as SKIPPED.
-        assertTrue(result.output.contains("[SKIP] KMPS083 Desktop application selection"), result.output)
-        assertTrue(result.output.contains("[PASS] KMPS080 Desktop identity propagation"), result.output)
+        // unambiguous, which KTCNFG070 (its Android counterpart) also reports as SKIPPED.
+        assertTrue(result.output.contains("[SKIP] KTCNFG083 Desktop application selection"), result.output)
+        assertTrue(result.output.contains("[PASS] KTCNFG080 Desktop identity propagation"), result.output)
     }
 
     /**

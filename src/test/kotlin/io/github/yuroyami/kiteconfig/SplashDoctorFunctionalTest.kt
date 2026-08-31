@@ -44,7 +44,7 @@ class SplashDoctorFunctionalTest {
         )
 
         val missingTheme = run("kiteDoctor")
-        assertTrue(missingTheme.output.contains("[FAIL] KMPS091"), missingTheme.output)
+        assertTrue(missingTheme.output.contains("[FAIL] KTCNFG091"), missingTheme.output)
 
         write(
             "build.gradle.kts",
@@ -59,7 +59,7 @@ class SplashDoctorFunctionalTest {
         )
 
         val missingPlaceholder = run("kiteDoctor")
-        assertTrue(missingPlaceholder.output.contains("[FAIL] KMPS092"), missingPlaceholder.output)
+        assertTrue(missingPlaceholder.output.contains("[FAIL] KTCNFG092"), missingPlaceholder.output)
 
         write(
             "androidApp/src/main/AndroidManifest.xml",
@@ -68,7 +68,7 @@ class SplashDoctorFunctionalTest {
         )
 
         val healthy = run("kiteDoctor")
-        assertTrue(healthy.output.contains("[PASS] KMPS090"), healthy.output)
+        assertTrue(healthy.output.contains("[PASS] KTCNFG090"), healthy.output)
     }
 
     @Test
@@ -90,6 +90,6 @@ class SplashDoctorFunctionalTest {
         )
 
         val result = run("kiteDoctor")
-        assertTrue(result.output.contains("KMPS093"), result.output)
+        assertTrue(result.output.contains("KTCNFG093"), result.output)
     }
 }
