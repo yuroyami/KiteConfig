@@ -512,9 +512,9 @@ class AgpCompatibilityFunctionalTest {
             """
             package fixture
 
-            import fixture.generated.BuildConfig
+            import fixture.generated.KiteBuildConfig
 
-            val apiOrigin: String = BuildConfig.API_ORIGIN
+            val apiOrigin: String = KiteBuildConfig.API_ORIGIN
             """.trimIndent(),
         )
     }
@@ -530,13 +530,21 @@ class AgpCompatibilityFunctionalTest {
         )
         .build()
 
+    /**
+     * The fixture sets no `className`, so this also pins the default name. A
+     * rename of that default must fail here rather than in a consumer's build.
+     */
     private fun assertGeneratedBuildConfig() {
         val generated = File(
             projectDir,
-            "shared/build/generated/kiteconfig/commonMain/kotlin/fixture/generated/BuildConfig.kt",
+            "shared/build/generated/kiteconfig/commonMain/kotlin/fixture/generated/KiteBuildConfig.kt",
         )
-        assertTrue(generated.isFile, "Generated BuildConfig is missing: $generated")
+        assertTrue(generated.isFile, "Generated KiteBuildConfig is missing: $generated")
         assertTrue(generated.readText().contains("API_ORIGIN"), generated.readText())
+        assertTrue(
+            generated.readText().contains("public object KiteBuildConfig"),
+            generated.readText(),
+        )
     }
 
     /**
