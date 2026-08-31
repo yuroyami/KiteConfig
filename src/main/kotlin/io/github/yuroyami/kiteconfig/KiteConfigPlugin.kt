@@ -475,11 +475,6 @@ class KiteConfigPlugin : Plugin<Project> {
             // orElse chain keeps any explicit choice in front of it.
             detectedKmpProjects.singleOrNull()?.let { ext.detectedSharedProject.set(it) }
             ext.detectedSharedProject.finalizeValue()
-            // Locales resolve from the shared module, so they only become knowable
-            // once the census above has run. Lock the list here rather than on
-            // first read: a build script that reads it earlier would otherwise
-            // freeze an empty list for the whole build.
-            ext.localesScope.pinned.finalizeValue()
             val diagnosticSelection = runCatching { ext.effectiveAndroidApps.get() }.getOrDefault(emptyList())
             val diagnosticApplications = diagnosticSelection.ifEmpty { detectedAndroidApplications.toList() }
             val detectedDirectories = diagnosticApplications.mapNotNull { path ->
@@ -556,6 +551,15 @@ class KiteConfigPlugin : Plugin<Project> {
             if (isResilientDiagnosticInvocation(target)) {
                 return@projectsEvaluated
             }
+            // Locales resolve from the shared module, so they only become knowable
+            // once the census above has run. Lock the list here rather than on
+            // first read: a build script that reads it earlier would otherwise
+            // freeze an empty list for the whole build.
+            //
+            // This sits below the resilient bail-out on purpose. Finalizing forces
+            // the detection convention, which can throw, and kiteDoctor exists to
+            // report a broken model rather than die inside configuration.
+            ext.localesScope.pinned.finalizeValue()
             if (detectedAndroidProjects.isNotEmpty() && ext.effectiveApplySdkLevels.get()) {
                 validateSdkLevels(
                     ext.android.compileSdk.orNull,

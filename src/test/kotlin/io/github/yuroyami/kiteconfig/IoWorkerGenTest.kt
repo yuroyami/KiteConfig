@@ -115,4 +115,17 @@ class IoWorkerGenTest {
         assertTrue(src.contains("worker-src blob:"), src)
         assertTrue(src.contains("jobJs.isNotBlank()"), src)
     }
+    /**
+     * The header lands in consumer source, so it must name a task they can
+     * actually run. It named `generateKiteConfigIoWorker<Target>`, which the
+     * plugin never registered.
+     */
+    @Test
+    fun `the generated header names the real regeneration task`() {
+        val src = generateIoWorkerSource("kiteconfig.generated")
+
+        assertTrue(src.contains("kiteInternalIoWorker<Target>"), src.take(400))
+        assertFalse(src.contains("generateKiteConfigIoWorker"), src.take(400))
+    }
+
 }
