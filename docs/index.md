@@ -94,8 +94,10 @@ In 3.0 the block **is** the switch. There is no separate `= true` flag: an empty
 `logo { }` counts as on, and leaving the block out counts as off.
 
 This surprises people. Adding `logo { }` installs nothing. It unlocks
-`kiteRewriteLogo` only when you also add `logo { rewrite { } }`, an `ios { rewrite { } }` block, and set
-`ios { deploymentTarget }`, and you then run that task yourself. A plain
+`kiteRewriteLogo` only when you also add `logo { rewrite { } }`, and you then run
+that task yourself. That much covers the Android launcher icons. The Apple
+AppIcon half additionally needs an `ios { rewrite { } }` block and
+`ios { deploymentTarget }`. A plain
 `./gradlew build` never writes outside `build/`, and CI asserts that on every
 commit.
 

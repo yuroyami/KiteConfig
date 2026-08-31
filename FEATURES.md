@@ -59,15 +59,15 @@ supported.
 | Setting | Default | Meaning |
 |---|---|---|
 | `appName`, `version`, `id`, its `suffix` corners, `ios.deploymentTarget`, and `jvmTarget` | Unset | KiteConfig leaves the matching platform value alone unless a configured feature needs it. |
-| `ios.marketingVersion` | `version`, when present | Apple can still use a separate marketing version. |
+| `version("x") { ios { marketingVersion } }` | `version`, when present | Apple can still use a separate marketing version. |
 | `formula` | Pack `1`, `major(3)`, `minor(3)`, `patch(2)`, and `reupload(1)` | One build-number formula for both platforms. |
 | `version { android { pin } }` | Unset, so the resolved code comes from the formula | Assign a value to bypass the formula. |
 | `version { ios { pin } }` and `version { desktop { pin } }` | Unset, so the resolved number is the formula result as a string | Assign a value to bypass the formula. |
 | `reupload` in each `version` corner | `0` | Re-upload dials. Bump one when a store burns a number. |
 | `locales` | Discover supported locale-only resource directories when a shared project or resources directory can be resolved | You can replace discovery with an explicit list. |
 | `skip(p)` / `only(p)` | flow everywhere | The only flow control. Beside a fact they gate that fact; at the root they silence a whole platform. |
-| `android.applySdkLevels` | `true` | Present Android SDK and NDK values are applied. |
-| `android.locales { filterAndroidRes }` | `false` | Locales do not prune packaged Android resources unless you opt in. |
+| `android { sdk(...) }` | Not configured | SDK alignment runs exactly when at least one of `compileSdk`, `minSdk`, `targetSdk`, or `ndk` is set. |
+| `locales { filterAndroidRes }` | `false` | Locales do not prune packaged Android resources unless you opt in. |
 | `logo {}` | Not configured | App icon installers are disabled. |
 | `ios { rewrite {} }` | Not armed | Apple source files are not changed. |
 | `ios.rewrite.cleanPlist` | `false` | The source Info.plist is not changed. |
@@ -87,8 +87,8 @@ supported.
 | `buildConfig.className` | `KiteBuildConfig` | The generated object uses this name. It does not clash with the `BuildConfig` that AGP generates. |
 | `buildConfig.includeIdentity` | `true` | Enabling BuildConfig requires complete identity values unless this is set to `false`. |
 | `buildConfig.allowBuildCache` | `false` | Generated values do not enter local or remote Gradle build caches unless you opt in. |
-| `desktop {}` | Not configured | No values reach Compose Desktop, and no installer icons are generated. |
-| `desktop.icons` | `true` | Generates installer icons only while `logo {}` is also configured. |
+| `desktop {}` | Not required | Desktop identity flows by default like every other platform. Open the block only for its own dials. Stop the flow with `skip(KitePlatform.DESKTOP)`. |
+| Installer icons | Generated | Produced whenever `logo { }` carries art that flows to desktop. Stop them with `logo { skip(KitePlatform.DESKTOP) }`. |
 | `desktop.logo { desktop { roundMac } }` | `true` | The generated macOS icon gets Apple's rounded-square mask. |
 | `desktop.linuxPackageName` | A Debian-legal slug derived from `appName` | Set it yourself when the slug is not the name you publish under. |
 | `desktop.deriveUpgradeUuid` | `false` | The Windows upgrade code is left to jpackage instead of being derived from `id`. |
@@ -112,9 +112,13 @@ Every member is a lazy `Provider`. Keep it lazy whenever the receiving API takes
 one, and call `get()` only when it needs a plain value:
 
 ```kotlin
-val requiredMinSdk: Int = ssot.android.minSdk.get()
-val optionalMinSdk: Int? = ssot.android.minSdk.orNull
+val minSdk: Int = kiteConfig.minSdk.get()
 ```
+
+A value the root build file never declared has no value at all, and `get()` stops
+the build. That is deliberate: falling back with `?: 24` would put a second copy
+of that number in the consumer, which is the duplication this plugin exists to
+remove.
 
 The root model also provides read-only derived providers:
 
@@ -145,11 +149,11 @@ selected.
 | Property | Type | Purpose and rules |
 |---|---|---|
 | `appName` | `Property<String>` | Android receives the `appName` manifest placeholder. Explicit Apple sync can use it for product and display names. |
-| `version` | `Property<String>` | Android display version and the default source for `ios.marketingVersion`. When consumed, it must be non-blank, contain no control characters, and contain at most 255 characters. |
+| `version` | `Property<String>` | Android display version and the default source for the Apple marketing version. When consumed, it must be non-blank, contain no control characters, and contain at most 255 characters. |
 | `version { android { pin } }` | `Property<Int>` | Android store build number in `1..2_100_000_000`. It follows the formula unless you assign a value. |
 | `version { android { reupload } }` | `Property<Int>` | Feeds the formula as `v.reupload`. Bump it when Play has already taken the current code. |
 | `android.version { android { shipped } }` | `Property<Int>` | Optional offline lower bound. The next resolved Android code must be greater while Android version propagation is active for a detected app. KiteConfig does not contact a store. |
-| `ios.marketingVersion` | `Property<String>` | Apple `MARKETING_VERSION` during explicit Apple sync. It must contain three non-negative integer components. |
+| `version("x") { ios { marketingVersion } }` | `Property<String>` | Apple `MARKETING_VERSION` during an explicit Xcode rewrite. It must contain three non-negative integer components. |
 | `version { ios { pin } }` | `Property<String>` | Apple `CURRENT_PROJECT_VERSION` during explicit Apple sync. It follows the formula unless you assign a value. An assigned value accepts one to three numeric components. The positive first part may use at most four digits, and each optional later part may use at most two. |
 | `version { ios { reupload } }` | `Property<Int>` | Feeds the formula as `v.reupload` for Apple. Bump it when TestFlight has already taken the current build number. |
 | `id` | `Property<String>` | Reverse-DNS base for every platform identifier. |
@@ -286,7 +290,7 @@ entries.
   `Base` and unrelated existing regions because KiteConfig does not own every
   `.lproj` directory.
 - Android resource filtering is separate and defaults to off.
-- With `android { locales { filterAndroidRes } = true }`, KiteConfig replaces the
+- With `locales { filterAndroidRes = true }`, KiteConfig replaces the
   selected application's locale-filter set with the canonical list.
 - AGP 9 uses `localeFilters`. AGP 8 uses compatible resource qualifiers.
 - On AGP 8, density, ABI, and unrelated resource configurations are preserved.
@@ -315,7 +319,8 @@ module's own `android {}` block. A value declared in `kiteConfig { }` therefore 
 Leaving a value unset preserves the module's value.
 
 SDK levels and the NDK version live in `android { }`. Use `android.ndk` for the
-NDK. `android.applySdkLevels = false` turns this alignment off.
+NDK. Alignment runs only for the values you actually set; leave them unset to
+leave the module's own values alone.
 
 `jvmTarget` is root-global policy. It aligns Java compatibility in compatible
 classic Android modules and Kotlin JVM targets in detected Kotlin
@@ -329,8 +334,8 @@ NDK syntax, Java levels, and supported runtime tool versions.
 
 BuildConfig generation is an optional way to read public app identity and
 client configuration from KMP code. Configuring `buildConfig { }` turns it on.
-Keep `enabled = false` inside the block when you want to force it off without
-deleting your configuration.
+Opening the block is the only switch: remove or comment out `buildConfig { }`
+to turn generation off.
 
 When enabled, KiteConfig:
 
@@ -381,7 +386,7 @@ JavaScript target uses a browser.
 When enabled, KiteConfig:
 
 - requires exact KMP project and Kotlin/JS browser target selection;
-- generates `kiteOffload` below
+- generates `kiteConfigOffload` below
   `build/generated/kiteconfig/<target>Main/kotlin`;
 - supports custom target names and package names;
 - includes request IDs and explicit success or error state in protocol messages;
@@ -442,7 +447,7 @@ the intended project explicitly with `modules { desktopApps(":desktopApp") }`.
 An explicitly selected project that applies `org.jetbrains.compose` but
 configures no desktop application also fails, naming that project.
 
-`desktop { icons = true }` requires a usable `logo { }` block: a foreground
+Installer icon generation requires a usable `logo { }` block: a foreground
 PNG plus exactly one of a background PNG or a background color. Configuration
 fails otherwise. With no `logo { }` block at all, icon generation defaults
 off instead of failing.
@@ -642,6 +647,37 @@ The takeover:
 - rolls back removed files if the batch cannot finish;
 - lists exact candidates without changing them when `dryRun = true`.
 
+## Launch screens
+
+`splash { }` delivers a launch screen from one block. Opening the block is the
+switch; it flows to every platform unless you stop it.
+
+```kotlin
+splash {
+    image = layout.projectDirectory.file("art/splash.png")   // default: logo { foreground }
+    backgroundColor = "#101014"                              // default: logo { backgroundColor }
+    dark {
+        image = layout.projectDirectory.file("art/splash-dark.png")
+        backgroundColor = "#000000"
+    }
+    android { theme = "Theme.App.Splash" }
+    rewrite { }        // arms the iOS delivery, like every other rewrite
+}
+```
+
+| Member | Default | Notes |
+| --- | --- | --- |
+| `image` | `logo { foreground }` | Art for the launch screen. |
+| `backgroundColor` | `logo { backgroundColor }` | Background behind the art. |
+| `dark { image }`, `dark { backgroundColor }` | unset | Dark-mode variant. |
+| `android { theme }` | unset | Theme name for the generated Android 12 splash. |
+| `rewrite { }` | not armed | Required for the iOS delivery, which also needs `ios { rewrite { } }`. |
+
+Android and desktop splashes are generated into `build/`. The iOS delivery
+writes `UILaunchScreen` and asset-catalog entries into your Xcode project, so it
+rides `kiteRewriteXcode` and needs both `splash { rewrite { } }` and
+`ios { rewrite { } }`. Diagnostics are `KTCNFG090` to `KTCNFG094`.
+
 ## Diagnostics
 
 | Task | Behavior |
@@ -677,7 +713,9 @@ Stable diagnostic families are:
 | `KTCNFG060` to `KTCNFG062` | KGP visibility and active AGP or KGP compatibility |
 | `KTCNFG070` to `KTCNFG071` | Exact Android project and Xcode target selectors |
 | `KTCNFG080` to `KTCNFG087` | Desktop identity, icons, Compose plugin compatibility, application selection, bundle identifier, package version, and Linux or Windows packaging names |
+| `KTCNFG090` to `KTCNFG094` | Splash delivery and its Android prerequisites |
 | `KTCNFG901` to `KTCNFG952` | Provider, path, and input-fingerprint resolution |
+| `KTCNFG960` to `KTCNFG967` | Splash, version-guard, and auto-rewrite provider resolution |
 | `KTCNFG999` | Unexpected diagnostic-engine failure |
 
 `KTCNFG011` follows `ios.rewrite.onConflict`. `FAIL` is an error. `KEEP` is a
@@ -725,7 +763,6 @@ KiteConfig does not currently provide:
 - Node.js or wasm workers;
 - SVG or vector icon input;
 - Dark or Tinted Apple icon variants;
-- launch-screen editing;
 - store API access;
 - signing configuration;
 - secret management;

@@ -92,7 +92,8 @@ abstract class KiteConfigBuildConfigExtension {
     /**
      * Name of the generated object. It must be a valid Kotlin identifier.
      *
-     * Default: `BuildConfig`.
+     * Default: `KiteBuildConfig`, which does not clash with the `BuildConfig`
+     * that AGP generates.
      */
     abstract val className: Property<String>
 

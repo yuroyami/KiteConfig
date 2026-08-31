@@ -16,13 +16,13 @@ import org.gradle.api.provider.Property
  * }
  * ```
  *
- * Shared truth stays at root. This block holds only what Android alone needs:
- * the ID suffix, the version code dials, SDK levels, and two apply switches.
+ * Shared truth stays at root. This block holds only the Android SDK and NDK
+ * levels. The id suffix lives in `id("base") { android { suffix } }`, and the
+ * build-number dials live in `version("x") { android { } }`.
  *
- * The plugin also exposes a read-only `applicationId: Provider<String>` here.
- * It is the root `id` joined with the suffix from `id("base") { android { suffix } }`.
- * Read it to wire other build
- * logic, for example into a manifest placeholder. You cannot set it.
+ * The resolved application id is readable as `kiteConfig.androidApplicationId`:
+ * the root `id` joined with that android suffix. Read it to wire other build
+ * logic, for example into a manifest placeholder. You cannot set it here.
  *
  * ## Which module types receive each SDK setting
  *

@@ -379,7 +379,8 @@ source-editing tasks run only when you name them.
 | `kiteCheck` | `build/` | Same checks as doctor, writes JSON or SARIF, fails on errors |
 | `kiteRewriteLogo` | source | Installs the logo into Android res and the iOS asset catalog |
 | `kiteRewriteXcode` | source | Applies Xcode build settings, plist, Podfile, Swift, and the iOS splash |
-| `kiteInternal*` | `build/` | Generators (build config, worker, icons, splash), wired automatically |
+| `kiteInternalBuildConfig`, `kiteInternalIoWorker*`, `kiteInternalDesktopIcons`, `kiteInternal*Splash` | `build/` | Generators, wired automatically |
+| `kiteInternalAndroidLogo`, `kiteInternalIosLogo`, `kiteInternalIosConfig`, `kiteInternalPlistClean`, `kiteInternalLegacyIconCleanup` | source | The installers behind the two `kiteRewrite*` umbrellas; they run only when you name one |
 
 Run `./gradlew kitePlan` before any rewrite. It shows the full mutation plan
 and writes nothing.
