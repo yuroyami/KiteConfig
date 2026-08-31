@@ -108,15 +108,31 @@ Order matters. `KiteSSOT` is replaced before `KiteSsot` so the all-caps display 
 find src -type f \( -name '*.kt' -o -name '*.java' \) -print0 \
   | xargs -0 sed -i '' \
     -e 's/io\.github\.yuroyami\.kitessot/io.github.yuroyami.kiteconfig/g' \
+    -e 's/KITE_SSOT/KITE_CONFIG/g' \
+    -e 's/KITESSOT/KITECONFIG/g' \
     -e 's/KiteSSOT/KiteConfig/g' \
     -e 's/KiteSsot/KiteConfig/g' \
     -e 's/kiteSsot/kiteConfig/g' \
     -e 's/kitessot/kiteconfig/g' \
-    -e 's/Ssot/Config/g'
+    -e 's/Ssot/Config/g' \
+    -e 's/SSOT/KiteConfig/g'
 ```
 
-The final `Ssot` rule runs last, after `KiteSsot` has already been consumed, and
-catches names carrying no `Kite` prefix such as `SsotValidation`.
+The order is load-bearing. Each rule consumes its spelling before a broader rule
+can reach it, so nothing is half-converted and nothing doubles up into
+`KiteKiteConfig`. Four of these catch spellings the first draft of this plan
+missed entirely:
+
+- `KITE_SSOT_REQUEST_ID` and `KITE_SSOT_DEFAULT_TIMEOUT_MILLIS` are constants in
+  the **generated** IO worker source (`IoWorkerGen.kt`), so they land in consumer
+  code. They become `KITE_CONFIG_*`.
+- `KITESSOT-COMPAT-001` through `-006` are a second diagnostic family, separate
+  from the `KMPS` codes, and appear in user-facing AGP compatibility errors.
+  They become `KITECONFIG-COMPAT-###`.
+- Bare `Ssot` catches names with no `Kite` prefix: `SsotValidation`,
+  `SsotVersion`, `SsotDriftLog`, `parseSsotVersion`, and several test helpers.
+- Bare `SSOT` is prose in KDoc, for example "uses the SSOT value". It becomes
+  "KiteConfig" so the docs stop using an acronym the plugin no longer carries.
 
 - [ ] **Step 3: Rename the class files themselves**
 
