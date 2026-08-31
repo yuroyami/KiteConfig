@@ -98,6 +98,10 @@ references across source, tests, and docs.
 - `.github/workflows/ci.yml` and `docs.yml`.
 - `.github/ISSUE_TEMPLATE/bug_report.yml`.
 - `mkdocs.yml`: site name and URL.
+- `build.gradle.kts` release endpoints, which fail the pipeline if missed: the
+  GitHub Packages repository URL `maven.pkg.github.com/yuroyami/KiteSSOT`, the
+  `gradlePlugin` `website` and `vcsUrl`, the POM scm connections, the Dokka
+  module name, and the jar manifest title.
 - The local git remote, which still points at the old repository URL. GitHub
   redirects it, so this is tidiness rather than a break.
 
@@ -339,8 +343,9 @@ of burying it in a few thousand renamed lines.
   returns `Property`, so the read-only boundary cannot rot.
 - A test that the generated class is `kiteconfig.generated.KiteBuildConfig`.
 - A rename sweep check: no `kitessot`, `kiteSsot`, `KiteSsot`, or `KMPS` string
-  survives anywhere in the repository except the README history section and the
-  CHANGELOG.
+  survives anywhere in the repository except historical documents, which keep
+  their original wording: the README history section, `CHANGELOG.md`,
+  `OVERHAUL.md`, `SOLAUDIT.md`, and `docs/superpowers/specs/`.
 
 `KdocExampleCompilationTest` already compiles KDoc samples, so the new samples
 are covered by it.
@@ -355,6 +360,11 @@ Version 1.0.0 under the new coordinate `io.github.yuroyami:kiteconfig`.
 The release guard requires a `## 1.0.0` heading in `CHANGELOG.md` matching an
 exact `v1.0.0` tag. The publish workflow's version variable and jar filename
 checks must be renamed first or the release fails.
+
+A brand-new plugin id goes through the portal's manual approval queue on its
+first publish, unlike a new version of an existing plugin. Expect
+`io.github.yuroyami.kiteconfig` 1.0.0 to sit pending for a while before it is
+publicly visible. This affects availability, not the publish workflow itself.
 
 ## Out of scope
 
