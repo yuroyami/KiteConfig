@@ -17,10 +17,10 @@ Conventions: `marketingVersion` follows `version`, build numbers follow the
 shared `formula`, and locales can be discovered. The model is frozen after
 root-project evaluation.
 
-The deprecated `Project.kiteConfig` accessor remains for source compatibility.
-It reaches across projects, exposes the mutable root model, and does not support
-Gradle Isolated Projects. New module build logic should use local platform
-configuration or generated values instead.
+The `kiteConfig` accessor gives any build file a read-only view of the resolved
+values. It reaches across projects, so it does not support Gradle Isolated
+Projects, which the plugin does not support anywhere. See "Reading values in
+Gradle build logic" below.
 
 ## What KiteConfig can manage
 
@@ -127,13 +127,14 @@ The root model also provides read-only derived providers:
 | `resolvedSharedProjectPath` | Effective shared Gradle project path |
 
 Read the derived provider when you want the resolved value.
-`android.versionCode` and `version { ios { pin } }` are inputs. They stay empty until
-you assign them, and an assigned `pin` replaces the formula result.
+`version("x") { android { pin } }` and `version("x") { ios { pin } }` are inputs.
+They stay empty until you assign them, and an assigned `pin` replaces the formula
+result.
 
-The deprecated `Project.kiteConfig` accessor is the compatibility path for old
-subproject scripts. Treat it as read-only. It reaches across projects and does
-not support Isolated Projects. Generated BuildConfig is the supported way to
-read selected identity and public client values from application code.
+The `kiteConfig` accessor is how build logic reads these values; the view it
+returns is read-only by type. For application code at runtime, the generated
+`KiteBuildConfig` object is the supported way to read identity and public client
+values.
 
 ## App identity and release values
 
@@ -188,13 +189,14 @@ When a consumer needs a derived number, `version` must use exactly `x.y.z` with
 no leading zeroes. Under the default formula, major and minor must be in
 `0..999`, patch must be in `0..99`, and reupload must be in `0..9`.
 
-Do you need a different shape? Write your own `formula { }`, or assign
-`android.versionCode` and `version { ios { pin } }` directly.
+Do you need a different shape? Write your own formula with
+`version("x") { formula { ... } }`, or pin an exact number per platform with
+`version("x") { android { pin } }` and `version("x") { ios { pin } }`.
 
 Upgrade note: the pre-3.0 formula gave `1.4.1` the code `1001004001`. The 3.0
 default gives `1001004010`. Derived version codes therefore change in 3.0. The
-new numbers are higher, so Play stays happy. Bring your old formula as a
-`formula { }` if you need the exact previous numbers.
+new numbers are higher, so Play stays happy. Bring your old formula in as
+`version("x") { formula { ... } }` if you need the exact previous numbers.
 
 ## Project and target selection
 

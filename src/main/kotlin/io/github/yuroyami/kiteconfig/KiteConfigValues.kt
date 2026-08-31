@@ -49,19 +49,32 @@ interface KiteConfigValues {
     /** The declared app name, before any platform corner overrides it. */
     val appName: Provider<String>
 
-    /** The app name as [platform] receives it, corner overrides applied. */
+    /**
+     * The app name resolved for [platform], with its corner override applied.
+     *
+     * This is the value the platform would receive. It does not account for
+     * `skip()` / `only()`: flow control decides whether KiteConfig writes the
+     * value, not what the value is. The same holds for [androidApplicationId],
+     * [iosBundleId], and [desktopBundleId].
+     */
     fun appNameFor(platform: KitePlatform): Provider<String>
 
     /** The declared base id, before any platform suffix. */
     val id: Provider<String>
 
-    /** Android application id: [id] plus its android corner suffix. */
+    /** Android application id: [id] plus its android corner suffix. Not gated by `skip()` / `only()`; see [appNameFor]. */
     val androidApplicationId: Provider<String>
 
-    /** Apple bundle id: [id] plus its ios corner suffix. */
+    /** Apple bundle id: [id] plus its ios corner suffix. Not gated by `skip()` / `only()`; see [appNameFor]. */
     val iosBundleId: Provider<String>
 
-    /** Desktop bundle id: [id] plus its desktop corner suffix. */
+    /**
+     * Desktop bundle id: [id] plus its desktop corner suffix.
+     *
+     * Not gated by `skip()` / `only()`; see [appNameFor]. Unlike the other
+     * values here, this one validates on read and throws when the result is
+     * not a valid reverse-DNS identifier.
+     */
     val desktopBundleId: Provider<String>
 
     // -------------------------------------------------------------------- build
