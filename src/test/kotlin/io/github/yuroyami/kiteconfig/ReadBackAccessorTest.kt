@@ -110,4 +110,50 @@ class ReadBackAccessorTest {
         assertTrue(result.output.contains("io.github.yuroyami.kiteconfig"), result.output)
         assertTrue(result.output.contains("root project"), result.output)
     }
+    /**
+     * The release pipeline builds with `--configuration-cache-problems=fail`, so a
+     * consumer reading through the accessor must not introduce a cache problem.
+     * A captured `Project` reference would be fatal there.
+     */
+    @Test
+    fun `reading through the accessor is configuration-cache clean and reusable`() {
+        write("settings.gradle.kts", """
+            rootProject.name = "fixture"
+            include(":app")
+        """)
+        write("build.gradle.kts", """
+            plugins { id("io.github.yuroyami.kiteconfig") }
+            kiteConfig {
+                id.set("com.example.app")
+                version.set("1.4.0")
+            }
+        """)
+        write("app/build.gradle.kts", """
+            import io.github.yuroyami.kiteconfig.kiteConfig
+
+            tasks.register("readBack") {
+                // Captured inside the configuration block on purpose: a script-level
+                // val would make the doLast lambda capture the script object, which
+                // the configuration cache cannot serialize.
+                val code = kiteConfig.versionCode
+                val appId = kiteConfig.androidApplicationId
+                doLast { println("CC_CODE=" + code.get() + " " + appId.get()) }
+            }
+        """)
+
+        val first = GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withPluginClasspath()
+            .withArguments(":app:readBack", "--configuration-cache", "--configuration-cache-problems=fail", "--stacktrace")
+            .build()
+        assertTrue(first.output.contains("CC_CODE=1001004000"), first.output)
+
+        val second = GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withPluginClasspath()
+            .withArguments(":app:readBack", "--configuration-cache", "--configuration-cache-problems=fail", "--stacktrace")
+            .build()
+        assertTrue(second.output.contains("Configuration cache entry reused."), second.output)
+    }
+
 }

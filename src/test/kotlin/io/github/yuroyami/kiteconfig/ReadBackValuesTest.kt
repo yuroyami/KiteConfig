@@ -51,7 +51,10 @@ class ReadBackValuesTest {
         val e = values()
         e.jvmTarget.set(17)
         e.locales { pinned.set(listOf("en", "fr")) }
-        e.android { sdk(min = 24, target = 35, compile = 35) }
+        e.android {
+            sdk(min = 24, target = 35, compile = 35)
+            ndk.set("27.0.12077973")
+        }
         val read: KiteConfigValues = e
 
         assertEquals(listOf("en", "fr"), read.canonicalLocales.get())
@@ -59,5 +62,6 @@ class ReadBackValuesTest {
         assertEquals(24, read.minSdk.get())
         assertEquals(35, read.targetSdk.get())
         assertEquals(35, read.compileSdk.get())
+        assertEquals("27.0.12077973", read.ndk.get())
     }
 }

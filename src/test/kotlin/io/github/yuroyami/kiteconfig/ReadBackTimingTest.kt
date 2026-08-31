@@ -211,9 +211,16 @@ class ReadBackTimingTest {
 
         // The baseline proves detection yields fr and de for this exact fixture.
         // Reading eagerly must not change what the build ends up using.
-        assertTrue(later != null, result.output)
+        val eager = Regex("EAGER=\\[(.*?)]").find(result.output)?.groupValues?.get(1)
+
+        assertTrue(later != null && eager != null, result.output)
         assertTrue(later!!.contains("fr") && later.contains("de")) {
             "an eager read changed the build's locales to \"$later\"; expected fr and de"
+        }
+        // The documented contract: an early reader sees an empty list locally,
+        // because detection has not run yet. Pin it so the KDoc cannot drift.
+        assertTrue(eager!!.isBlank()) {
+            "expected the eager read to see an empty list, saw \"$eager\""
         }
     }
 }
