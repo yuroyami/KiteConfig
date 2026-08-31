@@ -10,7 +10,7 @@ build/
 local.properties
 gradle.properties.local
 .claude
-*.kitessot.bak
-*.kitessot-journal.json
-.kitessot-owned-files-v1.lock
-**/.kitessot/**/*.lock
+*.kiteconfig.bak
+*.kiteconfig-journal.json
+.kiteconfig-owned-files-v1.lock
+**/.kiteconfig/**/*.lock

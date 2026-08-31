@@ -1,10 +1,10 @@
-# KiteSSOT feature reference
+# KiteConfig feature reference
 
-This page describes current KiteSSOT behavior. It is not a roadmap. Start with
+This page describes current KiteConfig behavior. It is not a roadmap. Start with
 the [README](README.md) if you are setting up the plugin for the first time.
 
-KiteSSOT is applied to the root Gradle project. You declare facts in one
-`kiteSsot {}` block, and one law governs everything:
+KiteConfig is applied to the root Gradle project. You declare facts in one
+`kiteConfig {}` block, and one law governs everything:
 
 1. Facts always flow, to every platform found, on every build, in memory or as
    files under `build/`. Declaring a fact is the consent. `skip()` and `only()`
@@ -17,14 +17,14 @@ Conventions: `marketingVersion` follows `version`, build numbers follow the
 shared `formula`, and locales can be discovered. The model is frozen after
 root-project evaluation.
 
-The deprecated `Project.kiteSsot` accessor remains for source compatibility.
+The deprecated `Project.kiteConfig` accessor remains for source compatibility.
 It reaches across projects, exposes the mutable root model, and does not support
 Gradle Isolated Projects. New module build logic should use local platform
 configuration or generated values instead.
 
-## What KiteSSOT can manage
+## What KiteConfig can manage
 
-| Area | What KiteSSOT can do |
+| Area | What KiteConfig can do |
 |---|---|
 | App identity | Share an app name, release version, Android application ID, Apple bundle ID, and locale list |
 | Android settings | Apply SDK levels, an NDK version, Java compatibility, Kotlin JVM compatibility, app identity, and optional locale filters |
@@ -47,18 +47,18 @@ configuration or generated values instead.
 | Configuration cache | Reuse is verified for the KGP integration on the current Gradle wrapper. |
 
 Declare KGP and AGP versions in the root `plugins` block with `apply false` when
-subprojects use them. This keeps their typed APIs visible to KiteSSOT. If a
+subprojects use them. This keeps their typed APIs visible to KiteConfig. If a
 requested integration is isolated in a sibling classloader, configuration fails
 with setup guidance instead of silently skipping the feature.
 
-KiteSSOT uses a root aggregation model. Gradle Isolated Projects are not
+KiteConfig uses a root aggregation model. Gradle Isolated Projects are not
 supported.
 
 ## Defaults
 
 | Setting | Default | Meaning |
 |---|---|---|
-| `appName`, `version`, `id`, its `suffix` corners, `ios.deploymentTarget`, and `jvmTarget` | Unset | KiteSSOT leaves the matching platform value alone unless a configured feature needs it. |
+| `appName`, `version`, `id`, its `suffix` corners, `ios.deploymentTarget`, and `jvmTarget` | Unset | KiteConfig leaves the matching platform value alone unless a configured feature needs it. |
 | `ios.marketingVersion` | `version`, when present | Apple can still use a separate marketing version. |
 | `formula` | Pack `1`, `major(3)`, `minor(3)`, `patch(2)`, and `reupload(1)` | One build-number formula for both platforms. |
 | `version { android { pin } }` | Unset, so the resolved code comes from the formula | Assign a value to bypass the formula. |
@@ -77,13 +77,13 @@ supported.
 | `backups` | `true` | Eligible user-owned files receive a recovery copy before first replacement. |
 | `dryRun` | `false` | Explicit installers and migrations apply their reviewed plan. Build-owned generators ignore this switch. |
 | `logo.logo { android { safeZone } }` | `66.0 / 108.0` | The adaptive-icon foreground uses Android's standard safe area. |
-| `ios.sync.targets(...)` | Empty | KiteSSOT selects an Xcode app automatically only when there is exactly one. |
+| `ios.sync.targets(...)` | Empty | KiteConfig selects an Xcode app automatically only when there is exactly one. |
 | `ios.sync.onConflict` | `FAIL` | A conflicting plist value stops the complete plist plan. |
 | `web { ioWorker {} }` | Not configured | No browser helper is generated. |
 | `web.ioWorker.projects(...)` and `web.ioWorker.targets(...)` | Empty | A browser runtime is never guessed. Project scope may fall back only to the selected shared project. |
-| `web.ioWorker.packageName` | `kitessot.generated` | Generated worker source uses this package. |
+| `web.ioWorker.packageName` | `kiteconfig.generated` | Generated worker source uses this package. |
 | `buildConfig {}` | Not configured | No runtime constants object is generated. |
-| `buildConfig.packageName` | `kitessot.generated` | Generated BuildConfig source uses this package. |
+| `buildConfig.packageName` | `kiteconfig.generated` | Generated BuildConfig source uses this package. |
 | `buildConfig.className` | `BuildConfig` | The generated object uses this name. |
 | `buildConfig.includeIdentity` | `true` | Enabling BuildConfig requires complete identity values unless this is set to `false`. |
 | `buildConfig.allowBuildCache` | `false` | Generated values do not enter local or remote Gradle build caches unless you opt in. |
@@ -99,10 +99,10 @@ The root extension exposes each configured value as a Gradle `Property` or
 `Provider`. Keep it lazy when another API accepts a provider:
 
 ```kotlin
-import io.github.yuroyami.kitessot.KiteSsotExtension
+import io.github.yuroyami.kiteconfig.KiteConfigExtension
 import org.gradle.kotlin.dsl.getByType
 
-val ssot = extensions.getByType<KiteSsotExtension>()
+val ssot = extensions.getByType<KiteConfigExtension>()
 val minSdkProvider = ssot.android.minSdk
 
 // Replace this with the other plugin's actual extension.
@@ -131,7 +131,7 @@ Read the derived provider when you want the resolved value.
 `android.versionCode` and `version { ios { pin } }` are inputs. They stay empty until
 you assign them, and an assigned `pin` replaces the formula result.
 
-The deprecated `Project.kiteSsot` accessor is the compatibility path for old
+The deprecated `Project.kiteConfig` accessor is the compatibility path for old
 subproject scripts. Treat it as read-only. It reaches across projects and does
 not support Isolated Projects. Generated BuildConfig is the supported way to
 read selected identity and public client values from application code.
@@ -148,7 +148,7 @@ selected.
 | `version` | `Property<String>` | Android display version and the default source for `ios.marketingVersion`. When consumed, it must be non-blank, contain no control characters, and contain at most 255 characters. |
 | `version { android { pin } }` | `Property<Int>` | Android store build number in `1..2_100_000_000`. It follows the formula unless you assign a value. |
 | `version { android { reupload } }` | `Property<Int>` | Feeds the formula as `v.reupload`. Bump it when Play has already taken the current code. |
-| `android.version { android { shipped } }` | `Property<Int>` | Optional offline lower bound. The next resolved Android code must be greater while Android version propagation is active for a detected app. KiteSSOT does not contact a store. |
+| `android.version { android { shipped } }` | `Property<Int>` | Optional offline lower bound. The next resolved Android code must be greater while Android version propagation is active for a detected app. KiteConfig does not contact a store. |
 | `ios.marketingVersion` | `Property<String>` | Apple `MARKETING_VERSION` during explicit Apple sync. It must contain three non-negative integer components. |
 | `version { ios { pin } }` | `Property<String>` | Apple `CURRENT_PROJECT_VERSION` during explicit Apple sync. It follows the formula unless you assign a value. An assigned value accepts one to three numeric components. The positive first part may use at most four digits, and each optional later part may use at most two. |
 | `version { ios { reupload } }` | `Property<Int>` | Feeds the formula as `v.reupload` for Apple. Bump it when TestFlight has already taken the current build number. |
@@ -163,7 +163,7 @@ Android needs an `Int` version code. Apple needs a `String` build number. One
 formula at root feeds both:
 
 ```kotlin
-kiteSsot {
+kiteConfig {
     version = "1.4.0"
 
     scheme { v -> ... }   // optional
@@ -199,13 +199,13 @@ new numbers are higher, so Play stays happy. Bring your old formula as a
 
 ## Project and target selection
 
-Selectors tell KiteSSOT exactly where a value or generated file belongs.
+Selectors tell KiteConfig exactly where a value or generated file belongs.
 
 | Selector | Selection rule |
 |---|---|
-| `modules.androidApps(...)` | Exact absolute Gradle project paths for app identity, app versions, app-name placeholders, locale filtering, and Android icon selection. Without a call, KiteSSOT selects a single detected app. Multiple detected apps require an explicit selector when an app-scoped operation is active. The single Android icon destination accepts at most one effective app. When no Android application plugin is applied, it can use `modules.androidAppDirectory`. SDK and JVM policy are not restricted by this selector. |
-| `modules.desktopApps(...)` | Exact absolute Gradle project paths for desktop app identity, build numbers, packaging names, and installer icons. Without a call, KiteSSOT selects a single detected Compose Desktop application. Multiple detected applications fail configuration and name every candidate. |
-| `modules.shared` | Exact KMP project that owns generated `commonMain` source and provides the default KMP scope. Without a value, KiteSSOT detects a sole KMP project. |
+| `modules.androidApps(...)` | Exact absolute Gradle project paths for app identity, app versions, app-name placeholders, locale filtering, and Android icon selection. Without a call, KiteConfig selects a single detected app. Multiple detected apps require an explicit selector when an app-scoped operation is active. The single Android icon destination accepts at most one effective app. When no Android application plugin is applied, it can use `modules.androidAppDirectory`. SDK and JVM policy are not restricted by this selector. |
+| `modules.desktopApps(...)` | Exact absolute Gradle project paths for desktop app identity, build numbers, packaging names, and installer icons. Without a call, KiteConfig selects a single detected Compose Desktop application. Multiple detected applications fail configuration and name every candidate. |
+| `modules.shared` | Exact KMP project that owns generated `commonMain` source and provides the default KMP scope. Without a value, KiteConfig detects a sole KMP project. |
 | `optIns.projects(...)` | Exact KMP projects that may receive Kotlin/Native opt-ins. Without a call, the scope can fall back to `modules.shared`. |
 | `web.ioWorker.projects(...)` | Exact KMP projects that may receive browser-worker source. Without a call, the scope can fall back to `modules.shared`. |
 | `web.ioWorker.targets(...)` | Exact Kotlin/JS targets that use a browser runtime. This list is required when the `ioWorker` block is configured. |
@@ -247,7 +247,7 @@ outside the declared root are rejected.
 
 ## Locales
 
-KiteSSOT stores one canonical locale list that can be rendered for Android
+KiteConfig stores one canonical locale list that can be rendered for Android
 resources and Xcode regions.
 
 ### Accepted values
@@ -264,7 +264,7 @@ resources and Xcode regions.
 
 ### Automatic discovery
 
-When `locales` is not set, KiteSSOT can scan the explicit
+When `locales` is not set, KiteConfig can scan the explicit
 `modules.composeResources` directory or the selected shared project's
 conventional Compose resources directory.
 
@@ -282,10 +282,10 @@ entries.
 ### Platform behavior
 
 - Explicit Apple sync adds canonical tags to `knownRegions`. It preserves
-  `Base` and unrelated existing regions because KiteSSOT does not own every
+  `Base` and unrelated existing regions because KiteConfig does not own every
   `.lproj` directory.
 - Android resource filtering is separate and defaults to off.
-- With `android { locales { filterAndroidRes } = true }`, KiteSSOT replaces the
+- With `android { locales { filterAndroidRes } = true }`, KiteConfig replaces the
   selected application's locale-filter set with the canonical list.
 - AGP 9 uses `localeFilters`. AGP 8 uses compatible resource qualifiers.
 - On AGP 8, density, ABI, and unrelated resource configurations are preserved.
@@ -310,7 +310,7 @@ entries.
 | Kotlin JVM target | When KGP is visible | When KGP is visible | Compatible Kotlin targets |
 
 App-scoped identity values are applied during AGP DSL finalization, after the
-module's own `android {}` block. A configured KiteSSOT value therefore wins.
+module's own `android {}` block. A configured KiteConfig value therefore wins.
 Leaving a value unset preserves the module's value.
 
 SDK levels and the NDK version live in `android { }`. Use `android.ndk` for the
@@ -321,7 +321,7 @@ classic Android modules and Kotlin JVM targets in detected Kotlin
 Multiplatform, Kotlin/JVM, and Kotlin Android projects. Module, native, and
 web selectors do not limit this alignment.
 
-Before use, KiteSSOT validates SDK relationships, application and bundle IDs,
+Before use, KiteConfig validates SDK relationships, application and bundle IDs,
 NDK syntax, Java levels, and supported runtime tool versions.
 
 ## Generated BuildConfig
@@ -331,10 +331,10 @@ client configuration from KMP code. Configuring `buildConfig { }` turns it on.
 Keep `enabled = false` inside the block when you want to force it off without
 deleting your configuration.
 
-When enabled, KiteSSOT:
+When enabled, KiteConfig:
 
 - generates one Kotlin object below
-  `build/generated/kitessot/commonMain/kotlin`;
+  `build/generated/kiteconfig/commonMain/kotlin`;
 - wires that directory into the selected shared project's `commonMain`;
 - can include the app name, version, version code, Android application ID,
   Apple bundle ID, and locales;
@@ -374,14 +374,14 @@ or other credentials in it.
 ## Browser Web Worker helper
 
 The optional worker helper is a single-shot API for Kotlin/JS browser targets.
-Configuring `web { ioWorker { } }` turns it on. KiteSSOT never guesses that a
+Configuring `web { ioWorker { } }` turns it on. KiteConfig never guesses that a
 JavaScript target uses a browser.
 
-When enabled, KiteSSOT:
+When enabled, KiteConfig:
 
 - requires exact KMP project and Kotlin/JS browser target selection;
 - generates `kiteOffload` below
-  `build/generated/kitessot/<target>Main/kotlin`;
+  `build/generated/kiteconfig/<target>Main/kotlin`;
 - supports custom target names and package names;
 - includes request IDs and explicit success or error state in protocol messages;
 - checks Worker, Blob, and object-URL browser APIs;
@@ -408,7 +408,7 @@ Configuring `desktop { }` extends the root `appName`, `version`, and `id`
 to that package, folds its build number into the same the formula every other
 platform uses, and generates its installer icons from your `logo { }` art.
 
-When enabled, KiteSSOT:
+When enabled, KiteConfig:
 
 - shares `appName`, `version`, and `id` with the detected Compose Desktop
   application, the same way it does for Android and iOS;
@@ -431,11 +431,11 @@ When enabled, KiteSSOT:
 
 Desktop values are written through the same early callback used for Android
 and iOS. Compose holds identity as plain `var` fields, not lazy `Property`
-objects, and reads them inside its own `afterEvaluate`. KiteSSOT registers
+objects, and reads them inside its own `afterEvaluate`. KiteConfig registers
 its write earlier than that; a later registration would let every value
 above land too late.
 
-KiteSSOT selects the sole Compose Desktop application project it detects.
+KiteConfig selects the sole Compose Desktop application project it detects.
 Two or more candidates fail configuration and name every one of them; select
 the intended project explicitly with `modules { desktopApps(":desktopApp") }`.
 An explicitly selected project that applies `org.jetbrains.compose` but
@@ -449,17 +449,17 @@ off instead of failing.
 The derived Windows upgrade code is a UUIDv5 built from a fixed namespace,
 `6b0f4c1e-6d4a-5a2f-9c3d-1f6b2a8e7d40`, and your resolved `id`. This
 namespace is a published contract: changing it would change every upgrade
-code KiteSSOT has ever derived, breaking in-place upgrades for everyone who
+code KiteConfig has ever derived, breaking in-place upgrades for everyone who
 already installed the app. An `upgradeUuid` a module already set is always
 kept.
 
 Windows `.msi` and `.exe` accept only `MAJOR.MINOR.BUILD` versions, with
 MAJOR and MINOR capped at 255 and BUILD at 65535. The cap applies only when
 Msi or Exe is an enabled target format. Debian and RPM package names must
-start with a letter or digit and be at least two characters long; KiteSSOT
+start with a letter or digit and be at least two characters long; KiteConfig
 derives one from `appName` or fails, naming `desktop { linuxPackageName }` as
 the escape hatch. The macOS bundle identifier follows the same reverse-DNS
-rule every Apple bundle ID in KiteSSOT uses: letters, digits, hyphens, and
+rule every Apple bundle ID in KiteConfig uses: letters, digits, hyphens, and
 periods, in at least two dot-separated segments.
 
 `org.jetbrains.compose` refuses to apply without the Kotlin Compose compiler
@@ -479,10 +479,10 @@ selected native compilations receive these markers:
 - `kotlin.experimental.ExperimentalNativeApi`
 
 `optIns { add("...") }` adds validated fully qualified marker names.
-KiteSSOT removes duplicates while preserving order.
+KiteConfig removes duplicates while preserving order.
 
 Only selected KMP projects and native compilations receive these options.
-KiteSSOT does not add annotations to source files.
+KiteConfig does not add annotations to source files.
 `optIns { projects(...) }` limits only this native policy. It does not
 limit the root-global JVM alignment from `jvmTarget`.
 
@@ -502,7 +502,7 @@ Explicit Xcode sync can update:
 - project-level locale regions;
 - an existing AppIcon catalog assignment.
 
-KiteSSOT follows `PBXNativeTarget` application entries through their
+KiteConfig follows `PBXNativeTarget` application entries through their
 configuration-list IDs to exact `XCBuildConfiguration` entries. It can select
 one or more named application targets, but it refuses to assign one bundle ID
 to multiple app targets.
@@ -526,7 +526,7 @@ It:
 - rejects duplicate or malformed root dictionary entries;
 - rejects input larger than 4 MiB when measured as UTF-8;
 - requires a lossless baseline round trip;
-- can add SSOT build-setting references;
+- can add KiteConfig build-setting references;
 - can manage `ITSAppUsesNonExemptEncryption` through
   `ios.sync.nonExemptEncryption`;
 - can manage `CADisableMinimumFrameDurationOnPhone` through
@@ -546,7 +546,7 @@ A failure produces no partial plist rewrite.
 
 Shared-module migration runs only when you call
 `ios { rewrite { renameSharedModule(from = "OldShared", to = "Shared") } }`. Both
-names are required. KiteSSOT does not infer the old module from a Podfile.
+names are required. KiteConfig does not infer the old module from a Podfile.
 
 The migration:
 
@@ -620,7 +620,7 @@ The installer creates an opaque 1024 by 1024 composite and a universal
 Tinted appearances and Icon Composer files remain outside this installer.
 
 Input decoding and output paths are bounded and validated. With backups enabled,
-first-contact recovery is stored below `.kitessot/recovery`, outside `build/`,
+first-contact recovery is stored below `.kiteconfig/recovery`, outside `build/`,
 so `clean` does not erase it. Checksum ownership is always enforced.
 Unreferenced PNG files are reported but not deleted.
 
@@ -653,12 +653,12 @@ The takeover:
 Configure the strict CI task from the root build:
 
 ```kotlin
-import io.github.yuroyami.kitessot.KiteSsotCheckTask
-import io.github.yuroyami.kitessot.KiteSsotDiagnosticReportFormat
+import io.github.yuroyami.kiteconfig.KiteConfigCheckTask
+import io.github.yuroyami.kiteconfig.KiteConfigDiagnosticReportFormat
 
-tasks.named<KiteSsotCheckTask>("kiteCheck") {
-    reportFormat.set(KiteSsotDiagnosticReportFormat.SARIF)
-    reportFile.set(layout.buildDirectory.file("reports/kitessot/diagnostics.sarif"))
+tasks.named<KiteConfigCheckTask>("kiteCheck") {
+    reportFormat.set(KiteConfigDiagnosticReportFormat.SARIF)
+    reportFile.set(layout.buildDirectory.file("reports/kiteconfig/diagnostics.sarif"))
     failOnWarnings.set(true)
 }
 ```
@@ -696,7 +696,7 @@ Every migration or installer follows these rules:
 - Text changes use sibling staging and atomic replacement where supported.
 - Directory durability is attempted after replacement.
 - When `backups` is enabled, first-contact text recovery uses a write-once
-  `.kitessot.bak` copy.
+  `.kiteconfig.bak` copy.
 - Multi-file Apple work locks and stages the complete batch.
 - Source snapshots are checked again immediately before commit.
 - A later commit failure rolls back files already changed by that transaction.
@@ -714,7 +714,7 @@ Every migration or installer follows these rules:
 
 ## Current limitations
 
-KiteSSOT does not currently provide:
+KiteConfig does not currently provide:
 
 - Gradle Isolated Projects support;
 - per-flavor, per-build-type, or per-Xcode-target identity overlays;

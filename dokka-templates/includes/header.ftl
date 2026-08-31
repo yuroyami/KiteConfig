@@ -5,7 +5,7 @@
   the guide site and the repository. Without it the API reference is a dead end:
   you can go deeper, but never back out to prose.
 
-  https://yuroyami.github.io/KiteSSOT/ and https://github.com/yuroyami/KiteSSOT are substituted per repository by
+  https://yuroyami.github.io/KiteConfig/ and https://github.com/yuroyami/KiteConfig are substituted per repository by
   _kite-docs/sync.sh. Edit the source in _kite-docs/, not the copies.
 -->
 <#import "source_set_selector.ftl" as source_set_selector>
@@ -27,8 +27,8 @@
             <@version/>
         </div>
         <nav class="kite-nav-links" aria-label="Kite documentation">
-            <a href="https://yuroyami.github.io/KiteSSOT/">Guide</a>
-            <a href="https://github.com/yuroyami/KiteSSOT">GitHub</a>
+            <a href="https://yuroyami.github.io/KiteConfig/">Guide</a>
+            <a href="https://github.com/yuroyami/KiteConfig">GitHub</a>
         </nav>
         <div class="navigation-controls">
             <@source_set_selector.display/>

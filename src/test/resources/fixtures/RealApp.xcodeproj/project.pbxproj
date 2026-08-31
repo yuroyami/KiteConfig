@@ -88,7 +88,7 @@
 				LastSwiftUpdateCheck = 1600;
 				LastUpgradeCheck = 1600;
 			};
-			buildConfigurationList = AB8AC7761A11AEE08184B9DC /* Build configuration list for PBXProject "KiteSsotRealFixture" */;
+			buildConfigurationList = AB8AC7761A11AEE08184B9DC /* Build configuration list for PBXProject "KiteConfigRealFixture" */;
 			compatibilityVersion = "Xcode 3.2";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
@@ -291,7 +291,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		AB8AC7761A11AEE08184B9DC /* Build configuration list for PBXProject "KiteSsotRealFixture" */ = {
+		AB8AC7761A11AEE08184B9DC /* Build configuration list for PBXProject "KiteConfigRealFixture" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				3D00437EF77B01C3E9327DB2 /* Debug */,

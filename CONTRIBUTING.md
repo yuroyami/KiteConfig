@@ -1,6 +1,6 @@
 # Contributing
 
-Thank you for improving KiteSSOT. Open an issue before you change the public API
+Thank you for improving KiteConfig. Open an issue before you change the public API
 or the behavior. That way we agree on platform scope, defaults, compatibility and
 migration before anyone writes code.
 

@@ -1,17 +1,17 @@
-# KiteSSOT
+# KiteConfig
 
 A Gradle plugin for Kotlin Multiplatform projects. You write your app's values
 once, in one block, in the root build file: app name, app id, version, version
 code, build number, locales, app logo, splash screen, generated build config,
-SDK levels, JVM level. KiteSSOT applies them to Android, iOS, and Compose
+SDK levels, JVM level. KiteConfig applies them to Android, iOS, and Compose
 Desktop for you. Without it, each platform keeps its own copy of these values,
 and the copies slowly stop matching.
 
-[![Gradle Plugin Portal](https://img.shields.io/gradle-plugin-portal/v/io.github.yuroyami.kitessot?label=plugin%20portal)](https://plugins.gradle.org/plugin/io.github.yuroyami.kitessot)
-[![CI](https://img.shields.io/github/actions/workflow/status/yuroyami/KiteSSOT/ci.yml?branch=main&label=CI)](https://github.com/yuroyami/KiteSSOT/actions/workflows/ci.yml)
+[![Gradle Plugin Portal](https://img.shields.io/gradle-plugin-portal/v/io.github.yuroyami.kiteconfig?label=plugin%20portal)](https://plugins.gradle.org/plugin/io.github.yuroyami.kiteconfig)
+[![CI](https://img.shields.io/github/actions/workflow/status/yuroyami/KiteConfig/ci.yml?branch=main&label=CI)](https://github.com/yuroyami/KiteConfig/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 
-**[Documentation](https://yuroyami.github.io/KiteSSOT/)** has the setup guide
+**[Documentation](https://yuroyami.github.io/KiteConfig/)** has the setup guide
 and the generated API reference.
 
 ## Three rules
@@ -23,7 +23,7 @@ The whole DSL works by three simple rules:
    as generated files under `build/`. Writing the value is all you have to
    do. To stop one value from reaching one platform, put `skip(platform)`
    next to it. `only(platform)` is the allowlist version of the same thing.
-2. **KiteSSOT never edits your project files by itself.**
+2. **KiteConfig never edits your project files by itself.**
    A normal build (`assemble`, `run`, anything) only sets values in memory
    and writes into the `build/` folder. Files like `project.pbxproj`,
    `Info.plist`, `Podfile`, and your Android `res/` stay untouched.
@@ -55,7 +55,7 @@ Apply the plugin to the **root** project only:
 
 ```kotlin
 plugins {
-    id("io.github.yuroyami.kitessot") version "4.2.0"
+    id("io.github.yuroyami.kiteconfig") version "1.0.0"
 }
 ```
 
@@ -63,7 +63,7 @@ Three lines are a complete setup. Locales auto-detect from Compose resources,
 the shared module and the app modules auto-detect too:
 
 ```kotlin
-kiteSsot {
+kiteConfig {
     appName = "Jetzy"
     version = "1.4.0"
     id      = "com.example.jetzy"
@@ -78,7 +78,7 @@ Everything else below is optional, and every value stays a lazy Gradle
 Every property, function, corner, and modifier that exists, in one block.
 
 ```kotlin
-kiteSsot {
+kiteConfig {
 
     /**
      * THE THREE RULES
@@ -221,8 +221,8 @@ kiteSsot {
         /** Arms kiteRewriteXcode: pbxproj, Info.plist, Podfile, Swift imports. */
         rewrite {
             targets("iosApp")             /** pbxproj application target names */
-            cleanPlist = true             /** maintain SSOT keys in the source plist */
-            onConflict = io.github.yuroyami.kitessot.PlistConflictPolicy.FAIL  /** FAIL | KEEP | REPLACE */
+            cleanPlist = true             /** maintain KiteConfig keys in the source plist */
+            onConflict = io.github.yuroyami.kiteconfig.PlistConflictPolicy.FAIL  /** FAIL | KEEP | REPLACE */
             nonExemptEncryption = false   /** ITSAppUsesNonExemptEncryption */
             proMotion = true              /** CADisableMinimumFrameDurationOnPhone */
             renameSharedModule(from = "shared", to = "Shared")
@@ -239,7 +239,7 @@ kiteSsot {
         ioWorker {
             targets("js")                 /** browser Kotlin/JS targets */
             projects(":composeApp")       /** default: all web-capable */
-            packageName = "kitessot.generated"
+            packageName = "kiteconfig.generated"
         }
     }
 
@@ -276,7 +276,7 @@ kiteSsot {
     /**
      * Run on AGP/KGP/Compose outside the tested range: hard guards become
      * one loud warning. Needs a forced opt-in in the build script:
-     * @file:OptIn(io.github.yuroyami.kitessot.DiscouragedKiteApi::class)
+     * @file:OptIn(io.github.yuroyami.kiteconfig.DiscouragedKiteApi::class)
      */
     /** ignoreVersionGuards = true */
 }
@@ -287,16 +287,16 @@ needed: `androidApplicationId`, `iosBundleId`, `desktopBundleId`,
 `versionCode`, `canonicalLocales`, `resolvedSharedProjectPath`.
 
 ```kotlin
-val ssot = extensions.getByType<io.github.yuroyami.kitessot.KiteSsotExtension>()
+val ssot = extensions.getByType<io.github.yuroyami.kiteconfig.KiteConfigExtension>()
 someOtherTask.someProperty.set(ssot.androidApplicationId)
 ```
 
-CLI overrides, per invocation, beat the build file: `-Pkitessot.dryRun=true`,
-`-Pkitessot.backups=false`.
+CLI overrides, per invocation, beat the build file: `-Pkiteconfig.dryRun=true`,
+`-Pkiteconfig.backups=false`.
 
 ## Tasks
 
-All in the `kitessot` group. Nothing attaches to `build` or `check`, so the
+All in the `kiteconfig` group. Nothing attaches to `build` or `check`, so the
 source-editing tasks run only when you name them.
 
 | Task | Writes | What it does |
@@ -340,3 +340,13 @@ and writes nothing.
 ## License
 
 Apache 2.0. See [LICENSE](LICENSE).
+
+## Name and version history
+
+This plugin has had three names. It shipped as `kmp-ssot` at 0.1.0, became
+KiteSSOT, and is now KiteConfig. The `KTCNFG` diagnostic prefix replaced an
+older `KMPS` prefix left over from the first name.
+
+The version resets to 1.0.0 here because the DSL surface has reached a stable
+form that is not planned to change. Earlier version numbers belong to the older
+names, and their published artifacts stay where they are.

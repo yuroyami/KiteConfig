@@ -1,4 +1,4 @@
-# Tooling for the KiteSSOT documentation site (https://yuroyami.github.io/KiteSSOT/).
+# Tooling for the KiteConfig documentation site (https://yuroyami.github.io/KiteConfig/).
 # Install with:  pip install -r docs/requirements.txt
 # Serve locally with:  mkdocs serve
 mkdocs-material>=9.5

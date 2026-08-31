@@ -1,16 +1,16 @@
 <div class="kite-hero" markdown>
 
-# KiteSSOT
+# KiteConfig
 
 One place to declare a Kotlin Multiplatform app's identity: name, version, bundle
-ID, locales and SDK levels. KiteSSOT propagates it to the Android, Xcode and
+ID, locales and SDK levels. KiteConfig propagates it to the Android, Xcode and
 Kotlin files that each normally keep their own copy.
 
 <div class="kite-hero-actions" markdown>
 [Get started](#the-shortest-setup-that-does-something){ .kite-primary }
 [API reference](api/)
-[Plugin Portal](https://plugins.gradle.org/plugin/io.github.yuroyami.kitessot)
-[GitHub](https://github.com/yuroyami/KiteSSOT)
+[Plugin Portal](https://plugins.gradle.org/plugin/io.github.yuroyami.kiteconfig)
+[GitHub](https://github.com/yuroyami/KiteConfig)
 </div>
 
 </div>
@@ -33,10 +33,10 @@ In the **root** `build.gradle.kts`:
 plugins {
     kotlin("multiplatform") version "2.4.10" apply false
     id("com.android.application") version "9.3.1" apply false
-    id("io.github.yuroyami.kitessot") version "4.2.0"
+    id("io.github.yuroyami.kiteconfig") version "1.0.0"
 }
 
-kiteSsot {
+kiteConfig {
     appName = "Jetzy"
     version = "1.4.0"
     id = "com.example.jetzy"
@@ -62,22 +62,22 @@ is not where you expected it.
     **The plugin goes on the root project.** Applying it in a submodule throws
     immediately, because it aggregates across `allprojects` from the root.
 
-    **Add `apply false` to the Kotlin and Android plugin lines.** KiteSSOT
+    **Add `apply false` to the Kotlin and Android plugin lines.** KiteConfig
     integrates with typed classes from KGP (the Kotlin Gradle plugin) and AGP
-    (the Android Gradle plugin). Those integrations run only when KiteSSOT can
+    (the Android Gradle plugin). Those integrations run only when KiteConfig can
     load the plugin classes from its own classloader. Declare
     `kotlin("multiplatform")` only inside a subproject and Gradle loads KGP with
-    a different classloader. KiteSSOT cannot read the plugin classes from there.
+    a different classloader. KiteConfig cannot read the plugin classes from there.
 
 ## Two tiers of switch
 
-KiteSSOT splits its work into two tiers.
+KiteConfig splits its work into two tiers.
 
-**Gradle configuration is automatic and continuous.** On every build, KiteSSOT
+**Gradle configuration is automatic and continuous.** On every build, KiteConfig
 applies the Android identity and SDK levels, aligns the Java and Kotlin JVM
 targets, and generates Kotlin under `build/`. This happens inside AGP's
 `finalizeDsl` hook, which runs after a module's own `android { }` block. A value
-set in `kiteSsot { }` therefore replaces the same value set in the module. Set
+set in `kiteConfig { }` therefore replaces the same value set in the module. Set
 the value. Nothing else is needed.
 
 **Edits to files you own are opt-in and manual.** `project.pbxproj`,
@@ -107,7 +107,7 @@ change. Set `dryRun = true` to make the mutating tasks report without writing.
 
 <div class="kite-cards" markdown>
 
-<a class="kite-card" href="https://github.com/yuroyami/KiteSSOT#readme">
+<a class="kite-card" href="https://github.com/yuroyami/KiteConfig#readme">
 <strong>README</strong>
 <span>The full guide: DSL reference, the task table, compatibility, and the current limits.</span>
 </a>
@@ -117,12 +117,12 @@ change. Set `dryRun = true` to make the mutating tasks report without writing.
 <span>Every extension property and task type, generated from source.</span>
 </a>
 
-<a class="kite-card" href="https://github.com/yuroyami/KiteSSOT/blob/main/FEATURES.md">
+<a class="kite-card" href="https://github.com/yuroyami/KiteConfig/blob/main/FEATURES.md">
 <strong>FEATURES.md</strong>
 <span>Behavior reference: what each switch does, and every default value.</span>
 </a>
 
-<a class="kite-card" href="https://github.com/yuroyami/KiteSSOT/blob/main/CHANGELOG.md">
+<a class="kite-card" href="https://github.com/yuroyami/KiteConfig/blob/main/CHANGELOG.md">
 <strong>Changelog</strong>
 <span>Release history, including the 2.x to 3.0 migration.</span>
 </a>
