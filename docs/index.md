@@ -90,7 +90,7 @@ takes three things:
 3. A set of containment, ownership, checksum, backup and rollback checks, which
    must all pass first.
 
-In 3.0 the block **is** the switch. There is no separate `= true` flag: an empty
+The block **is** the switch. There is no separate `= true` flag: an empty
 `logo { }` counts as on, and leaving the block out counts as off.
 
 This surprises people. Adding `logo { }` installs nothing. It unlocks

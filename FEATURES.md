@@ -73,10 +73,10 @@ supported.
 | `ios.rewrite.cleanPlist` | `false` | The source Info.plist is not changed. |
 | `ios.rewrite.renameSharedModule(...)` | Not called | Podfile and Swift module-reference migration is disabled. |
 | `optIns {}` | Not configured | Kotlin/Native opt-ins are not added. |
-| `logo.rewrite { replaceOld }` | `false` | Legacy Android icon takeover is not allowed. |
+| `logo { rewrite { replaceOld } }` | `false` | Legacy Android icon takeover is not allowed. |
 | `backups` | `true` | Eligible user-owned files receive a recovery copy before first replacement. |
 | `dryRun` | `false` | Explicit installers and migrations apply their reviewed plan. Build-owned generators ignore this switch. |
-| `logo.logo { android { safeZone } }` | `66.0 / 108.0` | The adaptive-icon foreground uses Android's standard safe area. |
+| `logo { android { safeZone } }` | `66.0 / 108.0` | The adaptive-icon foreground uses Android's standard safe area. |
 | `ios.rewrite.targets(...)` | Empty | KiteConfig selects an Xcode app automatically only when there is exactly one. |
 | `ios.rewrite.onConflict` | `FAIL` | A conflicting plist value stops the complete plist plan. |
 | `web { ioWorker {} }` | Not configured | No browser helper is generated. |
@@ -197,9 +197,9 @@ Do you need a different shape? Write your own formula with
 `version("x") { formula { ... } }`, or pin an exact number per platform with
 `version("x") { android { pin } }` and `version("x") { ios { pin } }`.
 
-Upgrade note: the pre-3.0 formula gave `1.4.1` the code `1001004001`. The 3.0
-default gives `1001004010`. Derived version codes therefore change in 3.0. The
-new numbers are higher, so Play stays happy. Bring your old formula in as
+Coming from an older plugin line, the derived numbers change: a formula that
+gave `1.4.1` the code `1001004001` now gives `1001004010`. The new numbers are
+higher, so Play still accepts them. Bring your old formula in as
 `version("x") { formula { ... } }` if you need the exact previous numbers.
 
 ## Project and target selection
@@ -241,10 +241,6 @@ Use typed Gradle path properties:
 `modules.shared` selects a Gradle project, not a directory. Swift and pod module
 identities are named in `ios { rewrite { renameSharedModule(from = ..., to = ...) } }`.
 
-The old `sharedModule`, `oldSharedModuleName`, `androidAppModule`,
-`iosProjectPath`, `iosPodfilePath`, `iosInfoPlistPath`, `iosAppDir`, and
-`iosAppiconsetPath` properties are removed. They have no replacement beyond the
-typed properties above.
 
 Every source-changing task keeps resolved paths inside the root project or the
 selected Apple source tree. Symlinks, special files, path traversal, and paths

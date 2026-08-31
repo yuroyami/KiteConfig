@@ -138,8 +138,10 @@ interface KiteConfigValues {
  * ```
  *
  * The returned view is read-only: configure the plugin in the root build file
- * and read it everywhere else. Values are frozen before subprojects are
- * evaluated, so what you read here is what the build uses.
+ * and read it everywhere else. The model is frozen before subprojects are
+ * evaluated, so what you read is what the build uses. Two values are the
+ * exception and settle later: see [KiteConfigValues.canonicalLocales] and
+ * [KiteConfigValues.resolvedSharedProjectPath].
  *
  * This reads across projects, so it is not compatible with Gradle Isolated
  * Projects. Neither is the rest of the plugin.
