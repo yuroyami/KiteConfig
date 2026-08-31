@@ -626,6 +626,28 @@ first-contact recovery is stored below `.kiteconfig/recovery`, outside `build/`,
 so `clean` does not erase it. Checksum ownership is always enforced.
 Unreferenced PNG files are reported but not deleted.
 
+### Ownership state, and whether to commit it
+
+The installers write into your source tree, so each one keeps a small receipt
+under `.kiteconfig/`: the list of files it created, with a checksum for each.
+That is how a rewrite tells its own output apart from a file you wrote by hand.
+A checksum that still matches may be replaced; anything else is left alone.
+
+**Commit these files.** They are small, they are plain text, and they travel with
+the outputs they describe. Without them a fresh clone has the generated icons but
+no proof of where they came from, so `kiteDoctor` reports the ownership manifest
+as missing (`KTCNFG022`, `KTCNFG031`) and a rewrite refuses to touch files it
+cannot vouch for. Both are the safe answer, but on a checkout that is actually
+fine they read as a failure.
+
+Recovery backups under `.kiteconfig/recovery` are a different matter: they are
+local safety copies of your pre-existing files, they can be large, and they are
+not worth committing.
+
+```gitignore
+.kiteconfig/recovery/
+```
+
 ### Legacy Android icon takeover
 
 `logo.rewrite { replaceOld }` authorizes a deliberate takeover of known legacy
