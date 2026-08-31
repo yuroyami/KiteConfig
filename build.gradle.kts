@@ -63,13 +63,13 @@ abstract class VerifyReleaseMetadataTask : DefaultTask() {
             "Release version is not a supported semantic version."
         }
         require(!resolvedVersion.uppercase(Locale.ROOT).endsWith("SNAPSHOT")) {
-            "Refusing to publish snapshot version '$resolvedVersion'. Pass -PkiteSsot.version from an exact v<version> tag."
+            "Refusing to publish snapshot version '$resolvedVersion'. Pass -PkiteConfig.version from an exact v<version> tag."
         }
         val tag = releaseTag.orNull
             ?.takeIf(String::isNotBlank)
             ?: error(
                 "Refusing to publish without an exact release tag. Set GITHUB_REF_NAME or " +
-                    "-PkiteSsot.releaseTag=v$resolvedVersion."
+                    "-PkiteConfig.releaseTag=v$resolvedVersion."
             )
         require(
             tag.length <= MAX_RELEASE_COORDINATE_LENGTH + 1 &&
@@ -150,7 +150,7 @@ abstract class VerifyReleaseSigningTask : DefaultTask() {
 }
 
 group = "io.github.yuroyami"
-version = providers.gradleProperty("kiteSsot.version").getOrElse("0.0.0-SNAPSHOT")
+version = providers.gradleProperty("kiteConfig.version").getOrElse("0.0.0-SNAPSHOT")
 
 java {
     withSourcesJar()
@@ -204,7 +204,7 @@ tasks.named<JavaCompile>(agp8AdapterSourceSet.compileJavaTaskName) {
 // silently unenforced. Declaring the sources as an input is what makes them real.
 tasks.named<Test>("test") {
     inputs.dir(layout.projectDirectory.dir("src/main/kotlin"))
-        .withPropertyName("kiteSsotDocumentedSources")
+        .withPropertyName("kiteConfigDocumentedSources")
         .withPathSensitivity(PathSensitivity.RELATIVE)
 }
 
@@ -253,7 +253,7 @@ tasks.register<Test>("agpCompatibilityTest") {
     }
     dependsOn(pluginJar)
     doFirst {
-        systemProperty("kitessot.test.pluginJar", pluginJar.get().archiveFile.get().asFile.absolutePath)
+        systemProperty("kiteconfig.test.pluginJar", pluginJar.get().archiveFile.get().asFile.absolutePath)
     }
     shouldRunAfter(tasks.named("test"))
 }
@@ -269,11 +269,11 @@ tasks.withType<Jar>().configureEach {
     }
     manifest {
         attributes(
-            "Implementation-Title" to "KiteSSOT Gradle Plugin",
+            "Implementation-Title" to "KiteConfig Gradle Plugin",
             "Implementation-Version" to project.version.toString(),
             "Implementation-Vendor" to "yuroyami",
             "Build-Revision" to providers.environmentVariable("GITHUB_SHA").getOrElse("unknown"),
-            "Automatic-Module-Name" to "io.github.yuroyami.kitessot",
+            "Automatic-Module-Name" to "io.github.yuroyami.kiteconfig",
         )
     }
 }
@@ -310,11 +310,11 @@ tasks.withType<BaseCyclonedxTask>().configureEach {
 // Shared Kite theme. Sources live in ../_kite-docs; ./_kite-docs/sync.sh copies
 // them here, so this repo still builds standalone from a fresh clone.
 dokka {
-    moduleName.set("KiteSSOT")
+    moduleName.set("KiteConfig")
     pluginsConfiguration.html {
         customStyleSheets.from(layout.projectDirectory.file("docs/api-theme/kite.css"))
         templatesDir.set(layout.projectDirectory.dir("dokka-templates"))
-        footerMessage.set("Apache-2.0 · KiteSSOT is part of the Kite family.")
+        footerMessage.set("Apache-2.0 · KiteConfig is part of the Kite family.")
     }
 }
 
@@ -388,13 +388,13 @@ tasks.named<org.gradle.plugin.devel.tasks.PluginUnderTestMetadata>("pluginUnderT
 }
 
 gradlePlugin {
-    website = "https://github.com/yuroyami/KiteSSOT"
-    vcsUrl = "https://github.com/yuroyami/KiteSSOT.git"
+    website = "https://github.com/yuroyami/KiteConfig"
+    vcsUrl = "https://github.com/yuroyami/KiteConfig.git"
     plugins {
-        create("kiteSsot") {
-            id = "io.github.yuroyami.kitessot"
-            implementationClass = "io.github.yuroyami.kitessot.KiteSsotPlugin"
-            displayName = "KiteSSOT"
+        create("kiteConfig") {
+            id = "io.github.yuroyami.kiteconfig"
+            implementationClass = "io.github.yuroyami.kiteconfig.KiteConfigPlugin"
+            displayName = "KiteConfig"
             description = "Single source of truth for Kotlin Multiplatform app configuration (identity, version, bundle ids, locales, launcher assets, generated BuildConfig) propagated to Android + iOS."
             tags = listOf("kotlin", "kotlin-multiplatform", "kmp", "android", "ios", "configuration", "versioning")
         }
@@ -405,11 +405,11 @@ gradlePlugin {
 publishing {
     publications.withType<MavenPublication>().configureEach {
         pom {
-            name.set("KiteSSOT Gradle Plugin")
+            name.set("KiteConfig Gradle Plugin")
             description.set(
                 "A safe, explicit single-source application model and platform adapter for Kotlin Multiplatform projects."
             )
-            url.set("https://github.com/yuroyami/KiteSSOT")
+            url.set("https://github.com/yuroyami/KiteConfig")
             inceptionYear.set("2026")
             licenses {
                 license {
@@ -427,18 +427,18 @@ publishing {
                 }
             }
             scm {
-                connection.set("scm:git:https://github.com/yuroyami/KiteSSOT.git")
-                developerConnection.set("scm:git:ssh://git@github.com/yuroyami/KiteSSOT.git")
-                url.set("https://github.com/yuroyami/KiteSSOT")
+                connection.set("scm:git:https://github.com/yuroyami/KiteConfig.git")
+                developerConnection.set("scm:git:ssh://git@github.com/yuroyami/KiteConfig.git")
+                url.set("https://github.com/yuroyami/KiteConfig")
                 tag.set("v${project.version}")
             }
             issueManagement {
                 system.set("GitHub Issues")
-                url.set("https://github.com/yuroyami/KiteSSOT/issues")
+                url.set("https://github.com/yuroyami/KiteConfig/issues")
             }
             ciManagement {
                 system.set("GitHub Actions")
-                url.set("https://github.com/yuroyami/KiteSSOT/actions")
+                url.set("https://github.com/yuroyami/KiteConfig/actions")
             }
         }
     }
@@ -453,7 +453,7 @@ publishing {
         }
         maven {
             name = "GitHubPackages"
-            url = uri("https://maven.pkg.github.com/yuroyami/KiteSSOT")
+            url = uri("https://maven.pkg.github.com/yuroyami/KiteConfig")
             credentials {
                 username = providers.environmentVariable("GITHUB_ACTOR")
                     .filter { it.isNotBlank() }
@@ -481,13 +481,13 @@ tasks.register<Sync>("stageUnsignedReleaseCandidate") {
         "javadocJar",
         "generatePomFileForPluginMavenPublication",
         "generateMetadataFileForPluginMavenPublication",
-        "generatePomFileForKiteSsotPluginMarkerMavenPublication",
+        "generatePomFileForKiteConfigPluginMarkerMavenPublication",
     )
 
     val releaseVersion = project.version.toString()
-    val implementationPath = "io/github/yuroyami/kitessot/$releaseVersion"
+    val implementationPath = "io/github/yuroyami/kiteconfig/$releaseVersion"
     val markerPath =
-        "io/github/yuroyami/kitessot/io.github.yuroyami.kitessot.gradle.plugin/$releaseVersion"
+        "io/github/yuroyami/kiteconfig/io.github.yuroyami.kiteconfig.gradle.plugin/$releaseVersion"
 
     into(layout.buildDirectory.dir("unsigned-release-candidate"))
     into(implementationPath) {
@@ -495,15 +495,15 @@ tasks.register<Sync>("stageUnsignedReleaseCandidate") {
         from(tasks.named<Jar>("sourcesJar").flatMap { it.archiveFile })
         from(tasks.named<Jar>("javadocJar").flatMap { it.archiveFile })
         from(layout.buildDirectory.file("publications/pluginMaven/pom-default.xml")) {
-            rename { "kitessot-$releaseVersion.pom" }
+            rename { "kiteconfig-$releaseVersion.pom" }
         }
         from(layout.buildDirectory.file("publications/pluginMaven/module.json")) {
-            rename { "kitessot-$releaseVersion.module" }
+            rename { "kiteconfig-$releaseVersion.module" }
         }
     }
     into(markerPath) {
-        from(layout.buildDirectory.file("publications/kiteSsotPluginMarkerMaven/pom-default.xml")) {
-            rename { "io.github.yuroyami.kitessot.gradle.plugin-$releaseVersion.pom" }
+        from(layout.buildDirectory.file("publications/kiteConfigPluginMarkerMaven/pom-default.xml")) {
+            rename { "io.github.yuroyami.kiteconfig.gradle.plugin-$releaseVersion.pom" }
         }
     }
 }
@@ -538,7 +538,7 @@ signing {
 val releaseVersionValue = version.toString()
 val releaseTagProvider = providers.environmentVariable("GITHUB_REF_NAME")
     .filter { it.isNotBlank() }
-    .orElse(providers.gradleProperty("kiteSsot.releaseTag").filter { it.isNotBlank() })
+    .orElse(providers.gradleProperty("kiteConfig.releaseTag").filter { it.isNotBlank() })
 
 tasks.register<VerifyReleaseMetadataTask>("verifyReleaseMetadata") {
     group = "verification"

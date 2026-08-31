@@ -1,4 +1,4 @@
-public final class io/github/yuroyami/kitessot/Agp8AndroidInputs {
+public final class io/github/yuroyami/kiteconfig/Agp8AndroidInputs {
 	public final field appName Ljava/lang/String;
 	public final field applicationId Ljava/lang/String;
 	public final field applyAppName Z
@@ -17,7 +17,7 @@ public final class io/github/yuroyami/kitessot/Agp8AndroidInputs {
 	public final field versionName Ljava/lang/String;
 }
 
-public abstract class io/github/yuroyami/kitessot/CleanupLegacyAppLogoArtifactsTask : org/gradle/api/DefaultTask {
+public abstract class io/github/yuroyami/kiteconfig/CleanupLegacyAppLogoArtifactsTask : org/gradle/api/DefaultTask {
 	public fun <init> ()V
 	public final fun cleanup ()V
 	public abstract fun getAndroidResDir ()Lorg/gradle/api/file/DirectoryProperty;
@@ -27,10 +27,19 @@ public abstract class io/github/yuroyami/kitessot/CleanupLegacyAppLogoArtifactsT
 	public abstract fun getProjectRootDir ()Lorg/gradle/api/file/DirectoryProperty;
 }
 
-public abstract interface annotation class io/github/yuroyami/kitessot/DiscouragedKiteApi : java/lang/annotation/Annotation {
+public final class io/github/yuroyami/kiteconfig/ConfigVersion {
+	public fun <init> (IIII)V
+	public final fun getMajor ()I
+	public final fun getMinor ()I
+	public final fun getPatch ()I
+	public final fun getReupload ()I
+	public fun toString ()Ljava/lang/String;
 }
 
-public abstract class io/github/yuroyami/kitessot/GenerateAndroidSplashTask : org/gradle/api/DefaultTask {
+public abstract interface annotation class io/github/yuroyami/kiteconfig/DiscouragedKiteApi : java/lang/annotation/Annotation {
+}
+
+public abstract class io/github/yuroyami/kiteconfig/GenerateAndroidSplashTask : org/gradle/api/DefaultTask {
 	public fun <init> ()V
 	public final fun generate ()V
 	public abstract fun getBackgroundColor ()Lorg/gradle/api/provider/Property;
@@ -42,7 +51,7 @@ public abstract class io/github/yuroyami/kitessot/GenerateAndroidSplashTask : or
 	public abstract fun getTheme ()Lorg/gradle/api/provider/Property;
 }
 
-public abstract class io/github/yuroyami/kitessot/GenerateBuildConfigTask : org/gradle/api/DefaultTask {
+public abstract class io/github/yuroyami/kiteconfig/GenerateBuildConfigTask : org/gradle/api/DefaultTask {
 	public fun <init> ()V
 	public final fun generate ()V
 	public abstract fun getAllowBuildCache ()Lorg/gradle/api/provider/Property;
@@ -62,7 +71,7 @@ public abstract class io/github/yuroyami/kitessot/GenerateBuildConfigTask : org/
 	public abstract fun getVersionName ()Lorg/gradle/api/provider/Property;
 }
 
-public abstract class io/github/yuroyami/kitessot/GenerateDesktopIconsTask : org/gradle/api/DefaultTask {
+public abstract class io/github/yuroyami/kiteconfig/GenerateDesktopIconsTask : org/gradle/api/DefaultTask {
 	public fun <init> ()V
 	public final fun generate ()V
 	public abstract fun getBackground ()Lorg/gradle/api/file/RegularFileProperty;
@@ -74,7 +83,7 @@ public abstract class io/github/yuroyami/kitessot/GenerateDesktopIconsTask : org
 	public abstract fun getRoundMacOsIcon ()Lorg/gradle/api/provider/Property;
 }
 
-public abstract class io/github/yuroyami/kitessot/GenerateDesktopSplashTask : org/gradle/api/DefaultTask {
+public abstract class io/github/yuroyami/kiteconfig/GenerateDesktopSplashTask : org/gradle/api/DefaultTask {
 	public fun <init> ()V
 	public final fun generate ()V
 	public abstract fun getBackgroundColor ()Lorg/gradle/api/provider/Property;
@@ -85,7 +94,7 @@ public abstract class io/github/yuroyami/kitessot/GenerateDesktopSplashTask : or
 	public abstract fun getOutputDir ()Lorg/gradle/api/file/DirectoryProperty;
 }
 
-public abstract class io/github/yuroyami/kitessot/GenerateIoWorkerTask : org/gradle/api/DefaultTask {
+public abstract class io/github/yuroyami/kiteconfig/GenerateIoWorkerTask : org/gradle/api/DefaultTask {
 	public fun <init> ()V
 	public final fun generate ()V
 	public abstract fun getDryRun ()Lorg/gradle/api/provider/Property;
@@ -94,103 +103,34 @@ public abstract class io/github/yuroyami/kitessot/GenerateIoWorkerTask : org/gra
 	public abstract fun getWorkerPackage ()Lorg/gradle/api/provider/Property;
 }
 
-public abstract class io/github/yuroyami/kitessot/KiteAppNameScope : io/github/yuroyami/kitessot/KiteFlowScope {
+public abstract class io/github/yuroyami/kiteconfig/KiteAppNameScope : io/github/yuroyami/kiteconfig/KiteFlowScope {
 	public fun <init> (Lorg/gradle/api/model/ObjectFactory;)V
-	public final fun getAndroid ()Lio/github/yuroyami/kitessot/KiteAppNameScope$NameToken;
-	public final fun getDesktop ()Lio/github/yuroyami/kitessot/KiteAppNameScope$NameToken;
-	public final fun getIos ()Lio/github/yuroyami/kitessot/KiteAppNameScope$NameToken;
+	public final fun getAndroid ()Lio/github/yuroyami/kiteconfig/KiteAppNameScope$NameToken;
+	public final fun getDesktop ()Lio/github/yuroyami/kiteconfig/KiteAppNameScope$NameToken;
+	public final fun getIos ()Lio/github/yuroyami/kiteconfig/KiteAppNameScope$NameToken;
 }
 
-public final class io/github/yuroyami/kitessot/KiteAppNameScope$NameToken : io/github/yuroyami/kitessot/KitePlatformRef {
-	public fun getPlatform ()Lio/github/yuroyami/kitessot/KitePlatform;
+public final class io/github/yuroyami/kiteconfig/KiteAppNameScope$NameToken : io/github/yuroyami/kiteconfig/KitePlatformRef {
+	public fun getPlatform ()Lio/github/yuroyami/kiteconfig/KitePlatform;
 	public final fun invoke (Ljava/lang/String;)V
 }
 
-public abstract class io/github/yuroyami/kitessot/KiteFlowScope {
-	public fun <init> ()V
-	public final fun only ([Lio/github/yuroyami/kitessot/KitePlatformRef;)V
-	public final fun skip ([Lio/github/yuroyami/kitessot/KitePlatformRef;)V
+public final class io/github/yuroyami/kiteconfig/KiteConfigAccessKt {
+	public static final fun getKiteConfig (Lorg/gradle/api/Project;)Lio/github/yuroyami/kiteconfig/KiteConfigExtension;
 }
 
-public abstract class io/github/yuroyami/kitessot/KiteIdScope : io/github/yuroyami/kitessot/KiteFlowScope {
-	public fun <init> (Lorg/gradle/api/model/ObjectFactory;)V
-	public final fun android (Lorg/gradle/api/Action;)V
-	public final fun desktop (Lorg/gradle/api/Action;)V
-	public final fun getAndroid ()Lio/github/yuroyami/kitessot/KiteIdScope$IdCorner;
-	public final fun getDesktop ()Lio/github/yuroyami/kitessot/KiteIdScope$IdCorner;
-	public final fun getIos ()Lio/github/yuroyami/kitessot/KiteIdScope$IdCorner;
-	public final fun ios (Lorg/gradle/api/Action;)V
-}
-
-public final class io/github/yuroyami/kitessot/KiteIdScope$IdCorner : io/github/yuroyami/kitessot/KitePlatformRef {
-	public fun getPlatform ()Lio/github/yuroyami/kitessot/KitePlatform;
-	public final fun getSuffix ()Lorg/gradle/api/provider/Property;
-}
-
-public abstract class io/github/yuroyami/kitessot/KiteLocalesScope : io/github/yuroyami/kitessot/KiteFlowScope {
-	public fun <init> ()V
-	public abstract fun getFilterAndroidRes ()Lorg/gradle/api/provider/Property;
-	public final fun pin ([Ljava/lang/String;)V
-}
-
-public final class io/github/yuroyami/kitessot/KitePlatform : java/lang/Enum {
-	public static final field ANDROID Lio/github/yuroyami/kitessot/KitePlatform;
-	public static final field DESKTOP Lio/github/yuroyami/kitessot/KitePlatform;
-	public static final field IOS Lio/github/yuroyami/kitessot/KitePlatform;
-	public static fun getEntries ()Lkotlin/enums/EnumEntries;
-	public static fun valueOf (Ljava/lang/String;)Lio/github/yuroyami/kitessot/KitePlatform;
-	public static fun values ()[Lio/github/yuroyami/kitessot/KitePlatform;
-}
-
-public abstract interface class io/github/yuroyami/kitessot/KitePlatformRef {
-	public abstract fun getPlatform ()Lio/github/yuroyami/kitessot/KitePlatform;
-}
-
-public abstract class io/github/yuroyami/kitessot/KiteSplashScope : io/github/yuroyami/kitessot/KiteFlowScope {
-	public fun <init> (Lorg/gradle/api/model/ObjectFactory;)V
-	public final fun android (Lorg/gradle/api/Action;)V
-	public final fun dark (Lorg/gradle/api/Action;)V
-	public final fun getAndroid ()Lio/github/yuroyami/kitessot/KiteSplashScope$AndroidCorner;
-	public abstract fun getBackgroundColor ()Lorg/gradle/api/provider/Property;
-	public final fun getDark ()Lio/github/yuroyami/kitessot/KiteSplashScope$DarkVariant;
-	public final fun getDesktop ()Lio/github/yuroyami/kitessot/KitePlatformRef;
-	public abstract fun getImage ()Lorg/gradle/api/file/RegularFileProperty;
-	public final fun getIos ()Lio/github/yuroyami/kitessot/KitePlatformRef;
-	public final fun rewrite (Lorg/gradle/api/Action;)V
-}
-
-public abstract class io/github/yuroyami/kitessot/KiteSplashScope$AndroidCorner : io/github/yuroyami/kitessot/KitePlatformRef {
-	public fun <init> ()V
-	public final fun getPlatform ()Lio/github/yuroyami/kitessot/KitePlatform;
-	public abstract fun getTheme ()Lorg/gradle/api/provider/Property;
-}
-
-public abstract class io/github/yuroyami/kitessot/KiteSplashScope$DarkVariant {
-	public fun <init> ()V
-	public abstract fun getBackgroundColor ()Lorg/gradle/api/provider/Property;
-	public abstract fun getImage ()Lorg/gradle/api/file/RegularFileProperty;
-}
-
-public abstract class io/github/yuroyami/kitessot/KiteSplashScope$KiteSplashRewrite {
-	public fun <init> ()V
-}
-
-public final class io/github/yuroyami/kitessot/KiteSsotAccessKt {
-	public static final fun getKiteSsot (Lorg/gradle/api/Project;)Lio/github/yuroyami/kitessot/KiteSsotExtension;
-}
-
-public abstract class io/github/yuroyami/kitessot/KiteSsotAndroidExtension : io/github/yuroyami/kitessot/KitePlatformRef {
+public abstract class io/github/yuroyami/kiteconfig/KiteConfigAndroidExtension : io/github/yuroyami/kiteconfig/KitePlatformRef {
 	public fun <init> ()V
 	public abstract fun getCompileSdk ()Lorg/gradle/api/provider/Property;
 	public abstract fun getMinSdk ()Lorg/gradle/api/provider/Property;
 	public abstract fun getNdk ()Lorg/gradle/api/provider/Property;
-	public final fun getPlatform ()Lio/github/yuroyami/kitessot/KitePlatform;
+	public final fun getPlatform ()Lio/github/yuroyami/kiteconfig/KitePlatform;
 	public abstract fun getTargetSdk ()Lorg/gradle/api/provider/Property;
 	public final fun sdk (Ljava/lang/Integer;Ljava/lang/Integer;Ljava/lang/Integer;)V
-	public static synthetic fun sdk$default (Lio/github/yuroyami/kitessot/KiteSsotAndroidExtension;Ljava/lang/Integer;Ljava/lang/Integer;Ljava/lang/Integer;ILjava/lang/Object;)V
+	public static synthetic fun sdk$default (Lio/github/yuroyami/kiteconfig/KiteConfigAndroidExtension;Ljava/lang/Integer;Ljava/lang/Integer;Ljava/lang/Integer;ILjava/lang/Object;)V
 }
 
-public abstract class io/github/yuroyami/kitessot/KiteSsotBuildConfigExtension {
+public abstract class io/github/yuroyami/kiteconfig/KiteConfigBuildConfigExtension {
 	public fun <init> ()V
 	public final fun booleanField (Ljava/lang/String;Z)V
 	public final fun doubleField (Ljava/lang/String;D)V
@@ -206,7 +146,7 @@ public abstract class io/github/yuroyami/kitessot/KiteSsotBuildConfigExtension {
 	public final fun stringField (Ljava/lang/String;Lorg/gradle/api/provider/Provider;)V
 }
 
-public abstract class io/github/yuroyami/kitessot/KiteSsotCheckTask : io/github/yuroyami/kitessot/KiteSsotDiagnosticTaskBase {
+public abstract class io/github/yuroyami/kiteconfig/KiteConfigCheckTask : io/github/yuroyami/kiteconfig/KiteConfigDiagnosticTaskBase {
 	public fun <init> ()V
 	public final fun check ()V
 	public abstract fun getFailOnWarnings ()Lorg/gradle/api/provider/Property;
@@ -214,22 +154,22 @@ public abstract class io/github/yuroyami/kitessot/KiteSsotCheckTask : io/github/
 	public abstract fun getReportFormat ()Lorg/gradle/api/provider/Property;
 }
 
-public abstract class io/github/yuroyami/kitessot/KiteSsotDesktopExtension : io/github/yuroyami/kitessot/KitePlatformRef {
+public abstract class io/github/yuroyami/kiteconfig/KiteConfigDesktopExtension : io/github/yuroyami/kiteconfig/KitePlatformRef {
 	public fun <init> ()V
 	public abstract fun getDeriveUpgradeUuid ()Lorg/gradle/api/provider/Property;
 	public abstract fun getLinuxPackageName ()Lorg/gradle/api/provider/Property;
-	public final fun getPlatform ()Lio/github/yuroyami/kitessot/KitePlatform;
+	public final fun getPlatform ()Lio/github/yuroyami/kiteconfig/KitePlatform;
 }
 
-public final class io/github/yuroyami/kitessot/KiteSsotDiagnosticReportFormat : java/lang/Enum {
-	public static final field JSON Lio/github/yuroyami/kitessot/KiteSsotDiagnosticReportFormat;
-	public static final field SARIF Lio/github/yuroyami/kitessot/KiteSsotDiagnosticReportFormat;
+public final class io/github/yuroyami/kiteconfig/KiteConfigDiagnosticReportFormat : java/lang/Enum {
+	public static final field JSON Lio/github/yuroyami/kiteconfig/KiteConfigDiagnosticReportFormat;
+	public static final field SARIF Lio/github/yuroyami/kiteconfig/KiteConfigDiagnosticReportFormat;
 	public static fun getEntries ()Lkotlin/enums/EnumEntries;
-	public static fun valueOf (Ljava/lang/String;)Lio/github/yuroyami/kitessot/KiteSsotDiagnosticReportFormat;
-	public static fun values ()[Lio/github/yuroyami/kitessot/KiteSsotDiagnosticReportFormat;
+	public static fun valueOf (Ljava/lang/String;)Lio/github/yuroyami/kiteconfig/KiteConfigDiagnosticReportFormat;
+	public static fun values ()[Lio/github/yuroyami/kiteconfig/KiteConfigDiagnosticReportFormat;
 }
 
-public abstract class io/github/yuroyami/kitessot/KiteSsotDiagnosticTaskBase : org/gradle/api/DefaultTask {
+public abstract class io/github/yuroyami/kiteconfig/KiteConfigDiagnosticTaskBase : org/gradle/api/DefaultTask {
 	public fun <init> ()V
 	public abstract fun getActiveAgpVersion ()Lorg/gradle/api/provider/Property;
 	public abstract fun getActiveComposeVersion ()Lorg/gradle/api/provider/Property;
@@ -294,52 +234,52 @@ public abstract class io/github/yuroyami/kitessot/KiteSsotDiagnosticTaskBase : o
 	public abstract fun getVersionName ()Lorg/gradle/api/provider/Property;
 }
 
-public abstract class io/github/yuroyami/kitessot/KiteSsotDoctorTask : io/github/yuroyami/kitessot/KiteSsotDiagnosticTaskBase {
+public abstract class io/github/yuroyami/kiteconfig/KiteConfigDoctorTask : io/github/yuroyami/kiteconfig/KiteConfigDiagnosticTaskBase {
 	public fun <init> ()V
 	public final fun diagnose ()V
 }
 
-public abstract class io/github/yuroyami/kitessot/KiteSsotExtension : io/github/yuroyami/kitessot/KiteFlowScope {
+public abstract class io/github/yuroyami/kiteconfig/KiteConfigExtension : io/github/yuroyami/kiteconfig/KiteFlowScope {
 	public fun <init> ()V
 	public final fun android (Lorg/gradle/api/Action;)V
 	public final fun appName (Ljava/lang/String;Lorg/gradle/api/Action;)V
 	public final fun buildConfig (Lorg/gradle/api/Action;)V
 	public final fun desktop (Lorg/gradle/api/Action;)V
-	public final fun getAndroid ()Lio/github/yuroyami/kitessot/KiteSsotAndroidExtension;
+	public final fun getAndroid ()Lio/github/yuroyami/kiteconfig/KiteConfigAndroidExtension;
 	public final fun getAndroidApplicationId ()Lorg/gradle/api/provider/Provider;
 	public abstract fun getAppName ()Lorg/gradle/api/provider/Property;
 	public abstract fun getBackups ()Lorg/gradle/api/provider/Property;
-	public final fun getBuildConfig ()Lio/github/yuroyami/kitessot/KiteSsotBuildConfigExtension;
+	public final fun getBuildConfig ()Lio/github/yuroyami/kiteconfig/KiteConfigBuildConfigExtension;
 	public final fun getCanonicalLocales ()Lorg/gradle/api/provider/Provider;
-	public final fun getDesktop ()Lio/github/yuroyami/kitessot/KiteSsotDesktopExtension;
+	public final fun getDesktop ()Lio/github/yuroyami/kiteconfig/KiteConfigDesktopExtension;
 	public final fun getDesktopBundleId ()Lorg/gradle/api/provider/Provider;
 	public abstract fun getDryRun ()Lorg/gradle/api/provider/Property;
 	public abstract fun getId ()Lorg/gradle/api/provider/Property;
 	public abstract fun getIgnoreVersionGuards ()Lorg/gradle/api/provider/Property;
-	public final fun getIos ()Lio/github/yuroyami/kitessot/KiteSsotIosExtension;
+	public final fun getIos ()Lio/github/yuroyami/kiteconfig/KiteConfigIosExtension;
 	public final fun getIosBundleId ()Lorg/gradle/api/provider/Provider;
 	public abstract fun getJvmTarget ()Lorg/gradle/api/provider/Property;
-	public final fun getLogo ()Lio/github/yuroyami/kitessot/KiteSsotLogoExtension;
-	public final fun getModules ()Lio/github/yuroyami/kitessot/KiteSsotModulesExtension;
-	public final fun getOptIns ()Lio/github/yuroyami/kitessot/KiteSsotNativeOptInsExtension;
+	public final fun getLogo ()Lio/github/yuroyami/kiteconfig/KiteConfigLogoExtension;
+	public final fun getModules ()Lio/github/yuroyami/kiteconfig/KiteConfigModulesExtension;
+	public final fun getOptIns ()Lio/github/yuroyami/kiteconfig/KiteConfigNativeOptInsExtension;
 	public final fun getResolvedSharedProjectPath ()Lorg/gradle/api/provider/Provider;
 	public abstract fun getScheme ()Lorg/gradle/api/provider/Property;
 	public abstract fun getVersion ()Lorg/gradle/api/provider/Property;
 	public final fun getVersionCode ()Lorg/gradle/api/provider/Provider;
-	public final fun getWeb ()Lio/github/yuroyami/kitessot/KiteSsotWebExtension;
+	public final fun getWeb ()Lio/github/yuroyami/kiteconfig/KiteConfigWebExtension;
 	public final fun id (Ljava/lang/String;Lorg/gradle/api/Action;)V
 	public final fun ios (Lorg/gradle/api/Action;)V
 	public final fun locales (Lorg/gradle/api/Action;)V
 	public final fun logo (Lorg/gradle/api/Action;)V
 	public final fun modules (Lorg/gradle/api/Action;)V
 	public final fun optIns (Lorg/gradle/api/Action;)V
-	public final fun scheme (Lio/github/yuroyami/kitessot/VersionCodeScheme;)V
+	public final fun scheme (Lio/github/yuroyami/kiteconfig/VersionCodeScheme;)V
 	public final fun splash (Lorg/gradle/api/Action;)V
 	public final fun version (Ljava/lang/String;Lorg/gradle/api/Action;)V
 	public final fun web (Lorg/gradle/api/Action;)V
 }
 
-public abstract class io/github/yuroyami/kitessot/KiteSsotIoWorkerExtension {
+public abstract class io/github/yuroyami/kiteconfig/KiteConfigIoWorkerExtension {
 	public fun <init> ()V
 	public abstract fun getPackageName ()Lorg/gradle/api/provider/Property;
 	public abstract fun getProjects ()Lorg/gradle/api/provider/ListProperty;
@@ -348,20 +288,20 @@ public abstract class io/github/yuroyami/kitessot/KiteSsotIoWorkerExtension {
 	public final fun targets ([Ljava/lang/String;)V
 }
 
-public abstract class io/github/yuroyami/kitessot/KiteSsotIosExtension : io/github/yuroyami/kitessot/KitePlatformRef {
+public abstract class io/github/yuroyami/kiteconfig/KiteConfigIosExtension : io/github/yuroyami/kiteconfig/KitePlatformRef {
 	public fun <init> ()V
 	public abstract fun getAppDirectory ()Lorg/gradle/api/file/DirectoryProperty;
 	public abstract fun getAppIconDirectory ()Lorg/gradle/api/file/DirectoryProperty;
 	public abstract fun getDeploymentTarget ()Lorg/gradle/api/provider/Property;
 	public abstract fun getInfoPlist ()Lorg/gradle/api/file/RegularFileProperty;
 	public abstract fun getPbxproj ()Lorg/gradle/api/file/RegularFileProperty;
-	public final fun getPlatform ()Lio/github/yuroyami/kitessot/KitePlatform;
+	public final fun getPlatform ()Lio/github/yuroyami/kiteconfig/KitePlatform;
 	public abstract fun getPodfile ()Lorg/gradle/api/file/RegularFileProperty;
-	public final fun getRewrite ()Lio/github/yuroyami/kitessot/KiteSsotIosSyncExtension;
+	public final fun getRewrite ()Lio/github/yuroyami/kiteconfig/KiteConfigIosSyncExtension;
 	public final fun rewrite (Lorg/gradle/api/Action;)V
 }
 
-public abstract class io/github/yuroyami/kitessot/KiteSsotIosSyncExtension {
+public abstract class io/github/yuroyami/kiteconfig/KiteConfigIosSyncExtension {
 	public fun <init> ()V
 	public abstract fun getAuto ()Lorg/gradle/api/provider/Property;
 	public abstract fun getCleanPlist ()Lorg/gradle/api/provider/Property;
@@ -373,37 +313,37 @@ public abstract class io/github/yuroyami/kitessot/KiteSsotIosSyncExtension {
 	public final fun targets ([Ljava/lang/String;)V
 }
 
-public abstract class io/github/yuroyami/kitessot/KiteSsotLogoExtension : io/github/yuroyami/kitessot/KiteFlowScope {
+public abstract class io/github/yuroyami/kiteconfig/KiteConfigLogoExtension : io/github/yuroyami/kiteconfig/KiteFlowScope {
 	public fun <init> (Lorg/gradle/api/model/ObjectFactory;)V
 	public final fun android (Lorg/gradle/api/Action;)V
 	public final fun desktop (Lorg/gradle/api/Action;)V
-	public final fun getAndroid ()Lio/github/yuroyami/kitessot/KiteSsotLogoExtension$AndroidCorner;
+	public final fun getAndroid ()Lio/github/yuroyami/kiteconfig/KiteConfigLogoExtension$AndroidCorner;
 	public abstract fun getBackground ()Lorg/gradle/api/file/RegularFileProperty;
 	public abstract fun getBackgroundColor ()Lorg/gradle/api/provider/Property;
-	public final fun getDesktop ()Lio/github/yuroyami/kitessot/KiteSsotLogoExtension$DesktopCorner;
+	public final fun getDesktop ()Lio/github/yuroyami/kiteconfig/KiteConfigLogoExtension$DesktopCorner;
 	public abstract fun getForeground ()Lorg/gradle/api/file/RegularFileProperty;
 	public final fun rewrite (Lorg/gradle/api/Action;)V
 }
 
-public abstract class io/github/yuroyami/kitessot/KiteSsotLogoExtension$AndroidCorner : io/github/yuroyami/kitessot/KitePlatformRef {
+public abstract class io/github/yuroyami/kiteconfig/KiteConfigLogoExtension$AndroidCorner : io/github/yuroyami/kiteconfig/KitePlatformRef {
 	public fun <init> ()V
-	public final fun getPlatform ()Lio/github/yuroyami/kitessot/KitePlatform;
+	public final fun getPlatform ()Lio/github/yuroyami/kiteconfig/KitePlatform;
 	public abstract fun getSafeZone ()Lorg/gradle/api/provider/Property;
 }
 
-public abstract class io/github/yuroyami/kitessot/KiteSsotLogoExtension$DesktopCorner : io/github/yuroyami/kitessot/KitePlatformRef {
+public abstract class io/github/yuroyami/kiteconfig/KiteConfigLogoExtension$DesktopCorner : io/github/yuroyami/kiteconfig/KitePlatformRef {
 	public fun <init> ()V
-	public final fun getPlatform ()Lio/github/yuroyami/kitessot/KitePlatform;
+	public final fun getPlatform ()Lio/github/yuroyami/kiteconfig/KitePlatform;
 	public abstract fun getRoundMac ()Lorg/gradle/api/provider/Property;
 }
 
-public abstract class io/github/yuroyami/kitessot/KiteSsotLogoExtension$LogoRewrite {
+public abstract class io/github/yuroyami/kiteconfig/KiteConfigLogoExtension$LogoRewrite {
 	public fun <init> ()V
 	public abstract fun getAuto ()Lorg/gradle/api/provider/Property;
 	public abstract fun getReplaceOld ()Lorg/gradle/api/provider/Property;
 }
 
-public abstract class io/github/yuroyami/kitessot/KiteSsotModulesExtension {
+public abstract class io/github/yuroyami/kiteconfig/KiteConfigModulesExtension {
 	public fun <init> ()V
 	public final fun androidApps ([Ljava/lang/String;)V
 	public final fun desktopApps ([Ljava/lang/String;)V
@@ -414,7 +354,7 @@ public abstract class io/github/yuroyami/kitessot/KiteSsotModulesExtension {
 	public abstract fun getShared ()Lorg/gradle/api/provider/Property;
 }
 
-public abstract class io/github/yuroyami/kitessot/KiteSsotNativeOptInsExtension {
+public abstract class io/github/yuroyami/kiteconfig/KiteConfigNativeOptInsExtension {
 	public fun <init> ()V
 	public final fun add ([Ljava/lang/String;)V
 	public abstract fun getBuiltIns ()Lorg/gradle/api/provider/Property;
@@ -423,7 +363,7 @@ public abstract class io/github/yuroyami/kitessot/KiteSsotNativeOptInsExtension 
 	public final fun projects ([Ljava/lang/String;)V
 }
 
-public abstract class io/github/yuroyami/kitessot/KiteSsotPlanTask : org/gradle/api/DefaultTask {
+public abstract class io/github/yuroyami/kiteconfig/KiteConfigPlanTask : org/gradle/api/DefaultTask {
 	public fun <init> ()V
 	public abstract fun getColorEnabled ()Lorg/gradle/api/provider/Property;
 	public abstract fun getExactChanges ()Lorg/gradle/api/provider/ListProperty;
@@ -436,17 +376,17 @@ public abstract class io/github/yuroyami/kitessot/KiteSsotPlanTask : org/gradle/
 	public final fun report ()V
 }
 
-public final class io/github/yuroyami/kitessot/KiteSsotPlugin : org/gradle/api/Plugin {
-	public static final field Companion Lio/github/yuroyami/kitessot/KiteSsotPlugin$Companion;
+public final class io/github/yuroyami/kiteconfig/KiteConfigPlugin : org/gradle/api/Plugin {
+	public static final field Companion Lio/github/yuroyami/kiteconfig/KiteConfigPlugin$Companion;
 	public fun <init> ()V
 	public synthetic fun apply (Ljava/lang/Object;)V
 	public fun apply (Lorg/gradle/api/Project;)V
 }
 
-public final class io/github/yuroyami/kitessot/KiteSsotPlugin$Companion {
+public final class io/github/yuroyami/kiteconfig/KiteConfigPlugin$Companion {
 }
 
-public abstract class io/github/yuroyami/kitessot/KiteSsotVerifyTask : org/gradle/api/DefaultTask {
+public abstract class io/github/yuroyami/kiteconfig/KiteConfigVerifyTask : org/gradle/api/DefaultTask {
 	public fun <init> ()V
 	public abstract fun getAndroidAppDirectories ()Lorg/gradle/api/provider/ListProperty;
 	public abstract fun getAndroidApplicationId ()Lorg/gradle/api/provider/Property;
@@ -480,62 +420,131 @@ public abstract class io/github/yuroyami/kitessot/KiteSsotVerifyTask : org/gradl
 	public final fun report ()V
 }
 
-public abstract class io/github/yuroyami/kitessot/KiteSsotWebExtension {
+public abstract class io/github/yuroyami/kiteconfig/KiteConfigWebExtension {
 	public fun <init> ()V
-	public final fun getIoWorker ()Lio/github/yuroyami/kitessot/KiteSsotIoWorkerExtension;
+	public final fun getIoWorker ()Lio/github/yuroyami/kiteconfig/KiteConfigIoWorkerExtension;
 	public final fun ioWorker (Lorg/gradle/api/Action;)V
 }
 
-public abstract class io/github/yuroyami/kitessot/KiteVersionScope : io/github/yuroyami/kitessot/KiteFlowScope {
+public abstract class io/github/yuroyami/kiteconfig/KiteFlowScope {
+	public fun <init> ()V
+	public final fun only ([Lio/github/yuroyami/kiteconfig/KitePlatformRef;)V
+	public final fun skip ([Lio/github/yuroyami/kiteconfig/KitePlatformRef;)V
+}
+
+public abstract class io/github/yuroyami/kiteconfig/KiteIdScope : io/github/yuroyami/kiteconfig/KiteFlowScope {
+	public fun <init> (Lorg/gradle/api/model/ObjectFactory;)V
+	public final fun android (Lorg/gradle/api/Action;)V
+	public final fun desktop (Lorg/gradle/api/Action;)V
+	public final fun getAndroid ()Lio/github/yuroyami/kiteconfig/KiteIdScope$IdCorner;
+	public final fun getDesktop ()Lio/github/yuroyami/kiteconfig/KiteIdScope$IdCorner;
+	public final fun getIos ()Lio/github/yuroyami/kiteconfig/KiteIdScope$IdCorner;
+	public final fun ios (Lorg/gradle/api/Action;)V
+}
+
+public final class io/github/yuroyami/kiteconfig/KiteIdScope$IdCorner : io/github/yuroyami/kiteconfig/KitePlatformRef {
+	public fun getPlatform ()Lio/github/yuroyami/kiteconfig/KitePlatform;
+	public final fun getSuffix ()Lorg/gradle/api/provider/Property;
+}
+
+public abstract class io/github/yuroyami/kiteconfig/KiteLocalesScope : io/github/yuroyami/kiteconfig/KiteFlowScope {
+	public fun <init> ()V
+	public abstract fun getFilterAndroidRes ()Lorg/gradle/api/provider/Property;
+	public final fun pin ([Ljava/lang/String;)V
+}
+
+public final class io/github/yuroyami/kiteconfig/KitePlatform : java/lang/Enum {
+	public static final field ANDROID Lio/github/yuroyami/kiteconfig/KitePlatform;
+	public static final field DESKTOP Lio/github/yuroyami/kiteconfig/KitePlatform;
+	public static final field IOS Lio/github/yuroyami/kiteconfig/KitePlatform;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/github/yuroyami/kiteconfig/KitePlatform;
+	public static fun values ()[Lio/github/yuroyami/kiteconfig/KitePlatform;
+}
+
+public abstract interface class io/github/yuroyami/kiteconfig/KitePlatformRef {
+	public abstract fun getPlatform ()Lio/github/yuroyami/kiteconfig/KitePlatform;
+}
+
+public abstract class io/github/yuroyami/kiteconfig/KiteSplashScope : io/github/yuroyami/kiteconfig/KiteFlowScope {
+	public fun <init> (Lorg/gradle/api/model/ObjectFactory;)V
+	public final fun android (Lorg/gradle/api/Action;)V
+	public final fun dark (Lorg/gradle/api/Action;)V
+	public final fun getAndroid ()Lio/github/yuroyami/kiteconfig/KiteSplashScope$AndroidCorner;
+	public abstract fun getBackgroundColor ()Lorg/gradle/api/provider/Property;
+	public final fun getDark ()Lio/github/yuroyami/kiteconfig/KiteSplashScope$DarkVariant;
+	public final fun getDesktop ()Lio/github/yuroyami/kiteconfig/KitePlatformRef;
+	public abstract fun getImage ()Lorg/gradle/api/file/RegularFileProperty;
+	public final fun getIos ()Lio/github/yuroyami/kiteconfig/KitePlatformRef;
+	public final fun rewrite (Lorg/gradle/api/Action;)V
+}
+
+public abstract class io/github/yuroyami/kiteconfig/KiteSplashScope$AndroidCorner : io/github/yuroyami/kiteconfig/KitePlatformRef {
+	public fun <init> ()V
+	public final fun getPlatform ()Lio/github/yuroyami/kiteconfig/KitePlatform;
+	public abstract fun getTheme ()Lorg/gradle/api/provider/Property;
+}
+
+public abstract class io/github/yuroyami/kiteconfig/KiteSplashScope$DarkVariant {
+	public fun <init> ()V
+	public abstract fun getBackgroundColor ()Lorg/gradle/api/provider/Property;
+	public abstract fun getImage ()Lorg/gradle/api/file/RegularFileProperty;
+}
+
+public abstract class io/github/yuroyami/kiteconfig/KiteSplashScope$KiteSplashRewrite {
+	public fun <init> ()V
+}
+
+public abstract class io/github/yuroyami/kiteconfig/KiteVersionScope : io/github/yuroyami/kiteconfig/KiteFlowScope {
 	public fun <init> ()V
 	public final fun android (Lorg/gradle/api/Action;)V
 	public final fun desktop (Lorg/gradle/api/Action;)V
-	public final fun formula (Lio/github/yuroyami/kitessot/VersionCodeScheme;)V
-	public final fun getAndroid ()Lio/github/yuroyami/kitessot/KiteVersionScope$AndroidCorner;
-	public final fun getDesktop ()Lio/github/yuroyami/kitessot/KiteVersionScope$DesktopCorner;
-	public final fun getIos ()Lio/github/yuroyami/kitessot/KiteVersionScope$IosCorner;
+	public final fun formula (Lio/github/yuroyami/kiteconfig/VersionCodeScheme;)V
+	public final fun getAndroid ()Lio/github/yuroyami/kiteconfig/KiteVersionScope$AndroidCorner;
+	public final fun getDesktop ()Lio/github/yuroyami/kiteconfig/KiteVersionScope$DesktopCorner;
+	public final fun getIos ()Lio/github/yuroyami/kiteconfig/KiteVersionScope$IosCorner;
 	protected abstract fun getObjects ()Lorg/gradle/api/model/ObjectFactory;
 	public final fun ios (Lorg/gradle/api/Action;)V
 }
 
-public abstract class io/github/yuroyami/kitessot/KiteVersionScope$AndroidCorner : io/github/yuroyami/kitessot/KitePlatformRef {
+public abstract class io/github/yuroyami/kiteconfig/KiteVersionScope$AndroidCorner : io/github/yuroyami/kiteconfig/KitePlatformRef {
 	public fun <init> ()V
-	public final fun formula (Lio/github/yuroyami/kitessot/VersionCodeScheme;)V
+	public final fun formula (Lio/github/yuroyami/kiteconfig/VersionCodeScheme;)V
 	public abstract fun getPin ()Lorg/gradle/api/provider/Property;
-	public final fun getPlatform ()Lio/github/yuroyami/kitessot/KitePlatform;
+	public final fun getPlatform ()Lio/github/yuroyami/kiteconfig/KitePlatform;
 	public abstract fun getReupload ()Lorg/gradle/api/provider/Property;
 	public abstract fun getShipped ()Lorg/gradle/api/provider/Property;
 }
 
-public abstract class io/github/yuroyami/kitessot/KiteVersionScope$DesktopCorner : io/github/yuroyami/kitessot/KitePlatformRef {
+public abstract class io/github/yuroyami/kiteconfig/KiteVersionScope$DesktopCorner : io/github/yuroyami/kiteconfig/KitePlatformRef {
 	public fun <init> ()V
-	public final fun formula (Lio/github/yuroyami/kitessot/VersionCodeScheme;)V
+	public final fun formula (Lio/github/yuroyami/kiteconfig/VersionCodeScheme;)V
 	public abstract fun getPin ()Lorg/gradle/api/provider/Property;
-	public final fun getPlatform ()Lio/github/yuroyami/kitessot/KitePlatform;
+	public final fun getPlatform ()Lio/github/yuroyami/kiteconfig/KitePlatform;
 	public abstract fun getReupload ()Lorg/gradle/api/provider/Property;
 	public abstract fun getShipped ()Lorg/gradle/api/provider/Property;
 }
 
-public abstract class io/github/yuroyami/kitessot/KiteVersionScope$IosCorner : io/github/yuroyami/kitessot/KitePlatformRef {
+public abstract class io/github/yuroyami/kiteconfig/KiteVersionScope$IosCorner : io/github/yuroyami/kiteconfig/KitePlatformRef {
 	public fun <init> ()V
-	public final fun formula (Lio/github/yuroyami/kitessot/VersionCodeScheme;)V
+	public final fun formula (Lio/github/yuroyami/kiteconfig/VersionCodeScheme;)V
 	public abstract fun getMarketingVersion ()Lorg/gradle/api/provider/Property;
 	public abstract fun getPin ()Lorg/gradle/api/provider/Property;
-	public final fun getPlatform ()Lio/github/yuroyami/kitessot/KitePlatform;
+	public final fun getPlatform ()Lio/github/yuroyami/kiteconfig/KitePlatform;
 	public abstract fun getReupload ()Lorg/gradle/api/provider/Property;
 	public abstract fun getShipped ()Lorg/gradle/api/provider/Property;
 }
 
-public final class io/github/yuroyami/kitessot/PlistConflictPolicy : java/lang/Enum {
-	public static final field FAIL Lio/github/yuroyami/kitessot/PlistConflictPolicy;
-	public static final field KEEP Lio/github/yuroyami/kitessot/PlistConflictPolicy;
-	public static final field REPLACE Lio/github/yuroyami/kitessot/PlistConflictPolicy;
+public final class io/github/yuroyami/kiteconfig/PlistConflictPolicy : java/lang/Enum {
+	public static final field FAIL Lio/github/yuroyami/kiteconfig/PlistConflictPolicy;
+	public static final field KEEP Lio/github/yuroyami/kiteconfig/PlistConflictPolicy;
+	public static final field REPLACE Lio/github/yuroyami/kiteconfig/PlistConflictPolicy;
 	public static fun getEntries ()Lkotlin/enums/EnumEntries;
-	public static fun valueOf (Ljava/lang/String;)Lio/github/yuroyami/kitessot/PlistConflictPolicy;
-	public static fun values ()[Lio/github/yuroyami/kitessot/PlistConflictPolicy;
+	public static fun valueOf (Ljava/lang/String;)Lio/github/yuroyami/kiteconfig/PlistConflictPolicy;
+	public static fun values ()[Lio/github/yuroyami/kiteconfig/PlistConflictPolicy;
 }
 
-public abstract class io/github/yuroyami/kitessot/SanitizeIosProjectTask : org/gradle/api/DefaultTask {
+public abstract class io/github/yuroyami/kiteconfig/SanitizeIosProjectTask : org/gradle/api/DefaultTask {
 	public fun <init> ()V
 	public abstract fun getBackup ()Lorg/gradle/api/provider/Property;
 	public abstract fun getConflictPolicy ()Lorg/gradle/api/provider/Property;
@@ -550,17 +559,8 @@ public abstract class io/github/yuroyami/kitessot/SanitizeIosProjectTask : org/g
 	public final fun sanitize ()V
 }
 
-public final class io/github/yuroyami/kitessot/SsotVersion {
-	public fun <init> (IIII)V
-	public final fun getMajor ()I
-	public final fun getMinor ()I
-	public final fun getPatch ()I
-	public final fun getReupload ()I
-	public fun toString ()Ljava/lang/String;
-}
-
-public abstract class io/github/yuroyami/kitessot/SyncAndroidLogoTask : org/gradle/api/DefaultTask {
-	public static final field Companion Lio/github/yuroyami/kitessot/SyncAndroidLogoTask$Companion;
+public abstract class io/github/yuroyami/kiteconfig/SyncAndroidLogoTask : org/gradle/api/DefaultTask {
+	public static final field Companion Lio/github/yuroyami/kiteconfig/SyncAndroidLogoTask$Companion;
 	public fun <init> ()V
 	public abstract fun getAndroidResDir ()Lorg/gradle/api/file/DirectoryProperty;
 	public abstract fun getBackgroundColorHex ()Lorg/gradle/api/provider/Property;
@@ -577,10 +577,10 @@ public abstract class io/github/yuroyami/kitessot/SyncAndroidLogoTask : org/grad
 	public final fun sync ()V
 }
 
-public final class io/github/yuroyami/kitessot/SyncAndroidLogoTask$Companion {
+public final class io/github/yuroyami/kiteconfig/SyncAndroidLogoTask$Companion {
 }
 
-public abstract class io/github/yuroyami/kitessot/SyncIosConfigTask : org/gradle/api/DefaultTask {
+public abstract class io/github/yuroyami/kiteconfig/SyncIosConfigTask : org/gradle/api/DefaultTask {
 	public fun <init> ()V
 	public abstract fun getAppName ()Lorg/gradle/api/provider/Property;
 	public abstract fun getAppiconsetDir ()Lorg/gradle/api/file/DirectoryProperty;
@@ -616,8 +616,8 @@ public abstract class io/github/yuroyami/kitessot/SyncIosConfigTask : org/gradle
 	public final fun sync ()V
 }
 
-public abstract class io/github/yuroyami/kitessot/SyncIosLogoTask : org/gradle/api/DefaultTask {
-	public static final field Companion Lio/github/yuroyami/kitessot/SyncIosLogoTask$Companion;
+public abstract class io/github/yuroyami/kiteconfig/SyncIosLogoTask : org/gradle/api/DefaultTask {
+	public static final field Companion Lio/github/yuroyami/kiteconfig/SyncIosLogoTask$Companion;
 	public fun <init> ()V
 	public abstract fun getAppiconsetDir ()Lorg/gradle/api/file/DirectoryProperty;
 	public abstract fun getBackgroundColorHex ()Lorg/gradle/api/provider/Property;
@@ -631,15 +631,15 @@ public abstract class io/github/yuroyami/kitessot/SyncIosLogoTask : org/gradle/a
 	public final fun sync ()V
 }
 
-public final class io/github/yuroyami/kitessot/SyncIosLogoTask$Companion {
+public final class io/github/yuroyami/kiteconfig/SyncIosLogoTask$Companion {
 }
 
-public abstract interface class io/github/yuroyami/kitessot/VersionCodeScheme {
-	public abstract fun compute (Lio/github/yuroyami/kitessot/SsotVersion;)I
+public abstract interface class io/github/yuroyami/kiteconfig/VersionCodeScheme {
+	public abstract fun compute (Lio/github/yuroyami/kiteconfig/ConfigVersion;)I
 }
 
-public final class io/github/yuroyami/kitessot/VersionSchemes {
-	public static final field INSTANCE Lio/github/yuroyami/kitessot/VersionSchemes;
-	public final fun getDEFAULT ()Lio/github/yuroyami/kitessot/VersionCodeScheme;
+public final class io/github/yuroyami/kiteconfig/VersionSchemes {
+	public static final field INSTANCE Lio/github/yuroyami/kiteconfig/VersionSchemes;
+	public final fun getDEFAULT ()Lio/github/yuroyami/kiteconfig/VersionCodeScheme;
 }
 

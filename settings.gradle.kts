@@ -1,1 +1,1 @@
-rootProject.name = "kitessot"
+rootProject.name = "kiteconfig"
