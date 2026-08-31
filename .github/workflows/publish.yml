@@ -229,12 +229,23 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
-        run: >-
-          gh release create "$GITHUB_REF_NAME"
-          build/libs/*.jar
-          build/libs/*.asc
-          build/artifact-checksums.sha256
-          build/reports/cyclonedx/bom.json
-          build/reports/cyclonedx/bom.xml
-          --verify-tag
-          --generate-notes
+        run: |
+          # A hand-written notes file wins when one exists for this tag; otherwise
+          # fall back to generated notes so an unprepared tag still releases.
+          NOTES=".github/release-notes/${GITHUB_REF_NAME}.md"
+          if [ -f "$NOTES" ]; then
+            NOTES_ARGS=(--notes-file "$NOTES")
+            echo "Using hand-written notes: $NOTES"
+          else
+            NOTES_ARGS=(--generate-notes)
+            echo "No notes file for $GITHUB_REF_NAME; generating notes."
+          fi
+          gh release create "$GITHUB_REF_NAME" \
+            build/libs/*.jar \
+            build/libs/*.asc \
+            build/artifact-checksums.sha256 \
+            build/reports/cyclonedx/bom.json \
+            build/reports/cyclonedx/bom.xml \
+            --verify-tag \
+            --latest \
+            "${NOTES_ARGS[@]}"

@@ -24,7 +24,17 @@ class RenameSweepTest {
      * name the plugin had at the time.
      */
     private val exemptDirs =
-        listOf("docs/superpowers/", "specs/", ".superpowers/", "build/", ".git/", ".gradle/")
+        listOf(
+            "docs/superpowers/",
+            "specs/",
+            ".superpowers/",
+            // Release notes describe one shipped version and name the plugin it
+            // migrated from. They are frozen the moment that version is tagged.
+            ".github/release-notes/",
+            "build/",
+            ".git/",
+            ".gradle/",
+        )
 
     private val scanned = setOf("kt", "kts", "java", "md", "yml", "yaml", "api", "ftl")
 
@@ -34,6 +44,21 @@ class RenameSweepTest {
         // rename pass that only looked for the joined forms.
         "kite ssot", "Kite SSOT", "kite-ssot", "kmp-ssot",
     )
+
+    /**
+     * Match whole path segments, never a raw prefix.
+     *
+     * `.git/` trimmed to `.git` also prefix-matches `.github`, which silently
+     * excluded every workflow and issue template from the sweep.
+     */
+    private fun File.isExempt(root: File): Boolean {
+        val rel = relativeTo(root).path.replace('\\', '/')
+        if (rel.isEmpty()) return false
+        return exemptDirs.any { raw ->
+            val dir = raw.trimEnd('/')
+            rel == dir || rel.startsWith("$dir/")
+        }
+    }
 
     private fun repoRoot(): File {
         var dir = File(".").canonicalFile
@@ -48,7 +73,7 @@ class RenameSweepTest {
         val root = repoRoot()
 
         val offences = root.walkTopDown()
-            .onEnter { dir -> exemptDirs.none { dir.relativeTo(root).path.replace('\\', '/').startsWith(it.trimEnd('/')) } }
+            .onEnter { dir -> !dir.isExempt(root) }
             .filter { it.isFile && it.extension in scanned }
             .filterNot { it.name in exemptFiles }
             .flatMap { file ->
@@ -75,7 +100,7 @@ class RenameSweepTest {
     fun `the sweep actually scans a meaningful number of files`() {
         val root = repoRoot()
         val scannedCount = root.walkTopDown()
-            .onEnter { dir -> exemptDirs.none { dir.relativeTo(root).path.replace('\\', '/').startsWith(it.trimEnd('/')) } }
+            .onEnter { dir -> !dir.isExempt(root) }
             .filter { it.isFile && it.extension in scanned }
             .count()
 
