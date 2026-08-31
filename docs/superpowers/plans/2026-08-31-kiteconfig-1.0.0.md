@@ -10,33 +10,28 @@
 
 **Spec:** `docs/superpowers/specs/2026-08-31-kiteconfig-1.0.0-design.md`
 
-## Current state, as of writing
+## Current state
 
-Most of Series 1 is **already applied in the working tree, uncommitted** (131
-files). Verify before redoing anything. Confirmed done:
+The repository is at a **clean KiteSSOT baseline**. Verified: the working tree
+has no uncommitted changes, and there is zero code difference between the 4.2.0
+release commit and HEAD. Source still lives under
+`src/main/kotlin/io/github/yuroyami/kitessot/`, the plugin id is still
+`io.github.yuroyami.kitessot`, and 94 `KMPS###` codes are untouched.
 
-- Task 1 (package, classes, DSL block): complete, zero old-name leftovers. It
-  also renamed bare `Ssot` names this plan originally missed, for example
-  `SsotValidation.kt` to `ConfigValidation.kt`.
-- Task 2 (build config, plugin id, `rootProject.name`, ABI dump filename): done.
-- Task 3 (CI workflows, issue template, mkdocs): done.
-- Task 6 name replacement in docs: done, and it covered five files this plan
-  originally missed. See "Files this plan first missed" below.
+Start at Task 1 and work through in order. Nothing is pre-applied.
 
-Confirmed **not** done:
+### History worth knowing
 
-- Task 4: 97 distinct `KMPS###` codes remain, zero `KTCNFG###`.
-- Task 5: `className.convention("BuildConfig")` is unchanged. The package is
-  already `kiteconfig.generated`, carried by Task 1's lowercase rule.
-- Task 6 remainder: the README history section, the `1.0.0` version bump in the
-  install snippets, and the git remote repoint.
-- All of Series 2. `KiteConfigAccess.kt` was renamed rather than deleted, and no
-  `KiteConfigValues.kt` exists.
-- Task 11 and Task 12 entirely.
+An earlier attempt applied most of Series 1, was lost to a git accident, and was
+reverted. Nothing survived except two lessons, both already folded into this
+plan: the five files listed below, and the bare `Ssot` rule in Task 1.
 
-Nothing is committed and the build has not been verified. Start by running
-`./gradlew build` to establish whether the applied rename is sound, then commit
-Series 1 before continuing.
+One process rule came out of it. **Only one agent or session may work this
+repository at a time.** The loss happened because two were editing the same
+working tree and one committed the other's staged files. When committing, always
+scope the pathspec explicitly, for example
+`git commit -- docs/superpowers/plans/`, because a bare `git commit` writes the
+entire index including anything another process staged.
 
 ## Files this plan first missed
 
