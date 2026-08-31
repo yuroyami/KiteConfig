@@ -252,38 +252,6 @@ abstract class KiteConfigExtension : KiteFlowScope(), KiteConfigValues {
 
     // ---------------------------------------------------------- Build numbers
 
-    /**
-     * The one formula that turns [version] into a store build number.
-     *
-     * Both platforms use it. You write it once. Android takes the result as
-     * `versionCode`; Apple takes the same number, as text, for
-     * `CURRENT_PROJECT_VERSION`.
-     *
-     * Default: [VersionSchemes.DEFAULT], which packs the version as
-     * `1 | major(3) | minor(3) | patch(2) | rebuild(1)`, so `1.4.0` becomes
-     * `1001004000` and `1.4.1` becomes `1001004010`. That reserves ten codes
-     * per version for re-uploads.
-     *
-     * ```kotlin
-     * formula { v -> 1_000_000 * v.major + 10_000 * v.minor + 100 * v.patch + v.reupload }
-     * ```
-     *
-     * Google Play compares codes as plain integers and remembers every one you
-     * have ever uploaded, so a new formula must always produce a **larger**
-     * number than your highest shipped code. Guard that with
-     * [KiteConfigAndroidExtension.publishedVersionCode].
-     *
-     * @throws org.gradle.api.GradleException at task time when the formula
-     *   returns a value outside `1..2_100_000_000`, the range Google Play
-     *   accepts.
-     * @see VersionSchemes.DEFAULT for the layout used when you set nothing.
-     */
-    abstract val scheme: Property<VersionCodeScheme>
-
-    /** Set the shared build-number formula. See [scheme]. */
-    fun scheme(scheme: VersionCodeScheme) {
-        this.scheme.set(scheme)
-    }
 
     // ----------------------------------------------------------------- Safety
 
@@ -612,10 +580,9 @@ abstract class KiteConfigExtension : KiteFlowScope(), KiteConfigValues {
     internal fun versionFlowsTo(p: KitePlatform): Provider<Boolean> =
         flowsTo(p).zip(versionScope.flowsTo(p)) { root, topic -> root && topic }
 
-    // Transition bridge: corner formula > topic formula > legacy platform scheme
-    // > legacy root scheme > default. The purge task deletes the legacy legs.
+    // Corner formula beats the topic formula, which beats the default.
     private fun activeFormula(corner: Provider<VersionCodeScheme>): Provider<VersionCodeScheme> =
-        corner.orElse(versionScope.formulaProp).orElse(schemeOrDefault)
+        corner.orElse(versionScope.formulaProp).orElse(VersionSchemes.DEFAULT)
 
     internal val effectiveAndroidVersionCode: Provider<Int>
         get() = versionScope.android.pin
@@ -645,9 +612,6 @@ abstract class KiteConfigExtension : KiteFlowScope(), KiteConfigValues {
 
     internal val effectiveIosMarketingVersion: Provider<String>
         get() = versionScope.ios.marketingVersion.orElse(effectiveVersion)
-
-    private val schemeOrDefault: Provider<VersionCodeScheme>
-        get() = scheme.orElse(VersionSchemes.DEFAULT)
 
     // --- ios ---
 

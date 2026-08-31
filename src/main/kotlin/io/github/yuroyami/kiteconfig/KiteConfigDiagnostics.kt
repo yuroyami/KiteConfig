@@ -1368,7 +1368,7 @@ private fun MutableList<KiteConfigDiagnostic>.diagnoseAndroidIcons(context: Kite
                     KiteConfigDiagnosticSeverity.ERROR,
                     "Android versionCode",
                     "No Android versionCode could be derived from version \"$version\".",
-                    "Use three numeric segments (x.y.z), supply kiteConfig { scheme { } }, " +
+                    "Use three numeric segments (x.y.z), supply version(\"x\") { formula { } }, " +
                         "or set android { versionCode }.",
                 ),
             )

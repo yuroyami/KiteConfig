@@ -10,7 +10,7 @@ private const val DEFAULT_MAX_PATCH = 99
 private const val DEFAULT_MAX_REUPLOAD = 9
 
 private const val LEGACY_SCHEME_SNIPPET =
-    "scheme { v -> (\"1\" + listOf(v.major, v.minor, v.patch)" +
+    "formula { v -> (\"1\" + listOf(v.major, v.minor, v.patch)" +
         ".joinToString(\"\") { it.toString().padStart(3, '0') }).toInt() }"
 
 /**
@@ -62,7 +62,7 @@ class ConfigVersion(
 /**
  * The one formula that turns a version into a build number.
  *
- * You write it once at root, as `scheme { }`. Android takes the result as
+ * You write it once, as `version("x") { formula { } }`. Android takes the result as
  * `versionCode`. Apple takes the same number, as text, for
  * `CURRENT_PROJECT_VERSION`. One number, two field types, no drift between the
  * platforms.
@@ -107,7 +107,7 @@ fun interface VersionCodeScheme {
 object VersionSchemes {
 
     /**
-     * The formula used when no `scheme { }` is present.
+     * The formula used when no `formula { }` is present.
      *
      * Layout: `1 | major(3) | minor(3) | patch(2) | rebuild(1)`.
      *
@@ -172,7 +172,7 @@ internal fun validateResolvedVersionCode(value: Int): Int {
         throw GradleException(
             "kiteConfig: the resolved build number $value is outside 1..$PLAY_VERSION_CODE_CEILING, " +
                 "the Google Play versionCode limit. Fix the formula in " +
-                "kiteConfig { scheme { v -> ... } }, or set the number yourself with " +
+                "version(\"x\") { formula { v -> ... } }, or set the number yourself with " +
                 "android { versionCode = ... } or ios { buildNumber = ... }.",
         )
     }
@@ -184,7 +184,7 @@ private fun requireSegment(version: ConfigVersion, property: String, value: Int,
     throw GradleException(
         "kiteConfig: the default build-number scheme cannot encode $property=$value " +
             "(version $version). Its layout allows $property in 0..$max. Supply your own formula " +
-            "with kiteConfig { scheme { v -> ... } }, or set the number yourself with " +
+            "with version(\"x\") { formula { v -> ... } }, or set the number yourself with " +
             "android { versionCode = ... } or ios { buildNumber = ... }." + segmentAdvice(property),
     )
 }

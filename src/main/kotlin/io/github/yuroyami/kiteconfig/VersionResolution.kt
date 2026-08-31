@@ -54,7 +54,7 @@ internal fun computeVersionCode(
         throw failure
     } catch (failure: Exception) {
         throw GradleException(
-            "kiteConfig { scheme } failed on version $parsed: ${failure.message}. " +
+            "kiteConfig { version { formula } } failed on version $parsed: ${failure.message}. " +
                 "Return a plain Int, or set the number yourself with $property.",
             failure,
         )

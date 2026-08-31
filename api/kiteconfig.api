@@ -266,7 +266,6 @@ public abstract class io/github/yuroyami/kiteconfig/KiteConfigExtension : io/git
 	public fun getNdk ()Lorg/gradle/api/provider/Provider;
 	public final fun getOptIns ()Lio/github/yuroyami/kiteconfig/KiteConfigNativeOptInsExtension;
 	public fun getResolvedSharedProjectPath ()Lorg/gradle/api/provider/Provider;
-	public abstract fun getScheme ()Lorg/gradle/api/provider/Property;
 	public fun getTargetSdk ()Lorg/gradle/api/provider/Provider;
 	public abstract fun getVersion ()Lorg/gradle/api/provider/Property;
 	public fun getVersionCode ()Lorg/gradle/api/provider/Provider;
@@ -277,7 +276,6 @@ public abstract class io/github/yuroyami/kiteconfig/KiteConfigExtension : io/git
 	public final fun logo (Lorg/gradle/api/Action;)V
 	public final fun modules (Lorg/gradle/api/Action;)V
 	public final fun optIns (Lorg/gradle/api/Action;)V
-	public final fun scheme (Lio/github/yuroyami/kiteconfig/VersionCodeScheme;)V
 	public final fun splash (Lorg/gradle/api/Action;)V
 	public final fun version (Ljava/lang/String;Lorg/gradle/api/Action;)V
 	public final fun web (Lorg/gradle/api/Action;)V
