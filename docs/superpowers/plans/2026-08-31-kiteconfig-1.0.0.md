@@ -1359,8 +1359,16 @@ The author verifies the plugin against every consumer project on their machine
 before any release. This task makes that possible and then stops.
 
 The release guard is wired only to `publishPlugins` and `publish*Repository`
-tasks, so `publishToMavenLocal` needs no release tag and no signing key. It runs
-clean on a developer machine.
+tasks, so `publishToMavenLocal` needs no release tag.
+
+It did need a signing fix, though. `com.gradle.plugin-publish` registers its own
+signing task for the plugin marker, separately from the guarded `sign(...)` call
+in `build.gradle.kts`. With no key on a developer machine that task fails, and
+excluding it only moves the failure to a missing `.asc` artifact the publication
+still expects. The fix is `signing { isRequired = releaseSigningKey.isPresent }`,
+so signing skips instead of failing when no key exists. Release safety is
+unchanged: `verifyReleaseSigning` still fails hard without a key, and every
+publishing task depends on it.
 
 **Files:**
 - No file changes. This task installs and hands off.
