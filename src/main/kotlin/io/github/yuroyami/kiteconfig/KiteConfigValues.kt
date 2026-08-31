@@ -1,5 +1,7 @@
 package io.github.yuroyami.kiteconfig
 
+import org.gradle.api.GradleException
+import org.gradle.api.Project
 import org.gradle.api.provider.Provider
 
 /**
@@ -85,3 +87,38 @@ interface KiteConfigValues {
     /** Pinned Android NDK version, in Android's `major.minor.build` form. */
     val ndk: Provider<String>
 }
+
+/**
+ * Everything KiteConfig resolved, readable from any project in the build.
+ *
+ * ```kotlin
+ * import io.github.yuroyami.kiteconfig.kiteConfig
+ *
+ * android {
+ *     defaultConfig {
+ *         versionCode = kiteConfig.versionCode.get()
+ *     }
+ * }
+ * ```
+ *
+ * The returned view is read-only: configure the plugin in the root build file
+ * and read it everywhere else. Values are frozen before subprojects are
+ * evaluated, so what you read here is what the build uses.
+ *
+ * This reads across projects, so it is not compatible with Gradle Isolated
+ * Projects. Neither is the rest of the plugin.
+ *
+ * If the plugin is missing from the build entirely, this import does not
+ * resolve and Kotlin reports that first. The exception below covers the
+ * narrower case where the plugin is on the classpath but was never applied to
+ * the root, for example when it was declared with `apply false`.
+ *
+ * @throws GradleException if the plugin is on the classpath but not applied to
+ *   the root project.
+ */
+val Project.kiteConfig: KiteConfigValues
+    get() = rootProject.extensions.findByType(KiteConfigExtension::class.java)
+        ?: throw GradleException(
+            "KiteConfig values are unavailable in '$path': apply the " +
+                "io.github.yuroyami.kiteconfig plugin to the root project first."
+        )

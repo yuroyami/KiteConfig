@@ -115,10 +115,6 @@ public final class io/github/yuroyami/kiteconfig/KiteAppNameScope$NameToken : io
 	public final fun invoke (Ljava/lang/String;)V
 }
 
-public final class io/github/yuroyami/kiteconfig/KiteConfigAccessKt {
-	public static final fun getKiteConfig (Lorg/gradle/api/Project;)Lio/github/yuroyami/kiteconfig/KiteConfigExtension;
-}
-
 public abstract class io/github/yuroyami/kiteconfig/KiteConfigAndroidExtension : io/github/yuroyami/kiteconfig/KitePlatformRef {
 	public fun <init> ()V
 	public abstract fun getCompileSdk ()Lorg/gradle/api/provider/Property;
@@ -413,6 +409,10 @@ public abstract interface class io/github/yuroyami/kiteconfig/KiteConfigValues {
 	public abstract fun getTargetSdk ()Lorg/gradle/api/provider/Provider;
 	public abstract fun getVersion ()Lorg/gradle/api/provider/Provider;
 	public abstract fun getVersionCode ()Lorg/gradle/api/provider/Provider;
+}
+
+public final class io/github/yuroyami/kiteconfig/KiteConfigValuesKt {
+	public static final fun getKiteConfig (Lorg/gradle/api/Project;)Lio/github/yuroyami/kiteconfig/KiteConfigValues;
 }
 
 public abstract class io/github/yuroyami/kiteconfig/KiteConfigVerifyTask : org/gradle/api/DefaultTask {
