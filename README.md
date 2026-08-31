@@ -357,6 +357,21 @@ time:
 someTask.localeList.set(kiteConfig.canonicalLocales)
 ```
 
+### Using it inside a task
+
+Capture the provider **inside** the task configuration block, not at script level:
+
+```kotlin
+tasks.register("printId") {
+    val appId = kiteConfig.androidApplicationId   // inside the block
+    doLast { println(appId.get()) }
+}
+```
+
+A script-level `val` makes the `doLast` lambda capture the build script object,
+which the configuration cache cannot serialize. This is a general Gradle rule,
+not specific to KiteConfig, but it is the first thing people hit.
+
 ### Limits
 
 Configure the plugin in the root build file and read it everywhere else. The
