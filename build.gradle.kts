@@ -518,6 +518,13 @@ val releaseSigningKeyId = providers.environmentVariable("SIGNING_KEY_ID")
     .orElse(providers.gradleProperty("signingKeyId").filter { it.isNotBlank() })
 
 signing {
+    // Signing is a release concern, and the plugin-publish plugin registers a
+    // signing task for its marker publication whether or not a key exists. With
+    // no key on a developer machine that task fails, which would block
+    // `publishToMavenLocal` for local testing. Skipping instead of failing costs
+    // nothing: a real release still has to pass `verifyReleaseSigning`, which
+    // every publishing task depends on.
+    isRequired = releaseSigningKey.isPresent
     if (releaseSigningKey.isPresent) {
         if (releaseSigningKeyId.isPresent) {
             useInMemoryPgpKeys(
