@@ -282,17 +282,65 @@ kiteConfig {
 }
 ```
 
-Read-back providers worth wiring into your own tasks, all lazy, no `.get()`
-needed: `androidApplicationId`, `iosBundleId`, `desktopBundleId`,
-`versionCode`, `canonicalLocales`, `resolvedSharedProjectPath`.
-
-```kotlin
-val ssot = extensions.getByType<io.github.yuroyami.kiteconfig.KiteConfigExtension>()
-someOtherTask.someProperty.set(ssot.androidApplicationId)
-```
+Everything KiteConfig resolves is readable from any build file. See
+[Reading values back](#reading-values-back).
 
 CLI overrides, per invocation, beat the build file: `-Pkiteconfig.dryRun=true`,
 `-Pkiteconfig.backups=false`.
+
+## Reading values back
+
+Everything KiteConfig resolves is readable from any build file in the project,
+not just the root. One import, then use it:
+
+```kotlin
+import io.github.yuroyami.kiteconfig.kiteConfig
+
+android {
+    defaultConfig {
+        versionCode = kiteConfig.versionCode.get()
+    }
+}
+```
+
+Eighteen values are available.
+
+| Group | Values |
+| --- | --- |
+| Version | `version`, `versionCode`, `iosBuildNumber`, `iosMarketingVersion`, `desktopBuildNumber` |
+| Identity | `appName`, `appNameFor(platform)`, `id`, `androidApplicationId`, `iosBundleId`, `desktopBundleId` |
+| Build | `canonicalLocales`, `jvmTarget`, `resolvedSharedProjectPath`, `minSdk`, `targetSdk`, `compileSdk`, `ndk` |
+
+Every one is a lazy `Provider`, so wiring one into another task's property costs
+nothing at configuration time:
+
+```kotlin
+someOtherTask.someProperty.set(kiteConfig.androidApplicationId)
+```
+
+### Values you never declared
+
+These accessors supply no defaults and never return null. A value the root build
+file never set has no value at all, and reading it stops the build:
+
+```kotlin
+kiteConfig.version.get()   // declared     -> the value
+                           // not declared -> throws
+```
+
+That is on purpose. Reading a value you never declared is a mistake in the build
+file, and quietly falling back to something like `?: 24` would put a second copy
+of that number in the consumer, which is the duplication this plugin exists to
+remove.
+
+### Limits
+
+Configure the plugin in the root build file and read it everywhere else. The
+view is read-only, and the model is frozen before subprojects are evaluated, so
+what you read is what the build uses.
+
+Reading across projects means this is not compatible with Gradle Isolated
+Projects. Neither is the rest of the plugin.
 
 ## Tasks
 

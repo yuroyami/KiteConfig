@@ -129,6 +129,45 @@ change. Set `dryRun = true` to make the mutating tasks report without writing.
 
 </div>
 
+## Reading values back
+
+Everything KiteConfig resolves is readable from any build file in the project,
+not just the root. One import, then use it:
+
+```kotlin
+import io.github.yuroyami.kiteconfig.kiteConfig
+
+android {
+    defaultConfig {
+        versionCode = kiteConfig.versionCode.get()
+    }
+}
+```
+
+Eighteen values are available.
+
+| Group | Values |
+| --- | --- |
+| Version | `version`, `versionCode`, `iosBuildNumber`, `iosMarketingVersion`, `desktopBuildNumber` |
+| Identity | `appName`, `appNameFor(platform)`, `id`, `androidApplicationId`, `iosBundleId`, `desktopBundleId` |
+| Build | `canonicalLocales`, `jvmTarget`, `resolvedSharedProjectPath`, `minSdk`, `targetSdk`, `compileSdk`, `ndk` |
+
+Every one is a lazy `Provider`, so wiring one into another task's property costs
+nothing at configuration time:
+
+```kotlin
+someOtherTask.someProperty.set(kiteConfig.androidApplicationId)
+```
+
+These accessors supply no defaults and never return null. A value the root build
+file never set has no value at all, and reading it stops the build. That is on
+purpose: quietly falling back to something like `?: 24` would put a second copy
+of that number in the consumer, which is the duplication this plugin exists to
+remove.
+
+Reading across projects means this is not compatible with Gradle Isolated
+Projects. Neither is the rest of the plugin.
+
 ## Compatibility
 
 Gradle 8.5 and newer, AGP 8.5.2 through 9.3.x, KGP 2.4.x, on a JDK 17 or 21
