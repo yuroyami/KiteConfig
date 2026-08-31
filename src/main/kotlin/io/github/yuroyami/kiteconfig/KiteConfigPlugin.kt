@@ -474,6 +474,11 @@ class KiteConfigPlugin : Plugin<Project> {
             // orElse chain keeps any explicit choice in front of it.
             detectedKmpProjects.singleOrNull()?.let { ext.detectedSharedProject.set(it) }
             ext.detectedSharedProject.finalizeValue()
+            // Locales resolve from the shared module, so they only become knowable
+            // once the census above has run. Lock the list here rather than on
+            // first read: a build script that reads it earlier would otherwise
+            // freeze an empty list for the whole build.
+            ext.localesScope.pinned.finalizeValue()
             val diagnosticSelection = runCatching { ext.effectiveAndroidApps.get() }.getOrDefault(emptyList())
             val diagnosticApplications = diagnosticSelection.ifEmpty { detectedAndroidApplications.toList() }
             val detectedDirectories = diagnosticApplications.mapNotNull { path ->
@@ -1571,15 +1576,19 @@ class KiteConfigPlugin : Plugin<Project> {
     /**
      * Freeze every validated DSL input before subprojects can observe it.
      *
-     * `locales` alone is frozen lazily: its convention walks the shared module's
-     * compose resources, and when the shared module comes from sole-KMP detection
-     * it is only known at projectsEvaluated, after this freeze runs. Eager
-     * finalization here would lock the list to empty before detection could speak.
+     * `locales` alone is not value-frozen here: its convention walks the shared
+     * module's compose resources, and when the shared module comes from sole-KMP
+     * detection it is only known at projectsEvaluated, after this freeze runs.
+     * Freezing the value here, or on first read, would lock an empty list before
+     * detection could speak. Mutation is still blocked; projectsEvaluated
+     * finalizes the value once it is knowable.
      */
     private fun finalizeModel(ext: KiteConfigExtension) {
         modelValues(ext).forEach { value ->
             if (value === ext.localesScope.pinned) {
-                value.finalizeValueOnRead()
+                // Not finalizeValueOnRead: an early reader would pin an empty list
+                // before locale detection runs. disallowChanges still blocks any
+                // late mutation; projectsEvaluated finalizes the value itself.
                 value.disallowChanges()
             } else {
                 value.finalizeValue()
