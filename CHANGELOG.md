@@ -4,6 +4,45 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions track the
 Gradle Plugin Portal releases.
 
+## 1.0.0
+
+The plugin is now KiteConfig. The previous name, KiteSSOT, published its last
+release as 4.2.0 and stays on the Gradle Plugin Portal under the old coordinate.
+The version resets here because the DSL surface has reached a stable form that
+is not planned to change.
+
+### Renames
+
+- Plugin id `io.github.yuroyami.kitessot` is now `io.github.yuroyami.kiteconfig`.
+- The `kiteSsot { }` block is now `kiteConfig { }`.
+- Gradle properties `-Pkitessot.dryRun`, `.backups`, and `.color` are now
+  `-Pkiteconfig.*`, and the release inputs are `-PkiteConfig.version` and
+  `-PkiteConfig.releaseTag`.
+- Diagnostic codes keep their numbers behind a new prefix, so `KMPS021` is now
+  `KTCNFG021`. The AGP compatibility codes move the same way, so
+  `KITESSOT-COMPAT-001` is now `KITECONFIG-COMPAT-001`.
+- The generated class is now `kiteconfig.generated.KiteBuildConfig`, which no
+  longer collides with the `BuildConfig` that AGP generates. Its generated
+  constants are now `KITE_CONFIG_*`.
+
+### Reading values back
+
+`kiteConfig` reads everything the plugin resolved, from any build file:
+
+```kotlin
+import io.github.yuroyami.kiteconfig.kiteConfig
+
+versionCode = kiteConfig.versionCode.get()
+```
+
+Eighteen values are exposed, covering version, identity, locales, the shared
+module path, and the Android SDK levels. Every one is a lazy `Provider`. None
+supplies a default: reading a value the root build file never declared stops the
+build instead of substituting one.
+
+The deprecated `kiteSsot` cross-project accessor is removed. It handed back the
+mutable model, and writes through it already failed against the frozen model.
+
 ## 4.2.0
 
 Identical to 4.1.1 in code. The 4.1.1 pipeline uploaded the plugin to the

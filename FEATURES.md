@@ -667,19 +667,19 @@ Stable diagnostic families are:
 
 | IDs | Area |
 |---|---|
-| `KMPS001` to `KMPS003` | Android app-name placeholder and launcher-icon references |
-| `KMPS010` to `KMPS012` | Source Info.plist references and Apple bundle-name compatibility |
-| `KMPS020` to `KMPS024` | Xcode target selection, AppIcon state, catalog selection, and deployment compatibility |
-| `KMPS030` to `KMPS031` | Android resource and icon state |
-| `KMPS040` | Locale canonicalization |
-| `KMPS050` | Build-number derivation |
-| `KMPS060` to `KMPS062` | KGP visibility and active AGP or KGP compatibility |
-| `KMPS070` to `KMPS071` | Exact Android project and Xcode target selectors |
-| `KMPS080` to `KMPS087` | Desktop identity, icons, Compose plugin compatibility, application selection, bundle identifier, package version, and Linux or Windows packaging names |
-| `KMPS901` to `KMPS952` | Provider, path, and input-fingerprint resolution |
-| `KMPS999` | Unexpected diagnostic-engine failure |
+| `KTCNFG001` to `KTCNFG003` | Android app-name placeholder and launcher-icon references |
+| `KTCNFG010` to `KTCNFG012` | Source Info.plist references and Apple bundle-name compatibility |
+| `KTCNFG020` to `KTCNFG024` | Xcode target selection, AppIcon state, catalog selection, and deployment compatibility |
+| `KTCNFG030` to `KTCNFG031` | Android resource and icon state |
+| `KTCNFG040` | Locale canonicalization |
+| `KTCNFG050` | Build-number derivation |
+| `KTCNFG060` to `KTCNFG062` | KGP visibility and active AGP or KGP compatibility |
+| `KTCNFG070` to `KTCNFG071` | Exact Android project and Xcode target selectors |
+| `KTCNFG080` to `KTCNFG087` | Desktop identity, icons, Compose plugin compatibility, application selection, bundle identifier, package version, and Linux or Windows packaging names |
+| `KTCNFG901` to `KTCNFG952` | Provider, path, and input-fingerprint resolution |
+| `KTCNFG999` | Unexpected diagnostic-engine failure |
 
-`KMPS011` follows `ios.sync.onConflict`. `FAIL` is an error. `KEEP` is a
+`KTCNFG011` follows `ios.sync.onConflict`. `FAIL` is an error. `KEEP` is a
 warning that describes intentionally preserved drift. `REPLACE` remains an
 error until the explicit migration applies the replacement.
 
