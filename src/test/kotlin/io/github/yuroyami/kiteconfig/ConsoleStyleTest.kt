@@ -56,6 +56,27 @@ class ConsoleStyleTest {
         assertEquals(emptyList<String>(), alignedRows(emptyList(), indent = "  "))
     }
 
+    /**
+     * The separator is part of the contract, not an accident of the host. Windows
+     * CI failed here before: `Path.toString()` produced `iosApp\Podfile` while
+     * every other platform produced `iosApp/Podfile`, so the same build emitted
+     * two different diagnostic strings.
+     */
+    @Test
+    fun `a project-relative display path uses forward slashes on every platform`() {
+        val root = Path.of("/repo/app").toAbsolutePath()
+        val nested = relativeDisplayPath(root, root.resolve("iosApp").resolve("Assets").resolve("Info.plist"))
+
+        assertEquals("iosApp/Assets/Info.plist", nested)
+        assertFalse(nested.contains('\\'), nested)
+    }
+
+    @Test
+    fun `the project root itself shows as a single dot`() {
+        val root = Path.of("/repo/app").toAbsolutePath()
+        assertEquals(".", relativeDisplayPath(root, root))
+    }
+
     @Test
     fun `a path inside the project shows relative, anything else stays absolute`() {
         val root = Path.of("/repo/app").toAbsolutePath()

@@ -89,12 +89,20 @@ internal fun alignedRows(
  * An absolute path is correct but unreadable: it pushes the interesting part of
  * the line off the right edge of a terminal. Anything outside the project stays
  * absolute, because there the full location is the point.
+ *
+ * A project-relative result always uses `/`, on every operating system, so console
+ * output and the machine-readable JSON and SARIF reports say the same thing
+ * whatever the build ran on. Only the displayed string is normalized; nothing here
+ * touches the paths used for actual file I/O. An absolute path outside the project
+ * keeps its platform-native form, because it is a real location on that machine.
  */
 internal fun relativeDisplayPath(root: Path, target: Path): String = runCatching {
     val normalizedRoot = root.toAbsolutePath().normalize()
     val normalizedTarget = target.toAbsolutePath().normalize()
     if (normalizedTarget.startsWith(normalizedRoot)) {
-        normalizedRoot.relativize(normalizedTarget).toString().ifEmpty { "." }
+        normalizedRoot.relativize(normalizedTarget)
+            .joinToString("/")
+            .ifEmpty { "." }
     } else {
         normalizedTarget.toString()
     }
