@@ -20,7 +20,8 @@ import org.gradle.api.provider.Property
  * the ID suffix, the version code dials, SDK levels, and two apply switches.
  *
  * The plugin also exposes a read-only `applicationId: Provider<String>` here.
- * It is the root `appId` joined with [idSuffix]. Read it to wire other build
+ * It is the root `id` joined with the suffix from `id("base") { android { suffix } }`.
+ * Read it to wire other build
  * logic, for example into a manifest placeholder. You cannot set it.
  *
  * ## Which module types receive each SDK setting
@@ -38,15 +39,19 @@ import org.gradle.api.provider.Property
  *
  * ## Picking the right version-code dial
  *
+ * Build numbers are not set here. They live in the version topic, in its
+ * `android { }` corner:
+ *
  * | You want | Set | Effect |
  * |---|---|---|
- * | The usual: one code per release | nothing | root [KiteConfigExtension.scheme] applies |
- * | To re-upload the same app version | [rebuild] | bumps the low digits only |
- * | A different formula on Android only | [scheme] | replaces the root formula here |
- * | One exact number, no formula | [versionCode] | bypasses the scheme and [rebuild] |
- * | To be told before Play rejects you | [publishedVersionCode] | fails the build if the code did not grow |
+ * | The usual: one code per release | nothing | the shared formula applies |
+ * | To re-upload the same app version | `version("x") { android { reupload } }` | bumps the low digits only |
+ * | A different formula on Android only | `version("x") { android { formula { } } }` | replaces the shared formula here |
+ * | One exact number, no formula | `version("x") { android { pin } }` | bypasses the formula entirely |
+ * | To be told before Play rejects you | `version("x") { android { shipped } }` | fails the build if the code did not grow |
  *
- * @see KiteConfigExtension.scheme for the formula both platforms share.
+ * @see KiteVersionScope.formula for the formula every platform shares.
+ * @see KiteVersionScope.AndroidCorner for the Android build-number corner.
  * @see KiteConfigIosExtension for the Apple half of the same identity.
  * @see KiteConfigModulesExtension.androidApps when more than one module is an application.
  */

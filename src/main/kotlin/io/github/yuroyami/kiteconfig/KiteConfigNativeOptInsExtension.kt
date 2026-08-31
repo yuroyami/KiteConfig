@@ -4,7 +4,7 @@ import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.Property
 
 /**
- * Kotlin/Native opt-in markers, inside `kiteConfig { nativeOptIns { ... } }`.
+ * Kotlin/Native opt-in markers, inside `kiteConfig { optIns { ... } }`.
  *
  * ```kotlin
  * kiteConfig {
@@ -19,7 +19,7 @@ import org.gradle.api.provider.Property
  * where those markers actually resolve. The annotations leave your call sites
  * and your shared code is never edited.
  *
- * An empty `nativeOptIns { }` already does useful work. Opening the block turns
+ * An empty `optIns { }` already does useful work. Opening the block turns
  * the feature on, and the built-in set covers the usual interop cases.
  *
  * ## What ends up on the compiler command line
@@ -27,9 +27,9 @@ import org.gradle.api.provider.Property
  * | You write | Markers applied |
  * |---|---|
  * | no block at all | none, the feature is off |
- * | `nativeOptIns { }` | the built-in interop set |
- * | `nativeOptIns { add("x") }` | the built-in set plus `x` |
- * | `nativeOptIns { builtIns = false; add("x") }` | only `x` |
+ * | `optIns { }` | the built-in interop set |
+ * | `optIns { add("x") }` | the built-in set plus `x` |
+ * | `optIns { builtIns = false; add("x") }` | only `x` |
  *
  * Markers reach Kotlin/Native compilations only, in the shared project or in
  * whatever [projects] names. They are never written into your source.

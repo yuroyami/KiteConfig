@@ -138,9 +138,18 @@ import org.gradle.api.provider.Provider
  *
  * ## Read-back
  *
- * Every fact is a lazy Gradle `Property`. Resolved derived providers:
- * [androidApplicationId], [iosBundleId], [desktopBundleId], [versionCode],
- * [canonicalLocales], [resolvedSharedProjectPath].
+ * This extension implements [KiteConfigValues], so every resolved value is
+ * readable from any build file in the project:
+ *
+ * ```kotlin
+ * import io.github.yuroyami.kiteconfig.kiteConfig
+ *
+ * versionCode = kiteConfig.versionCode.get()
+ * ```
+ *
+ * That view is read-only and covers version, identity, locales, the shared
+ * module path, and the Android SDK levels. See [KiteConfigValues] for the full
+ * list and for the two values that resolve later than the rest.
  *
  * @see KiteAppNameScope for name overrides and flow.
  * @see KiteIdScope for identity suffix corners.

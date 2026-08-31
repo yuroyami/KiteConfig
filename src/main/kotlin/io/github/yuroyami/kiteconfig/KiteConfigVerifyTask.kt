@@ -33,7 +33,7 @@ abstract class KiteConfigVerifyTask : DefaultTask() {
 
     init {
         group = "kiteconfig"
-        description = "Report resolved KiteConfig values + iOS target files. Modifies nothing."
+        description = "Report resolved KiteConfig values and iOS target files. Modifies nothing."
         outputs.upToDateWhen { false }
         androidApplicationProjects.convention(emptyList())
         androidAppDirectories.convention(emptyList())

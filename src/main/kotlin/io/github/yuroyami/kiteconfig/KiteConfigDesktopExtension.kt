@@ -26,13 +26,16 @@ import org.gradle.api.provider.Property
  *
  * | Family | Takes its identity from | Its own dial here |
  * |---|---|---|
- * | macOS `.dmg` and `.pkg` | root `appName` and the bundle ID | [roundMacOsIcon] |
+ * | macOS `.dmg` and `.pkg` | root `appName` and the bundle ID | `logo { desktop { roundMac } }` |
  * | Windows `.msi` and `.exe` | root `appName` and the version | [deriveUpgradeUuid] |
  * | Linux `.deb`, `.rpm`, AppImage | a Debian-legal slug of `appName` | [linuxPackageName] |
  *
+ * Installer icons are not a dial here: they are generated whenever `logo { }`
+ * carries art that flows to desktop.
+ *
  * @see KiteConfigModulesExtension.desktopApps to pick which projects this applies to.
- * @see KiteConfigExtension.scheme for the build-number formula every platform shares.
- * @see KiteConfigLogoExtension for the art that [icons] turns into installer icons.
+ * @see KiteVersionScope.formula for the build-number formula every platform shares.
+ * @see KiteConfigLogoExtension for the art that becomes installer icons.
  */
 abstract class KiteConfigDesktopExtension : KitePlatformRef {
 
@@ -74,9 +77,9 @@ abstract class KiteConfigDesktopExtension : KitePlatformRef {
 
     /**
      * Whether KiteConfig fills the Windows upgrade code for you, derived from the
-     * root `appId`.
+     * root `id`.
      *
-     * Default: `false`. The code is a stable UUIDv5, so the same `appId` always
+     * Default: `false`. The code is a stable UUIDv5, so the same `id` always
      * yields the same one, which is what lets an MSI upgrade an install in place
      * rather than sitting beside it.
      *
@@ -86,7 +89,7 @@ abstract class KiteConfigDesktopExtension : KitePlatformRef {
      * your first release if you can.
      *
      * An upgrade code you set yourself is always kept. This only fills a blank.
-     * Changing `appId` changes the derived code and breaks in-place upgrades for
+     * Changing `id` changes the derived code and breaks in-place upgrades for
      * everyone already installed, so pin the old value by hand if you rename.
      */
     abstract val deriveUpgradeUuid: Property<Boolean>

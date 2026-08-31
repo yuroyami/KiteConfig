@@ -23,7 +23,7 @@ import org.gradle.api.Project
  * value wins over a module-local `compileSdk` — and is supplied outright when the module
  * declares none. It also runs on the diagnostic invocations, through [wireValueGroup], for
  * the same reason as [ClassicAndroidWiring]: AGP validates its DSL on every invocation.
- * [ConfigDriftLog] flags module declarations the KiteConfig replaces.
+ * [ConfigDriftLog] flags module declarations KiteConfig replaces.
  *
  * Only `compileSdk`/`minSdk` apply: the KMP library DSL has no `targetSdk` (libraries never
  * did) nor `ndkVersion`, so those are skipped even when set. Locale propagation also doesn't

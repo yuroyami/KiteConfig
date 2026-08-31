@@ -100,7 +100,7 @@ abstract class KiteConfigBuildConfigExtension {
      * Whether KiteConfig app identity is baked into the object: app name, version,
      * version code, the resolved Android and iOS IDs, and the canonical locales.
      *
-     * Default: `true`, which requires `appName`, `version`, and `appId` while
+     * Default: `true`, which requires `appName`, `version`, and `id` while
      * generation is on.
      *
      * Set it to `false` for a custom-fields-only object. In that mode, generation

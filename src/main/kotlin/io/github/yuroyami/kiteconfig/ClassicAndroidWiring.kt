@@ -19,7 +19,7 @@ import org.gradle.kotlin.dsl.register
  * iOS-only functional tests).
  *
  * **Authority:** the wiring runs inside AGP's `finalizeDsl` hook, i.e. AFTER the
- * module's own `android { }` block, so an KiteConfig value in `kiteConfig { }` overrides a
+ * module's own `android { }` block, so a value declared in `kiteConfig { }` overrides a
  * module-local `applicationId` / `versionName` / `compileSdk` — and supplies the
  * value outright when the module declares nothing, because `finalizeDsl` runs
  * before AGP validates its DSL. This matches the KMP-native library path
@@ -34,7 +34,7 @@ import org.gradle.kotlin.dsl.register
  * group goes through [wireValueGroup], which skips a failing provider so the
  * diagnostic can report it as a finding instead of dying in configuration.
  *
- * When a module still declares a value the KiteConfig replaces with something
+ * When a module still declares a value KiteConfig replaces with something
  * different, [ConfigDriftLog] says so once per project: that declaration is dead
  * code wearing a misleading face value.
  */

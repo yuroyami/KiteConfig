@@ -14,7 +14,7 @@ import javax.xml.transform.dom.DOMSource
 import javax.xml.transform.stream.StreamResult
 
 /**
- * Policy for an existing plist key whose value differs from the requested KiteConfig value.
+ * Policy for an existing plist key whose value differs from the requested value.
  *
  * | Value | Existing value | Build |
  * |---|---|---|

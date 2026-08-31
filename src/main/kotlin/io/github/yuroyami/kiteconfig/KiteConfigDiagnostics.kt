@@ -1335,7 +1335,7 @@ private fun MutableList<KiteConfigDiagnostic>.diagnoseAndroidIcons(context: Kite
                     KiteConfigDiagnosticSeverity.WARNING,
                     "Locales",
                     "Configured ${context.locales.joinToString()} canonicalizes to ${canonical.joinToString()}.",
-                    "Store canonical BCP-47 tags in the KiteConfig DSL.",
+                    "Store canonical BCP-47 tags in the kiteConfig { } DSL.",
                 ),
             )
         }

@@ -31,35 +31,41 @@ import org.gradle.api.provider.Property
  * Set one only when your tree looks different.
  *
  * Nothing in this block writes a file on its own. Apple sources change only
- * when [sync] is configured and you run a sync task yourself.
+ * when `rewrite { }` is configured and you run `kiteRewriteXcode` yourself.
  *
- * There is one derived read-only value, `bundleId: Provider<String>`: the root
- * `appId` followed by [bundleIdSuffix].
+ * The resolved bundle id is readable as `kiteConfig.iosBundleId`: the root `id`
+ * followed by the suffix from `id("base") { ios { suffix } }`.
  *
  * ## The two Apple version fields
  *
  * Apple splits what Android keeps in one place. Getting them confused is the
  * usual cause of a rejected TestFlight upload.
  *
- * | Field | Xcode setting | Who sees it | Rule |
- * |---|---|---|---|
- * | [marketingVersion] | `MARKETING_VERSION` | App Store customers | may repeat across uploads |
- * | [buildNumber] | `CURRENT_PROJECT_VERSION` | TestFlight testers | must be new for each upload of the same version |
+ * Both are set in the version topic's `ios { }` corner, not here.
+ *
+ * | Field | Set with | Xcode setting | Who sees it | Rule |
+ * |---|---|---|---|---|
+ * | Marketing version | `version("x") { ios { marketingVersion } }` | `MARKETING_VERSION` | App Store customers | may repeat across uploads |
+ * | Build number | `version("x") { ios { pin } }`, else the formula | `CURRENT_PROJECT_VERSION` | TestFlight testers | must be new for each upload of the same version |
  *
  * So a re-upload of `1.4.0` keeps the marketing version and needs a fresh build
- * number. Turn [rebuild] rather than inventing a version nobody shipped.
+ * number. Turn `version("x") { ios { reupload } }` rather than inventing a
+ * version nobody shipped.
  *
  * ## What this block does and does not touch
  *
- * | Property | Written into your Xcode project |
+ * | Value | Written into your Xcode project |
  * |---|---|
- * | [bundleIdSuffix], [marketingVersion], [buildNumber] | yes, by an explicit [sync] task |
+ * | Bundle id, marketing version, build number | yes, by an explicit `kiteRewriteXcode` run |
  * | [deploymentTarget] | **no**, it only validates the AppIcon catalog |
  * | [pbxproj], [podfile], [infoPlist], [appDirectory], [appIconDirectory] | no, they say where to look |
  *
+ * Those three are declared elsewhere: the bundle id in `id("base") { ios { suffix } }`,
+ * and both version fields in the version topic's `ios { }` corner.
+ *
  * @see KiteConfigIosSyncExtension for the gate that authorizes those writes.
  * @see KiteConfigAndroidExtension for the Android half of the same identity.
- * @see KiteConfigExtension.scheme for the formula both platforms share.
+ * @see KiteVersionScope.formula for the formula every platform shares.
  */
 abstract class KiteConfigIosExtension : KitePlatformRef {
 

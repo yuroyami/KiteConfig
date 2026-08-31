@@ -12,7 +12,7 @@ import org.gradle.api.tasks.TaskAction
 import org.gradle.work.DisableCachingByDefault
 
 /**
- * Ensures a source iOS `Info.plist` holds the KiteConfig references that this task's
+ * Ensures a source iOS `Info.plist` holds the references that this task's
  * propagation inputs enable. Each enabled entry points at its build variable:
  *
  * ```
