@@ -10,6 +10,16 @@ import org.junit.jupiter.api.Test
 
 class BuildConfigGenTest {
 
+    @Test
+    fun `the generated class defaults to KiteBuildConfig in the kiteconfig package`() {
+        val project = ProjectBuilder.builder().build()
+        project.plugins.apply(KiteConfigPlugin::class.java)
+        val ext = project.extensions.getByType(KiteConfigExtension::class.java)
+
+        assertEquals("KiteBuildConfig", ext.buildConfig.className.get())
+        assertEquals("kiteconfig.generated", ext.buildConfig.packageName.get())
+    }
+
     /** Everything Gradle would print for [failure], including wrapped causes. */
     private fun reportedText(failure: Throwable): String = generateSequence(failure, Throwable::cause)
         .mapNotNull(Throwable::message)

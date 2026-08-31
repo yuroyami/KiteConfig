@@ -95,7 +95,7 @@ class KiteConfigPlugin : Plugin<Project> {
         }
         extAware.extensions.create<KiteConfigBuildConfigExtension>("buildConfig").apply {
             packageName.convention(KiteConfigExtension.DEFAULT_GENERATED_PACKAGE)
-            className.convention("BuildConfig")
+            className.convention("KiteBuildConfig")
             includeIdentity.convention(true)
             allowBuildCache.convention(false)
             fields.convention(emptyList())
