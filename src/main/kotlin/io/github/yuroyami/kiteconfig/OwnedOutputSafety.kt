@@ -1592,7 +1592,11 @@ internal object OwnedOutputSafety {
             val attrs = safeAttributes(lock, "ownership lock")
             if (!attrs.isRegularFile) throw GradleException("[kiteConfig] Invalid ownership lock: $lock")
         }
-        return FileChannel.open(lock, CREATE, WRITE).use { channel ->
+        // NOFOLLOW_LINKS is passed to the open itself, not just the check above.
+        // Checking and then opening leaves a window in which the lock path can be
+        // swapped for a symlink, and a following open would then truncate whatever
+        // it points at, outside the project. Opening no-follow closes that window.
+        return FileChannel.open(lock, CREATE, WRITE, NOFOLLOW_LINKS).use { channel ->
             channel.lock().use { block() }
         }
     }

@@ -2,6 +2,7 @@ package io.github.yuroyami.kiteconfig
 
 import org.gradle.api.GradleException
 import org.junit.jupiter.api.Assertions.assertArrayEquals
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -596,4 +597,28 @@ class OwnedOutputSafetyTest {
         assertArrayEquals(byteArrayOf(1, 2), sourceOne.readBytes())
         assertArrayEquals(byteArrayOf(3, 4), sourceTwo.readBytes())
     }
+    /**
+     * Covers the static case only: a lock path that is already a symlink when the
+     * safety check runs.
+     *
+     * The check/open race itself is deliberately not covered here. The open now
+     * passes NOFOLLOW_LINKS so a symlink swapped in after the check cannot be
+     * followed, but reproducing that window needs a hook inside the production
+     * path, which is not worth adding for a release.
+     */
+    @Test
+    fun `an ownership lock that is already a symlink is refused`(@TempDir dir: File) {
+        val project = File(dir, "project").apply { mkdirs() }
+        val victim = File(dir, "victim.txt").apply { writeText("precious") }
+        val manifest = File(project, "state/owned-files-v1").apply { parentFile.mkdirs() }
+        val lock = File(project, "state/owned-files-v1.lock")
+        java.nio.file.Files.createSymbolicLink(lock.toPath(), victim.toPath())
+
+        assertThrows(Exception::class.java) {
+            OwnedOutputSafety.withInstallationLock(manifest, project) { "unreachable" }
+        }
+
+        assertEquals("precious", victim.readText(), "the symlink target was written through")
+    }
+
 }
