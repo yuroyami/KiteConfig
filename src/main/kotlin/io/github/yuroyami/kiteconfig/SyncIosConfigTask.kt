@@ -178,7 +178,7 @@ internal fun discoverIosSwiftFiles(
  * build rather than being read as `false`.
  */
 @DisableCachingByDefault(because = "Explicit migration mutates user-owned source files and must execute its safety checks.")
-abstract class SyncIosConfigTask : DefaultTask() {
+internal abstract class SyncIosConfigTask : DefaultTask() {
 
     init {
         group = "kiteconfig"

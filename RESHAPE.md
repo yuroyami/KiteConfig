@@ -900,7 +900,7 @@ its evidence exists, not when its checkbox is ticked.
 | 3. The apply engine | Done, minus one. One planner now feeds both the preview and the tasks, a feature turned off has its installed output taken back out, fault injection covers every write step, and the manifest-overlay spike ran and landed. The one open item, two app targets sharing one project file, is iOS work and belongs to phase 4. |
 | 4. iOS | Done. The deployment target is read from the Xcode project, the xcconfig and pre-action spike ran against Xcode 26.6 with its result in section 8, the plist carries `CFBundleLocalizations`, which is the only thing that made a Compose app's languages reachable, and the doctor now states the Xcode build-order fact instead of leaving it to the README. |
 | 5. Generated code and diagnostics | Done. Activation reads content, the vocabulary is current, every message names a DSL path that exists, a Node-only target is refused for the browser worker, and every generated field type takes a `Provider`. |
-| 6. Documentation and release | Done, minus two. README, the site page, FEATURES, the changelog and the release notes are current, and the example test compiles the README's fences as well as the KDoc's. Not done: explicit API mode, and the tag. |
+| 6. Documentation and release | Done, minus the tag. README, the site page, FEATURES, the changelog and the release notes are current, the example test compiles the README's fences as well as the KDoc's, and explicit API mode is on: the ABI dump went from 691 lines to 359, holding only what a build script can name. The `v2.0.0` tag is the one step left, and it is the maintainer's to take. |
 
 The detailed task-by-task plan is written when a phase starts, from this
 document.

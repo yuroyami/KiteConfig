@@ -42,7 +42,7 @@ import org.gradle.api.provider.Property
  * @see KiteConfigBuildConfigExtension for the feature that most often needs [shared].
  */
 @KiteDsl
-abstract class KiteConfigModulesExtension {
+public abstract class KiteConfigModulesExtension {
 
     /**
      * Absolute Gradle path of the KMP project that owns generated `commonMain`
@@ -58,7 +58,7 @@ abstract class KiteConfigModulesExtension {
      *   shared-scoped feature is enabled and the path is missing, names a project
      *   that does not exist, or names one that does not apply Kotlin Multiplatform.
      */
-    abstract val shared: Property<String>
+    public abstract val shared: Property<String>
 
     /**
      * Exact Android application project paths, absolute, such as `":androidApp"`.
@@ -69,7 +69,7 @@ abstract class KiteConfigModulesExtension {
      * finds. SDK levels and the JVM target still reach every compatible module,
      * listed or not.
      */
-    abstract val androidApps: ListProperty<String>
+    public abstract val androidApps: ListProperty<String>
 
     /**
      * Adds one or more application paths to [androidApps].
@@ -80,7 +80,7 @@ abstract class KiteConfigModulesExtension {
      * androidApps(":androidApp", ":demoApp")
      * ```
      */
-    fun androidApps(vararg paths: String) {
+    public fun androidApps(vararg paths: String) {
         androidApps.addAll(*paths)
     }
 
@@ -95,7 +95,7 @@ abstract class KiteConfigModulesExtension {
      *
      * @see KiteConfigDesktopExtension for what those projects then receive.
      */
-    abstract val desktopApps: ListProperty<String>
+    public abstract val desktopApps: ListProperty<String>
 
     /**
      * Adds one or more desktop application paths to [desktopApps].
@@ -106,7 +106,7 @@ abstract class KiteConfigModulesExtension {
      * desktopApps(":desktopApp")
      * ```
      */
-    fun desktopApps(vararg paths: String) {
+    public fun desktopApps(vararg paths: String) {
         desktopApps.addAll(*paths)
     }
 
@@ -116,7 +116,7 @@ abstract class KiteConfigModulesExtension {
      * Default: found from the selected Android application project. Set it only
      * when the app's files do not sit in that project's own directory.
      */
-    abstract val androidAppDirectory: DirectoryProperty
+    public abstract val androidAppDirectory: DirectoryProperty
 
     /**
      * Compose resources directory that locale discovery reads.
@@ -125,5 +125,5 @@ abstract class KiteConfigModulesExtension {
      * scans it for locale-only folders such as `values-en`, `values-pt-rBR`, and
      * `values-b+sr+Latn`. It is not read at all once you set `locales` yourself.
      */
-    abstract val composeResources: DirectoryProperty
+    public abstract val composeResources: DirectoryProperty
 }

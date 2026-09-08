@@ -155,7 +155,7 @@ import org.gradle.api.provider.Provider
  * @see VersionCodeScheme for the build-number formula input.
  */
 @KiteDsl
-abstract class KiteConfigExtension : KiteFlowScope(), KiteConfigValues {
+public abstract class KiteConfigExtension : KiteFlowScope(), KiteConfigValues {
 
     // ---------------------------------------------------------------- Identity
 
@@ -198,7 +198,7 @@ abstract class KiteConfigExtension : KiteFlowScope(), KiteConfigValues {
     // ------------------------------------------------------------------ Splash
 
     /** The splash topic. Off until `splash { enabled = true }`. */
-    fun splash(action: Action<in KiteSplashScope>) = action.execute(splash)
+    public fun splash(action: Action<in KiteSplashScope>): Unit = action.execute(splash)
 
     internal val splash: KiteSplashScope
         get() = nested()
@@ -281,7 +281,7 @@ abstract class KiteConfigExtension : KiteFlowScope(), KiteConfigValues {
     abstract override val version: Property<String>
 
     /** The JVM topic: the toolchain that builds and the bytecode level it emits. */
-    fun jvm(action: Action<in KiteJvmScope>) = action.execute(jvmScope)
+    public fun jvm(action: Action<in KiteJvmScope>): Unit = action.execute(jvmScope)
 
     internal val jvmScope: KiteJvmScope
         get() = nested()
@@ -321,7 +321,7 @@ abstract class KiteConfigExtension : KiteFlowScope(), KiteConfigValues {
      * Generated Kotlin ignores this, because it is a build input rather than a
      * change to your source tree.
      */
-    abstract val dryRun: Property<Boolean>
+    public abstract val dryRun: Property<Boolean>
 
     /**
      * Apply the configured source changes as part of an ordinary build.
@@ -333,7 +333,7 @@ abstract class KiteConfigExtension : KiteFlowScope(), KiteConfigValues {
      * It does not turn optional features on. A splash still needs
      * `splash { enabled = true }`.
      */
-    abstract val autoApply: Property<Boolean>
+    public abstract val autoApply: Property<Boolean>
 
     /**
      * Treat AGP, KGP, and Compose versions outside the tested range as supported.
@@ -346,7 +346,7 @@ abstract class KiteConfigExtension : KiteFlowScope(), KiteConfigValues {
      * in the build script.
      */
     @DiscouragedKiteApi
-    abstract val ignoreVersionGuards: Property<Boolean>
+    public abstract val ignoreVersionGuards: Property<Boolean>
 
     /**
      * Keep a first-contact recovery copy before rewriting a file.
@@ -354,41 +354,41 @@ abstract class KiteConfigExtension : KiteFlowScope(), KiteConfigValues {
      * Default: `true`. Override with `-Pkiteconfig.backups=false`. Android legacy
      * icon takeover always records its own recovery data regardless of this.
      */
-    abstract val backups: Property<Boolean>
+    public abstract val backups: Property<Boolean>
 
     // ----------------------------------------------------------------- Blocks
 
     /** Where your modules live. Configure with `kiteConfig { modules { } }`. */
-    val modules: KiteConfigModulesExtension
+    public val modules: KiteConfigModulesExtension
         get() = nested()
 
     /** Tell KiteConfig where the shared and Android application projects are. */
-    fun modules(action: Action<in KiteConfigModulesExtension>) = action.execute(modules)
+    public fun modules(action: Action<in KiteConfigModulesExtension>): Unit = action.execute(modules)
 
     /** Android-only settings. Configure with `kiteConfig { android { } }`. */
-    val android: KiteConfigAndroidExtension
+    public val android: KiteConfigAndroidExtension
         get() = nested()
 
     /** Configure SDK levels, the Android id suffix, and the Play re-upload dial. */
-    fun android(action: Action<in KiteConfigAndroidExtension>) = action.execute(android)
+    public fun android(action: Action<in KiteConfigAndroidExtension>): Unit = action.execute(android)
 
     /** Apple-only settings. Configure with `kiteConfig { ios { } }`. */
-    val ios: KiteConfigIosExtension
+    public val ios: KiteConfigIosExtension
         get() = nested()
 
     /** Configure the Apple bundle suffix, build number, paths, and source sync. */
-    fun ios(action: Action<in KiteConfigIosExtension>) = action.execute(ios)
+    public fun ios(action: Action<in KiteConfigIosExtension>): Unit = action.execute(ios)
 
     /**
      * App icon art. Configure with `kiteConfig { logo { } }`.
      *
      * The topic is on as soon as [KiteLogoScope.foreground] is set.
      */
-    val logo: KiteLogoScope
+    public val logo: KiteLogoScope
         get() = nested()
 
     /** Point KiteConfig at your foreground and background art. */
-    fun logo(action: Action<in KiteLogoScope>) {
+    public fun logo(action: Action<in KiteLogoScope>) {
         logoConfigured.set(true)
         action.execute(logo)
     }
@@ -431,21 +431,21 @@ abstract class KiteConfigExtension : KiteFlowScope(), KiteConfigValues {
      * Kotlin/Native interop opt-in markers. Configure with
      * `kiteConfig { optIns { } }`.
      */
-    val optIns: KiteConfigNativeOptInsExtension
+    public val optIns: KiteConfigNativeOptInsExtension
         get() = nested()
 
     /** Add opt-in markers to the selected Kotlin/Native compilations. */
-    fun optIns(action: Action<in KiteConfigNativeOptInsExtension>) {
+    public fun optIns(action: Action<in KiteConfigNativeOptInsExtension>) {
         optInsDeclared.set(true)
         action.execute(optIns)
     }
 
     /** Browser Kotlin/JS helpers. Configure with `kiteConfig { web { } }`. */
-    val web: KiteConfigWebExtension
+    public val web: KiteConfigWebExtension
         get() = nested()
 
     /** Configure optional browser Kotlin/JS source generation. */
-    fun web(action: Action<in KiteConfigWebExtension>) = action.execute(web)
+    public fun web(action: Action<in KiteConfigWebExtension>): Unit = action.execute(web)
 
     /**
      * Generated runtime constants for `commonMain`. Configure with
@@ -453,11 +453,11 @@ abstract class KiteConfigExtension : KiteFlowScope(), KiteConfigValues {
      *
      * Configuring this block turns generation on.
      */
-    val buildConfig: KiteConfigBuildConfigExtension
+    public val buildConfig: KiteConfigBuildConfigExtension
         get() = nested()
 
     /** Generate a Kotlin object of public runtime configuration. */
-    fun buildConfig(action: Action<in KiteConfigBuildConfigExtension>) {
+    public fun buildConfig(action: Action<in KiteConfigBuildConfigExtension>) {
         buildConfigDeclared.set(true)
         action.execute(buildConfig)
     }
@@ -467,11 +467,11 @@ abstract class KiteConfigExtension : KiteFlowScope(), KiteConfigValues {
      *
      * Opening this block turns desktop propagation on.
      */
-    val desktop: KiteConfigDesktopExtension
+    public val desktop: KiteConfigDesktopExtension
         get() = nested()
 
     /** Apply app identity, versions, and installer values to Compose Desktop. */
-    fun desktop(action: Action<in KiteConfigDesktopExtension>) {
+    public fun desktop(action: Action<in KiteConfigDesktopExtension>) {
         desktop.configured.set(true)
         action.execute(desktop)
     }
@@ -580,7 +580,7 @@ abstract class KiteConfigExtension : KiteFlowScope(), KiteConfigValues {
         get() = jvmScope.toolchain
 
     /** The locales topic: the tag list every platform starts from. */
-    fun locales(action: Action<in KiteLocalesScope>) = action.execute(localesScope)
+    public fun locales(action: Action<in KiteLocalesScope>): Unit = action.execute(localesScope)
 
     internal val localesScope: KiteLocalesScope
         get() = nested()
@@ -673,7 +673,7 @@ abstract class KiteConfigExtension : KiteFlowScope(), KiteConfigValues {
     // --- version numbers ---
 
     /** Details for [version]: the shared scheme and rebuild counter. */
-    fun version(action: Action<in KiteVersionScope>) = action.execute(versionScope)
+    public fun version(action: Action<in KiteVersionScope>): Unit = action.execute(versionScope)
 
     internal val versionScope: KiteVersionScope
         get() = nested()

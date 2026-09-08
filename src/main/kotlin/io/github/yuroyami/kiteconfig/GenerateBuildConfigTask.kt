@@ -25,7 +25,7 @@ import java.nio.charset.StandardCharsets
  * It is a normal cacheable Gradle task with declared inputs and outputs.
  */
 @CacheableTask
-abstract class GenerateBuildConfigTask : DefaultTask() {
+internal abstract class GenerateBuildConfigTask : DefaultTask() {
 
     init {
         group = "kiteconfig"

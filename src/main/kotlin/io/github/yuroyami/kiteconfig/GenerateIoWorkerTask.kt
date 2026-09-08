@@ -30,7 +30,7 @@ import java.nio.charset.StandardCharsets
  * It is a normal cacheable Gradle task with declared inputs and outputs.
  */
 @CacheableTask
-abstract class GenerateIoWorkerTask : DefaultTask() {
+internal abstract class GenerateIoWorkerTask : DefaultTask() {
 
     init {
         group = "kiteconfig"

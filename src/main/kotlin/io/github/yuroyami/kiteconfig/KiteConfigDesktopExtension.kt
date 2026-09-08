@@ -40,14 +40,14 @@ import org.gradle.api.provider.Property
  * @see KiteConfigLogoExtension for the art that becomes installer icons.
  */
 @KiteDsl
-abstract class KiteConfigDesktopExtension : KitePlatformExtension() {
+public abstract class KiteConfigDesktopExtension : KitePlatformExtension() {
 
     /** This platform's launch screen. */
-    fun splash(action: org.gradle.api.Action<in KiteSplashScope>) = action.execute(splashDetails)
+    public fun splash(action: org.gradle.api.Action<in KiteSplashScope>): Unit = action.execute(splashDetails)
 
 
     /** This platform's icon art and how much of the canvas the mark fills. */
-    fun logo(action: org.gradle.api.Action<in KiteDesktopLogoScope>) = action.execute(desktopLogo)
+    public fun logo(action: org.gradle.api.Action<in KiteDesktopLogoScope>): Unit = action.execute(desktopLogo)
 
     internal val desktopLogo: KiteDesktopLogoScope
         get() = (this as org.gradle.api.plugins.ExtensionAware)
@@ -55,7 +55,7 @@ abstract class KiteConfigDesktopExtension : KitePlatformExtension() {
 
 
     /** The JVM toolchain and bytecode level for this platform's compilations. */
-    fun jvm(action: org.gradle.api.Action<in KiteJvmScope>) = action.execute(jvmDetails)
+    public fun jvm(action: org.gradle.api.Action<in KiteJvmScope>): Unit = action.execute(jvmDetails)
 
     internal val jvmDetails: KiteJvmScope
         get() = (this as org.gradle.api.plugins.ExtensionAware)
@@ -63,7 +63,7 @@ abstract class KiteConfigDesktopExtension : KitePlatformExtension() {
 
 
     /** The locale list this platform ships, when it differs from the shared one. */
-    fun locales(action: org.gradle.api.Action<in KiteLocalesScope>) = action.execute(localesDetails)
+    public fun locales(action: org.gradle.api.Action<in KiteLocalesScope>): Unit = action.execute(localesDetails)
 
 
     final override val platform: KitePlatform = KitePlatform.DESKTOP
@@ -100,7 +100,7 @@ abstract class KiteConfigDesktopExtension : KitePlatformExtension() {
      * @throws org.gradle.api.GradleException during configuration when no slug
      *   can be derived from `appName` and no value is set here.
      */
-    abstract val linuxPackageName: Property<String>
+    public abstract val linuxPackageName: Property<String>
 
     /**
      * Whether KiteConfig fills the Windows upgrade code for you, derived from the
@@ -119,5 +119,5 @@ abstract class KiteConfigDesktopExtension : KitePlatformExtension() {
      * Changing `id` changes the derived code and breaks in-place upgrades for
      * everyone already installed, so pin the old value by hand if you rename.
      */
-    abstract val deriveUpgradeUuid: Property<Boolean>
+    public abstract val deriveUpgradeUuid: Property<Boolean>
 }

@@ -24,8 +24,8 @@ import org.gradle.api.provider.Property
  * still answers; only the write to the iOS project stops.
  */
 @KiteDsl
-abstract class KiteAppNameScope {
+public abstract class KiteAppNameScope {
 
     /** Deliver the effective app name to this platform. Default: `true`. */
-    abstract val enabled: Property<Boolean>
+    public abstract val enabled: Property<Boolean>
 }

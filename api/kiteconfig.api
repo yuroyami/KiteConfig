@@ -1,32 +1,3 @@
-public final class io/github/yuroyami/kiteconfig/Agp8AndroidInputs {
-	public final field appName Ljava/lang/String;
-	public final field applicationId Ljava/lang/String;
-	public final field applyAppName Z
-	public final field applyApplicationId Z
-	public final field applySdkLevels Z
-	public final field applyVersion Z
-	public final field compileSdk Ljava/lang/Integer;
-	public final field filterResources Z
-	public final field javaVersion Ljava/lang/Integer;
-	public final field localeFilters Ljava/util/List;
-	public final field minSdk Ljava/lang/Integer;
-	public final field ndk Ljava/lang/String;
-	public final field selectedApplications Ljava/util/List;
-	public final field targetSdk Ljava/lang/Integer;
-	public final field versionCode Ljava/lang/Integer;
-	public final field versionName Ljava/lang/String;
-}
-
-public abstract class io/github/yuroyami/kiteconfig/CleanupLegacyAppLogoArtifactsTask : org/gradle/api/DefaultTask {
-	public fun <init> ()V
-	public final fun cleanup ()V
-	public abstract fun getAndroidResDir ()Lorg/gradle/api/file/DirectoryProperty;
-	public abstract fun getBackupDir ()Lorg/gradle/api/file/DirectoryProperty;
-	public abstract fun getDryRun ()Lorg/gradle/api/provider/Property;
-	public abstract fun getOutputSinkApproved ()Lorg/gradle/api/provider/Property;
-	public abstract fun getProjectRootDir ()Lorg/gradle/api/file/DirectoryProperty;
-}
-
 public final class io/github/yuroyami/kiteconfig/ConfigVersion {
 	public fun <init> (IIII)V
 	public final fun getMajor ()I
@@ -37,79 +8,6 @@ public final class io/github/yuroyami/kiteconfig/ConfigVersion {
 }
 
 public abstract interface annotation class io/github/yuroyami/kiteconfig/DiscouragedKiteApi : java/lang/annotation/Annotation {
-}
-
-public abstract class io/github/yuroyami/kiteconfig/GenerateAndroidManifestOverlayTask : org/gradle/api/DefaultTask {
-	public fun <init> ()V
-	public final fun generate ()V
-	public abstract fun getLabel ()Lorg/gradle/api/provider/Property;
-	public abstract fun getOutputFile ()Lorg/gradle/api/file/RegularFileProperty;
-	public abstract fun getTheme ()Lorg/gradle/api/provider/Property;
-}
-
-public abstract class io/github/yuroyami/kiteconfig/GenerateAndroidSplashTask : org/gradle/api/DefaultTask {
-	public fun <init> ()V
-	public final fun generate ()V
-	public abstract fun getBackgroundColor ()Lorg/gradle/api/provider/Property;
-	public abstract fun getDarkBackgroundColor ()Lorg/gradle/api/provider/Property;
-	public abstract fun getDarkImage ()Lorg/gradle/api/file/RegularFileProperty;
-	public abstract fun getGeneratedRoot ()Lorg/gradle/api/file/DirectoryProperty;
-	public abstract fun getImage ()Lorg/gradle/api/file/RegularFileProperty;
-	public abstract fun getOutputDir ()Lorg/gradle/api/file/DirectoryProperty;
-	public abstract fun getTheme ()Lorg/gradle/api/provider/Property;
-}
-
-public abstract class io/github/yuroyami/kiteconfig/GenerateBuildConfigTask : org/gradle/api/DefaultTask {
-	public fun <init> ()V
-	public final fun generate ()V
-	public abstract fun getAllowBuildCache ()Lorg/gradle/api/provider/Property;
-	public abstract fun getAndroidApplicationId ()Lorg/gradle/api/provider/Property;
-	public abstract fun getAppName ()Lorg/gradle/api/provider/Property;
-	public abstract fun getClassName ()Lorg/gradle/api/provider/Property;
-	public abstract fun getCustomFields ()Lorg/gradle/api/provider/ListProperty;
-	public abstract fun getDryRun ()Lorg/gradle/api/provider/Property;
-	public abstract fun getGeneratedRoot ()Lorg/gradle/api/file/DirectoryProperty;
-	public abstract fun getIdentityInputs ()Lorg/gradle/api/provider/ListProperty;
-	public abstract fun getIncludeIdentity ()Lorg/gradle/api/provider/Property;
-	public abstract fun getIosBundleId ()Lorg/gradle/api/provider/Property;
-	public abstract fun getLocales ()Lorg/gradle/api/provider/ListProperty;
-	public abstract fun getOutputDir ()Lorg/gradle/api/file/DirectoryProperty;
-	public abstract fun getPackageName ()Lorg/gradle/api/provider/Property;
-	public abstract fun getVersionCode ()Lorg/gradle/api/provider/Property;
-	public abstract fun getVersionName ()Lorg/gradle/api/provider/Property;
-}
-
-public abstract class io/github/yuroyami/kiteconfig/GenerateDesktopIconsTask : org/gradle/api/DefaultTask {
-	public fun <init> ()V
-	public final fun generate ()V
-	public abstract fun getBackground ()Lorg/gradle/api/file/RegularFileProperty;
-	public abstract fun getBackgroundColor ()Lorg/gradle/api/provider/Property;
-	public abstract fun getDryRun ()Lorg/gradle/api/provider/Property;
-	public abstract fun getForeground ()Lorg/gradle/api/file/RegularFileProperty;
-	public abstract fun getForegroundScale ()Lorg/gradle/api/provider/Property;
-	public abstract fun getGeneratedRoot ()Lorg/gradle/api/file/DirectoryProperty;
-	public abstract fun getOutputDir ()Lorg/gradle/api/file/DirectoryProperty;
-	public abstract fun getRoundMacOsIcon ()Lorg/gradle/api/provider/Property;
-}
-
-public abstract class io/github/yuroyami/kiteconfig/GenerateDesktopSplashTask : org/gradle/api/DefaultTask {
-	public fun <init> ()V
-	public final fun generate ()V
-	public abstract fun getBackgroundColor ()Lorg/gradle/api/provider/Property;
-	public abstract fun getCanvasHeight ()Lorg/gradle/api/provider/Property;
-	public abstract fun getCanvasWidth ()Lorg/gradle/api/provider/Property;
-	public abstract fun getGeneratedRoot ()Lorg/gradle/api/file/DirectoryProperty;
-	public abstract fun getImage ()Lorg/gradle/api/file/RegularFileProperty;
-	public abstract fun getOutputDir ()Lorg/gradle/api/file/DirectoryProperty;
-}
-
-public abstract class io/github/yuroyami/kiteconfig/GenerateIoWorkerTask : org/gradle/api/DefaultTask {
-	public fun <init> ()V
-	public final fun generate ()V
-	public abstract fun getDryRun ()Lorg/gradle/api/provider/Property;
-	public abstract fun getGeneratedRoot ()Lorg/gradle/api/file/DirectoryProperty;
-	public abstract fun getOutputDir ()Lorg/gradle/api/file/DirectoryProperty;
-	public abstract fun getWorkerPackage ()Lorg/gradle/api/provider/Property;
 }
 
 public abstract class io/github/yuroyami/kiteconfig/KiteAndroidLocalesScope : io/github/yuroyami/kiteconfig/KiteLocalesScope {
@@ -169,14 +67,6 @@ public abstract class io/github/yuroyami/kiteconfig/KiteConfigBuildConfigExtensi
 	public final fun stringField (Ljava/lang/String;Lorg/gradle/api/provider/Provider;)V
 }
 
-public abstract class io/github/yuroyami/kiteconfig/KiteConfigCheckTask : io/github/yuroyami/kiteconfig/KiteConfigDiagnosticTaskBase {
-	public fun <init> ()V
-	public final fun check ()V
-	public abstract fun getFailOnWarnings ()Lorg/gradle/api/provider/Property;
-	public abstract fun getReportFile ()Lorg/gradle/api/file/RegularFileProperty;
-	public abstract fun getReportFormat ()Lorg/gradle/api/provider/Property;
-}
-
 public abstract class io/github/yuroyami/kiteconfig/KiteConfigDesktopExtension : io/github/yuroyami/kiteconfig/KitePlatformExtension {
 	public fun <init> ()V
 	public abstract fun getDeriveUpgradeUuid ()Lorg/gradle/api/provider/Property;
@@ -186,85 +76,6 @@ public abstract class io/github/yuroyami/kiteconfig/KiteConfigDesktopExtension :
 	public final fun locales (Lorg/gradle/api/Action;)V
 	public final fun logo (Lorg/gradle/api/Action;)V
 	public final fun splash (Lorg/gradle/api/Action;)V
-}
-
-public final class io/github/yuroyami/kiteconfig/KiteConfigDiagnosticReportFormat : java/lang/Enum {
-	public static final field JSON Lio/github/yuroyami/kiteconfig/KiteConfigDiagnosticReportFormat;
-	public static final field SARIF Lio/github/yuroyami/kiteconfig/KiteConfigDiagnosticReportFormat;
-	public static fun getEntries ()Lkotlin/enums/EnumEntries;
-	public static fun valueOf (Ljava/lang/String;)Lio/github/yuroyami/kiteconfig/KiteConfigDiagnosticReportFormat;
-	public static fun values ()[Lio/github/yuroyami/kiteconfig/KiteConfigDiagnosticReportFormat;
-}
-
-public abstract class io/github/yuroyami/kiteconfig/KiteConfigDiagnosticTaskBase : org/gradle/api/DefaultTask {
-	public fun <init> ()V
-	public abstract fun getActiveAgpVersion ()Lorg/gradle/api/provider/Property;
-	public abstract fun getActiveComposeVersion ()Lorg/gradle/api/provider/Property;
-	public abstract fun getActiveKgpVersion ()Lorg/gradle/api/provider/Property;
-	public abstract fun getAgpOnClasspath ()Lorg/gradle/api/provider/Property;
-	public abstract fun getAgpRequired ()Lorg/gradle/api/provider/Property;
-	public abstract fun getAndroidApplicationProjects ()Lorg/gradle/api/provider/ListProperty;
-	public abstract fun getAndroidEmitMonochrome ()Lorg/gradle/api/provider/Property;
-	public abstract fun getAndroidLogoInputFingerprint ()Lorg/gradle/api/provider/Property;
-	public abstract fun getAndroidManifestPaths ()Lorg/gradle/api/provider/ListProperty;
-	public abstract fun getAndroidManifestTheme ()Lorg/gradle/api/provider/Property;
-	public abstract fun getAndroidResDir ()Lorg/gradle/api/file/DirectoryProperty;
-	public abstract fun getAndroidResPaths ()Lorg/gradle/api/provider/ListProperty;
-	public abstract fun getAppId ()Lorg/gradle/api/provider/Property;
-	public abstract fun getAppName ()Lorg/gradle/api/provider/Property;
-	public abstract fun getAppiconsetDir ()Lorg/gradle/api/file/DirectoryProperty;
-	public abstract fun getAutoRewrites ()Lorg/gradle/api/provider/Property;
-	public abstract fun getCleanupLegacyLogoArtifacts ()Lorg/gradle/api/provider/Property;
-	public abstract fun getColorEnabled ()Lorg/gradle/api/provider/Property;
-	public abstract fun getComposeOnClasspath ()Lorg/gradle/api/provider/Property;
-	public abstract fun getComposeRequired ()Lorg/gradle/api/provider/Property;
-	public abstract fun getDesktopApplicationProjects ()Lorg/gradle/api/provider/ListProperty;
-	public abstract fun getDesktopBundleId ()Lorg/gradle/api/provider/Property;
-	public abstract fun getDesktopDeriveUpgradeUuid ()Lorg/gradle/api/provider/Property;
-	public abstract fun getDesktopIconsExplicit ()Lorg/gradle/api/provider/Property;
-	public abstract fun getDesktopLinuxPackageName ()Lorg/gradle/api/provider/Property;
-	public abstract fun getDetectedAndroidApplicationProjects ()Lorg/gradle/api/provider/ListProperty;
-	public abstract fun getDetectedDesktopApplicationProjects ()Lorg/gradle/api/provider/ListProperty;
-	public abstract fun getFilterAndroidResources ()Lorg/gradle/api/provider/Property;
-	public abstract fun getHasVersionCodeOverride ()Lorg/gradle/api/provider/Property;
-	public abstract fun getInfoPlistFile ()Lorg/gradle/api/file/RegularFileProperty;
-	public abstract fun getIosBuildNumber ()Lorg/gradle/api/provider/Property;
-	public abstract fun getIosBundleId ()Lorg/gradle/api/provider/Property;
-	public abstract fun getIosDeploymentTarget ()Lorg/gradle/api/provider/Property;
-	public abstract fun getIosLogoInputFingerprint ()Lorg/gradle/api/provider/Property;
-	public abstract fun getIosMarketingVersion ()Lorg/gradle/api/provider/Property;
-	public abstract fun getIosTargetNames ()Lorg/gradle/api/provider/ListProperty;
-	public abstract fun getKgpOnClasspath ()Lorg/gradle/api/provider/Property;
-	public abstract fun getKgpRequired ()Lorg/gradle/api/provider/Property;
-	public abstract fun getLocales ()Lorg/gradle/api/provider/ListProperty;
-	public abstract fun getManifestFile ()Lorg/gradle/api/file/RegularFileProperty;
-	public abstract fun getModelFindings ()Lorg/gradle/api/provider/ListProperty;
-	public abstract fun getPbxprojFile ()Lorg/gradle/api/file/RegularFileProperty;
-	public abstract fun getPlistConflictPolicy ()Lorg/gradle/api/provider/Property;
-	public abstract fun getProMotion120Hz ()Lorg/gradle/api/provider/Property;
-	public abstract fun getProjectRootDir ()Lorg/gradle/api/file/DirectoryProperty;
-	public abstract fun getPropagateAppName ()Lorg/gradle/api/provider/Property;
-	public abstract fun getPropagateBundleId ()Lorg/gradle/api/provider/Property;
-	public abstract fun getPropagateDesktop ()Lorg/gradle/api/provider/Property;
-	public abstract fun getPropagateLocaleList ()Lorg/gradle/api/provider/Property;
-	public abstract fun getPropagateLogo ()Lorg/gradle/api/provider/Property;
-	public abstract fun getPropagateVersion ()Lorg/gradle/api/provider/Property;
-	public abstract fun getResolvedVersionCode ()Lorg/gradle/api/provider/Property;
-	public abstract fun getSanitizeIosProject ()Lorg/gradle/api/provider/Property;
-	public abstract fun getSplashAndroid ()Lorg/gradle/api/provider/Property;
-	public abstract fun getSplashDesktop ()Lorg/gradle/api/provider/Property;
-	public abstract fun getSplashIos ()Lorg/gradle/api/provider/Property;
-	public abstract fun getSplashIosArmed ()Lorg/gradle/api/provider/Property;
-	public abstract fun getSplashThemeSet ()Lorg/gradle/api/provider/Property;
-	public abstract fun getSyncIos ()Lorg/gradle/api/provider/Property;
-	public abstract fun getUsesNonExemptEncryption ()Lorg/gradle/api/provider/Property;
-	public abstract fun getVersionGuardsIgnored ()Lorg/gradle/api/provider/Property;
-	public abstract fun getVersionName ()Lorg/gradle/api/provider/Property;
-}
-
-public abstract class io/github/yuroyami/kiteconfig/KiteConfigDoctorTask : io/github/yuroyami/kiteconfig/KiteConfigDiagnosticTaskBase {
-	public fun <init> ()V
-	public final fun diagnose ()V
 }
 
 public abstract class io/github/yuroyami/kiteconfig/KiteConfigExtension : io/github/yuroyami/kiteconfig/KiteFlowScope, io/github/yuroyami/kiteconfig/KiteConfigValues {
@@ -362,19 +173,6 @@ public abstract class io/github/yuroyami/kiteconfig/KiteConfigNativeOptInsExtens
 	public final fun projects ([Ljava/lang/String;)V
 }
 
-public abstract class io/github/yuroyami/kiteconfig/KiteConfigPlanTask : org/gradle/api/DefaultTask {
-	public fun <init> ()V
-	public abstract fun getColorEnabled ()Lorg/gradle/api/provider/Property;
-	public abstract fun getExactChanges ()Lorg/gradle/api/provider/ListProperty;
-	public abstract fun getMutationPaths ()Lorg/gradle/api/provider/ListProperty;
-	public abstract fun getNotes ()Lorg/gradle/api/provider/ListProperty;
-	public abstract fun getOperations ()Lorg/gradle/api/provider/ListProperty;
-	public abstract fun getPolicies ()Lorg/gradle/api/provider/MapProperty;
-	public abstract fun getProjectRootDir ()Lorg/gradle/api/file/DirectoryProperty;
-	public abstract fun getSelectedTargets ()Lorg/gradle/api/provider/ListProperty;
-	public final fun report ()V
-}
-
 public final class io/github/yuroyami/kiteconfig/KiteConfigPlugin : org/gradle/api/Plugin {
 	public static final field Companion Lio/github/yuroyami/kiteconfig/KiteConfigPlugin$Companion;
 	public fun <init> ()V
@@ -410,40 +208,6 @@ public abstract interface class io/github/yuroyami/kiteconfig/KiteConfigValues {
 
 public final class io/github/yuroyami/kiteconfig/KiteConfigValuesKt {
 	public static final fun getKiteConfig (Lorg/gradle/api/Project;)Lio/github/yuroyami/kiteconfig/KiteConfigValues;
-}
-
-public abstract class io/github/yuroyami/kiteconfig/KiteConfigVerifyTask : org/gradle/api/DefaultTask {
-	public fun <init> ()V
-	public abstract fun getAndroidAppDirectories ()Lorg/gradle/api/provider/ListProperty;
-	public abstract fun getAndroidApplicationId ()Lorg/gradle/api/provider/Property;
-	public abstract fun getAndroidApplicationProjects ()Lorg/gradle/api/provider/ListProperty;
-	public abstract fun getAppName ()Lorg/gradle/api/provider/Property;
-	public abstract fun getColorEnabled ()Lorg/gradle/api/provider/Property;
-	public abstract fun getCompileSdk ()Lorg/gradle/api/provider/Property;
-	public abstract fun getDesktopBuildNumber ()Lorg/gradle/api/provider/Property;
-	public abstract fun getDesktopBundleId ()Lorg/gradle/api/provider/Property;
-	public abstract fun getDesktopIcons ()Lorg/gradle/api/provider/Property;
-	public abstract fun getDesktopLinuxPackageName ()Lorg/gradle/api/provider/Property;
-	public abstract fun getDesktopUpgradeCode ()Lorg/gradle/api/provider/Property;
-	public abstract fun getGenerateIoWorker ()Lorg/gradle/api/provider/Property;
-	public abstract fun getInfoPlistFile ()Lorg/gradle/api/file/RegularFileProperty;
-	public abstract fun getIosBundleId ()Lorg/gradle/api/provider/Property;
-	public abstract fun getIosSharedModuleName ()Lorg/gradle/api/provider/Property;
-	public abstract fun getJavaVersion ()Lorg/gradle/api/provider/Property;
-	public abstract fun getLocales ()Lorg/gradle/api/provider/ListProperty;
-	public abstract fun getLogoBackground ()Lorg/gradle/api/provider/Property;
-	public abstract fun getLogoBackgroundColor ()Lorg/gradle/api/provider/Property;
-	public abstract fun getLogoForeground ()Lorg/gradle/api/provider/Property;
-	public abstract fun getMinSdk ()Lorg/gradle/api/provider/Property;
-	public abstract fun getNdkVersion ()Lorg/gradle/api/provider/Property;
-	public abstract fun getPbxprojFile ()Lorg/gradle/api/file/RegularFileProperty;
-	public abstract fun getPodfile ()Lorg/gradle/api/file/RegularFileProperty;
-	public abstract fun getProjectRootDir ()Lorg/gradle/api/file/DirectoryProperty;
-	public abstract fun getPropagateInteropOptIns ()Lorg/gradle/api/provider/Property;
-	public abstract fun getTargetSdk ()Lorg/gradle/api/provider/Property;
-	public abstract fun getVersionCode ()Lorg/gradle/api/provider/Property;
-	public abstract fun getVersionName ()Lorg/gradle/api/provider/Property;
-	public final fun report ()V
 }
 
 public abstract class io/github/yuroyami/kiteconfig/KiteConfigWebExtension {
@@ -582,102 +346,6 @@ public final class io/github/yuroyami/kiteconfig/PlistConflictPolicy : java/lang
 	public static fun getEntries ()Lkotlin/enums/EnumEntries;
 	public static fun valueOf (Ljava/lang/String;)Lio/github/yuroyami/kiteconfig/PlistConflictPolicy;
 	public static fun values ()[Lio/github/yuroyami/kiteconfig/PlistConflictPolicy;
-}
-
-public abstract class io/github/yuroyami/kiteconfig/SanitizeIosProjectTask : org/gradle/api/DefaultTask {
-	public fun <init> ()V
-	public abstract fun getBackup ()Lorg/gradle/api/provider/Property;
-	public abstract fun getConflictPolicy ()Lorg/gradle/api/provider/Property;
-	public abstract fun getDryRun ()Lorg/gradle/api/provider/Property;
-	public abstract fun getInfoPlistFile ()Lorg/gradle/api/file/RegularFileProperty;
-	public abstract fun getLocales ()Lorg/gradle/api/provider/ListProperty;
-	public abstract fun getProMotion120Hz ()Lorg/gradle/api/provider/Property;
-	public abstract fun getProjectRootDir ()Lorg/gradle/api/file/DirectoryProperty;
-	public abstract fun getPropagateAppName ()Lorg/gradle/api/provider/Property;
-	public abstract fun getPropagateBuildNumber ()Lorg/gradle/api/provider/Property;
-	public abstract fun getPropagateLocaleList ()Lorg/gradle/api/provider/Property;
-	public abstract fun getPropagateMarketingVersion ()Lorg/gradle/api/provider/Property;
-	public abstract fun getUsesNonExemptEncryption ()Lorg/gradle/api/provider/Property;
-	public final fun sanitize ()V
-}
-
-public abstract class io/github/yuroyami/kiteconfig/SyncAndroidLogoTask : org/gradle/api/DefaultTask {
-	public static final field Companion Lio/github/yuroyami/kiteconfig/SyncAndroidLogoTask$Companion;
-	public fun <init> ()V
-	public abstract fun getAndroidResDir ()Lorg/gradle/api/file/DirectoryProperty;
-	public abstract fun getBackgroundColorHex ()Lorg/gradle/api/provider/Property;
-	public abstract fun getBackgroundPng ()Lorg/gradle/api/file/RegularFileProperty;
-	public abstract fun getBackupDir ()Lorg/gradle/api/file/DirectoryProperty;
-	public abstract fun getCleanupLegacyArtifacts ()Lorg/gradle/api/provider/Property;
-	public abstract fun getDryRun ()Lorg/gradle/api/provider/Property;
-	public abstract fun getEmitMonochrome ()Lorg/gradle/api/provider/Property;
-	public abstract fun getForegroundPng ()Lorg/gradle/api/file/RegularFileProperty;
-	public abstract fun getOutputFiles ()Lorg/gradle/api/file/ConfigurableFileCollection;
-	public abstract fun getOutputSinkApproved ()Lorg/gradle/api/provider/Property;
-	public abstract fun getProjectRootDir ()Lorg/gradle/api/file/DirectoryProperty;
-	public abstract fun getSafeZoneRatio ()Lorg/gradle/api/provider/Property;
-	public final fun sync ()V
-}
-
-public final class io/github/yuroyami/kiteconfig/SyncAndroidLogoTask$Companion {
-}
-
-public abstract class io/github/yuroyami/kiteconfig/SyncIosConfigTask : org/gradle/api/DefaultTask {
-	public fun <init> ()V
-	public abstract fun getAppName ()Lorg/gradle/api/provider/Property;
-	public abstract fun getAppiconsetDir ()Lorg/gradle/api/file/DirectoryProperty;
-	public abstract fun getBackup ()Lorg/gradle/api/provider/Property;
-	public abstract fun getBackupDir ()Lorg/gradle/api/file/DirectoryProperty;
-	public abstract fun getBuildNumber ()Lorg/gradle/api/provider/Property;
-	public abstract fun getBundleId ()Lorg/gradle/api/provider/Property;
-	public abstract fun getDryRun ()Lorg/gradle/api/provider/Property;
-	public abstract fun getInfoPlistExplicit ()Lorg/gradle/api/provider/Property;
-	public abstract fun getInfoPlistFile ()Lorg/gradle/api/file/RegularFileProperty;
-	public abstract fun getIosAppDir ()Lorg/gradle/api/file/DirectoryProperty;
-	public abstract fun getIosPreviousSharedModuleName ()Lorg/gradle/api/provider/Property;
-	public abstract fun getIosSharedModuleName ()Lorg/gradle/api/provider/Property;
-	public abstract fun getLocales ()Lorg/gradle/api/provider/ListProperty;
-	public abstract fun getMarketingVersion ()Lorg/gradle/api/provider/Property;
-	public abstract fun getPbxprojExplicit ()Lorg/gradle/api/provider/Property;
-	public abstract fun getPbxprojFile ()Lorg/gradle/api/file/RegularFileProperty;
-	public abstract fun getPlistConflictPolicy ()Lorg/gradle/api/provider/Property;
-	public abstract fun getPodfile ()Lorg/gradle/api/file/RegularFileProperty;
-	public abstract fun getProMotion120Hz ()Lorg/gradle/api/provider/Property;
-	public abstract fun getProjectRootDir ()Lorg/gradle/api/file/DirectoryProperty;
-	public abstract fun getPropagateAppName ()Lorg/gradle/api/provider/Property;
-	public abstract fun getPropagateBundleId ()Lorg/gradle/api/provider/Property;
-	public abstract fun getPropagateLocaleList ()Lorg/gradle/api/provider/Property;
-	public abstract fun getPropagateLogo ()Lorg/gradle/api/provider/Property;
-	public abstract fun getPropagateSharedModule ()Lorg/gradle/api/provider/Property;
-	public abstract fun getPropagateVersion ()Lorg/gradle/api/provider/Property;
-	public abstract fun getSanitizeSourcePlist ()Lorg/gradle/api/provider/Property;
-	public abstract fun getSplashColor ()Lorg/gradle/api/provider/Property;
-	public abstract fun getSplashDarkColor ()Lorg/gradle/api/provider/Property;
-	public abstract fun getSplashDarkImage ()Lorg/gradle/api/file/RegularFileProperty;
-	public abstract fun getSplashEnabled ()Lorg/gradle/api/provider/Property;
-	public abstract fun getSplashImage ()Lorg/gradle/api/file/RegularFileProperty;
-	public abstract fun getTargetNames ()Lorg/gradle/api/provider/ListProperty;
-	public abstract fun getUsesNonExemptEncryption ()Lorg/gradle/api/provider/Property;
-	public final fun sync ()V
-}
-
-public abstract class io/github/yuroyami/kiteconfig/SyncIosLogoTask : org/gradle/api/DefaultTask {
-	public static final field Companion Lio/github/yuroyami/kiteconfig/SyncIosLogoTask$Companion;
-	public fun <init> ()V
-	public abstract fun getAppiconsetDir ()Lorg/gradle/api/file/DirectoryProperty;
-	public abstract fun getBackgroundColorHex ()Lorg/gradle/api/provider/Property;
-	public abstract fun getBackgroundPng ()Lorg/gradle/api/file/RegularFileProperty;
-	public abstract fun getBackup ()Lorg/gradle/api/provider/Property;
-	public abstract fun getBackupDir ()Lorg/gradle/api/file/DirectoryProperty;
-	public abstract fun getDryRun ()Lorg/gradle/api/provider/Property;
-	public abstract fun getForegroundPng ()Lorg/gradle/api/file/RegularFileProperty;
-	public abstract fun getForegroundScale ()Lorg/gradle/api/provider/Property;
-	public abstract fun getOutputFiles ()Lorg/gradle/api/file/ConfigurableFileCollection;
-	public abstract fun getProjectRootDir ()Lorg/gradle/api/file/DirectoryProperty;
-	public final fun sync ()V
-}
-
-public final class io/github/yuroyami/kiteconfig/SyncIosLogoTask$Companion {
 }
 
 public abstract interface class io/github/yuroyami/kiteconfig/VersionCodeScheme {

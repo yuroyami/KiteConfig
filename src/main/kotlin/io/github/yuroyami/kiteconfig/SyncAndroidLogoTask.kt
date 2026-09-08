@@ -48,7 +48,7 @@ import java.nio.file.attribute.BasicFileAttributes
  * build rather than being read as `false`.
  */
 @DisableCachingByDefault(because = "Installs and validates files in a user-owned Android resource tree.")
-abstract class SyncAndroidLogoTask : DefaultTask() {
+internal abstract class SyncAndroidLogoTask : DefaultTask() {
 
     init {
         group = "kiteconfig"

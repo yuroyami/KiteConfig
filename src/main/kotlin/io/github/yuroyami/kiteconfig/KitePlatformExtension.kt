@@ -32,12 +32,12 @@ import org.gradle.api.provider.Property
  * @see KiteAppNameScope for the name's delivery switch.
  */
 @KiteDsl
-abstract class KitePlatformExtension : KitePlatformRef {
+public abstract class KitePlatformExtension : KitePlatformRef {
 
     /**
      * The display name on this platform. Unset means the shared `appName`.
      */
-    abstract val appName: Property<String>
+    public abstract val appName: Property<String>
 
     /**
      * The exact application identifier on this platform.
@@ -45,7 +45,7 @@ abstract class KitePlatformExtension : KitePlatformRef {
      * Unset means the shared `appId` plus this platform's [KiteAppIdScope.suffix].
      * Setting it here replaces both.
      */
-    abstract val appId: Property<String>
+    public abstract val appId: Property<String>
 
     /**
      * Apply this platform's source changes automatically. Unset means the
@@ -54,26 +54,26 @@ abstract class KitePlatformExtension : KitePlatformRef {
      * Set it false here to keep one platform manual while the rest are
      * automatic. `kiteApply` still applies it when you ask.
      */
-    abstract val autoApply: Property<Boolean>
+    public abstract val autoApply: Property<Boolean>
 
     /**
      * The release version on this platform. Unset means the shared `version`.
      *
      * On iOS this is the marketing version customers see.
      */
-    abstract val version: Property<String>
+    public abstract val version: Property<String>
 
     /** This platform's build number, counter, scheme, and delivery switch. */
-    fun version(action: Action<in KitePlatformVersionScope>) = action.execute(versionDetails)
+    public fun version(action: Action<in KitePlatformVersionScope>): Unit = action.execute(versionDetails)
 
     internal val versionDetails: KitePlatformVersionScope
         get() = (this as ExtensionAware).extensions.getByType(KitePlatformVersionScope::class.java)
 
     /** Whether this platform receives the app name. */
-    fun appName(action: Action<in KiteAppNameScope>) = action.execute(appNameDetails)
+    public fun appName(action: Action<in KiteAppNameScope>): Unit = action.execute(appNameDetails)
 
     /** This platform's identifier suffix and delivery switch. */
-    fun appId(action: Action<in KiteAppIdScope>) = action.execute(appIdDetails)
+    public fun appId(action: Action<in KiteAppIdScope>): Unit = action.execute(appIdDetails)
 
     internal val splashDetails: KiteSplashScope
         get() = (this as ExtensionAware).extensions.getByType(KiteSplashScope::class.java)

@@ -47,7 +47,7 @@ import java.security.MessageDigest
  * build rather than being read as `false`.
  */
 @DisableCachingByDefault(because = "Installs and validates files in a user-owned Xcode asset catalog.")
-abstract class SyncIosLogoTask : DefaultTask() {
+internal abstract class SyncIosLogoTask : DefaultTask() {
 
     init {
         group = "kiteconfig"

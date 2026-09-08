@@ -14,4 +14,4 @@ package io.github.yuroyami.kiteconfig
 )
 @Retention(AnnotationRetention.BINARY)
 @Target(AnnotationTarget.PROPERTY, AnnotationTarget.FUNCTION, AnnotationTarget.CLASS)
-annotation class DiscouragedKiteApi
+public annotation class DiscouragedKiteApi

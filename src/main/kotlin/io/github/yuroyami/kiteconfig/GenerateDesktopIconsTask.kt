@@ -32,7 +32,7 @@ private const val BASE_SIZE = 1024
  * info) because generated output is a build input, not a source-tree mutation.
  */
 @CacheableTask
-abstract class GenerateDesktopIconsTask : DefaultTask() {
+internal abstract class GenerateDesktopIconsTask : DefaultTask() {
 
     init {
         group = "kiteconfig"

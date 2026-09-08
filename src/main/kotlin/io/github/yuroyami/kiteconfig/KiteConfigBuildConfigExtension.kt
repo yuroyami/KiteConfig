@@ -77,13 +77,13 @@ import javax.inject.Inject
  * @see includeIdentity to generate fields only.
  */
 @KiteDsl
-abstract class KiteConfigBuildConfigExtension {
+public abstract class KiteConfigBuildConfigExtension {
 
     /**
      * Generate the constants. Default: on once a field is declared. Set it true
      * for identity-only output with no custom fields of your own.
      */
-    abstract val enabled: Property<Boolean>
+    public abstract val enabled: Property<Boolean>
 
 
     /** Gradle-injected, used only to build the failure path for an empty provider. */
@@ -96,7 +96,7 @@ abstract class KiteConfigBuildConfigExtension {
      *
      * Default: `kiteconfig.generated`.
      */
-    abstract val packageName: Property<String>
+    public abstract val packageName: Property<String>
 
     /**
      * Name of the generated object. It must be a valid Kotlin identifier.
@@ -104,7 +104,7 @@ abstract class KiteConfigBuildConfigExtension {
      * Default: `KiteBuildConfig`, which does not clash with the `BuildConfig`
      * that AGP generates.
      */
-    abstract val className: Property<String>
+    public abstract val className: Property<String>
 
     /**
      * Whether KiteConfig app identity is baked into the object: app name, version,
@@ -116,7 +116,7 @@ abstract class KiteConfigBuildConfigExtension {
      * Set it to `false` for a custom-fields-only object. In that mode, generation
      * reads no identity provider at all.
      */
-    abstract val includeIdentity: Property<Boolean>
+    public abstract val includeIdentity: Property<Boolean>
 
     /**
      * Whether Gradle may store the generated source in a build cache.
@@ -125,7 +125,7 @@ abstract class KiteConfigBuildConfigExtension {
      * entry. Turn it on only when all fields are public client configuration and
      * every local and remote cache is trusted.
      */
-    abstract val allowBuildCache: Property<Boolean>
+    public abstract val allowBuildCache: Property<Boolean>
 
     /**
      * Legacy list representation for custom fields.
@@ -138,10 +138,10 @@ abstract class KiteConfigBuildConfigExtension {
      * Limits: 512 entries, 65,536 characters per entry, and 1,048,576 characters
      * in total.
      */
-    abstract val fields: ListProperty<String>
+    public abstract val fields: ListProperty<String>
 
     /** Add a validated Kotlin `String` constant of at most 10,000 characters. */
-    fun stringField(name: String, value: String) {
+    public fun stringField(name: String, value: String) {
         fields.add(BuildConfigField.StringValue(name.checkedFieldName(), value).renderBody())
     }
 
@@ -162,7 +162,7 @@ abstract class KiteConfigBuildConfigExtension {
      * stringField("CHANNEL", providers.gradleProperty("publicChannel").orElse("stable"))
      * ```
      */
-    fun stringField(name: String, value: Provider<String>) =
+    public fun stringField(name: String, value: Provider<String>): Unit =
         lazyField("stringField", name, value) { checked, resolved ->
             BuildConfigField.StringValue(checked, resolved)
         }
@@ -195,45 +195,45 @@ abstract class KiteConfigBuildConfigExtension {
     )
 
     /** Add a validated Kotlin `Int` constant. `Int.MIN_VALUE` is emitted as valid Kotlin source. */
-    fun intField(name: String, value: Int) {
+    public fun intField(name: String, value: Int) {
         fields.add(BuildConfigField.IntValue(name.checkedFieldName(), value).renderBody())
     }
 
     /** Add a validated Kotlin `Long` constant. `Long.MIN_VALUE` is emitted as valid Kotlin source. */
-    fun longField(name: String, value: Long) {
+    public fun longField(name: String, value: Long) {
         fields.add(BuildConfigField.LongValue(name.checkedFieldName(), value).renderBody())
     }
 
     /** Add a validated Kotlin `Boolean` constant. */
-    fun booleanField(name: String, value: Boolean) {
+    public fun booleanField(name: String, value: Boolean) {
         fields.add(BuildConfigField.BooleanValue(name.checkedFieldName(), value).renderBody())
     }
 
     /** Add a validated finite Kotlin `Double` constant. NaN and infinite values are rejected. */
-    fun doubleField(name: String, value: Double) {
+    public fun doubleField(name: String, value: Double) {
         fields.add(BuildConfigField.DoubleValue(name.checkedFieldName(), value).renderBody())
     }
 
     /** [intField] from a provider. The same rules as [stringField] apply. */
-    fun intField(name: String, value: Provider<Int>) =
+    public fun intField(name: String, value: Provider<Int>): Unit =
         lazyField("intField", name, value) { checked, resolved ->
             BuildConfigField.IntValue(checked, resolved)
         }
 
     /** [longField] from a provider. The same rules as [stringField] apply. */
-    fun longField(name: String, value: Provider<Long>) =
+    public fun longField(name: String, value: Provider<Long>): Unit =
         lazyField("longField", name, value) { checked, resolved ->
             BuildConfigField.LongValue(checked, resolved)
         }
 
     /** [booleanField] from a provider. The same rules as [stringField] apply. */
-    fun booleanField(name: String, value: Provider<Boolean>) =
+    public fun booleanField(name: String, value: Provider<Boolean>): Unit =
         lazyField("booleanField", name, value) { checked, resolved ->
             BuildConfigField.BooleanValue(checked, resolved)
         }
 
     /** [doubleField] from a provider. The same rules as [stringField] apply. */
-    fun doubleField(name: String, value: Provider<Double>) =
+    public fun doubleField(name: String, value: Provider<Double>): Unit =
         lazyField("doubleField", name, value) { checked, resolved ->
             BuildConfigField.DoubleValue(checked, resolved)
         }

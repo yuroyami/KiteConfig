@@ -36,7 +36,7 @@ import javax.inject.Inject
  * `splash { backgroundColor }` in that case.
  */
 @KiteDsl
-abstract class KiteSplashScope @Inject constructor(private val objects: ObjectFactory) {
+public abstract class KiteSplashScope @Inject constructor(private val objects: ObjectFactory) {
 
     /**
      * Deliver a launch screen. Default: `false` at the root.
@@ -45,26 +45,26 @@ abstract class KiteSplashScope @Inject constructor(private val objects: ObjectFa
      * `ios { splash { enabled = true } }` gives iOS a launch screen and nobody
      * else one.
      */
-    abstract val enabled: Property<Boolean>
+    public abstract val enabled: Property<Boolean>
 
     /** Splash art. Default: the effective `logo { foreground }` for this platform. */
-    abstract val image: RegularFileProperty
+    public abstract val image: RegularFileProperty
 
     /**
      * Solid plate behind the art, `#RRGGBB` or `#AARRGGBB`, alpha first.
      * Default: the effective logo background, when that background is a color.
      */
-    abstract val backgroundColor: Property<String>
+    public abstract val backgroundColor: Property<String>
 
     /** Dark-mode overrides. Unset members fall back to the light values. */
     @KiteDsl
-    abstract class DarkVariant {
+    public abstract class DarkVariant {
 
         /** Dark-mode splash art. Default: the light [KiteSplashScope.image]. */
-        abstract val image: RegularFileProperty
+        public abstract val image: RegularFileProperty
 
         /** Dark-mode plate color. Default: the light color. */
-        abstract val backgroundColor: Property<String>
+        public abstract val backgroundColor: Property<String>
 
         /**
          * Produce dark-mode resources. Default: on once a dark value is set.
@@ -72,12 +72,12 @@ abstract class KiteSplashScope @Inject constructor(private val objects: ObjectFa
          * Setting it false in a platform block drops an inherited dark variant
          * for that platform without touching the splash itself.
          */
-        abstract val enabled: Property<Boolean>
+        public abstract val enabled: Property<Boolean>
     }
 
-    val dark: DarkVariant = objects.newInstance(DarkVariant::class.java)
+    public val dark: DarkVariant = objects.newInstance(DarkVariant::class.java)
 
-    fun dark(action: Action<in DarkVariant>) = action.execute(dark)
+    public fun dark(action: Action<in DarkVariant>): Unit = action.execute(dark)
 
 }
 
@@ -88,7 +88,7 @@ abstract class KiteSplashScope @Inject constructor(private val objects: ObjectFa
  * generated style inherits.
  */
 @KiteDsl
-abstract class KiteAndroidSplashScope @Inject constructor(objects: ObjectFactory) : KiteSplashScope(objects) {
+public abstract class KiteAndroidSplashScope @Inject constructor(objects: ObjectFactory) : KiteSplashScope(objects) {
 
     /**
      * Name of your existing app theme, for example `AppTheme`.
@@ -96,5 +96,5 @@ abstract class KiteAndroidSplashScope @Inject constructor(objects: ObjectFactory
      * The generated `KiteSplash` style inherits it and only adds splash
      * attributes on Android 12 and newer, so older devices see no change.
      */
-    abstract val theme: Property<String>
+    public abstract val theme: Property<String>
 }

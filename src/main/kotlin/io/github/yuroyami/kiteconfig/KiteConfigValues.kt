@@ -25,29 +25,29 @@ import org.gradle.api.provider.Provider
  * consuming build file, and a silent fallback would put a second copy of the
  * value in the consumer, which is what this plugin exists to prevent.
  */
-interface KiteConfigValues {
+public interface KiteConfigValues {
 
     // ------------------------------------------------------------------ version
 
     /** The declared version string, for example `1.4.0`. */
-    val version: Provider<String>
+    public val version: Provider<String>
 
     /** The resolved Android `versionCode` for this build. */
-    val versionCode: Provider<Int>
+    public val versionCode: Provider<Int>
 
     /** The resolved Apple build number, `CFBundleVersion`. */
-    val iosBuildNumber: Provider<String>
+    public val iosBuildNumber: Provider<String>
 
     /** The resolved Apple marketing version, `CFBundleShortVersionString`. */
-    val iosMarketingVersion: Provider<String>
+    public val iosMarketingVersion: Provider<String>
 
     /** The resolved desktop build number. */
-    val desktopBuildNumber: Provider<String>
+    public val desktopBuildNumber: Provider<String>
 
     // ----------------------------------------------------------------- identity
 
     /** The declared app name, before any platform corner overrides it. */
-    val appName: Provider<String>
+    public val appName: Provider<String>
 
     /**
      * The app name resolved for [platform], with its corner override applied.
@@ -57,10 +57,10 @@ interface KiteConfigValues {
      * value, not what the value is. The same holds for [appIdFor],
      * [androidApplicationId], [iosBundleId], and [desktopBundleId].
      */
-    fun appNameFor(platform: KitePlatform): Provider<String>
+    public fun appNameFor(platform: KitePlatform): Provider<String>
 
     /** The declared base identifier, before any platform suffix or override. */
-    val appId: Provider<String>
+    public val appId: Provider<String>
 
     /**
      * The identifier resolved for [platform]: that platform's own `appId`, or the
@@ -69,13 +69,13 @@ interface KiteConfigValues {
      * Like [appNameFor], this is the value the platform would receive. It does
      * not account for selection or for a platform that turned delivery off.
      */
-    fun appIdFor(platform: KitePlatform): Provider<String>
+    public fun appIdFor(platform: KitePlatform): Provider<String>
 
     /** Android application id: the effective [appId] for Android. See [appNameFor]. */
-    val androidApplicationId: Provider<String>
+    public val androidApplicationId: Provider<String>
 
     /** Apple bundle id: the effective [appId] for iOS. See [appNameFor]. */
-    val iosBundleId: Provider<String>
+    public val iosBundleId: Provider<String>
 
     /**
      * Desktop bundle id: the effective [appId] for desktop.
@@ -83,7 +83,7 @@ interface KiteConfigValues {
      * See [appNameFor]. Unlike the other values here, this one validates on read
      * and throws when the result is not a valid reverse-DNS identifier.
      */
-    val desktopBundleId: Provider<String>
+    public val desktopBundleId: Provider<String>
 
     // -------------------------------------------------------------------- build
 
@@ -103,13 +103,13 @@ interface KiteConfigValues {
      * detection has not run yet. That answer is local to the caller and does not
      * affect the list the build uses.
      */
-    val canonicalLocales: Provider<List<String>>
+    public val canonicalLocales: Provider<List<String>>
 
     /** The Java release level applied to JVM compilation. */
-    val jvmTarget: Provider<Int>
+    public val jvmTarget: Provider<Int>
 
     /** The JDK major version the build uses, when `jvm { toolchain }` selected one. */
-    val jvmToolchain: Provider<Int>
+    public val jvmToolchain: Provider<Int>
 
     /**
      * The selected shared KMP project path.
@@ -120,19 +120,19 @@ interface KiteConfigValues {
      * evaluated, so `get()` during configuration fails with no value. Either
      * declare the module or read this through a task input.
      */
-    val resolvedSharedProjectPath: Provider<String>
+    public val resolvedSharedProjectPath: Provider<String>
 
     /** Lowest Android API level the app runs on. */
-    val minSdk: Provider<Int>
+    public val minSdk: Provider<Int>
 
     /** Android API level the app targets. */
-    val targetSdk: Provider<Int>
+    public val targetSdk: Provider<Int>
 
     /** Android API level the app compiles against. */
-    val compileSdk: Provider<Int>
+    public val compileSdk: Provider<Int>
 
     /** Pinned Android NDK version, in Android's `major.minor.build` form. */
-    val ndk: Provider<String>
+    public val ndk: Provider<String>
 }
 
 /**
@@ -165,7 +165,7 @@ interface KiteConfigValues {
  * @throws GradleException if the plugin is on the classpath but not applied to
  *   the root project.
  */
-val Project.kiteConfig: KiteConfigValues
+public val Project.kiteConfig: KiteConfigValues
     get() = rootProject.extensions.findByType(KiteConfigExtension::class.java)
         ?: throw GradleException(
             "KiteConfig values are unavailable in '$path': apply the " +

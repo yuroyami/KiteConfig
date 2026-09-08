@@ -26,7 +26,7 @@ import org.gradle.api.provider.Property
  * `knownRegions` in the Xcode project.
  */
 @KiteDsl
-abstract class KiteLocalesScope {
+public abstract class KiteLocalesScope {
 
     /**
      * The BCP 47 tags your app ships, for example `listOf("en", "ar")`.
@@ -36,10 +36,10 @@ abstract class KiteLocalesScope {
      * the shared list. Tags are normalized and de-duplicated, and declaration
      * order is kept.
      */
-    abstract val tags: ListProperty<String>
+    public abstract val tags: ListProperty<String>
 
     /** Deliver the locale list to this platform. Default: `true`. */
-    abstract val enabled: Property<Boolean>
+    public abstract val enabled: Property<Boolean>
 }
 
 /**
@@ -49,7 +49,7 @@ abstract class KiteLocalesScope {
  * policy.
  */
 @KiteDsl
-abstract class KiteAndroidLocalesScope : KiteLocalesScope() {
+public abstract class KiteAndroidLocalesScope : KiteLocalesScope() {
 
     /**
      * Drop Android resource folders whose locale is not in the list.
@@ -59,5 +59,5 @@ abstract class KiteAndroidLocalesScope : KiteLocalesScope() {
      * When detection cannot answer that early, KiteConfig says so and asks for
      * `locales { tags }` or `modules { shared }` rather than guessing.
      */
-    abstract val filterResources: Property<Boolean>
+    public abstract val filterResources: Property<Boolean>
 }

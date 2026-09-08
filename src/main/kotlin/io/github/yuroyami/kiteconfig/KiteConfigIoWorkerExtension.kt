@@ -52,13 +52,13 @@ import org.gradle.api.provider.Property
  * @see KiteConfigWebExtension for the enclosing block.
  */
 @KiteDsl
-abstract class KiteConfigIoWorkerExtension {
+public abstract class KiteConfigIoWorkerExtension {
 
     /**
      * Generate the browser worker. Default: `false`. Naming targets or a package
      * is configuration, not a request for the feature.
      */
-    abstract val enabled: Property<Boolean>
+    public abstract val enabled: Property<Boolean>
 
 
     /** Set when the enclosing `ioWorker { }` block is opened. Presence is the opt-in. */
@@ -74,7 +74,7 @@ abstract class KiteConfigIoWorkerExtension {
      * a Node.js target, so nothing is generated for a target you leave out.
      * Every name must match a declared Kotlin/JS target.
      */
-    abstract val targets: ListProperty<String>
+    public abstract val targets: ListProperty<String>
 
     /**
      * Adds one or more browser target names to [targets].
@@ -85,7 +85,7 @@ abstract class KiteConfigIoWorkerExtension {
      * targets("js")
      * ```
      */
-    fun targets(vararg names: String) {
+    public fun targets(vararg names: String) {
         targets.addAll(*names)
     }
 
@@ -96,7 +96,7 @@ abstract class KiteConfigIoWorkerExtension {
      * Default: empty, which means `modules.shared`. Generation fails when no
      * single project can be chosen safely.
      */
-    abstract val projects: ListProperty<String>
+    public abstract val projects: ListProperty<String>
 
     /**
      * Adds one or more project paths to [projects].
@@ -107,7 +107,7 @@ abstract class KiteConfigIoWorkerExtension {
      * projects(":shared", ":apps:web")
      * ```
      */
-    fun projects(vararg paths: String) {
+    public fun projects(vararg paths: String) {
         projects.addAll(*paths)
     }
 
@@ -118,5 +118,5 @@ abstract class KiteConfigIoWorkerExtension {
      * Default: `kiteconfig.generated`. Kotlin hard keywords are rejected as
      * segments because the generated file would not compile.
      */
-    abstract val packageName: Property<String>
+    public abstract val packageName: Property<String>
 }

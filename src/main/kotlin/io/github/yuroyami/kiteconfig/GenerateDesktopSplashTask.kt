@@ -44,7 +44,7 @@ private const val SPLASH_ART_HEIGHT_RATIO = 0.5
  * ignores `dryRun`: the law scopes dryRun to source rewrites, never build/ flow.
  */
 @CacheableTask
-abstract class GenerateDesktopSplashTask : DefaultTask() {
+internal abstract class GenerateDesktopSplashTask : DefaultTask() {
 
     init {
         group = "kiteconfig"

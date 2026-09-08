@@ -29,7 +29,7 @@ private val MANIFEST_PLACEHOLDER = Regex("""\$\{[^}]*}""")
  * Output stays in `build/`, so this needs no ownership receipt and no backups.
  */
 @CacheableTask
-abstract class GenerateAndroidManifestOverlayTask : DefaultTask() {
+internal abstract class GenerateAndroidManifestOverlayTask : DefaultTask() {
 
     init {
         group = "kiteconfig"

@@ -704,8 +704,6 @@ class KiteConfigPluginFunctionalTest {
         write(
             "build.gradle.kts",
             """
-            import io.github.yuroyami.kiteconfig.GenerateBuildConfigTask
-
             plugins {
                 id("org.jetbrains.kotlin.multiplatform") apply false
                 id("io.github.yuroyami.kiteconfig")
@@ -729,14 +727,21 @@ class KiteConfigPluginFunctionalTest {
             val unreadLocales = providers.provider<List<String>> {
                 error("fields-only generation realized the locales provider")
             }
+            // The generator task type is internal, so this reaches its properties
+            // the way anything outside the plugin would have to: by name.
             gradle.projectsEvaluated {
-                project(":shared").tasks.named<GenerateBuildConfigTask>("kiteInternalBuildConfig") {
-                    appName.set(unreadString)
-                    versionName.set(unreadString)
-                    versionCode.set(unreadInt)
-                    androidApplicationId.set(unreadString)
-                    iosBundleId.set(unreadString)
-                    locales.set(unreadLocales)
+                project(":shared").tasks.named("kiteInternalBuildConfig").configure {
+                    fun property(name: String): Any =
+                        javaClass.getMethod("get" + name.replaceFirstChar(Char::uppercase)).invoke(this)
+                    @Suppress("UNCHECKED_CAST")
+                    fun value(name: String) = property(name) as org.gradle.api.provider.Property<Any>
+                    value("appName").set(unreadString)
+                    value("versionName").set(unreadString)
+                    value("versionCode").set(unreadInt)
+                    value("androidApplicationId").set(unreadString)
+                    value("iosBundleId").set(unreadString)
+                    @Suppress("UNCHECKED_CAST")
+                    (property("locales") as org.gradle.api.provider.ListProperty<String>).set(unreadLocales)
                 }
             }
             """.trimIndent(),

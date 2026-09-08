@@ -103,6 +103,19 @@ A root `false` is an inheritable default rather than a ban: a platform can still
 ask for one the root left off. Root exclusion is the one thing a platform cannot
 argue with.
 
+### The public API is only what you can write
+
+The plugin compiles in Kotlin's explicit API mode now, so every public
+declaration states its visibility. The generator and diagnostic task types, and
+the Android adapter's input holder, are internal: nothing in a build script
+could usefully name them, and keeping them public meant owing compatibility for
+machinery. The published API listing dropped by roughly half and now holds the
+extensions, the scopes, the enums, the read-back view, and the version-scheme
+types.
+
+If you referenced one of those task types directly, address the task by name
+instead: `tasks.named("kiteInternalBuildConfig")`.
+
 ### Generated fields can all be lazy
 
 `stringField` was the only helper that took a `Provider`. `intField`,

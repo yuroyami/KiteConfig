@@ -20,4 +20,4 @@ package io.github.yuroyami.kiteconfig
 @DslMarker
 @Target(AnnotationTarget.CLASS)
 @Retention(AnnotationRetention.BINARY)
-annotation class KiteDsl
+public annotation class KiteDsl

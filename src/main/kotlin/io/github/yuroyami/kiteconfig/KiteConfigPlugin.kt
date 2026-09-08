@@ -45,7 +45,7 @@ import org.jetbrains.kotlin.gradle.targets.js.dsl.KotlinJsSubTargetContainerDsl
 internal fun typedIntegrationsActive(supported: Boolean, ignoreGuards: Boolean): Boolean =
     supported || ignoreGuards
 
-class KiteConfigPlugin : Plugin<Project> {
+public class KiteConfigPlugin : Plugin<Project> {
 
     override fun apply(target: Project) {
         if (target != target.rootProject) {
@@ -1667,7 +1667,7 @@ class KiteConfigPlugin : Plugin<Project> {
             ext.desktop.deriveUpgradeUuid, ext.modules.desktopApps,
         )
 
-    companion object {
+    public companion object {
         private const val MIN_GRADLE = "8.5"
         private val RESILIENT_DIAGNOSTIC_TASKS = setOf(
             "kiteVerify",

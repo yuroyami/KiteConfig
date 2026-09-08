@@ -12,7 +12,7 @@ package io.github.yuroyami.kiteconfig
  *
  * Not part of the supported API. It exists only so the two source sets can talk.
  */
-class Agp8AndroidInputs internal constructor(
+internal class Agp8AndroidInputs internal constructor(
     /** Application project paths the app-scoped values apply to. Empty means every application. */
     @JvmField val selectedApplications: List<String>,
     /** Whether the resolved application id should be written. */

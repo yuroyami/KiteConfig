@@ -43,7 +43,7 @@ import org.gradle.work.DisableCachingByDefault
  * build rather than being read as `false`.
  */
 @DisableCachingByDefault(because = "One-shot source migration with backups and provenance side effects.")
-abstract class CleanupLegacyAppLogoArtifactsTask : DefaultTask() {
+internal abstract class CleanupLegacyAppLogoArtifactsTask : DefaultTask() {
 
     init {
         group = "kiteconfig"

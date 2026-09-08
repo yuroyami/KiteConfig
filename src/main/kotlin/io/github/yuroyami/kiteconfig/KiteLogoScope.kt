@@ -12,13 +12,13 @@ import java.io.Serializable
  * color with an image leaves no color behind, which is the trap two separate
  * properties set for anyone overriding artwork per platform.
  */
-sealed interface LogoBackground : Serializable {
+public sealed interface LogoBackground : Serializable {
 
     /** A solid plate, written as `#RRGGBB` or `#AARRGGBB`, alpha first. */
-    data class Color(val hex: String) : LogoBackground
+    public data class Color(val hex: String) : LogoBackground
 
     /** A PNG behind the foreground. */
-    data class Image(val file: File) : LogoBackground
+    public data class Image(val file: File) : LogoBackground
 }
 
 /**
@@ -52,7 +52,7 @@ sealed interface LogoBackground : Serializable {
  * flattened onto the background. Android keeps the two adaptive layers.
  */
 @KiteDsl
-abstract class KiteLogoScope {
+public abstract class KiteLogoScope {
 
     /**
      * PNG holding the artwork that sits on top: your mark, your glyph.
@@ -60,7 +60,7 @@ abstract class KiteLogoScope {
      * A square 1024 by 1024 image with transparency works best. The aspect ratio
      * is preserved. Setting this is what turns the topic on.
      */
-    abstract val foreground: RegularFileProperty
+    public abstract val foreground: RegularFileProperty
 
     /**
      * What sits behind [foreground]: `color("#102A43")` or `image(file("bg.png"))`.
@@ -68,7 +68,7 @@ abstract class KiteLogoScope {
      * @throws org.gradle.api.GradleException at task time when a color is not
      *   `#RRGGBB` or `#AARRGGBB`.
      */
-    abstract val background: Property<LogoBackground>
+    public abstract val background: Property<LogoBackground>
 
     /**
      * How much of the icon canvas the foreground may fill, as a ratio in `0 < s <= 1`.
@@ -83,19 +83,19 @@ abstract class KiteLogoScope {
      *
      * @throws org.gradle.api.GradleException at task time when not in `0.0 < s <= 1.0`.
      */
-    abstract val foregroundScale: Property<Double>
+    public abstract val foregroundScale: Property<Double>
 
     /** Deliver the icon to this platform. Default: on once [foreground] is set. */
-    abstract val enabled: Property<Boolean>
+    public abstract val enabled: Property<Boolean>
 
     /** A solid plate behind the mark. */
-    fun color(hex: String): LogoBackground = LogoBackground.Color(hex)
+    public fun color(hex: String): LogoBackground = LogoBackground.Color(hex)
 
     /** A PNG behind the mark. */
-    fun image(file: File): LogoBackground = LogoBackground.Image(file)
+    public fun image(file: File): LogoBackground = LogoBackground.Image(file)
 
     /** A PNG behind the mark, from a Gradle file provider. */
-    fun image(file: org.gradle.api.file.RegularFile): LogoBackground = LogoBackground.Image(file.asFile)
+    public fun image(file: org.gradle.api.file.RegularFile): LogoBackground = LogoBackground.Image(file.asFile)
 
 }
 
@@ -105,10 +105,10 @@ abstract class KiteLogoScope {
  * Everything in [KiteLogoScope] applies here too, plus the macOS shape.
  */
 @KiteDsl
-abstract class KiteDesktopLogoScope : KiteLogoScope() {
+public abstract class KiteDesktopLogoScope : KiteLogoScope() {
 
     /** Round the generated macOS icon. Default: `true`, the macOS style. */
-    abstract val roundMac: Property<Boolean>
+    public abstract val roundMac: Property<Boolean>
 }
 
 

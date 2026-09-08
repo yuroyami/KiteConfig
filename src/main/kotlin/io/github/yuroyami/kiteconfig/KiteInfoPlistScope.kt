@@ -25,14 +25,14 @@ import org.gradle.api.provider.Property
  * A key you do not set is left exactly as it is.
  */
 @KiteDsl
-abstract class KiteInfoPlistScope {
+public abstract class KiteInfoPlistScope {
 
     /**
      * The source XML `Info.plist` KiteConfig maintains.
      *
      * Default: `iosApp/iosApp/Info.plist`. Set it only when your tree differs.
      */
-    abstract val path: RegularFileProperty
+    public abstract val path: RegularFileProperty
 
     /**
      * Value for `ITSAppUsesNonExemptEncryption`. Default: unset, key untouched.
@@ -40,7 +40,7 @@ abstract class KiteInfoPlistScope {
      * KiteConfig writes the boolean you choose. It does not determine your
      * export-control status, submit compliance documents, or give legal advice.
      */
-    abstract val nonExemptEncryption: Property<Boolean>
+    public abstract val nonExemptEncryption: Property<Boolean>
 
     /**
      * Value for `CADisableMinimumFrameDurationOnPhone`. Default: unset, key untouched.
@@ -49,5 +49,5 @@ abstract class KiteInfoPlistScope {
      * supported iPhone displays. It does not guarantee a refresh rate: the
      * device, the OS, the framework, and the workload still decide.
      */
-    abstract val proMotion: Property<Boolean>
+    public abstract val proMotion: Property<Boolean>
 }

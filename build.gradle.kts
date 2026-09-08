@@ -162,6 +162,11 @@ java {
 }
 
 kotlin {
+    // Every public declaration states its visibility and its return type. This is
+    // a plugin: anything that slips out as public is something a consumer can
+    // depend on and that we then owe compatibility for.
+    explicitApi()
+
     @OptIn(org.jetbrains.kotlin.gradle.dsl.abi.ExperimentalAbiValidation::class)
     abiValidation {
         enabled.set(true)

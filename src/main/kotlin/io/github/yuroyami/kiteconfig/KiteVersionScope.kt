@@ -26,7 +26,7 @@ import org.gradle.api.provider.Property
  * published baseline. See [KitePlatformVersionScope].
  */
 @KiteDsl
-abstract class KiteVersionScope {
+public abstract class KiteVersionScope {
 
     internal abstract val schemeProp: Property<VersionCodeScheme>
 
@@ -34,10 +34,10 @@ abstract class KiteVersionScope {
      * Extra counter for re-uploading the same release version to a store.
      * Default: `0`. The scheme reads it.
      */
-    abstract val rebuild: Property<Int>
+    public abstract val rebuild: Property<Int>
 
     /** Use a built-in scheme, for example `scheme(VersionSchemes.DEFAULT)`. */
-    fun scheme(scheme: VersionCodeScheme) = schemeProp.set(scheme)
+    public fun scheme(scheme: VersionCodeScheme): Unit = schemeProp.set(scheme)
 }
 
 /**
@@ -71,14 +71,14 @@ abstract class KiteVersionScope {
  * any other platform.
  */
 @KiteDsl
-abstract class KitePlatformVersionScope : KiteVersionScope() {
+public abstract class KitePlatformVersionScope : KiteVersionScope() {
 
     /**
      * Exact build number for this platform. The scheme is not consulted.
      *
      * Android needs a plain decimal integer inside the store's range.
      */
-    abstract val buildNumber: Property<String>
+    public abstract val buildNumber: Property<String>
 
     /**
      * The highest build number already published for this platform.
@@ -86,8 +86,8 @@ abstract class KitePlatformVersionScope : KiteVersionScope() {
      * The resolved number must beat it, or the build fails before release.
      * Nothing contacts a store; this is a value you keep yourself.
      */
-    abstract val publishedBuildNumber: Property<String>
+    public abstract val publishedBuildNumber: Property<String>
 
     /** Deliver the version and build number to this platform. Default: `true`. */
-    abstract val enabled: Property<Boolean>
+    public abstract val enabled: Property<Boolean>
 }

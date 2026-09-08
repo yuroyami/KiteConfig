@@ -58,10 +58,10 @@ import org.gradle.api.provider.Property
  * @see KiteConfigModulesExtension.androidApps when more than one module is an application.
  */
 @KiteDsl
-abstract class KiteConfigAndroidExtension : KitePlatformExtension() {
+public abstract class KiteConfigAndroidExtension : KitePlatformExtension() {
 
     /** This platform's launch screen. */
-    fun splash(action: org.gradle.api.Action<in KiteAndroidSplashScope>) = action.execute(androidSplash)
+    public fun splash(action: org.gradle.api.Action<in KiteAndroidSplashScope>): Unit = action.execute(androidSplash)
 
     internal val androidSplash: KiteAndroidSplashScope
         get() = (this as org.gradle.api.plugins.ExtensionAware)
@@ -69,11 +69,11 @@ abstract class KiteConfigAndroidExtension : KitePlatformExtension() {
 
 
     /** This platform's icon art and how much of the canvas the mark fills. */
-    fun logo(action: org.gradle.api.Action<in KiteLogoScope>) = action.execute(logoDetails)
+    public fun logo(action: org.gradle.api.Action<in KiteLogoScope>): Unit = action.execute(logoDetails)
 
 
     /** The JVM toolchain and bytecode level for this platform's compilations. */
-    fun jvm(action: org.gradle.api.Action<in KiteJvmScope>) = action.execute(jvmDetails)
+    public fun jvm(action: org.gradle.api.Action<in KiteJvmScope>): Unit = action.execute(jvmDetails)
 
     internal val jvmDetails: KiteJvmScope
         get() = (this as org.gradle.api.plugins.ExtensionAware)
@@ -81,7 +81,7 @@ abstract class KiteConfigAndroidExtension : KitePlatformExtension() {
 
 
     /** Android's locale list and its resource filter. */
-    fun locales(action: org.gradle.api.Action<in KiteAndroidLocalesScope>) =
+    public fun locales(action: org.gradle.api.Action<in KiteAndroidLocalesScope>): Unit =
         action.execute(androidLocales)
 
     internal val androidLocales: KiteAndroidLocalesScope
@@ -100,7 +100,7 @@ abstract class KiteConfigAndroidExtension : KitePlatformExtension() {
 
 
     /** Set any subset of the three SDK levels in one line. */
-    fun sdk(min: Int? = null, target: Int? = null, compile: Int? = null) {
+    public fun sdk(min: Int? = null, target: Int? = null, compile: Int? = null) {
         min?.let(minSdk::set)
         target?.let(targetSdk::set)
         compile?.let(compileSdk::set)
@@ -114,7 +114,7 @@ abstract class KiteConfigAndroidExtension : KitePlatformExtension() {
      *
      * Default: unset, which leaves each module's own value alone.
      */
-    abstract val compileSdk: Property<Int>
+    public abstract val compileSdk: Property<Int>
 
     /**
      * Lowest API level the app runs on, written as `defaultConfig.minSdk` in
@@ -122,7 +122,7 @@ abstract class KiteConfigAndroidExtension : KitePlatformExtension() {
      *
      * Default: unset, which leaves each module's own value alone.
      */
-    abstract val minSdk: Property<Int>
+    public abstract val minSdk: Property<Int>
 
     /**
      * API level the app declares it was built for, written as
@@ -131,7 +131,7 @@ abstract class KiteConfigAndroidExtension : KitePlatformExtension() {
      * Default: unset. Android library modules do not expose this setting, so it
      * never reaches them.
      */
-    abstract val targetSdk: Property<Int>
+    public abstract val targetSdk: Property<Int>
 
     /**
      * Exact NDK toolchain version for classic Android modules, in Android's
@@ -143,7 +143,7 @@ abstract class KiteConfigAndroidExtension : KitePlatformExtension() {
      * @throws org.gradle.api.GradleException during configuration when the value
      *   is not in Android's `major.minor.build` form.
      */
-    abstract val ndk: Property<String>
+    public abstract val ndk: Property<String>
 
     // --- Guards and gates -----------------------------------------------------
 

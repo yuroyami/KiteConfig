@@ -68,18 +68,18 @@ import org.gradle.api.provider.Property
  * @see KiteVersionScope for the scheme every platform shares.
  */
 @KiteDsl
-abstract class KiteConfigIosExtension : KitePlatformExtension() {
+public abstract class KiteConfigIosExtension : KitePlatformExtension() {
 
     /** This platform's launch screen. */
-    fun splash(action: org.gradle.api.Action<in KiteSplashScope>) = action.execute(splashDetails)
+    public fun splash(action: org.gradle.api.Action<in KiteSplashScope>): Unit = action.execute(splashDetails)
 
 
     /** This platform's icon art and how much of the canvas the mark fills. */
-    fun logo(action: org.gradle.api.Action<in KiteLogoScope>) = action.execute(logoDetails)
+    public fun logo(action: org.gradle.api.Action<in KiteLogoScope>): Unit = action.execute(logoDetails)
 
 
     /** The locale list this platform ships, when it differs from the shared one. */
-    fun locales(action: org.gradle.api.Action<in KiteLocalesScope>) = action.execute(localesDetails)
+    public fun locales(action: org.gradle.api.Action<in KiteLocalesScope>): Unit = action.execute(localesDetails)
 
 
     final override val platform: KitePlatform = KitePlatform.IOS
@@ -103,14 +103,14 @@ abstract class KiteConfigIosExtension : KitePlatformExtension() {
      *
      * Default: `iosApp/iosApp.xcodeproj/project.pbxproj`.
      */
-    abstract val pbxproj: RegularFileProperty
+    public abstract val pbxproj: RegularFileProperty
 
     /**
      * The CocoaPods manifest read by the shared-module rename.
      *
      * Default: `iosApp/Podfile`.
      */
-    abstract val podfile: RegularFileProperty
+    public abstract val podfile: RegularFileProperty
 
 
     /**
@@ -118,19 +118,19 @@ abstract class KiteConfigIosExtension : KitePlatformExtension() {
      *
      * Default: `iosApp`.
      */
-    abstract val appDirectory: DirectoryProperty
+    public abstract val appDirectory: DirectoryProperty
 
     /**
      * Where the Apple app icon is installed.
      *
      * Default: `iosApp/iosApp/Assets.xcassets/AppIcon.appiconset`.
      */
-    abstract val appIconDirectory: DirectoryProperty
+    public abstract val appIconDirectory: DirectoryProperty
 
     // --- Nested blocks --------------------------------------------------------
 
     /** Facts your app declares in its `Info.plist`, and where that file lives. */
-    fun infoPlist(action: Action<in KiteInfoPlistScope>) = action.execute(infoPlist)
+    public fun infoPlist(action: Action<in KiteInfoPlistScope>): Unit = action.execute(infoPlist)
 
     internal val infoPlist: KiteInfoPlistScope
         get() = (this as ExtensionAware).extensions.getByType(KiteInfoPlistScope::class.java)
@@ -144,7 +144,7 @@ abstract class KiteConfigIosExtension : KitePlatformExtension() {
      * one, KiteConfig finds it. Naming a target that is not an application
      * target, or one that matches twice, is reported with the candidates.
      */
-    fun xcodeTargets(vararg names: String) {
+    public fun xcodeTargets(vararg names: String) {
         xcodeTargetNames.addAll(*names)
     }
 
@@ -165,7 +165,7 @@ abstract class KiteConfigIosExtension : KitePlatformExtension() {
      *
      * Once the references are renamed it does nothing on later builds.
      */
-    fun renameSharedModule(from: String, to: String) {
+    public fun renameSharedModule(from: String, to: String) {
         previousSharedModuleName.set(from)
         newSharedModuleName.set(to)
     }

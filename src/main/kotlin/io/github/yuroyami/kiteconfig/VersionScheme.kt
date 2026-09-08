@@ -37,20 +37,20 @@ private const val DEFAULT_MAX_REBUILD = 9
  *
  * @see VersionCodeScheme for the scheme that consumes these.
  */
-class ConfigVersion(
+public class ConfigVersion(
     /** First number of `version`, so `1` in `1.4.0`. Range 0..999 in the default scheme. */
-    val major: Int,
+    public val major: Int,
     /** Second number of `version`, so `4` in `1.4.0`. Range 0..999 in the default scheme. */
-    val minor: Int,
+    public val minor: Int,
     /** Third number of `version`, so `0` in `1.4.0`. Range 0..99 in the default scheme. */
-    val patch: Int,
+    public val patch: Int,
     /**
      * Counter for re-uploading the same version to a store.
      *
      * Comes from `version { rebuild = 1 }`, at the root or in the platform block
      * that is asking. Default: `0`. Range 0..9 in the default scheme.
      */
-    val rebuild: Int,
+    public val rebuild: Int,
 ) {
     /** Diagnostic form only, such as `1.4.0+2`. No store ever sees this text. */
     override fun toString(): String = "$major.$minor.$patch+$rebuild"
@@ -79,10 +79,10 @@ class ConfigVersion(
  * a code can never shrink. Changing the scheme of a published app is safe only
  * when every new number beats every number already shipped.
  */
-fun interface VersionCodeScheme {
+public fun interface VersionCodeScheme {
 
     /** Returns the build number for [version], as the text the platform will receive. */
-    fun compute(version: ConfigVersion): String
+    public fun compute(version: ConfigVersion): String
 }
 
 /**
@@ -94,7 +94,7 @@ fun interface VersionCodeScheme {
  * }
  * ```
  */
-object VersionSchemes {
+public object VersionSchemes {
 
     /**
      * The scheme used when no `scheme` is set.
@@ -127,7 +127,7 @@ object VersionSchemes {
      * }
      * ```
      */
-    val DEFAULT: VersionCodeScheme = VersionCodeScheme { version ->
+    public val DEFAULT: VersionCodeScheme = VersionCodeScheme { version ->
         validateSchemeInput(version)
         "1" +
             version.major.padTo(3) +

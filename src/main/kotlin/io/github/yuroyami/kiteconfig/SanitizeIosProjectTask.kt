@@ -56,7 +56,7 @@ import org.gradle.work.DisableCachingByDefault
  * build rather than being read as `false`.
  */
 @DisableCachingByDefault(because = "Mutates user-owned source files and must execute current safety checks.")
-abstract class SanitizeIosProjectTask : DefaultTask() {
+internal abstract class SanitizeIosProjectTask : DefaultTask() {
 
     init {
         group = "kiteconfig"

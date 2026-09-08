@@ -37,13 +37,13 @@ import org.gradle.api.provider.Property
  * @see KiteConfigModulesExtension.shared for the project used when [projects] is empty.
  */
 @KiteDsl
-abstract class KiteConfigNativeOptInsExtension {
+public abstract class KiteConfigNativeOptInsExtension {
 
     /**
      * Add the markers. Default: on once a marker is added. Set it true for the
      * built-in set alone.
      */
-    abstract val enabled: Property<Boolean>
+    public abstract val enabled: Property<Boolean>
 
 
     /**
@@ -55,7 +55,7 @@ abstract class KiteConfigNativeOptInsExtension {
      * Default: `true`. Off leaves only [markers], so an empty list then opts in
      * to nothing at all.
      */
-    abstract val builtIns: Property<Boolean>
+    public abstract val builtIns: Property<Boolean>
 
     /**
      * Extra opt-in markers, fully qualified, such as
@@ -64,7 +64,7 @@ abstract class KiteConfigNativeOptInsExtension {
      * Default: empty. These join the built-in set unless [builtIns] is off.
      * Duplicates are dropped and the order you declare is kept.
      */
-    abstract val markers: ListProperty<String>
+    public abstract val markers: ListProperty<String>
 
     /**
      * Adds one or more fully qualified markers to [markers].
@@ -75,7 +75,7 @@ abstract class KiteConfigNativeOptInsExtension {
      * add("kotlin.experimental.ExperimentalObjCRefinement")
      * ```
      */
-    fun add(vararg markers: String) {
+    public fun add(vararg markers: String) {
         this.markers.addAll(*markers)
     }
 
@@ -86,7 +86,7 @@ abstract class KiteConfigNativeOptInsExtension {
      * Default: empty, which means the project resolved by `modules.shared`.
      * Every path you list must apply Kotlin Multiplatform.
      */
-    abstract val projects: ListProperty<String>
+    public abstract val projects: ListProperty<String>
 
     /**
      * Adds one or more project paths to [projects].
@@ -97,7 +97,7 @@ abstract class KiteConfigNativeOptInsExtension {
      * projects(":shared", ":core:network")
      * ```
      */
-    fun projects(vararg paths: String) {
+    public fun projects(vararg paths: String) {
         projects.addAll(*paths)
     }
 }

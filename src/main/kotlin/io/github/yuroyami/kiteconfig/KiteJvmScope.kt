@@ -28,7 +28,7 @@ import org.gradle.api.provider.Property
  * JVM there, and `ios { jvm { } }` does not compile.
  */
 @KiteDsl
-abstract class KiteJvmScope {
+public abstract class KiteJvmScope {
 
     /**
      * The JDK used to compile and to run host tests, as a major version.
@@ -36,7 +36,7 @@ abstract class KiteJvmScope {
      * Unset leaves the module's own toolchain alone. This does not change the
      * JDK Gradle itself runs on: that is chosen before this build script runs.
      */
-    abstract val toolchain: Property<Int>
+    public abstract val toolchain: Property<Int>
 
     /**
      * The bytecode level, applied to Java and Kotlin together.
@@ -45,5 +45,5 @@ abstract class KiteJvmScope {
      * raised to match a newer [toolchain]; compiling on a new JDK for an older
      * runtime is the point.
      */
-    abstract val target: Property<Int>
+    public abstract val target: Property<Int>
 }

@@ -24,15 +24,15 @@ import org.gradle.api.provider.Property
  * a combination: the exact value wins and no suffix is appended.
  */
 @KiteDsl
-abstract class KiteAppIdScope {
+public abstract class KiteAppIdScope {
 
     /**
      * Appended to the shared `appId` for this platform. Default: none.
      *
      * Ignored when the platform sets its own exact `appId`.
      */
-    abstract val suffix: Property<String>
+    public abstract val suffix: Property<String>
 
     /** Deliver the effective identifier to this platform. Default: `true`. */
-    abstract val enabled: Property<Boolean>
+    public abstract val enabled: Property<Boolean>
 }

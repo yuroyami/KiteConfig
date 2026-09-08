@@ -18,7 +18,7 @@ import org.gradle.work.DisableCachingByDefault
 @DisableCachingByDefault(
     because = "Reads mutable source-tree state; concrete diagnostic tasks must report the current checkout.",
 )
-abstract class KiteConfigDiagnosticTaskBase : DefaultTask() {
+internal abstract class KiteConfigDiagnosticTaskBase : DefaultTask() {
 
     init {
         group = "kiteconfig"
@@ -266,7 +266,7 @@ abstract class KiteConfigDiagnosticTaskBase : DefaultTask() {
  * `--console=plain` each turn it off, and `-Pkiteconfig.color=true|false` forces it.
  */
 @DisableCachingByDefault(because = "Reads mutable source-tree state and always reports current diagnostics.")
-abstract class KiteConfigDoctorTask : KiteConfigDiagnosticTaskBase() {
+internal abstract class KiteConfigDoctorTask : KiteConfigDiagnosticTaskBase() {
 
     init {
         description = "Diagnose kiteconfig end-to-end without modifying files or failing on findings."

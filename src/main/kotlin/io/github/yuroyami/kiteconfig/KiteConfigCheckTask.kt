@@ -13,7 +13,7 @@ import java.nio.file.Files
 import java.nio.file.StandardCopyOption
 
 /** Machine-readable format emitted by [KiteConfigCheckTask]. */
-enum class KiteConfigDiagnosticReportFormat {
+internal enum class KiteConfigDiagnosticReportFormat {
     /** Deterministic plugin-native JSON finding list. */
     JSON,
 
@@ -40,7 +40,7 @@ enum class KiteConfigDiagnosticReportFormat {
  * `--console=plain` each turn it off, and `-Pkiteconfig.color=true|false` forces it.
  */
 @DisableCachingByDefault(because = "Reads mutable source-tree state; diagnostics must reflect the current checkout.")
-abstract class KiteConfigCheckTask : KiteConfigDiagnosticTaskBase() {
+internal abstract class KiteConfigCheckTask : KiteConfigDiagnosticTaskBase() {
 
     init {
         description = "Check kiteconfig configuration, write a JSON/SARIF report, and fail on errors."

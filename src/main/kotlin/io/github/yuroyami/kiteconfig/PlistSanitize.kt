@@ -26,7 +26,7 @@ import javax.xml.transform.stream.StreamResult
  *
  * @see KiteConfigIosSyncExtension.onConflict for where this is selected.
  */
-enum class PlistConflictPolicy {
+public enum class PlistConflictPolicy {
     /** Abort the entire plist plan and leave the file byte-for-byte untouched. */
     FAIL,
     /** Preserve the existing value and report a warning. */

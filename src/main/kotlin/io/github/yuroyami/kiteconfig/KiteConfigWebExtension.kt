@@ -31,17 +31,17 @@ import org.gradle.api.plugins.ExtensionAware
  * @see KiteConfigIoWorkerExtension for the only feature this block currently holds.
  */
 @KiteDsl
-abstract class KiteConfigWebExtension {
+public abstract class KiteConfigWebExtension {
 
     /**
      * The generated Web Worker helper. Configure it with
      * `kiteConfig { web { ioWorker { ... } } }`.
      */
-    val ioWorker: KiteConfigIoWorkerExtension
+    public val ioWorker: KiteConfigIoWorkerExtension
         get() = (this as ExtensionAware).extensions.getByType(KiteConfigIoWorkerExtension::class.java)
 
     /** Configure the nested worker helper model. Opening the block turns it on. */
-    fun ioWorker(action: Action<in KiteConfigIoWorkerExtension>) {
+    public fun ioWorker(action: Action<in KiteConfigIoWorkerExtension>) {
         ioWorker.declared.set(true)
         action.execute(ioWorker)
     }

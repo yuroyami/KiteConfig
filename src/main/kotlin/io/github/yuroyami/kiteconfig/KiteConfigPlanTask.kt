@@ -37,7 +37,7 @@ import java.nio.file.LinkOption.NOFOLLOW_LINKS
  * `--console=plain` each turn it off, and `-Pkiteconfig.color=true|false` forces it.
  */
 @DisableCachingByDefault(because = "Reports current filesystem state and is intentionally always run.")
-abstract class KiteConfigPlanTask : DefaultTask() {
+internal abstract class KiteConfigPlanTask : DefaultTask() {
 
     init {
         group = "kiteconfig"

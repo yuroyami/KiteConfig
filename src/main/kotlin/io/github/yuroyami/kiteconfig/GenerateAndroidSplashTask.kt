@@ -45,7 +45,7 @@ private val ANDROID_STYLE_PARENT = Regex("""[A-Za-z0-9_.:@/]{1,120}""")
  * ownership manifest, no backups, and no opt-in task.
  */
 @CacheableTask
-abstract class GenerateAndroidSplashTask : DefaultTask() {
+internal abstract class GenerateAndroidSplashTask : DefaultTask() {
 
     init {
         group = "kiteconfig"

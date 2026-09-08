@@ -29,7 +29,7 @@ import org.gradle.work.DisableCachingByDefault
  * `--console=plain` each turn it off, and `-Pkiteconfig.color=true|false` forces it.
  */
 @DisableCachingByDefault(because = "Reporting task; prints current state.")
-abstract class KiteConfigVerifyTask : DefaultTask() {
+internal abstract class KiteConfigVerifyTask : DefaultTask() {
 
     init {
         group = "kiteconfig"
