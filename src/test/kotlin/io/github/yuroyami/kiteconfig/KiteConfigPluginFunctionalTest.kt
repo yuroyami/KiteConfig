@@ -2248,4 +2248,43 @@ class KiteConfigPluginFunctionalTest {
 
         assertTrue(result.output.contains("[PASS] KTCNFG100"), result.output)
     }
+
+    /**
+     * A store's rule belongs to the platform that has it. Checking every rule
+     * whenever an identifier reached anywhere meant an iOS-only identifier still
+     * had to satisfy Android, which rejects a hyphen that Apple accepts.
+     */
+    @Test
+    fun `an excluded platform does not impose its own identifier rule`() {
+        write("settings.gradle.kts", "rootProject.name = \"fixture\"")
+        write(
+            "build.gradle.kts",
+            """
+            plugins { id("io.github.yuroyami.kiteconfig") }
+            kiteConfig {
+                appName = "Demo"
+                appId = "com.example.my-app"
+                android { appId { enabled = false } }
+            }
+            tasks.register("ordinaryBuild") { }
+            """.trimIndent(),
+        )
+
+        run("ordinaryBuild")
+
+        write(
+            "build.gradle.kts",
+            """
+            plugins { id("io.github.yuroyami.kiteconfig") }
+            kiteConfig {
+                appName = "Demo"
+                appId = "com.example.my-app"
+            }
+            tasks.register("ordinaryBuild") { }
+            """.trimIndent(),
+        )
+
+        val failure = runAndFail("ordinaryBuild")
+        assertTrue(failure.output.contains("applicationId"), failure.output)
+    }
 }

@@ -1532,10 +1532,21 @@ class KiteConfigPlugin : Plugin<Project> {
                 ) {
                     ext.effectiveAndroidVersionCode.get()
                 }
-                if (usesVersion) ext.effectiveAndroidVersionCode.orNull?.let(::validateVersionCode)
-                if (usesBundleId && ext.appId.isPresent) {
-                    validateAndroidApplicationId(ext.androidApplicationId.get())
-                    validateAppleBundleId(ext.iosBundleId.get())
+                // Each store's rule belongs to the platform that has it. Checking both
+                // whenever an identifier reached anywhere meant an iOS-only identifier
+                // still had to satisfy Android, which rejects a hyphen that Apple allows.
+                if (ext.effectiveAndroidVersionCode.isPresent &&
+                    (ext.versionFlowsTo(KitePlatform.ANDROID).get() || buildConfigIdentity)
+                ) {
+                    validateVersionCode(ext.effectiveAndroidVersionCode.get())
+                }
+                if (ext.appId.isPresent) {
+                    if (ext.appIdFlowsTo(KitePlatform.ANDROID).get() || buildConfigIdentity) {
+                        validateAndroidApplicationId(ext.androidApplicationId.get())
+                    }
+                    if (ext.appIdFlowsTo(KitePlatform.IOS).get() || buildConfigIdentity) {
+                        validateAppleBundleId(ext.iosBundleId.get())
+                    }
                 }
                 if (ext.effectiveSyncIos.get() && ext.effectivePropagateVersion.get()) {
                     ext.effectiveIosMarketingVersion.orNull?.let(::validateAppleMarketingVersion)
