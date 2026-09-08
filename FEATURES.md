@@ -3,18 +3,19 @@
 This page describes current KiteConfig behavior. It is not a roadmap. Start with
 the [README](README.md) if you are setting up the plugin for the first time.
 
-KiteConfig is applied to the root Gradle project. You declare facts in one
-`kiteConfig {}` block, and one law governs everything:
+KiteConfig is applied to the root Gradle project. You declare values in one
+`kiteConfig {}` block, and four rules govern everything:
 
-1. Facts always flow, to every platform found, on every build, in memory or as
-   files under `build/`. Declaring a fact is the consent. `skip()` and `only()`
-   beside the fact are the only flow control.
-2. `rewrite { }` is the only word that acts on your source files. It arms a
-   by-name task; `dryRun`, `backups`, and `onConflict` always apply.
-3. One topic, one block. Platform corners nest inside topics.
+1. Write each value once. It reaches every platform in your project.
+2. A platform block holds only what differs there. Nothing is copied when a
+   block opens, so declaration order decides nothing.
+3. A feature is on when you gave it what it needs. A feature that needs nothing
+   from you asks for `enabled = true`.
+4. `autoApply` decides who applies changes to the files you commit. Nobody else.
+   With it off, `kiteApply` does it when you ask.
 
-Conventions: `marketingVersion` follows `version`, build numbers follow the
-shared `formula`, and locales can be discovered. The model is frozen after
+Conventions: a platform's version follows the shared one, build numbers follow
+the shared scheme, and locales can be discovered. The model is frozen after
 root-project evaluation.
 
 The `kiteConfig` accessor gives any build file a read-only view of the resolved
@@ -58,40 +59,42 @@ supported.
 
 | Setting | Default | Meaning |
 |---|---|---|
-| `appName`, `version`, `id`, its `suffix` corners, `ios.deploymentTarget`, and `jvmTarget` | Unset | KiteConfig leaves the matching platform value alone unless a configured feature needs it. |
-| `version("x") { ios { marketingVersion } }` | `version`, when present | Apple can still use a separate marketing version. |
-| `formula` | Pack `1`, `major(3)`, `minor(3)`, `patch(2)`, and `reupload(1)` | One build-number formula for both platforms. |
-| `version { android { pin } }` | Unset, so the resolved code comes from the formula | Assign a value to bypass the formula. |
-| `version { ios { pin } }` and `version { desktop { pin } }` | Unset, so the resolved number is the formula result as a string | Assign a value to bypass the formula. |
-| `reupload` in each `version` corner | `0` | Re-upload dials. Bump one when a store burns a number. |
-| `locales` | Discover supported locale-only resource directories when a shared project or resources directory can be resolved | You can replace discovery with an explicit list. |
-| `skip(p)` / `only(p)` | flow everywhere | The only flow control. Beside a fact they gate that fact; at the root they silence a whole platform. |
+| `appName`, `appId`, `version`, their platform overrides, `appId { suffix }`, and `jvm { target }` | Unset | KiteConfig leaves the matching platform value alone unless a configured feature needs it. |
+| `ios { version }` | the shared `version` | Apple can show a different marketing version. |
+| `version { scheme }` | Pack `1`, `major(3)`, `minor(3)`, `patch(2)`, `rebuild(1)`, as text | One build-number scheme for every platform. |
+| `<platform> { version { buildNumber } }` | Unset, so the number comes from the scheme | Assign a value to bypass the scheme. |
+| `version { rebuild }` | `0` | Re-upload counter. Bump it when a store burns a number. |
+| `<platform> { version { publishedBuildNumber } }` | Unset | The highest number already shipped on that platform. The next one must beat it. |
+| `locales { tags }` | Discovered from the shared module's Compose resources | An explicit list replaces discovery. An explicitly empty list means no locales. |
+| `<topic> { enabled }` in a platform block | `true` for declared values | Turning it off stops the write and leaves the value readable. |
+| `skip(p)` / `only(p)` at the root | every platform found | The outer boundary. Exclusion wins over everything, and `only()` with no arguments is an error. |
+| `autoApply` | `false` | Ordinary builds change nothing you commit. `kiteApply` applies the plan when you run it. |
 | `android { sdk(...) }` | Not configured | SDK alignment runs exactly when at least one of `compileSdk`, `minSdk`, `targetSdk`, or `ndk` is set. |
-| `locales { filterAndroidRes }` | `false` | Locales do not prune packaged Android resources unless you opt in. |
-| `logo {}` | Not configured | App icon installers are disabled. |
-| `ios { rewrite {} }` | Not armed | Apple source files are not changed. |
-| `ios.rewrite.cleanPlist` | `false` | The source Info.plist is not changed. |
-| `ios.rewrite.renameSharedModule(...)` | Not called | Podfile and Swift module-reference migration is disabled. |
-| `optIns {}` | Not configured | Kotlin/Native opt-ins are not added. |
-| `logo { rewrite { replaceOld } }` | `false` | Legacy Android icon takeover is not allowed. |
+| `android { locales { filterResources } }` | `false` | Locales do not prune packaged Android resources unless you opt in. |
+| `logo { foreground }` | Unset | Setting it turns the topic on. Nothing is installed without art. |
+| `logo { background }` | Unset | One choice: `color("#RRGGBB")` or `image(file(...))`. |
+| `logo { foregroundScale }` | Each renderer's own ratio | A shared linear ratio in `(0, 1]`, overridable per platform. Unset, existing icons do not move. |
+| `desktop { logo { roundMac } }` | `true` | The generated macOS icon gets Apple's rounded-square mask. |
+| `splash { enabled }` | `false` | Artwork, colors, a dark variant, and an empty block all leave it off. |
+| `splash { dark }` | On once a dark value is set | A platform can drop it with `dark { enabled = false }`. |
+| `android { splash { theme } }` | Unset | The app theme the generated style inherits. |
+| `ios { infoPlist { proMotion } }` and `{ nonExemptEncryption }` | Unset | An unset key is left exactly as it is. |
+| `ios { xcodeTargets(...) }` | Empty | KiteConfig finds a sole application target. Naming one is needed only when several exist. |
+| `ios { renameSharedModule(...) }` | Not called | Podfile and Swift module-reference migration is off. |
+| `ios { deploymentTarget }` | Unset | Checked as an icon-format compatibility assertion only when you declare it. |
+| `optIns` | Off | On once a marker is added, or with `enabled = true` for the built-in set alone. |
+| `buildConfig` | Off | On once a field is declared, or with `enabled = true` for identity-only output. |
+| `buildConfig { packageName }` | `kiteconfig.generated` | Generated source uses this package. |
+| `buildConfig { className }` | `KiteBuildConfig` | Does not clash with the `BuildConfig` that AGP generates. |
+| `buildConfig { includeIdentity }` | `true` | Identity-carrying output needs complete identity values unless this is `false`. |
+| `buildConfig { allowBuildCache }` | `false` | Generated values stay out of build caches unless you opt in. |
+| `web { ioWorker { enabled } }` | `false` | Naming targets or a package is configuration, not a request for the feature. |
+| `web { ioWorker { packageName } }` | `kiteconfig.generated` | Generated worker source uses this package. |
+| `desktop` | Not required | Desktop identity flows by default like every other platform. Stop it with `skip(desktop)`. |
+| `desktop { linuxPackageName }` | A Debian-legal slug derived from `appName` | Set it yourself when the slug is not the name you publish under. |
+| `desktop { deriveUpgradeUuid }` | `false` | The Windows upgrade code is left to jpackage instead of being derived from `appId`. |
 | `backups` | `true` | Eligible user-owned files receive a recovery copy before first replacement. |
-| `dryRun` | `false` | Explicit installers and migrations apply their reviewed plan. Build-owned generators ignore this switch. |
-| `logo { android { safeZone } }` | `66.0 / 108.0` | The adaptive-icon foreground uses Android's standard safe area. |
-| `ios.rewrite.targets(...)` | Empty | KiteConfig selects an Xcode app automatically only when there is exactly one. |
-| `ios.rewrite.onConflict` | `FAIL` | A conflicting plist value stops the complete plist plan. |
-| `web { ioWorker {} }` | Not configured | No browser helper is generated. |
-| `web.ioWorker.projects(...)` and `web.ioWorker.targets(...)` | Empty | A browser runtime is never guessed. Project scope may fall back only to the selected shared project. |
-| `web.ioWorker.packageName` | `kiteconfig.generated` | Generated worker source uses this package. |
-| `buildConfig {}` | Not configured | No runtime constants object is generated. |
-| `buildConfig.packageName` | `kiteconfig.generated` | Generated BuildConfig source uses this package. |
-| `buildConfig.className` | `KiteBuildConfig` | The generated object uses this name. It does not clash with the `BuildConfig` that AGP generates. |
-| `buildConfig.includeIdentity` | `true` | Enabling BuildConfig requires complete identity values unless this is set to `false`. |
-| `buildConfig.allowBuildCache` | `false` | Generated values do not enter local or remote Gradle build caches unless you opt in. |
-| `desktop {}` | Not required | Desktop identity flows by default like every other platform. Open the block only for its own dials. Stop the flow with `skip(KitePlatform.DESKTOP)`. |
-| Installer icons | Generated | Produced whenever `logo { }` carries art that flows to desktop. Stop them with `logo { skip(KitePlatform.DESKTOP) }`. |
-| `desktop.logo { desktop { roundMac } }` | `true` | The generated macOS icon gets Apple's rounded-square mask. |
-| `desktop.linuxPackageName` | A Debian-legal slug derived from `appName` | Set it yourself when the slug is not the name you publish under. |
-| `desktop.deriveUpgradeUuid` | `false` | The Windows upgrade code is left to jpackage instead of being derived from `id`. |
+| `dryRun` | `false` | The apply tasks print their plan and write nothing. Build-owned generators ignore this switch. |
 
 ## Reading values in Gradle build logic
 
@@ -124,16 +127,16 @@ The root model also provides read-only derived providers:
 
 | Provider | Result |
 |---|---|
-| `versionCode` | An explicit `pin`, or the value derived from the formula |
-| `androidApplicationId` | App ID plus Android suffix |
-| `iosBundleId` | App ID plus Apple suffix |
+| `versionCode` | An explicit `buildNumber`, or the number the scheme produced |
+| `androidApplicationId` | The effective `appId` for Android |
+| `iosBundleId` | The effective `appId` for iOS |
 | `canonicalLocales` | Normalized locale list |
 | `resolvedSharedProjectPath` | Effective shared Gradle project path |
 
 Read the derived provider when you want the resolved value.
-`version("x") { android { pin } }` and `version("x") { ios { pin } }` are inputs.
-They stay empty until you assign them, and an assigned `pin` replaces the formula
-result.
+`android { version { buildNumber } }` and its siblings are inputs. They stay
+empty until you assign one, and an assigned value replaces what the scheme would
+have produced.
 
 The `kiteConfig` accessor is how build logic reads these values; the view it
 returns is read-only by type. For application code at runtime, the generated
@@ -150,34 +153,37 @@ selected.
 |---|---|---|
 | `appName` | `Property<String>` | Android receives the `appName` manifest placeholder. Explicit Apple sync can use it for product and display names. |
 | `version` | `Property<String>` | Android display version and the default source for the Apple marketing version. When consumed, it must be non-blank, contain no control characters, and contain at most 255 characters. |
-| `version { android { pin } }` | `Property<Int>` | Android store build number in `1..2_100_000_000`. It follows the formula unless you assign a value. |
-| `version { android { reupload } }` | `Property<Int>` | Feeds the formula as `v.reupload`. Bump it when Play has already taken the current code. |
-| `android.version { android { shipped } }` | `Property<Int>` | Optional offline lower bound. The next resolved Android code must be greater while Android version propagation is active for a detected app. KiteConfig does not contact a store. |
-| `version("x") { ios { marketingVersion } }` | `Property<String>` | Apple `MARKETING_VERSION` during an explicit Xcode rewrite. It must contain three non-negative integer components. |
-| `version { ios { pin } }` | `Property<String>` | Apple `CURRENT_PROJECT_VERSION` during explicit Apple sync. It follows the formula unless you assign a value. An assigned value accepts one to three numeric components. The positive first part may use at most four digits, and each optional later part may use at most two. |
-| `version { ios { reupload } }` | `Property<Int>` | Feeds the formula as `v.reupload` for Apple. Bump it when TestFlight has already taken the current build number. |
-| `id` | `Property<String>` | Reverse-DNS base for every platform identifier. |
-| `id { android { suffix } }` | `Property<String>` | Optional Android-only suffix appended to the base id. |
-| `id { ios { suffix } }` | `Property<String>` | Optional Apple-only suffix appended to `id`. |
-| `ios.deploymentTarget` | `Property<String>` | Compatibility assertion required by the Apple universal AppIcon installer. It does not write `IPHONEOS_DEPLOYMENT_TARGET`. |
+| `android { version { buildNumber } }` | `Property<String>` | Android store build number, read as one whole number in `1..2_100_000_000`. It follows the scheme unless you assign a value. |
+| `android { version { rebuild } }` | `Property<Int>` | Feeds the scheme as `v.rebuild`. Bump it when Play has already taken the current code. |
+| `android { version { publishedBuildNumber } }` | `Property<String>` | Optional offline lower bound. The next resolved Android code must be greater while Android version propagation is active for a detected app. KiteConfig does not contact a store. |
+| `ios { version }` | `Property<String>` | Apple `MARKETING_VERSION`. It must contain three non-negative integer components. |
+| `ios { version { buildNumber } }` | `Property<String>` | Apple `CURRENT_PROJECT_VERSION`. It follows the scheme unless you assign a value. An assigned value accepts one to three numeric components. The positive first part may use at most four digits, and each optional later part may use at most two. |
+| `ios { version { rebuild } }` | `Property<Int>` | Feeds the scheme as `v.rebuild` for Apple. Bump it when TestFlight has already taken the current build number. |
+| `appId` | `Property<String>` | Reverse-DNS base for every platform identifier. |
+| `<platform> { appId }` | `Property<String>` | That platform's exact identifier. No suffix is involved once it is set. |
+| `<platform> { appId { suffix } }` | `Property<String>` | Appended to the shared `appId` for that platform. |
+| `ios { deploymentTarget }` | `Property<String>` | Icon-format compatibility assertion, checked only when you declare it. It does not write `IPHONEOS_DEPLOYMENT_TARGET`. |
 
 ### Build numbers and the scheme
 
-Android needs an `Int` version code. Apple needs a `String` build number. One
-formula at root feeds both:
+The stores disagree about what a build number looks like, so the scheme returns
+text and each platform narrows it. Android reads one whole number; Apple
+compares by numeric component, so a dotted build number works there.
 
 ```kotlin
 kiteConfig {
     version = "1.4.0"
 
-    formula { v -> ... }  // optional
+    version {
+        scheme { v -> ... }  // optional
+    }
 }
 ```
 
-The lambda receives `v.major`, `v.minor`, `v.patch`, and `v.reupload`. It returns
-one `Int`. Android uses that `Int`. Apple uses the same number as a string.
+The lambda receives `v.major`, `v.minor`, `v.patch`, and `v.rebuild`, and returns
+a `String`.
 
-The default formula packs `1 | major(3) | minor(3) | patch(2) | reupload(1)`:
+The default scheme packs `1 | major(3) | minor(3) | patch(2) | rebuild(1)`:
 
 | Version | Rebuild | Result |
 |---|---|---|
@@ -187,20 +193,20 @@ The default formula packs `1 | major(3) | minor(3) | patch(2) | reupload(1)`:
 | `1.5.0` | `0` | `1001005000` |
 
 Fixed widths keep build numbers ordered as versions increase. A version bump
-always beats any reupload of the previous version.
+always beats any rebuild of the previous version.
 
 When a consumer needs a derived number, `version` must use exactly `x.y.z` with
-no leading zeroes. Under the default formula, major and minor must be in
-`0..999`, patch must be in `0..99`, and reupload must be in `0..9`.
+no leading zeroes. Under the default scheme, major and minor must be in
+`0..999`, patch must be in `0..99`, and rebuild must be in `0..9`.
 
-Do you need a different shape? Write your own formula with
-`version("x") { formula { ... } }`, or pin an exact number per platform with
-`version("x") { android { pin } }` and `version("x") { ios { pin } }`.
+Do you need a different shape? Write your own with `version { scheme { ... } }`,
+or set an exact number per platform with
+`android { version { buildNumber } }` and `ios { version { buildNumber } }`.
 
-Coming from an older plugin line, the derived numbers change: a formula that
+Coming from an older plugin line, the derived numbers change: a scheme that
 gave `1.4.1` the code `1001004001` now gives `1001004010`. The new numbers are
-higher, so Play still accepts them. Bring your old formula in as
-`version("x") { formula { ... } }` if you need the exact previous numbers.
+higher, so Play still accepts them. Bring your old one in as
+`version { scheme { ... } }` if you need the exact previous numbers.
 
 ## Project and target selection
 
@@ -239,7 +245,7 @@ Use typed Gradle path properties:
 | `ios.appIconDirectory` | AppIcon installation directory |
 
 `modules.shared` selects a Gradle project, not a directory. Swift and pod module
-identities are named in `ios { rewrite { renameSharedModule(from = ..., to = ...) } }`.
+identities are named in `ios { renameSharedModule(from = ..., to = ...) }`.
 
 
 Every source-changing task keeps resolved paths inside the root project or the
@@ -286,7 +292,7 @@ entries.
   `Base` and unrelated existing regions because KiteConfig does not own every
   `.lproj` directory.
 - Android resource filtering is separate and defaults to off.
-- With `locales { filterAndroidRes = true }`, KiteConfig replaces the
+- With `android { locales { filterResources = true } }`, KiteConfig replaces the
   selected application's locale-filter set with the canonical list.
 - AGP 9 uses `localeFilters`. AGP 8 uses compatible resource qualifiers.
 - On AGP 8, density, ABI, and unrelated resource configurations are preserved.
@@ -318,7 +324,7 @@ SDK levels and the NDK version live in `android { }`. Use `android.ndk` for the
 NDK. Alignment runs only for the values you actually set; leave them unset to
 leave the module's own values alone.
 
-`jvmTarget` is root-global policy. It aligns Java compatibility in compatible
+`jvm { target }` is the shared bytecode level. It aligns Java and Kotlin together in
 classic Android modules and Kotlin JVM targets in detected Kotlin
 Multiplatform, Kotlin/JVM, and Kotlin Android projects. Module, native, and
 web selectors do not limit this alignment.
@@ -348,7 +354,7 @@ When enabled, KiteConfig:
 
 BuildConfig needs a shared project, so `modules.shared` must resolve. When
 `includeIdentity` is `true`, `appName`, `version`, a resolvable version code,
-and `id` must all be present.
+and `appId` must all be present.
 
 The generator rejects:
 
@@ -406,29 +412,29 @@ Node.js-only targets and `wasmJs` are not supported.
 
 Compose Multiplatform packages a desktop application as a macOS `.dmg` or
 `.pkg`, a Windows `.msi` or `.exe`, or a Linux `.deb`, `.rpm`, or AppImage.
-Configuring `desktop { }` extends the root `appName`, `version`, and `id`
-to that package, folds its build number into the same the formula every other
+Configuring `desktop { }` extends the shared `appName`, `version`, and `appId`
+to that package, folds its build number into the same scheme every other
 platform uses, and generates its installer icons from your `logo { }` art.
 
 When enabled, KiteConfig:
 
-- shares `appName`, `version`, and `id` with the detected Compose Desktop
+- shares `appName`, `version`, and `appId` with the detected Compose Desktop
   application, the same way it does for Android and iOS;
-- folds the desktop build number into the root the formula, so the desktop `reupload`
+- folds the desktop build number into the shared scheme, so the desktop `rebuild`
   bumps it independently of the Android and iOS ones;
 - generates the macOS `.icns`, Windows `.ico`, and Linux `.png` installer
   icons from the configured `logo { }` art with `kiteInternalDesktopIcons`,
   writing only to `build/`;
 - wires that task into packaging automatically, with no `dependsOn` for you
   to write;
-- can derive a stable Windows upgrade code from `id` with
+- can derive a stable Windows upgrade code from `appId` with
   `desktop { deriveUpgradeUuid = true }`, so an MSI upgrades an existing
   install instead of sitting beside it;
 - derives a Debian-legal Linux package name from `appName` unless
   `desktop { linuxPackageName }` is set;
 - rejects a resolved `version` outside the Windows MSI/EXE numeric limits
   before Compose does;
-- offers the same offline `shipped` guard already available for
+- offers the same offline `publishedBuildNumber` guard already available for
   `android { }` and `ios { }`, with failures naming `desktop { }` throughout.
 
 Desktop values are written through the same early callback used for Android
@@ -449,7 +455,7 @@ fails otherwise. With no `logo { }` block at all, icon generation defaults
 off instead of failing.
 
 The derived Windows upgrade code is a UUIDv5 built from a fixed namespace,
-`6b0f4c1e-6d4a-5a2f-9c3d-1f6b2a8e7d40`, and your resolved `id`. This
+`6b0f4c1e-6d4a-5a2f-9c3d-1f6b2a8e7d40`, and your resolved `appId`. This
 namespace is a published contract: changing it would change every upgrade
 code KiteConfig has ever derived, breaking in-place upgrades for everyone who
 already installed the app. An `upgradeUuid` a module already set is always
@@ -486,12 +492,12 @@ KiteConfig removes duplicates while preserving order.
 Only selected KMP projects and native compilations receive these options.
 KiteConfig does not add annotations to source files.
 `optIns { projects(...) }` limits only this native policy. It does not
-limit the root-global JVM alignment from `jvmTarget`.
+limit the shared JVM alignment from `jvm { target }`.
 
 ## Explicit Apple project changes
 
 Apple source changes never run as part of normal compilation, linking, or
-archiving. You must configure `ios { rewrite { } }` and run the named task.
+archiving. Either `autoApply = true` applies them, or you run `kiteApply` yourself.
 
 ### Xcode project file
 
@@ -517,7 +523,7 @@ characters without regex replacement errors.
 ### Source Info.plist
 
 Plist sanitization runs when you set
-`ios { rewrite { cleanPlist = true } }`. The sanitizer supports source XML
+the facts you declared. The sanitizer supports source XML
 property lists only. It does not convert binary, OpenStep, or generated plists.
 
 It:
@@ -534,7 +540,7 @@ It:
 - can manage `CADisableMinimumFrameDurationOnPhone` through
   `ios.rewrite.proMotion`.
 
-Conflict behavior is explicit and set with `ios.rewrite.onConflict`:
+Managed keys carry the value you declared. Every other key is left alone:
 
 | Policy | Result |
 |---|---|
@@ -547,7 +553,7 @@ A failure produces no partial plist rewrite.
 ### Shared-module references
 
 Shared-module migration runs only when you call
-`ios { rewrite { renameSharedModule(from = "OldShared", to = "Shared") } }`. Both
+`ios { renameSharedModule(from = "OldShared", to = "Shared") }`. Both
 names are required. KiteConfig does not infer the old module from a Podfile.
 
 The migration:
@@ -601,7 +607,7 @@ The installer:
 - generates API 33 monochrome wrappers when
   `android.compileSdk >= 33`;
 - refuses unknown first-contact output files and same-stem template collisions
-  unless `logo.rewrite { replaceOld } = true` explicitly authorizes a backed-up
+  unless installing the icon claims that path, which takes a backed-up
   takeover;
 - replaces or removes later files only when their ownership checksums still
   match.
@@ -610,7 +616,7 @@ The installer:
 
 Apple icon installation requires:
 
-- a configured `ios { rewrite { } }` block;
+- iOS still selected;
 - a configured `logo { }` block;
 - `logo.foreground`, a PNG;
 - exactly one of `logo.background` or `logo.backgroundColor`;
@@ -650,7 +656,7 @@ not worth committing.
 
 ### Legacy Android icon takeover
 
-`logo.rewrite { replaceOld }` authorizes a deliberate takeover of known legacy
+Installing a launcher icon claims the paths it occupies, taking over known legacy
 files, same-stem Android Studio template icons, and unowned first-contact paths
 that the current installer will claim.
 
@@ -679,7 +685,6 @@ splash {
         backgroundColor = "#000000"
     }
     android { theme = "Theme.App.Splash" }
-    rewrite { }        // arms the iOS delivery, like every other rewrite
 }
 ```
 
@@ -689,12 +694,10 @@ splash {
 | `backgroundColor` | `logo { backgroundColor }` | Background behind the art. |
 | `dark { image }`, `dark { backgroundColor }` | unset | Dark-mode variant. |
 | `android { theme }` | unset | Theme name for the generated Android 12 splash. |
-| `rewrite { }` | not armed | Required for the iOS delivery, which also needs `ios { rewrite { } }`. |
 
 Android and desktop splashes are generated into `build/`. The iOS delivery
 writes `UILaunchScreen` and asset-catalog entries into your Xcode project, so it
-rides `kiteRewriteXcode` and needs both `splash { rewrite { } }` and
-`ios { rewrite { } }`. Diagnostics are `KTCNFG090` to `KTCNFG094`.
+is applied with the rest of the iOS plan. Diagnostics are `KTCNFG090` to `KTCNFG094`.
 
 ## Diagnostics
 
@@ -736,7 +739,7 @@ Stable diagnostic families are:
 | `KTCNFG960` to `KTCNFG967` | Splash, version-guard, and auto-rewrite provider resolution |
 | `KTCNFG999` | Unexpected diagnostic-engine failure |
 
-`KTCNFG011` follows `ios.rewrite.onConflict`. `FAIL` is an error. `KEEP` is a
+`KTCNFG011` reports a managed plist key that does not yet carry the declared value. It is a
 warning that describes intentionally preserved drift. `REPLACE` remains an
 error until the explicit migration applies the replacement.
 

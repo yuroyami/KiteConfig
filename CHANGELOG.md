@@ -4,6 +4,140 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions track the
 Gradle Plugin Portal releases.
 
+## 2.0.0
+
+The DSL reshape. Every value still gets written once, but where you write it,
+and who applies it, both changed. Old names do not compile, so nothing changes
+behaviour quietly.
+
+A complete setup is now four lines:
+
+```kotlin
+kiteConfig {
+    appName = "Jetzy"
+    appId   = "com.example.jetzy"
+    version = "1.4.0"
+    autoApply = true
+}
+```
+
+### One switch instead of four permission blocks
+
+`autoApply = true` is the only opt-in for changing files you commit. With it on,
+an ordinary build applies what each platform needs. With it off, nothing touches
+them until you run `kiteApply`.
+
+That replaces every `rewrite { }` block, the `auto` flag inside each one, and the
+task names that went with them. `kiteApply` applies every selected platform;
+`kiteApplyAndroid` and `kiteApplyIos` apply one, so an Android build can never
+drag iOS source edits along with it.
+
+Three settings disappeared rather than moved:
+
+- `replaceOld`, because installing an icon means claiming the paths it occupies.
+  The files are copied to `.kiteconfig/recovery` first and recorded, so adoption
+  is recoverable without a separate flag.
+- `cleanPlist`, because the plist is maintained when there is a fact to write.
+- `onConflict`, because the root block is the source of truth for the keys
+  KiteConfig owns, and it leaves every other key in the file alone.
+
+### Platform differences live in platform blocks
+
+A topic used to scatter itself across corners. Everything about one platform is
+now in that platform's block, and the shared value sits at the root:
+
+```kotlin
+kiteConfig {
+    appName = "Jetzy"
+    appId   = "com.example.jetzy"
+    android { appId { suffix = ".android" } }
+    ios     { appName = "Jetzy Lite" }
+}
+```
+
+Nothing is copied when a block opens, so a shared value written after a platform
+block still loses to it. Declaration order never decides anything.
+
+To stop one value reaching one platform, turn its delivery off there:
+`ios { appName { enabled = false } }`. The value stays readable; only the write
+stops. Topic-level `skip` and `only` are gone. Root `skip` and `only` remain, and
+`only()` with no arguments is now an error rather than meaning "everywhere".
+
+### Renames
+
+- `id` is `appId`, and so is `kiteConfig.id` in the read-back view.
+- `formula` is `scheme`, `reupload` is `rebuild`, `pin` is `buildNumber`,
+  `shipped` is `publishedBuildNumber`, and they live in the platform's own
+  `version { }` block.
+- The iOS marketing version is just that platform's `version`.
+- `locales { pin(...) }` is `locales { tags = listOf(...) }`, and the Android
+  resource filter is `android { locales { filterResources } }`.
+- `logo { android { safeZone } }` is `foregroundScale`, shared and overridable
+  per platform, and it reaches every icon renderer rather than Android alone.
+- The logo background is one value: `color("#...")` or `image(file(...))`.
+- `jvmTarget` is `jvm { target }`, beside `jvm { toolchain }`.
+- iOS plist facts are `ios { infoPlist { } }`; target selection is
+  `ios { xcodeTargets(...) }`; `renameSharedModule` moved up beside them.
+- `ios { deploymentTarget }` is now checked only when you declare it.
+
+### Build numbers are text
+
+`VersionCodeScheme.compute` returns a `String`. The stores disagree about what a
+build number looks like: Android reads it as the one whole number Google Play
+wants, and Apple compares it by numeric component, so a dotted build number
+finally works there. A scheme that returns an integer needs `.toString()`.
+
+`VersionSchemes.DEFAULT` produces exactly the digits it always did, so an app
+already on a store keeps its numbering. Publication baselines live in the
+platform that published them, because no two stores share a history.
+
+### The launch screen is an explicit choice
+
+`splash { }` used to turn it on for Android and desktop. A launch screen is a
+visible change to somebody's app, so artwork, colors, a dark variant and an
+empty block all leave it off. `splash { enabled = true }` turns it on.
+
+A root `false` is an inheritable default rather than a ban: a platform can still
+ask for one the root left off. Root exclusion is the one thing a platform cannot
+argue with.
+
+### Fixed
+
+- **A quoted brace or semicolon in the Xcode project is a value, not syntax.**
+  A build setting whose whole value was one reserved character closed a
+  dictionary that was never opened, so an app named `}` wrote a file the next
+  run refused to parse.
+- **The iOS splash installs through the ownership machinery.** A hand-made
+  `KiteSplashImage.png` used to be replaced with no recovery copy even with
+  backups on, a dark image removed from the configuration stayed on disk, and
+  the assets were installed after the plist was already committed, so art that
+  would not decode left the plist naming a file that was never written.
+- **Each logo installer asks about its own platform.** Excluding one platform
+  used to leave both installers running, because they asked whether the topic was
+  on anywhere.
+- **The bytecode level reaches both compilers.** It only ever reached Kotlin, so
+  a module holding Java sources compiled them at the toolchain's own level and
+  failed on inconsistent JVM targets, naming neither half.
+- **`kiteCheck` refuses what an ordinary build refuses.** It returned before the
+  model validation, so a configuration could pass CI and fail on every
+  developer's machine.
+- **Each identifier is checked against the store that has the rule.** An
+  iOS-only identifier used to have to satisfy Android's, which rejects a hyphen
+  Apple accepts.
+- **A dark-only splash color is referenced.** It was written into the night
+  resources and nothing pointed at it, so the dark plate never appeared.
+- **`ignoreVersionGuards` reaches every adapter.** The KMP-native Android branch
+  ignored it while the console reported that the typed integrations stayed
+  active.
+- **Nested blocks stay in their own scope.** `android { skip(ios) }` called the
+  root's skip and excluded iOS everywhere; it no longer compiles.
+- **Generated features activate from content.** Configuring the extension object
+  directly, which is what a convention plugin does, generated nothing and said
+  nothing.
+- **The compatibility check is serializable.** It passed all nine fixtures and
+  then failed storing its configuration cache entry, so the command CONTRIBUTING
+  documents could not be run as documented.
+
 ## 1.0.0
 
 The plugin is now KiteConfig. The previous name, KiteSSOT, published its last
@@ -441,7 +575,7 @@ Highlights: `versionName` to `version`, `bundleIdBase` to `appId`,
 - **Release guardrails:** `android.publishedVersionCode` verifies the next
   resolved Android code is greater than an explicit offline store baseline;
   runtime compatibility guards enforce Gradle 8.5+, KGP 2.4.x, and AGP
-  8.5.2–9.1.x when their typed integrations are requested. Untested AGP/KGP
+  8.5.2 through 9.1.x when their typed integrations are requested. Untested AGP/KGP
   prereleases are rejected rather than treated as their eventual stable release.
 - **Signed, attestable publication staging:** release CI creates and verifies the
   complete PGP-signed Maven publication (implementation, marker, POMs, Gradle

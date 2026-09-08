@@ -33,18 +33,17 @@ In the **root** `build.gradle.kts`:
 plugins {
     kotlin("multiplatform") version "2.4.10" apply false
     id("com.android.application") version "9.3.1" apply false
-    id("io.github.yuroyami.kiteconfig") version "1.0.0"
+    id("io.github.yuroyami.kiteconfig") version "2.0.0"
 }
 
 kiteConfig {
     appName = "Jetzy"
+    appId   = "com.example.jetzy"
     version = "1.4.0"
-    id = "com.example.jetzy"
+    autoApply = true
 
     android {
-        compileSdk = 36
-        minSdk = 26
-        targetSdk = 36
+        sdk(min = 26, target = 36, compile = 36)
     }
 }
 ```
@@ -69,41 +68,31 @@ is not where you expected it.
     `kotlin("multiplatform")` only inside a subproject and Gradle loads KGP with
     a different classloader. KiteConfig cannot read the plugin classes from there.
 
-## Two tiers of switch
-
-KiteConfig splits its work into two tiers.
+## One switch
 
 **Gradle configuration is automatic and continuous.** On every build, KiteConfig
-applies the Android identity and SDK levels, aligns the Java and Kotlin JVM
-targets, and generates Kotlin under `build/`. This happens inside AGP's
-`finalizeDsl` hook, which runs after a module's own `android { }` block. A value
-set in `kiteConfig { }` therefore replaces the same value set in the module. Set
-the value. Nothing else is needed.
+applies the Android identity and SDK levels, aligns the Java and Kotlin bytecode
+levels, and generates Kotlin under `build/`. This happens inside AGP's
+`finalizeDsl` hook, which runs after a module's own `android { }` block, so a
+value set in `kiteConfig { }` replaces the same value set in the module.
 
-**Edits to files you own are opt-in and manual.** `project.pbxproj`,
-`Info.plist`, `Podfile`, Swift imports and launcher icons are yours. Editing them
-takes three things:
+**Changes to files you commit are what `autoApply` decides.**
+`project.pbxproj`, `Info.plist`, `Podfile`, Swift imports and launcher icons are
+yours. With `autoApply = true`, an ordinary build applies the ones your
+configuration needs. With it off, nothing touches them until you run
+`./gradlew kiteApply`.
 
-1. The block that unlocks the task. Writing `ios { rewrite { } }` arms the Xcode
-   tasks, and the app icon task needs a `logo { }` block as well.
-2. An explicitly named task that you run yourself.
-3. A set of containment, ownership, checksum, backup and rollback checks, which
-   must all pass first.
+There is nothing else to authorize. A feature is on when you gave it what it
+needs: set `logo { foreground }` and the icons are installed, on every platform
+that is still selected. A feature that needs nothing from you, like the launch
+screen, asks for `enabled = true`.
 
-The block **is** the switch. There is no separate `= true` flag: an empty
-`logo { }` counts as on, and leaving the block out counts as off.
+Every source change goes through the same rails: containment, ownership
+receipts, checksums, a recovery copy on first contact, staged writes, and
+rollback. Nothing is written until everything has been rendered and checked.
 
-This surprises people. Adding `logo { }` installs nothing. It unlocks
-`kiteRewriteLogo` only when you also add `logo { rewrite { } }`, and you then run
-that task yourself. That much covers the Android launcher icons. The Apple
-AppIcon half additionally needs an `ios { rewrite { } }` block and
-`ios { deploymentTarget }`. A plain
-`./gradlew build` never writes outside `build/`, and CI asserts that on every
-commit.
-
-Run `./gradlew kitePlan` before you run any mutating task. It lists which
-mutations your current configuration authorizes, and the exact paths they would
-change. Set `dryRun = true` to make the mutating tasks report without writing.
+Run `./gradlew kitePlan` first. It lists exactly what would change, with paths,
+and writes nothing. `dryRun = true` does the same for the tasks themselves.
 
 ## Where things live
 
@@ -111,7 +100,7 @@ change. Set `dryRun = true` to make the mutating tasks report without writing.
 
 <a class="kite-card" href="https://github.com/yuroyami/KiteConfig#readme">
 <strong>README</strong>
-<span>The full guide: DSL reference, the task table, compatibility, and the current limits.</span>
+<span>The full guide: the whole surface, the task table, and how to upgrade.</span>
 </a>
 
 <a class="kite-card" href="api/">
@@ -126,7 +115,7 @@ change. Set `dryRun = true` to make the mutating tasks report without writing.
 
 <a class="kite-card" href="https://github.com/yuroyami/KiteConfig/blob/main/CHANGELOG.md">
 <strong>Changelog</strong>
-<span>Release history, including the 2.x to 3.0 migration.</span>
+<span>Release history, including the upgrade from 1.0.0.</span>
 </a>
 
 </div>
@@ -146,13 +135,11 @@ android {
 }
 ```
 
-Eighteen values are available.
-
 | Group | Values |
 | --- | --- |
 | Version | `version`, `versionCode`, `iosBuildNumber`, `iosMarketingVersion`, `desktopBuildNumber` |
-| Identity | `appName`, `appNameFor(platform)`, `id`, `androidApplicationId`, `iosBundleId`, `desktopBundleId` |
-| Build | `canonicalLocales`, `jvmTarget`, `resolvedSharedProjectPath`, `minSdk`, `targetSdk`, `compileSdk`, `ndk` |
+| Identity | `appName`, `appNameFor(platform)`, `appId`, `appIdFor(platform)`, `androidApplicationId`, `iosBundleId`, `desktopBundleId` |
+| Build | `canonicalLocales`, `jvmTarget`, `jvmToolchain`, `resolvedSharedProjectPath`, `minSdk`, `targetSdk`, `compileSdk`, `ndk` |
 
 Every one is a lazy `Provider`, so wiring one into another task's property costs
 nothing at configuration time:
@@ -183,7 +170,7 @@ Two resolve later, because they depend on inspecting every project first:
 
 | Value | Reading it eagerly |
 | --- | --- |
-| `canonicalLocales` | returns an empty list, unless the list is pinned |
+| `canonicalLocales` | returns an empty list, unless you set `locales { tags }` |
 | `resolvedSharedProjectPath` | has no value, unless `modules { shared }` is declared |
 
 Neither affects what the build itself uses; the cost is only to the caller that
@@ -196,8 +183,8 @@ someTask.localeList.set(kiteConfig.canonicalLocales)
 
 ## Compatibility
 
-Gradle 8.5 and newer, AGP 8.5.2 through 9.3.x, KGP 2.4.x, on a JDK 17 or 21
-daemon.
+Gradle 8.5 and newer, AGP 8.5.2 through 9.3.x, KGP 2.4.x, Compose 1.11 through
+1.12.x, on a JDK 17 or 21 daemon.
 
 A dedicated `agpCompatibilityTest` builds real consumer projects on Gradle 8.5,
 8.9 and 9.5.1, against AGP 8.5.2 and 9.3.1. CI runs on Linux with JDK 17 and 21,
