@@ -5,11 +5,11 @@
 </p>
 
 A Gradle plugin for Kotlin Multiplatform projects. You write your app's values
-once, in one block, in the root build file: app name, app id, version, version
-code, build number, locales, app logo, splash screen, generated build config,
-SDK levels, JVM level. KiteConfig applies them to Android, iOS, and Compose
-Desktop for you. Without it, each platform keeps its own copy of these values,
-and the copies slowly stop matching.
+once, in one block, in the root build file: app name, app id, version, build
+number, locales, app icon, launch screen, generated build config, SDK levels,
+JVM level. KiteConfig applies them to Android, iOS, and Compose Desktop for you.
+Without it, each platform keeps its own copy of these values, and the copies
+slowly stop matching.
 
 [![Gradle Plugin Portal](https://img.shields.io/gradle-plugin-portal/v/io.github.yuroyami.kiteconfig?label=plugin%20portal)](https://plugins.gradle.org/plugin/io.github.yuroyami.kiteconfig)
 [![CI](https://img.shields.io/github/actions/workflow/status/yuroyami/KiteConfig/ci.yml?branch=main&label=CI)](https://github.com/yuroyami/KiteConfig/actions/workflows/ci.yml)
@@ -18,284 +18,240 @@ and the copies slowly stop matching.
 **[Documentation](https://yuroyami.github.io/KiteConfig/)** has the setup guide
 and the generated API reference.
 
-## Three rules
-
-The whole DSL works by three simple rules:
-
-1. **Every value you write is applied automatically.** On every build, to
-   every platform that exists in your project. It is applied in memory, or
-   as generated files under `build/`. Writing the value is all you have to
-   do. To stop one value from reaching one platform, put `skip(platform)`
-   next to it. `only(platform)` is the allowlist version of the same thing.
-2. **KiteConfig never edits your project files by itself.**
-   A normal build (`assemble`, `run`, anything) only sets values in memory
-   and writes into the `build/` folder. Files like `project.pbxproj`,
-   `Info.plist`, `Podfile`, and your Android `res/` stay untouched.
-
-   Editing those files takes two separate steps, and you do both:
-
-   1. Write a `rewrite { }` block in the DSL. This only gives permission.
-      Nothing happens yet.
-   2. Run the matching task yourself: `./gradlew kiteRewriteXcode` or
-      `./gradlew kiteRewriteLogo`.
-
-   Skip either step and no file is touched. Ever. And when a rewrite does
-   run: `dryRun = true` prints the planned changes instead of writing them,
-   `backups = true` saves a copy of each file first, and `onConflict`
-   decides what happens when a file already holds a different value.
-
-   If you hate running tasks, `rewrite { auto = true }` makes the rewrite
-   run before ordinary builds. It needs the `@OptIn(DiscouragedKiteApi)`
-   line, because builds then edit committed files and clean checkouts
-   build dirty. `kiteDoctor` reminds you it is on.
-3. **Everything about one thing is in one place.** All version settings live
-   in `version { }`. All id settings live in `id { }`. Platform details go
-   inside the topic (like `version { android { ... } }`), not the other way
-   around.
-
-## Usage
+## Setup
 
 Apply the plugin to the **root** project only:
 
 ```kotlin
 plugins {
-    id("io.github.yuroyami.kiteconfig") version "1.0.0"
+    id("io.github.yuroyami.kiteconfig") version "2.0.0"
 }
 ```
 
-Three lines are a complete setup. Locales auto-detect from Compose resources,
-the shared module and the app modules auto-detect too:
+Four lines are a complete setup. Locales come from your Compose resources, and
+the shared module and app modules are found for you:
 
 ```kotlin
 kiteConfig {
     appName = "Jetzy"
+    appId   = "com.example.jetzy"
     version = "1.4.0"
-    id      = "com.example.jetzy"
+    autoApply = true
 }
 ```
 
-Everything else below is optional, and every value stays a lazy Gradle
-`Property` you can wire into your own build logic.
+`autoApply = true` is the one switch. With it on, an ordinary build applies
+everything KiteConfig needs to change, including the files you commit. Leave it
+off and nothing touches your own files until you run `./gradlew kiteApply`.
+
+## Four rules
+
+1. **Write each value once.** It reaches every platform in your project.
+2. **A platform block holds only what differs there.** `ios { appName = "Jetzy Lite" }`
+   changes iOS and nobody else. Nothing is copied when a block opens, so the
+   order you write things in never matters.
+3. **A feature is on when you gave it what it needs.** Set `logo { foreground }`
+   and icons happen. A feature that needs nothing from you, like the launch
+   screen, needs `enabled = true`.
+4. **`autoApply` decides who applies the changes.** Nobody else. There are no
+   per-topic permission blocks and no task names to memorise.
 
 ## The whole surface
 
-Every property, function, corner, and modifier that exists, in one block.
+Every property, function, and block that exists, in one place. Lines marked
+`default` show what you get by leaving them out.
 
 ```kotlin
+import io.github.yuroyami.kiteconfig.VersionSchemes
+
 kiteConfig {
 
-    /**
-     * THE THREE RULES
-     * 1. Every value here is applied automatically, on every build,
-     *    to every platform found. skip()/only() stop it per platform.
-     * 2. Your project files are edited only when BOTH happened:
-     *    you wrote rewrite { }, and you ran the kiteRewrite* task.
-     * 3. Everything about one thing lives in one block.
-     */
+    // ───────────────────────── Shared facts ─────────────────────────
+    appName = "Jetzy"
+    appId   = "com.example.jetzy"
+    version = "1.4.0"                 // any String or Provider<String>
 
-    /** APP NAME. Simple form: appName = "Jetzy". Detailed form below. */
-    appName("Jetzy") {
-        /** Platform value overrides: that platform shows its own name. */
-        android("Jetzy Droid")
-        ios("Jetzy Lite")
-        desktop("Jetzy Desk")
-        /** Flow control, available in every topic the same way. */
-        skip(ios)
-        only(android, desktop)
+    // ──────────────────── Apply source edits automatically ───────────
+    autoApply = true                  // default false
+
+    // ───────────────────── Shared details, all optional ──────────────
+    version {
+        scheme(VersionSchemes.DEFAULT)  // default. Or: scheme { v -> "..." }
+        rebuild = 0                     // default
     }
 
-    /** Java and Kotlin JVM level for the whole build. No modifiers. */
-    jvmTarget = 21
-
-    /** IDENTITY. Simple form: id = "com.example.jetzy". */
-    id("com.example.jetzy") {
-        /** Corners: suffix is appended to the base per platform. */
-        android { suffix = ".android" }   /** applicationId = base + suffix */
-        ios     { suffix = ".ios" }       /** bundle id     = base + suffix */
-        desktop { suffix = ".desktop" }
-        /** One-liner corner style works too. */
-        android.suffix = ".android"
-        skip(desktop)
-        only(android)
-    }
-
-    /** VERSION. Simple form: version = "1.4.0". */
-    version("1.4.0") {
-        /** One formula turns the version into every store's build number. */
-        formula { v -> 1_000_000 * v.major + 10_000 * v.minor + 100 * v.patch + v.reupload }
-        android {
-            reupload = 1                  /** re-upload counter, feeds the formula */
-            shipped  = 1001003090         /** guard floor: new codes must beat it */
-            pin      = 123                /** hard versionCode, formula skipped */
-            formula { v -> 1 }            /** platform-only formula override */
-        }
-        ios {
-            reupload = 1
-            shipped  = "1001003090"
-            pin      = "42"               /** hard buildNumber */
-            marketingVersion = "1.4.0"    /** shown version, defaults to base */
-            formula { v -> 1 }
-        }
-        desktop {
-            reupload = 1
-            shipped  = "1001003090"
-            pin      = "42"
-            formula { v -> 1 }
-        }
-        skip(desktop)
-        only(android, ios)
-    }
-
-    /** LOCALES. Omit the whole block to auto-detect from Compose resources. */
     locales {
-        pin("en", "ar", "fr")             /** hand list, detection skipped */
-        filterAndroidRes = true           /** drop Android res outside the list */
-        skip(ios)                         /** knownRegions untouched */
-        only(android)
+        tags = listOf("en", "ar", "fr") // default: detected from Compose resources
     }
 
-    /** LOGO. Art is a fact; declaring it alone never touches your source. */
-    logo {
-        foreground = file("art/logo-fg.png")
-        background = file("art/logo-bg.png")
-        backgroundColor = "#0B0B0F"       /** set this or background, never both */
-        android { safeZone = 0.611 }      /** adaptive-icon safe-zone ratio */
-        desktop { roundMac = true }       /** round the generated macOS icon */
-        /**
-         * Presence + a desktop app found = installer icons flow into build/
-         * and get packaged. skip(desktop) stops exactly that.
-         */
-        skip(desktop)
-        only(android, ios)
-        /**
-         * Arms kiteRewriteLogo: writes Android res + the iOS asset catalog.
-         * replaceOld also claims and removes legacy launcher icons (backed up).
-         * auto = true runs it before Android app builds (discouraged, @OptIn).
-         */
-        rewrite { replaceOld = true }
+    logo {                              // on as soon as foreground is set
+        foreground = file("art/logo.png")
+        background = color("#102A43")   // or image(file("art/logo-bg.png"))
+        foregroundScale = 0.75          // default: each renderer's native ratio
     }
 
-    /** SPLASH. Empty block already works: art defaults to logo. */
-    splash {
-        image           = file("art/splash.png")   /** default: logo.foreground */
-        backgroundColor = "#101014"                /** default: logo.backgroundColor */
-        /** Optional dark-mode variant. Unset members fall back to light. */
-        dark {
-            image           = file("art/splash-dark.png")
+    splash {                            // off until enabled = true
+        enabled = true
+        image = file("art/splash.png")          // default: logo.foreground
+        backgroundColor = "#101014"             // default: the logo's color background
+        dark {                                  // on as soon as one dark value is set
+            image = file("art/splash-dark.png") // default: the light image
             backgroundColor = "#000000"
         }
-        /**
-         * Android needs two one-time things, both checked by kiteDoctor:
-         * the theme corner below, and one Manifest line:
-         * android:theme="${kiteSplashTheme}". The generated KiteSplash style
-         * inherits your theme and only adds attributes on Android 12+.
-         */
-        android { theme = "AppTheme" }
-        /**
-         * Presence = Android splash res into build/ + desktop JVM -splash
-         * image, packaged. iOS is a source edit, so it needs this rewrite
-         * AND ios { rewrite { } }, and runs with kiteRewriteXcode.
-         */
-        rewrite { }
-        skip(desktop)
     }
 
-    /** Kotlin/Native interop opt-in markers, selected by project. */
-    optIns {
+    jvm {
+        toolchain = 21                  // default: whatever the module declares
+        target = 17                     // default: whatever the module declares
+    }
+
+    buildConfig {                       // on as soon as a field is declared
+        packageName = "com.example.jetzy"   // default: kiteconfig.generated
+        className = "AppInfo"               // default: KiteBuildConfig
+        includeIdentity = true              // default
+        allowBuildCache = false             // default
+        stringField("API_HOST", "api.jetzy.app")
+        intField("MAX_RETRIES", 3)
+        // longField, booleanField, doubleField, and stringField(name, provider)
+    }
+
+    optIns {                            // on as soon as a marker is added
         add("kotlinx.cinterop.ExperimentalForeignApi")
-        projects(":shared", ":composeApp")  /** default: all detected */
-        builtIns = true                     /** include the built-in marker list */
+        builtIns = true                 // default
+        // projects(":shared")          // default: every Kotlin/Native project
     }
 
-    /** PLATFORM BLOCKS: only platform-exclusive facts live here. */
-
+    // ───────── Platform blocks: differences and native settings ──────
     android {
-        sdk(min = 26, target = 36, compile = 36)  /** any subset of the three */
+        appName = "Jetzy Droid"
+        appId { suffix = ".android" }   // applicationId = appId + suffix
+        version {
+            rebuild = 1
+            publishedBuildNumber = "1001003999"   // new codes must beat it
+            // buildNumber = "123"      // exact versionCode, scheme skipped
+        }
+        locales { filterResources = true }    // drop res folders outside the list
+        logo { foregroundScale = 0.61 }
+        splash { theme = "AppTheme" }         // your app theme
+        sdk(min = 26, target = 36, compile = 36)   // any subset
         ndk = "27.1.12297006"
+        jvm { target = 17 }
+        // autoApply = false            // this platform only: manual kiteApply
     }
 
     ios {
-        deploymentTarget = "15.0"
-        /** Paths: set only when detection guesses wrong. */
-        pbxproj          = file("iosApp/iosApp.xcodeproj/project.pbxproj")
-        podfile          = file("iosApp/Podfile")
-        infoPlist        = file("iosApp/iosApp/Info.plist")
-        appDirectory     = file("iosApp")
-        appIconDirectory = file("iosApp/iosApp/Assets.xcassets/AppIcon.appiconset")
-        /** Arms kiteRewriteXcode: pbxproj, Info.plist, Podfile, Swift imports. */
-        rewrite {
-            targets("iosApp")             /** pbxproj application target names */
-            cleanPlist = true             /** maintain KiteConfig keys in the source plist */
-            onConflict = io.github.yuroyami.kiteconfig.PlistConflictPolicy.FAIL  /** FAIL | KEEP | REPLACE */
-            nonExemptEncryption = false   /** ITSAppUsesNonExemptEncryption */
-            proMotion = true              /** CADisableMinimumFrameDurationOnPhone */
-            renameSharedModule(from = "shared", to = "Shared")
+        appId = "com.example.jetzy.ios" // exact. Or appId { suffix = ".ios" }
+        version = "1.4.0"               // the marketing version shown in the store
+        version {
+            rebuild = 2
+            // buildNumber = "42"       // exact CFBundleVersion, scheme skipped
+            publishedBuildNumber = "1001003992"
         }
+        locales { tags = listOf("en", "fr") }  // replaces the shared list here
+        splash { enabled = false }              // light only: splash { dark { enabled = false } }
+        infoPlist {
+            path = file("iosApp/iosApp/Info.plist")   // default
+            proMotion = true                          // default: key left alone
+            nonExemptEncryption = false               // default: key left alone
+        }
+        // xcodeTargets("iosApp")       // only when several app targets exist
+        pbxproj = file("iosApp/iosApp.xcodeproj/project.pbxproj")           // default
+        podfile = file("iosApp/Podfile")                                      // default
+        appDirectory = file("iosApp")                                         // default
+        appIconDirectory = file("iosApp/iosApp/Assets.xcassets/AppIcon.appiconset") // default
+        // renameSharedModule(from = "shared", to = "Shared")  // one-time migration
     }
 
     desktop {
-        linuxPackageName  = "jetzy"
-        deriveUpgradeUuid = true          /** stable Windows MSI upgrade id from id */
+        appName = "Jetzy Desktop"
+        logo {
+            roundMac = true             // default
+            foregroundScale = 0.85
+        }
+        jvm { target = 17 }
+        linuxPackageName = "jetzy"      // default: derived from appName
+        deriveUpgradeUuid = true        // default false: stable Windows MSI upgrade id
     }
 
     web {
-        /** Presence generates the browser IO worker source into build/. */
-        ioWorker {
-            targets("js")                 /** browser Kotlin/JS targets */
-            projects(":composeApp")       /** default: all web-capable */
-            packageName = "kiteconfig.generated"
+        ioWorker {                      // off until enabled = true
+            enabled = true
+            targets("js")               // only when several browser targets exist
+            packageName = "com.example.jetzy.generated"
         }
     }
 
-    /** BUILD CONFIG. Presence generates a Kotlin object into commonMain. */
-    buildConfig {
-        packageName = "com.example.jetzy"
-        className   = "AppInfo"
-        includeIdentity = true            /** bake appName/id/version/locales in */
-        allowBuildCache = false           /** opt out when fields are volatile */
-        stringField("API_HOST", "api.jetzy.app")
-        intField("MAX_RETRIES", 3)
-        longField("BUILT_AT", 0L)
-        booleanField("STAGING", false)
-        doubleField("PI_ISH", 3.14)
-    }
+    // ───────────── Root selection, plumbing, safety ──────────────────
+    only(android, ios)                  // default: every platform found
+    skip(desktop)                       // exclusion wins over everything
 
-    /** MASTER FLOW CONTROL: same words as everywhere, at the root. */
-    skip(desktop)                         /** platform receives NOTHING at all */
-    only(android, ios)                    /** allowlist form of the same thing */
+    // modules {                        // only when detection guesses wrong
+    //     shared = ":shared"
+    //     androidApps(":androidApp")
+    //     desktopApps(":desktopApp")
+    //     composeResources = file("shared/src/commonMain/composeResources")
+    // }
 
-    /** PLUMBING: only when auto-detection picks wrong. */
-    modules {
-        shared = ":shared"                /** the umbrella KMP module */
-        androidApps(":androidApp")
-        desktopApps(":desktopApp")
-        androidAppDirectory = file("androidApp")
-        composeResources    = file("shared/src/commonMain/composeResources")
-    }
-
-    /** SAFETY. Both have CLI twins that win for one invocation. */
-    dryRun  = false                       /** armed rewrites print, write nothing */
-    backups = true                        /** recovery copy before any rewrite */
-
-    /**
-     * Run on AGP/KGP/Compose outside the tested range: hard guards become
-     * one loud warning. Needs a forced opt-in in the build script:
-     * @file:OptIn(io.github.yuroyami.kiteconfig.DiscouragedKiteApi::class)
-     */
-    /** ignoreVersionGuards = true */
+    dryRun  = false                     // default. Also -Pkiteconfig.dryRun=true
+    backups = true                      // default. Also -Pkiteconfig.backups=false
+    // ignoreVersionGuards = true       // needs @file:OptIn(DiscouragedKiteApi::class)
 }
 ```
 
-Everything KiteConfig resolves is readable from any build file. See
-[Reading values back](#reading-values-back).
+The values above are examples, not recommendations.
 
-CLI overrides, per invocation, beat the build file: `-Pkiteconfig.dryRun=true`,
-`-Pkiteconfig.backups=false`.
+## How values resolve
+
+The closest value wins: the platform block, then the root, then the built-in
+default. Nothing is copied when a block opens, so this does what it looks like
+no matter which line comes first:
+
+```kotlin
+kiteConfig {
+    ios { version { rebuild = 2 } }
+    version { rebuild = 1 }    // Android and desktop get 1. iOS keeps 2.
+}
+```
+
+Every block is scoped to itself. `android { skip(ios) }` does not compile, and
+neither does `ios { jvm { } }`, because iOS has no JVM.
+
+To stop one value reaching one platform, turn its delivery off there:
+
+```kotlin
+ios { appName { enabled = false } }   // iOS keeps whatever name it has
+```
+
+The value stays readable. Only the write stops. To remove a platform
+altogether, use `skip()` at the root, which nothing can argue with.
+
+## Build numbers
+
+`version` is what users see. The build number is derived from it:
+
+```kotlin
+version = "1.4.0"                     // 1.4.0 becomes 1001004000
+android { version { rebuild = 1 } }   // and 1001004001 on the next upload
+```
+
+The scheme returns text, because the stores disagree about what a build number
+looks like. Android reads it as the one whole number Google Play wants. Apple
+compares it by numeric component, so a dotted build number works there:
+
+```kotlin
+ios {
+    version { scheme { v -> "${v.major}.${v.minor}.${v.patch * 10 + v.rebuild}" } }
+}
+```
+
+`publishedBuildNumber` is the highest number you have already shipped on that
+platform. The next one has to beat it, or the build stops before release.
+Nothing contacts a store; this is a value you keep yourself.
 
 ## Reading values back
 
-Everything KiteConfig resolves is readable from any build file in the project,
-not just the root. One import, then use it:
+Everything KiteConfig resolved is readable from any build file, not just the
+root. One import, then use it:
 
 ```kotlin
 import io.github.yuroyami.kiteconfig.kiteConfig
@@ -307,13 +263,11 @@ android {
 }
 ```
 
-Eighteen values are available.
-
 | Group | Values |
 | --- | --- |
 | Version | `version`, `versionCode`, `iosBuildNumber`, `iosMarketingVersion`, `desktopBuildNumber` |
-| Identity | `appName`, `appNameFor(platform)`, `id`, `androidApplicationId`, `iosBundleId`, `desktopBundleId` |
-| Build | `canonicalLocales`, `jvmTarget`, `resolvedSharedProjectPath`, `minSdk`, `targetSdk`, `compileSdk`, `ndk` |
+| Identity | `appName`, `appNameFor(platform)`, `appId`, `appIdFor(platform)`, `androidApplicationId`, `iosBundleId`, `desktopBundleId` |
+| Build | `canonicalLocales`, `jvmTarget`, `jvmToolchain`, `resolvedSharedProjectPath`, `minSdk`, `targetSdk`, `compileSdk`, `ndk` |
 
 Every one is a lazy `Provider`, so wiring one into another task's property costs
 nothing at configuration time:
@@ -340,22 +294,15 @@ remove.
 ### When values resolve
 
 Most values are settled before any subproject build file runs, so reading them
-eagerly during configuration is safe:
-
-```kotlin
-versionCode = kiteConfig.versionCode.get()
-```
-
-Two resolve later, because they depend on inspecting every project first:
+eagerly during configuration is safe. Two resolve later, because they depend on
+inspecting every project first:
 
 | Value | Reading it eagerly |
 | --- | --- |
-| `canonicalLocales` | returns an empty list, unless the list is pinned |
+| `canonicalLocales` | returns an empty list, unless you set `locales { tags }` |
 | `resolvedSharedProjectPath` | has no value, unless `modules { shared }` is declared |
 
-Neither affects what the build itself uses; the cost is only to the caller that
-asked too early. Wire them into a task instead and let them resolve at execution
-time:
+Wire them into a task instead and let them resolve at execution time:
 
 ```kotlin
 someTask.localeList.set(kiteConfig.canonicalLocales)
@@ -387,47 +334,134 @@ Projects. Neither is the rest of the plugin.
 
 ## Tasks
 
-All in the `kiteconfig` group. Nothing attaches to `build` or `check`, so the
-source-editing tasks run only when you name them.
+All in the `kiteconfig` group. Nothing attaches to `build` or `check`.
 
 | Task | Writes | What it does |
 | --- | --- | --- |
 | `kiteVerify` | nothing | Prints the resolved model |
 | `kiteDoctor` | nothing | Diagnoses the setup; never fails the build |
-| `kitePlan` | nothing | Lists what the armed rewrites would change, with exact paths |
-| `kiteCheck` | `build/` | Same checks as doctor, writes JSON or SARIF, fails on errors |
-| `kiteRewriteLogo` | source | Installs the logo into Android res and the iOS asset catalog |
-| `kiteRewriteXcode` | source | Applies Xcode build settings, plist, Podfile, Swift, and the iOS splash |
-| `kiteInternalBuildConfig`, `kiteInternalIoWorker*`, `kiteInternalDesktopIcons`, `kiteInternal*Splash` | `build/` | Generators, wired automatically |
-| `kiteInternalAndroidLogo`, `kiteInternalIosLogo`, `kiteInternalIosConfig`, `kiteInternalPlistClean`, `kiteInternalLegacyIconCleanup` | source | The installers behind the two `kiteRewrite*` umbrellas; they run only when you name one |
+| `kitePlan` | nothing | Lists exactly what would change, with paths |
+| `kiteCheck` | `build/` | The same findings as JSON or SARIF; fails on errors |
+| `kiteApply` | source | Applies the changes for every selected platform |
+| `kiteApplyAndroid`, `kiteApplyIos` | source | Applies one platform's changes |
+| `kiteInternal*` | `build/` or source | Generators and installers, wired for you |
 
-Run `./gradlew kitePlan` before any rewrite. It shows the full mutation plan
-and writes nothing.
+With `autoApply = true`, an ordinary build runs the plan for the platform it is
+building. An Android build never applies iOS changes.
+
+Run `./gradlew kitePlan` before your first apply. It shows everything that would
+change and writes nothing.
+
+## Safety
+
+Every source change goes through the same rails:
+
+- **Ownership receipts.** Each installer records the files it created, with a
+  checksum, under `.kiteconfig/`. A file whose checksum still matches may be
+  replaced. Anything else is left alone and reported.
+- **Recovery copies.** The first time KiteConfig claims a path you already had,
+  your file is copied to `.kiteconfig/recovery` before anything is written.
+- **Staged writes.** Text is written beside the target and moved into place. A
+  file that changed since planning aborts the write and is reported.
+- **Prepared, then committed.** Everything is rendered and checked before the
+  first byte is written, so bad art cannot leave metadata pointing at a file
+  that was never installed.
+
+`dryRun = true` prints the plan and writes nothing. `backups = false` turns off
+the durable recovery copies. Both have CLI twins that win for one invocation:
+`-Pkiteconfig.dryRun=true`, `-Pkiteconfig.backups=false`.
+
+**Commit the `.kiteconfig/` receipts.** They are small, plain text, and they
+travel with the files they describe. Without them a fresh clone has the
+generated icons but no proof of where they came from. Ignore the recovery
+copies:
+
+```gitignore
+.kiteconfig/recovery/
+```
+
+## iOS, honestly
+
+Android and desktop use new values in the same build, because Gradle sets them
+before compilation. iOS is different. Xcode reads `project.pbxproj`,
+`Info.plist`, and the asset catalog when it starts a build, and the KMP
+framework is built by Gradle inside that Xcode build. Anything written at that
+point is picked up by the next Xcode build, not the current one.
+
+So:
+
+- Any Gradle-driven build applies the iOS changes first, and they are in place.
+- A build started from Xcode applies them during the framework phase, so the
+  **following** Xcode build is correct. `kiteDoctor` says so.
+
+Run `./gradlew kiteApply` once after changing an iOS value if you drive builds
+from Xcode.
 
 ## Common questions
 
-- **When is a value applied?** Always. Every build, every platform in your
-  project, unless you wrote `skip()` next to it. That is the whole answer.
-- **Does opening a block do something by itself?** Writing a value applies
-  it (rule 1). Nothing touches your own files unless you wrote
-  `rewrite { }` AND ran the task (rule 2).
-- **What does dryRun cover?** Only the `kiteRewrite*` tasks. Files generated
-  into `build/` ignore it, because your build needs them and they are safe
-  to delete.
-- **I set up iOS values, why did nothing change?** iOS changes edit your
-  files, so rule 2 applies: add `ios { rewrite { } }` (and
-  `splash { rewrite { } }` for the splash), then run
-  `./gradlew kiteRewriteXcode`.
-- **Why did my desktop app get icons I never asked for?** You wrote
-  `logo { }` and a desktop app exists, so the icons were applied (rule 1).
-  Write `logo { skip(desktop) }` to stop that.
-- **`version = "1.4.0"` or `version("1.4.0") { }`?** Both set the same
-  value. Use the short one when you have no details. If you use both, the
-  last one wins and `kiteDoctor` warns you.
-- **My AGP/KGP version is unsupported. Now what?** The features that need
-  deep AGP/KGP access turn off and tell you why. `ignoreVersionGuards = true`
-  (with its required `@OptIn` line) keeps them on. If it breaks, that is the
-  risk you chose.
+- **When is a value applied?** Every build, to every platform in your project,
+  unless you excluded it or turned that topic's delivery off there.
+- **Does opening a block do something?** No. A feature is on when you gave it
+  what it needs, or when you wrote `enabled = true`.
+- **What does dryRun cover?** The source changes. Files generated into `build/`
+  ignore it, because your build needs them and they are safe to delete.
+- **I set an iOS value and nothing changed.** Either `autoApply` is off, so run
+  `./gradlew kiteApply`, or Xcode had already read the files. See above.
+- **Why did my desktop app get icons I never asked for?** You set
+  `logo { foreground }` and a desktop app exists. Write
+  `desktop { logo { enabled = false } }` to stop that.
+- **My AGP or Kotlin version is unsupported.** The features that need deep
+  access turn off and say why. `ignoreVersionGuards = true`, with its `@OptIn`
+  line, keeps them on at your own risk.
+
+## Upgrading from 1.0.0
+
+2.0.0 renames a lot. Old names do not compile, so nothing changes behaviour
+silently.
+
+| 1.0.0 | 2.0.0 |
+| --- | --- |
+| `id = "x"` | `appId = "x"` |
+| `id("x") { android { suffix = ".a" } }` | `android { appId { suffix = ".a" } }` |
+| `appName("x") { ios("y") }` | `ios { appName = "y" }` |
+| `version("x") { formula { } }` | `version { scheme { } }` |
+| `version("x") { android { reupload = 1 } }` | `android { version { rebuild = 1 } }` |
+| `android { pin = 123 }` | `android { version { buildNumber = "123" } }` |
+| `android { shipped = 1001003090 }` | `android { version { publishedBuildNumber = "1001003090" } }` |
+| `ios { marketingVersion = "1.4" }` | `ios { version = "1.4" }` |
+| `locales { pin("en") }` | `locales { tags = listOf("en") }` |
+| `locales { filterAndroidRes = true }` | `android { locales { filterResources = true } }` |
+| `logo { background = file(...) }` | `logo { background = image(file(...)) }` |
+| `logo { backgroundColor = "#..." }` | `logo { background = color("#...") }` |
+| `logo { android { safeZone = 0.6 } }` | `android { logo { foregroundScale = 0.6 } }` |
+| `logo { desktop { roundMac = true } }` | `desktop { logo { roundMac = true } }` |
+| `splash { }` turned it on | `splash { enabled = true }` |
+| `splash { android { theme = "T" } }` | `android { splash { theme = "T" } }` |
+| `jvmTarget = 21` | `jvm { target = 21 }` |
+| `<topic> { skip(ios) }` | `ios { <topic> { enabled = false } }` |
+| every `rewrite { }` block | `autoApply = true`, or run `kiteApply` |
+| `rewrite { auto = true }` | `autoApply = true` |
+| `logo { rewrite { replaceOld = true } }` | nothing: adoption is automatic and backed up |
+| `ios { rewrite { targets("iosApp") } }` | `ios { xcodeTargets("iosApp") }` |
+| `ios { rewrite { cleanPlist = true } }` | nothing: plist keys follow the facts |
+| `ios { rewrite { onConflict = ... } }` | nothing: managed keys carry your value |
+| `ios { rewrite { proMotion = true } }` | `ios { infoPlist { proMotion = true } }` |
+| `ios { infoPlist = file(...) }` | `ios { infoPlist { path = file(...) } }` |
+| `ios { rewrite { renameSharedModule(a, b) } }` | `ios { renameSharedModule(a, b) }` |
+| `./gradlew kiteRewriteLogo`, `kiteRewriteXcode` | `./gradlew kiteApply` |
+| `kiteConfig.id` | `kiteConfig.appId` |
+
+Three things change meaning, not just spelling:
+
+- A project with `logo { }` and no `rewrite { }` used to get desktop icons only.
+  With `autoApply = true` it now also installs the Android and iOS icons.
+  Without it, nothing changes until you run `kiteApply`.
+- An empty `splash { }` used to turn the launch screen on. It no longer does.
+- `VersionCodeScheme.compute` returns `String` instead of `Int`. A scheme that
+  returns an integer needs `.toString()`. The default scheme produces exactly
+  the same digits as before, so a published app keeps its numbering.
+
+`only()` with no arguments used to mean "everywhere". It is now an error.
 
 ## License
 
@@ -439,6 +473,5 @@ This plugin has had three names. It shipped as `kmp-ssot` at 0.1.0, became
 KiteSSOT, and is now KiteConfig. The `KTCNFG` diagnostic prefix replaced an
 older `KMPS` prefix left over from the first name.
 
-The version resets to 1.0.0 here because the DSL surface has reached a stable
-form that is not planned to change. Earlier version numbers belong to the older
-names, and their published artifacts stay where they are.
+1.0.0 was the first release under the KiteConfig name. 2.0.0 is the DSL reshape
+described above.

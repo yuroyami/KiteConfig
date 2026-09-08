@@ -40,6 +40,13 @@ import org.gradle.api.provider.Property
 abstract class KiteConfigNativeOptInsExtension {
 
     /**
+     * Add the markers. Default: on once a marker is added. Set it true for the
+     * built-in set alone.
+     */
+    abstract val enabled: Property<Boolean>
+
+
+    /**
      * Whether KiteConfig's own interop set is applied:
      * `kotlinx.cinterop.ExperimentalForeignApi`,
      * `kotlin.experimental.ExperimentalObjCName`, and

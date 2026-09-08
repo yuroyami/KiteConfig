@@ -146,6 +146,7 @@ public abstract class io/github/yuroyami/kiteconfig/KiteConfigBuildConfigExtensi
 	public final fun doubleField (Ljava/lang/String;D)V
 	public abstract fun getAllowBuildCache ()Lorg/gradle/api/provider/Property;
 	public abstract fun getClassName ()Lorg/gradle/api/provider/Property;
+	public abstract fun getEnabled ()Lorg/gradle/api/provider/Property;
 	public abstract fun getFields ()Lorg/gradle/api/provider/ListProperty;
 	public abstract fun getIncludeIdentity ()Lorg/gradle/api/provider/Property;
 	public abstract fun getPackageName ()Lorg/gradle/api/provider/Property;
@@ -305,6 +306,7 @@ public abstract class io/github/yuroyami/kiteconfig/KiteConfigExtension : io/git
 
 public abstract class io/github/yuroyami/kiteconfig/KiteConfigIoWorkerExtension {
 	public fun <init> ()V
+	public abstract fun getEnabled ()Lorg/gradle/api/provider/Property;
 	public abstract fun getPackageName ()Lorg/gradle/api/provider/Property;
 	public abstract fun getProjects ()Lorg/gradle/api/provider/ListProperty;
 	public abstract fun getTargets ()Lorg/gradle/api/provider/ListProperty;
@@ -343,6 +345,7 @@ public abstract class io/github/yuroyami/kiteconfig/KiteConfigNativeOptInsExtens
 	public fun <init> ()V
 	public final fun add ([Ljava/lang/String;)V
 	public abstract fun getBuiltIns ()Lorg/gradle/api/provider/Property;
+	public abstract fun getEnabled ()Lorg/gradle/api/provider/Property;
 	public abstract fun getMarkers ()Lorg/gradle/api/provider/ListProperty;
 	public abstract fun getProjects ()Lorg/gradle/api/provider/ListProperty;
 	public final fun projects ([Ljava/lang/String;)V

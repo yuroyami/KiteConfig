@@ -363,6 +363,7 @@ class KiteConfigPluginFunctionalTest {
                 dryRun = true
                 web {
                     ioWorker {
+                        enabled = true
                         projects(":shared")
                         targets("js")
                         packageName = "$workerPackage"
@@ -430,6 +431,7 @@ class KiteConfigPluginFunctionalTest {
                 modules { shared = ":shared" }
                 web {
                     ioWorker {
+                        enabled = true
                         projects(":shared")
                     }
                 }
@@ -530,6 +532,7 @@ class KiteConfigPluginFunctionalTest {
                 version = "1.2.3"
                 appId = "com.acme.app"
                 buildConfig {
+                    enabled = true
                     packageName = "com.acme.gen"
                     className = "AppConfig"
                 }
@@ -1342,6 +1345,7 @@ class KiteConfigPluginFunctionalTest {
                 version = "1.2.3"
                 appId = "com.acme.app"
                 buildConfig {
+                    enabled = true
                     packageName = "com.acme.gen"
                     className = "AppConfig"
                 }
@@ -1426,7 +1430,7 @@ class KiteConfigPluginFunctionalTest {
                 appName = "Ambiguous"
                 version = "1.0.0"
                 appId = "com.acme.app"
-                buildConfig { packageName = "com.acme.gen" }
+                buildConfig { enabled = true; packageName = "com.acme.gen" }
             }
             """.trimIndent(),
         )
@@ -1453,7 +1457,7 @@ class KiteConfigPluginFunctionalTest {
                 appName = "NoShared"
                 version = "1.0.0"
                 appId = "com.acme.app"
-                buildConfig { packageName = "demo.build" }
+                buildConfig { enabled = true; packageName = "demo.build" }
             }
             """.trimIndent(),
         )

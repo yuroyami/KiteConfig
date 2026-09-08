@@ -54,6 +54,13 @@ import org.gradle.api.provider.Property
 @KiteDsl
 abstract class KiteConfigIoWorkerExtension {
 
+    /**
+     * Generate the browser worker. Default: `false`. Naming targets or a package
+     * is configuration, not a request for the feature.
+     */
+    abstract val enabled: Property<Boolean>
+
+
     /** Set when the enclosing `ioWorker { }` block is opened. Presence is the opt-in. */
     internal abstract val declared: Property<Boolean>
 

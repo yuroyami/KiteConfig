@@ -856,8 +856,15 @@ abstract class KiteConfigExtension : KiteFlowScope(), KiteConfigValues {
 
     // --- native opt-ins ---
 
+    /**
+     * On once a marker exists, whichever way it was added.
+     *
+     * Activation used to depend on calling the block, so configuring the same
+     * object directly, which a convention plugin does, generated nothing and
+     * said nothing.
+     */
     internal val effectiveNativeOptInsEnabled: Provider<Boolean>
-        get() = optInsDeclared.orElse(false)
+        get() = optIns.enabled.orElse(optIns.markers.map { it.isNotEmpty() }).orElse(false)
 
     internal val effectiveNativeOptInBuiltIns: Provider<Boolean>
         get() = optIns.builtIns.orElse(true)
@@ -870,8 +877,9 @@ abstract class KiteConfigExtension : KiteFlowScope(), KiteConfigValues {
 
     // --- web ---
 
+    /** Off until asked for: naming targets or a package is configuration, not a request. */
     internal val effectiveIoWorkerEnabled: Provider<Boolean>
-        get() = web.ioWorker.declared.orElse(false)
+        get() = web.ioWorker.enabled.orElse(false)
 
     internal val effectiveIoWorkerTargets: Provider<List<String>>
         get() = web.ioWorker.targets
@@ -884,8 +892,9 @@ abstract class KiteConfigExtension : KiteFlowScope(), KiteConfigValues {
 
     // --- build config ---
 
+    /** On once a field exists, whichever way it was declared. See [effectiveNativeOptInsEnabled]. */
     internal val effectiveBuildConfigEnabled: Provider<Boolean>
-        get() = buildConfigDeclared.orElse(false)
+        get() = buildConfig.enabled.orElse(buildConfig.fields.map { it.isNotEmpty() }).orElse(false)
 
     // --- desktop ---
 

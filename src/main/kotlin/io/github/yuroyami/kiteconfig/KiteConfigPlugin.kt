@@ -1699,7 +1699,8 @@ class KiteConfigPlugin : Plugin<Project> {
             ext.android.jvmDetails.target, ext.android.jvmDetails.toolchain,
             ext.desktop.jvmDetails.target, ext.desktop.jvmDetails.toolchain,
             ext.dryRun, ext.backups, ext.ignoreVersionGuards,
-            ext.logoConfigured, ext.optInsDeclared, ext.buildConfigDeclared,
+            ext.logoConfigured,
+            ext.buildConfig.enabled, ext.optIns.enabled, ext.web.ioWorker.enabled,
             ext.skipped, ext.allowed,
         ) + listOf(
             ext.localesScope.tags,

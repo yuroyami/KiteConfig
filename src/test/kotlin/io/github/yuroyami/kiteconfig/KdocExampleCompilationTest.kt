@@ -21,12 +21,19 @@ class KdocExampleCompilationTest {
 
     private data class Example(val source: String, val index: Int, val code: String)
 
-    /** Pull every complete `kiteConfig { }` fence out of the main source's KDoc. */
+    /**
+     * Pull every complete `kiteConfig { }` fence out of the KDoc and the README.
+     *
+     * The README is included because a wrong example there is exactly as
+     * misleading as a wrong one in the KDoc, and nothing type-checks prose.
+     */
     private fun documentedExamples(): List<Example> {
         val root = File("src/main/kotlin")
         assertTrue(root.isDirectory, "expected the project root, got ${File(".").absolutePath}")
         val found = mutableListOf<Example>()
-        root.walkTopDown().filter { it.isFile && it.extension == "kt" }.sortedBy { it.name }
+        val sources = root.walkTopDown().filter { it.isFile && it.extension == "kt" }.sortedBy { it.name } +
+            sequenceOf(File("README.md")).filter(File::isFile)
+        sources
             .forEach { file ->
                 var inside = false
                 val buffer = mutableListOf<String>()
@@ -37,7 +44,12 @@ class KdocExampleCompilationTest {
                         inside && line.startsWith("```") -> {
                             inside = false
                             val code = buffer.joinToString("\n")
-                            if (code.trimStart().startsWith("kiteConfig {")) {
+                            // A snippet may open with its own imports; they are
+                            // hoisted before the plugins block when it is compiled.
+                            val body = code.lines()
+                                .dropWhile { it.isBlank() || it.startsWith("import ") }
+                                .joinToString("\n")
+                            if (body.trimStart().startsWith("kiteConfig {")) {
                                 found += Example(file.name, found.size + 1, code)
                             }
                         }
@@ -85,12 +97,13 @@ class KdocExampleCompilationTest {
         examples.forEach { example ->
             File(projectDir, "build.gradle.kts").writeText(
                 """
-                import io.github.yuroyami.kiteconfig.PlistConflictPolicy
+                ${(example.code.lines().filter { it.startsWith("import ") } +
+                    "import io.github.yuroyami.kiteconfig.VersionSchemes").distinct().joinToString("\n")}
                 plugins {
                     id("org.jetbrains.kotlin.multiplatform") apply false
                     id("io.github.yuroyami.kiteconfig")
                 }
-                ${example.code}
+                ${example.code.lines().filterNot { it.startsWith("import ") }.joinToString("\n")}
                 """.trimIndent(),
             )
             val result = GradleRunner.create()

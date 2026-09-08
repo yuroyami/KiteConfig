@@ -78,6 +78,13 @@ import javax.inject.Inject
 @KiteDsl
 abstract class KiteConfigBuildConfigExtension {
 
+    /**
+     * Generate the constants. Default: on once a field is declared. Set it true
+     * for identity-only output with no custom fields of your own.
+     */
+    abstract val enabled: Property<Boolean>
+
+
     /** Gradle-injected, used only to build the failure path for an empty provider. */
     @get:Inject
     protected abstract val providerFactory: ProviderFactory
