@@ -65,6 +65,9 @@ abstract class KitePlatformExtension : KitePlatformRef {
     /** This platform's identifier suffix and delivery switch. */
     fun appId(action: Action<in KiteAppIdScope>) = action.execute(appIdDetails)
 
+    internal val localesDetails: KiteLocalesScope
+        get() = (this as ExtensionAware).extensions.getByType(KiteLocalesScope::class.java)
+
     internal val appNameDetails: KiteAppNameScope
         get() = (this as ExtensionAware).extensions.getByType(KiteAppNameScope::class.java)
 

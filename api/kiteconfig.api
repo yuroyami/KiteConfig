@@ -103,6 +103,11 @@ public abstract class io/github/yuroyami/kiteconfig/GenerateIoWorkerTask : org/g
 	public abstract fun getWorkerPackage ()Lorg/gradle/api/provider/Property;
 }
 
+public abstract class io/github/yuroyami/kiteconfig/KiteAndroidLocalesScope : io/github/yuroyami/kiteconfig/KiteLocalesScope {
+	public fun <init> ()V
+	public abstract fun getFilterResources ()Lorg/gradle/api/provider/Property;
+}
+
 public abstract class io/github/yuroyami/kiteconfig/KiteAppIdScope {
 	public fun <init> ()V
 	public abstract fun getEnabled ()Lorg/gradle/api/provider/Property;
@@ -121,6 +126,7 @@ public abstract class io/github/yuroyami/kiteconfig/KiteConfigAndroidExtension :
 	public abstract fun getNdk ()Lorg/gradle/api/provider/Property;
 	public final fun getPlatform ()Lio/github/yuroyami/kiteconfig/KitePlatform;
 	public abstract fun getTargetSdk ()Lorg/gradle/api/provider/Property;
+	public final fun locales (Lorg/gradle/api/Action;)V
 	public final fun sdk (Ljava/lang/Integer;Ljava/lang/Integer;Ljava/lang/Integer;)V
 	public static synthetic fun sdk$default (Lio/github/yuroyami/kiteconfig/KiteConfigAndroidExtension;Ljava/lang/Integer;Ljava/lang/Integer;Ljava/lang/Integer;ILjava/lang/Object;)V
 }
@@ -154,6 +160,7 @@ public abstract class io/github/yuroyami/kiteconfig/KiteConfigDesktopExtension :
 	public abstract fun getDeriveUpgradeUuid ()Lorg/gradle/api/provider/Property;
 	public abstract fun getLinuxPackageName ()Lorg/gradle/api/provider/Property;
 	public final fun getPlatform ()Lio/github/yuroyami/kiteconfig/KitePlatform;
+	public final fun locales (Lorg/gradle/api/Action;)V
 }
 
 public final class io/github/yuroyami/kiteconfig/KiteConfigDiagnosticReportFormat : java/lang/Enum {
@@ -298,6 +305,7 @@ public abstract class io/github/yuroyami/kiteconfig/KiteConfigIosExtension : io/
 	public final fun getPlatform ()Lio/github/yuroyami/kiteconfig/KitePlatform;
 	public abstract fun getPodfile ()Lorg/gradle/api/file/RegularFileProperty;
 	public final fun getRewrite ()Lio/github/yuroyami/kiteconfig/KiteConfigIosSyncExtension;
+	public final fun locales (Lorg/gradle/api/Action;)V
 	public final fun rewrite (Lorg/gradle/api/Action;)V
 }
 
@@ -458,10 +466,10 @@ public abstract class io/github/yuroyami/kiteconfig/KiteFlowScope {
 	public final fun skip ([Lio/github/yuroyami/kiteconfig/KitePlatformRef;)V
 }
 
-public abstract class io/github/yuroyami/kiteconfig/KiteLocalesScope : io/github/yuroyami/kiteconfig/KiteFlowScope {
+public abstract class io/github/yuroyami/kiteconfig/KiteLocalesScope {
 	public fun <init> ()V
-	public abstract fun getFilterAndroidRes ()Lorg/gradle/api/provider/Property;
-	public final fun pin ([Ljava/lang/String;)V
+	public abstract fun getEnabled ()Lorg/gradle/api/provider/Property;
+	public abstract fun getTags ()Lorg/gradle/api/provider/ListProperty;
 }
 
 public final class io/github/yuroyami/kiteconfig/KitePlatform : java/lang/Enum {

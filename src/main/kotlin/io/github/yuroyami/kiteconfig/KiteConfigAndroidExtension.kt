@@ -59,6 +59,15 @@ import org.gradle.api.provider.Property
  */
 abstract class KiteConfigAndroidExtension : KitePlatformExtension() {
 
+    /** Android's locale list and its resource filter. */
+    fun locales(action: org.gradle.api.Action<in KiteAndroidLocalesScope>) =
+        action.execute(androidLocales)
+
+    internal val androidLocales: KiteAndroidLocalesScope
+        get() = (this as org.gradle.api.plugins.ExtensionAware)
+            .extensions.getByType(KiteAndroidLocalesScope::class.java)
+
+
     final override val platform: KitePlatform = KitePlatform.ANDROID
 
     // --- Identity -------------------------------------------------------------

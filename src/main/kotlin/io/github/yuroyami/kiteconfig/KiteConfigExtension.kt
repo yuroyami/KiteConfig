@@ -51,10 +51,7 @@ import org.gradle.api.provider.Provider
  *         rebuild = 0                    // re-upload the same version to a store
  *     }
  *
- *     locales {
- *         pin("en", "ar", "fr")          // hand list, detection skipped
- *         filterAndroidRes = true        // drop Android res outside the list
- *     }
+ *     locales { tags = listOf("en", "ar", "fr") }  // omit to detect them
  *
  *     logo {
  *         foreground = file("art/logo-fg.png")
@@ -82,6 +79,7 @@ import org.gradle.api.provider.Provider
  *             rebuild = 1                        // this platform's counter
  *             publishedBuildNumber = "1001003090" // new numbers must beat it
  *         }
+ *         locales { filterResources = true }  // drop res outside the list
  *         sdk(min = 26, target = 36, compile = 36)
  *     }
  *
@@ -483,14 +481,20 @@ abstract class KiteConfigExtension : KiteFlowScope(), KiteConfigValues {
     internal val effectiveJvmTarget: Provider<Int>
         get() = jvmTarget
 
-    /** The locales topic: pinned list, Android res filter, and flow modifiers. */
+    /** The locales topic: the tag list every platform starts from. */
     fun locales(action: Action<in KiteLocalesScope>) = action.execute(localesScope)
 
     internal val localesScope: KiteLocalesScope
         get() = nested()
 
     internal fun localesFlowsTo(p: KitePlatform): Provider<Boolean> =
-        flowsTo(p).zip(localesScope.flowsTo(p)) { root, topic -> root && topic }
+        flowsTo(p).zip(platformExtension(p).localesDetails.enabled.orElse(true)) { selected, delivered ->
+            selected && delivered
+        }
+
+    /** The tags [p] ships: its own list if it declared one, otherwise the shared list. */
+    internal fun effectiveLocalesFor(p: KitePlatform): Provider<List<String>> =
+        platformExtension(p).localesDetails.tags
 
     private fun anywhere(gate: (KitePlatform) -> Provider<Boolean>): Provider<Boolean> =
         gate(KitePlatform.ANDROID).zip(gate(KitePlatform.IOS)) { a, i -> a || i }
@@ -501,7 +505,7 @@ abstract class KiteConfigExtension : KiteFlowScope(), KiteConfigValues {
     internal fun localesFlowsAnywhere(): Provider<Boolean> = anywhere(::localesFlowsTo)
 
     internal val effectiveLocales: Provider<List<String>>
-        get() = localesScope.pinned
+        get() = localesScope.tags
 
     /** Armed logo rewrite that also asked to ride ordinary Android builds. */
     internal val effectiveAutoRewriteLogo: Provider<Boolean>
@@ -560,7 +564,7 @@ abstract class KiteConfigExtension : KiteFlowScope(), KiteConfigValues {
             .orElse(false)
 
     internal val effectiveFilterAndroidResources: Provider<Boolean>
-        get() = localesScope.filterAndroidRes.orElse(false)
+        get() = android.androidLocales.filterResources.orElse(false)
 
     // --- version numbers ---
 

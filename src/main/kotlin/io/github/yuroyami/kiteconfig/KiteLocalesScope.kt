@@ -4,21 +4,54 @@ import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.Property
 
 /**
- * Everything about locales: the pinned list, the Android res filter, flow.
+ * The locales topic, inside `kiteConfig { locales { ... } }`.
  *
- * | member | meaning | default | flow class |
- * |---|---|---|---|
- * | `pin(tags)` | hand locale list, detection skipped | auto-detect | memory |
- * | `filterAndroidRes` | drop Android res outside the list | false | memory |
- * | `skip(p)` / `only(p)` | flow control | flow everywhere | n/a |
+ * | member | meaning | default |
+ * |---|---|---|
+ * | `tags` | the BCP 47 tags your app ships | detected from Compose resources |
+ * | `enabled` | deliver the list to this platform | true |
+ *
+ * ```kotlin
+ * kiteConfig {
+ *     locales { tags = listOf("en", "ar", "fr") }
+ *     ios { locales { tags = listOf("en", "fr") } }   // iOS ships fewer
+ * }
+ * ```
+ *
+ * Assigning the list replaces it. `tags = emptyList()` means this app has no
+ * locale list, not "go and detect one".
  */
-abstract class KiteLocalesScope : KiteFlowScope() {
+abstract class KiteLocalesScope {
 
-    internal abstract val pinned: ListProperty<String>
+    /**
+     * The BCP 47 tags your app ships, for example `listOf("en", "ar")`.
+     *
+     * Leave it unset and KiteConfig reads the Compose resource folders of the
+     * shared module; leave it unset in a platform block and that platform ships
+     * the shared list. Tags are normalized and de-duplicated, and declaration
+     * order is kept.
+     */
+    abstract val tags: ListProperty<String>
 
-    /** Hand list of BCP 47 tags. Detection from Compose resources is skipped. */
-    fun pin(vararg tags: String) = pinned.addAll(*tags)
+    /** Deliver the locale list to this platform. Default: `true`. */
+    abstract val enabled: Property<Boolean>
+}
 
-    /** Drop Android res folders whose locale is not in the list. Default: false. */
-    abstract val filterAndroidRes: Property<Boolean>
+/**
+ * Android's locale details, inside `kiteConfig { android { locales { ... } } }`.
+ *
+ * Everything in [KiteLocalesScope] applies here too, plus one Android-only
+ * policy.
+ */
+abstract class KiteAndroidLocalesScope : KiteLocalesScope() {
+
+    /**
+     * Drop Android resource folders whose locale is not in the list.
+     * Default: `false`.
+     *
+     * The list has to be known before AGP settles its resource configuration.
+     * When detection cannot answer that early, KiteConfig says so and asks for
+     * `locales { tags }` or `modules { shared }` rather than guessing.
+     */
+    abstract val filterResources: Property<Boolean>
 }

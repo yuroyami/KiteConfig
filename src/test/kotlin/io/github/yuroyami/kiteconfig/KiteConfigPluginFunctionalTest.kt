@@ -156,7 +156,7 @@ class KiteConfigPluginFunctionalTest {
                 appName = "Demo App"
                 version = "1.2.3"
                 appId = "com.demo.app"
-                locales { pin("fr", "pt-BR") }
+                locales { tags = listOf("fr", "pt-BR") }
                 version = "1.2.3"
                 ios { version { buildNumber = "42" } }
                 ios {
@@ -476,7 +476,7 @@ class KiteConfigPluginFunctionalTest {
                 appName = "Demo"
                 version = "1.2.3"
                 appId = "com.acme.app"
-                locales { pin("en", "pt-BR") }
+                locales { tags = listOf("en", "pt-BR") }
                 dryRun = true
                 buildConfig {
                     packageName = "com.acme.gen"
@@ -1017,7 +1017,7 @@ class KiteConfigPluginFunctionalTest {
             plugins { id("io.github.yuroyami.kiteconfig") }
             kiteConfig {
                 version = "1.2"
-                locales { pin("not_a_locale") }
+                locales { tags = listOf("not_a_locale") }
             }
             tasks.register("inspectConfig") {
                 dependsOn("kiteDoctor", "kiteVerify", "kitePlan")
@@ -1155,7 +1155,7 @@ class KiteConfigPluginFunctionalTest {
             kiteConfig {
                 appName = "Cache Probe"
                 version = "1.0.0"
-                locales { pin("en-us", "en-US", "fr") }
+                locales { tags = listOf("en-us", "en-US", "fr") }
                 ios {
                     rewrite { renameSharedModule(from = "shared", to = "SharedKit") }
                 }

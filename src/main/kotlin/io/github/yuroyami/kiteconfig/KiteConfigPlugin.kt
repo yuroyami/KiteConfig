@@ -115,6 +115,15 @@ class KiteConfigPlugin : Plugin<Project> {
             (platform as ExtensionAware).extensions.create<KiteAppNameScope>("appNameDetails")
             platform.extensions.create<KiteAppIdScope>("appIdDetails")
             platform.extensions.create<KitePlatformVersionScope>("versionDetails")
+            if (platform is KiteConfigAndroidExtension) {
+                platform.extensions.create<KiteAndroidLocalesScope>("localesDetails")
+            } else {
+                platform.extensions.create<KiteLocalesScope>("localesDetails")
+            }
+            // A convention rather than orElse: a ListProperty is always present, so
+            // this is what lets an explicitly empty list mean "no locales here"
+            // instead of silently inheriting the shared one.
+            platform.localesDetails.tags.convention(ext.effectiveLocales)
         }
 
         // Resolve console colour once. Tasks receive only the Boolean, which keeps
@@ -158,7 +167,7 @@ class KiteConfigPlugin : Plugin<Project> {
             )
         }
         // Auto-detect locales from the selected Compose resources directory's values-* children.
-        ext.localesScope.pinned.convention(target.provider { autoDetectLocales(target, ext) })
+        ext.localesScope.tags.convention(target.provider { autoDetectLocales(target, ext) })
 
         // Keep the public DSL input immutable after root evaluation while still
         // allowing the plugin to resolve a uniquely detected application later.
@@ -574,7 +583,7 @@ class KiteConfigPlugin : Plugin<Project> {
             // This sits below the resilient bail-out on purpose. Finalizing forces
             // the detection convention, which can throw, and kiteDoctor exists to
             // report a broken model rather than die inside configuration.
-            ext.localesScope.pinned.finalizeValue()
+            ext.localesScope.tags.finalizeValue()
             if (detectedAndroidProjects.isNotEmpty() && ext.effectiveApplySdkLevels.get()) {
                 validateSdkLevels(
                     ext.android.compileSdk.orNull,
@@ -1605,7 +1614,7 @@ class KiteConfigPlugin : Plugin<Project> {
      */
     private fun finalizeModel(ext: KiteConfigExtension) {
         modelValues(ext).forEach { value ->
-            if (value === ext.localesScope.pinned) {
+            if (value === ext.localesScope.tags) {
                 // Not finalizeValueOnRead: an early reader would pin an empty list
                 // before locale detection runs. disallowChanges still blocks any
                 // late mutation; projectsEvaluated finalizes the value itself.
@@ -1635,7 +1644,7 @@ class KiteConfigPlugin : Plugin<Project> {
             ext.logoConfigured, ext.optInsDeclared, ext.buildConfigDeclared,
             ext.skipped, ext.allowed,
         ) + listOf(
-            ext.localesScope.skipped, ext.localesScope.allowed, ext.localesScope.pinned,
+            ext.localesScope.tags,
             ext.logo.skipped, ext.logo.allowed,
             ext.splash.declared, ext.splash.rewriteArmed, ext.splash.skipped, ext.splash.allowed,
             ext.splash.image, ext.splash.backgroundColor,
@@ -1647,7 +1656,7 @@ class KiteConfigPlugin : Plugin<Project> {
             ext.android.compileSdk, ext.android.minSdk,
             ext.android.targetSdk, ext.android.ndk,
             ext.versionScope.schemeProp, ext.versionScope.rebuild,
-            ext.localesScope.pinned, ext.localesScope.filterAndroidRes,
+            ext.android.androidLocales.filterResources,
         ) + KitePlatform.entries.flatMap { platform ->
             val block = ext.platformExtension(platform)
             listOf(
@@ -1658,6 +1667,7 @@ class KiteConfigPlugin : Plugin<Project> {
                 block.versionDetails.schemeProp, block.versionDetails.rebuild,
                 block.versionDetails.buildNumber, block.versionDetails.publishedBuildNumber,
                 block.versionDetails.enabled,
+                block.localesDetails.tags, block.localesDetails.enabled,
             )
         } + listOf(
             ext.ios.deploymentTarget, ext.ios.pbxproj, ext.ios.podfile,

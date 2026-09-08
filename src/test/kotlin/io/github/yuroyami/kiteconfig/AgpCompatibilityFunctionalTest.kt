@@ -310,14 +310,16 @@ class AgpCompatibilityFunctionalTest {
                 version = '2.3.4'
                 appId = 'dev.matrix.ssot'
                 locales {
-                    pin('en', 'pt-BR')
-                    filterAndroidRes = true
+                    tags = ['en', 'pt-BR']
                 }
                 jvmTarget = 17
                 modules {
                     androidApps(':app')
                 }
                 android {
+                    locales {
+                        filterResources = true
+                    }
                     compileSdk = 35
                     minSdk = 24
                     targetSdk = 35
@@ -634,11 +636,10 @@ class AgpCompatibilityFunctionalTest {
 
             kiteConfig {
                 appName = 'LibraryOnly'
-                version('1.4.150') {
-                    skip(android)
-                    skip(ios)
-                    skip(desktop)
-                }
+                version = '1.4.150'
+                android { version { enabled = false } }
+                ios { version { enabled = false } }
+                desktop { version { enabled = false } }
             }
 
             tasks.register('verifyLibraryBuilds') {

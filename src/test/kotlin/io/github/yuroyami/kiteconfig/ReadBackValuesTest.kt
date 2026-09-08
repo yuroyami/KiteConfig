@@ -50,7 +50,7 @@ class ReadBackValuesTest {
     fun `build values read back including the sdk levels`() {
         val e = values()
         e.jvmTarget.set(17)
-        e.locales { pinned.set(listOf("en", "fr")) }
+        e.locales { tags.set(listOf("en", "fr")) }
         e.android {
             sdk(min = 24, target = 35, compile = 35)
             ndk.set("27.0.12077973")

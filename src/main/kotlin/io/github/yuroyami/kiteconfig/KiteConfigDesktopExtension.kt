@@ -41,6 +41,10 @@ import org.gradle.api.provider.Property
  */
 abstract class KiteConfigDesktopExtension : KitePlatformExtension() {
 
+    /** The locale list this platform ships, when it differs from the shared one. */
+    fun locales(action: org.gradle.api.Action<in KiteLocalesScope>) = action.execute(localesDetails)
+
+
     final override val platform: KitePlatform = KitePlatform.DESKTOP
 
     // --- Gate -----------------------------------------------------------------
