@@ -64,11 +64,9 @@ import org.gradle.api.provider.Provider
  *     }
  *
  *     splash {
- *         // empty block already works: art defaults to logo, plate to its color
+ *         enabled = true                 // off until you say this
  *         dark { backgroundColor = "#000000" }
- *         android { theme = "AppTheme" }     // your app theme; the generated
- *                                            //   KiteSplash style inherits it
- *         rewrite { }                        // arms the iOS launch-screen delivery
+ *         rewrite { }                    // arms the iOS launch-screen delivery
  *     }
  *
  *     optIns {
@@ -82,6 +80,7 @@ import org.gradle.api.provider.Provider
  *             publishedBuildNumber = "1001003090" // new numbers must beat it
  *         }
  *         locales { filterResources = true }  // drop res outside the list
+ *         splash { theme = "AppTheme" }       // the theme the splash inherits
  *         sdk(min = 26, target = 36, compile = 36)
  *     }
  *
@@ -199,40 +198,67 @@ abstract class KiteConfigExtension : KiteFlowScope(), KiteConfigValues {
 
     // ------------------------------------------------------------------ Splash
 
-    /** The splash topic: launch-screen art. Presence flows Android and desktop. */
-    fun splash(action: Action<in KiteSplashScope>) {
-        splash.declared.set(true)
-        action.execute(splash)
-    }
+    /** The splash topic. Off until `splash { enabled = true }`. */
+    fun splash(action: Action<in KiteSplashScope>) = action.execute(splash)
 
     internal val splash: KiteSplashScope
         get() = nested()
 
+    /** Turned on for [p] when that platform, or the root, asked for a launch screen. */
+    internal fun splashEnabledFor(p: KitePlatform): Provider<Boolean> =
+        platformExtension(p).splashDetails.enabled.orElse(splash.enabled).orElse(false)
+
     internal fun splashFlowsTo(p: KitePlatform): Provider<Boolean> =
-        flowsTo(p).zip(splash.flowsTo(p)) { root, topic -> root && topic }
+        flowsTo(p).zip(splashEnabledFor(p)) { selected, on -> selected && on }
+
+    /** Splash art for [p]: its own, the shared one, otherwise that platform's logo. */
+    internal fun effectiveSplashImageFor(p: KitePlatform): Provider<org.gradle.api.file.RegularFile> =
+        platformExtension(p).splashDetails.image
+            .orElse(splash.image)
+            .orElse(effectiveLogoForegroundFor(p))
+
+    /** The plate for [p]. A logo with an image background supplies no color. */
+    internal fun effectiveSplashColorFor(p: KitePlatform): Provider<String> =
+        platformExtension(p).splashDetails.backgroundColor
+            .orElse(splash.backgroundColor)
+            .orElse(effectiveLogoBackgroundColorFor(p))
+
+    /** Dark resources are produced once a dark value exists, unless a platform declines. */
+    internal fun splashDarkEnabledFor(p: KitePlatform): Provider<Boolean> {
+        val declared = effectiveSplashDarkImageFor(p).map { true }
+            .orElse(effectiveSplashDarkColorFor(p).map { true })
+            .orElse(false)
+        return platformExtension(p).splashDetails.dark.enabled
+            .orElse(splash.dark.enabled)
+            .orElse(declared)
+    }
+
+    internal fun effectiveSplashDarkImageFor(p: KitePlatform): Provider<org.gradle.api.file.RegularFile> =
+        platformExtension(p).splashDetails.dark.image.orElse(splash.dark.image)
+
+    internal fun effectiveSplashDarkColorFor(p: KitePlatform): Provider<String> =
+        platformExtension(p).splashDetails.dark.backgroundColor.orElse(splash.dark.backgroundColor)
 
     internal val effectiveSplashImage: Provider<org.gradle.api.file.RegularFile>
-        get() = splash.image.orElse(logo.foreground)
+        get() = effectiveSplashImageFor(KitePlatform.ANDROID)
 
     internal val effectiveSplashColor: Provider<String>
-        get() = splash.backgroundColor.orElse(rootLogoBackgroundColor)
+        get() = effectiveSplashColorFor(KitePlatform.ANDROID)
 
     internal val effectiveSplashDarkImage: Provider<org.gradle.api.file.RegularFile>
-        get() = splash.dark.image
+        get() = effectiveSplashDarkImageFor(KitePlatform.ANDROID)
 
     internal val effectiveSplashDarkColor: Provider<String>
-        get() = splash.dark.backgroundColor
+        get() = effectiveSplashDarkColorFor(KitePlatform.ANDROID)
 
     internal val effectiveSplashAndroidTheme: Provider<String>
-        get() = splash.android.theme
+        get() = android.androidSplash.theme
 
     internal val effectiveAndroidSplash: Provider<Boolean>
-        get() = splash.declared.orElse(false)
-            .zip(splashFlowsTo(KitePlatform.ANDROID)) { d, f -> d && f }
+        get() = splashFlowsTo(KitePlatform.ANDROID)
 
     internal val effectiveDesktopSplash: Provider<Boolean>
-        get() = splash.declared.orElse(false)
-            .zip(splashFlowsTo(KitePlatform.DESKTOP)) { d, f -> d && f }
+        get() = splashFlowsTo(KitePlatform.DESKTOP)
 
     internal val effectiveIosSplash: Provider<Boolean>
         get() = splash.rewriteArmed.orElse(false)

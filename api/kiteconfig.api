@@ -109,6 +109,11 @@ public abstract class io/github/yuroyami/kiteconfig/KiteAndroidLocalesScope : io
 	public abstract fun getFilterResources ()Lorg/gradle/api/provider/Property;
 }
 
+public abstract class io/github/yuroyami/kiteconfig/KiteAndroidSplashScope : io/github/yuroyami/kiteconfig/KiteSplashScope {
+	public fun <init> (Lorg/gradle/api/model/ObjectFactory;)V
+	public abstract fun getTheme ()Lorg/gradle/api/provider/Property;
+}
+
 public abstract class io/github/yuroyami/kiteconfig/KiteAppIdScope {
 	public fun <init> ()V
 	public abstract fun getEnabled ()Lorg/gradle/api/provider/Property;
@@ -132,6 +137,7 @@ public abstract class io/github/yuroyami/kiteconfig/KiteConfigAndroidExtension :
 	public final fun logo (Lorg/gradle/api/Action;)V
 	public final fun sdk (Ljava/lang/Integer;Ljava/lang/Integer;Ljava/lang/Integer;)V
 	public static synthetic fun sdk$default (Lio/github/yuroyami/kiteconfig/KiteConfigAndroidExtension;Ljava/lang/Integer;Ljava/lang/Integer;Ljava/lang/Integer;ILjava/lang/Object;)V
+	public final fun splash (Lorg/gradle/api/Action;)V
 }
 
 public abstract class io/github/yuroyami/kiteconfig/KiteConfigBuildConfigExtension {
@@ -166,6 +172,7 @@ public abstract class io/github/yuroyami/kiteconfig/KiteConfigDesktopExtension :
 	public final fun jvm (Lorg/gradle/api/Action;)V
 	public final fun locales (Lorg/gradle/api/Action;)V
 	public final fun logo (Lorg/gradle/api/Action;)V
+	public final fun splash (Lorg/gradle/api/Action;)V
 }
 
 public final class io/github/yuroyami/kiteconfig/KiteConfigDiagnosticReportFormat : java/lang/Enum {
@@ -315,6 +322,7 @@ public abstract class io/github/yuroyami/kiteconfig/KiteConfigIosExtension : io/
 	public final fun locales (Lorg/gradle/api/Action;)V
 	public final fun logo (Lorg/gradle/api/Action;)V
 	public final fun rewrite (Lorg/gradle/api/Action;)V
+	public final fun splash (Lorg/gradle/api/Action;)V
 }
 
 public abstract class io/github/yuroyami/kiteconfig/KiteConfigIosSyncExtension {
@@ -510,28 +518,20 @@ public abstract class io/github/yuroyami/kiteconfig/KitePlatformVersionScope : i
 	public abstract fun getPublishedBuildNumber ()Lorg/gradle/api/provider/Property;
 }
 
-public abstract class io/github/yuroyami/kiteconfig/KiteSplashScope : io/github/yuroyami/kiteconfig/KiteFlowScope {
+public abstract class io/github/yuroyami/kiteconfig/KiteSplashScope {
 	public fun <init> (Lorg/gradle/api/model/ObjectFactory;)V
-	public final fun android (Lorg/gradle/api/Action;)V
 	public final fun dark (Lorg/gradle/api/Action;)V
-	public final fun getAndroid ()Lio/github/yuroyami/kiteconfig/KiteSplashScope$AndroidCorner;
 	public abstract fun getBackgroundColor ()Lorg/gradle/api/provider/Property;
 	public final fun getDark ()Lio/github/yuroyami/kiteconfig/KiteSplashScope$DarkVariant;
-	public final fun getDesktop ()Lio/github/yuroyami/kiteconfig/KitePlatformRef;
+	public abstract fun getEnabled ()Lorg/gradle/api/provider/Property;
 	public abstract fun getImage ()Lorg/gradle/api/file/RegularFileProperty;
-	public final fun getIos ()Lio/github/yuroyami/kiteconfig/KitePlatformRef;
 	public final fun rewrite (Lorg/gradle/api/Action;)V
-}
-
-public abstract class io/github/yuroyami/kiteconfig/KiteSplashScope$AndroidCorner : io/github/yuroyami/kiteconfig/KitePlatformRef {
-	public fun <init> ()V
-	public final fun getPlatform ()Lio/github/yuroyami/kiteconfig/KitePlatform;
-	public abstract fun getTheme ()Lorg/gradle/api/provider/Property;
 }
 
 public abstract class io/github/yuroyami/kiteconfig/KiteSplashScope$DarkVariant {
 	public fun <init> ()V
 	public abstract fun getBackgroundColor ()Lorg/gradle/api/provider/Property;
+	public abstract fun getEnabled ()Lorg/gradle/api/provider/Property;
 	public abstract fun getImage ()Lorg/gradle/api/file/RegularFileProperty;
 }
 

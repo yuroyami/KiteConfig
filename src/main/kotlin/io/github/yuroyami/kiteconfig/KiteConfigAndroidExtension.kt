@@ -59,6 +59,14 @@ import org.gradle.api.provider.Property
  */
 abstract class KiteConfigAndroidExtension : KitePlatformExtension() {
 
+    /** This platform's launch screen. */
+    fun splash(action: org.gradle.api.Action<in KiteAndroidSplashScope>) = action.execute(androidSplash)
+
+    internal val androidSplash: KiteAndroidSplashScope
+        get() = (this as org.gradle.api.plugins.ExtensionAware)
+            .extensions.getByType(KiteAndroidSplashScope::class.java)
+
+
     /** This platform's icon art and how much of the canvas the mark fills. */
     fun logo(action: org.gradle.api.Action<in KiteLogoScope>) = action.execute(logoDetails)
 

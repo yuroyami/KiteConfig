@@ -65,6 +65,9 @@ abstract class KitePlatformExtension : KitePlatformRef {
     /** This platform's identifier suffix and delivery switch. */
     fun appId(action: Action<in KiteAppIdScope>) = action.execute(appIdDetails)
 
+    internal val splashDetails: KiteSplashScope
+        get() = (this as ExtensionAware).extensions.getByType(KiteSplashScope::class.java)
+
     internal val logoDetails: KiteLogoScope
         get() = (this as ExtensionAware).extensions.getByType(KiteLogoScope::class.java)
 

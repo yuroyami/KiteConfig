@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import java.io.File
 
 class SplashScopeTest {
 
@@ -14,55 +15,122 @@ class SplashScopeTest {
         return project.extensions.getByType(KiteConfigExtension::class.java)
     }
 
+    /** A launch screen is a visible change, so configuring art is not asking for one. */
     @Test
-    fun `empty splash flows android and desktop, never ios`() {
+    fun `an empty block leaves splash off`() {
         val e = ext()
         e.splash { }
-        assertTrue(e.effectiveAndroidSplash.get())
-        assertTrue(e.effectiveDesktopSplash.get())
+
+        assertFalse(e.effectiveAndroidSplash.get())
+        assertFalse(e.effectiveDesktopSplash.get())
         assertFalse(e.effectiveIosSplash.get())
     }
 
     @Test
-    fun `nothing declared, nothing flows`() {
+    fun `configured artwork alone leaves splash off`() {
         val e = ext()
+        e.splash {
+            image.set(File("art/splash.png"))
+            backgroundColor.set("#101014")
+            dark { backgroundColor.set("#000000") }
+        }
+
         assertFalse(e.effectiveAndroidSplash.get())
         assertFalse(e.effectiveDesktopSplash.get())
     }
 
     @Test
-    fun `facts default to logo art`() {
+    fun `nothing declared, nothing flows`() {
         val e = ext()
-        e.logo { background.set(color("#101014")) }
-        e.splash { }
-        assertEquals("#101014", e.effectiveSplashColor.get())
+
+        assertFalse(e.effectiveAndroidSplash.get())
+        assertFalse(e.effectiveDesktopSplash.get())
     }
 
     @Test
-    fun `skip stops one platform`() {
+    fun `enabling it turns on the platforms that deliver in memory`() {
         val e = ext()
-        e.splash { skip(desktop) }
+        e.splash { enabled.set(true) }
+
         assertTrue(e.effectiveAndroidSplash.get())
+        assertTrue(e.effectiveDesktopSplash.get())
+        // iOS still edits source, so it needs the armed rewrites as well.
+        assertFalse(e.effectiveIosSplash.get())
+    }
+
+    @Test
+    fun `art falls back to the logo, resolved per platform`() {
+        val e = ext()
+        e.logo { background.set(color("#101014")) }
+        e.ios.logo { background.set(color("#222222")) }
+        e.splash { enabled.set(true) }
+
+        assertEquals("#101014", e.effectiveSplashColorFor(KitePlatform.ANDROID).get())
+        assertEquals("#222222", e.effectiveSplashColorFor(KitePlatform.IOS).get())
+    }
+
+    @Test
+    fun `a platform can decline a launch screen the root asked for`() {
+        val e = ext()
+        e.splash { enabled.set(true) }
+        e.desktop.splash { enabled.set(false) }
+
+        assertTrue(e.effectiveAndroidSplash.get())
+        assertFalse(e.effectiveDesktopSplash.get())
+    }
+
+    /** A root false is an inheritable default, not a ban. */
+    @Test
+    fun `a platform can ask for one the root left off`() {
+        val e = ext()
+        e.splash { enabled.set(false) }
+        e.android.splash { enabled.set(true) }
+
+        assertTrue(e.effectiveAndroidSplash.get())
+        assertFalse(e.effectiveDesktopSplash.get())
+    }
+
+    @Test
+    fun `root exclusion still wins over a platform saying yes`() {
+        val e = ext()
+        e.skip(e.desktop)
+        e.desktop.splash { enabled.set(true) }
+
         assertFalse(e.effectiveDesktopSplash.get())
     }
 
     @Test
     fun `ios needs both rewrites armed`() {
         val e = ext()
+        e.splash { enabled.set(true) }
         e.splash { rewrite { } }
         assertFalse(e.effectiveIosSplash.get())
+
         e.ios { rewrite { } }
         assertTrue(e.effectiveIosSplash.get())
     }
 
     @Test
-    fun `dark variant and android theme corner hold their values`() {
+    fun `the dark variant turns itself on and a platform can drop it`() {
         val e = ext()
         e.splash {
+            enabled.set(true)
             dark { backgroundColor.set("#000000") }
-            android { theme.set("AppTheme") }
         }
-        assertEquals("#000000", e.effectiveSplashDarkColor.get())
+
+        assertTrue(e.splashDarkEnabledFor(KitePlatform.ANDROID).get())
+        assertEquals("#000000", e.effectiveSplashDarkColorFor(KitePlatform.ANDROID).get())
+
+        e.ios.splash { dark { enabled.set(false) } }
+        assertFalse(e.splashDarkEnabledFor(KitePlatform.IOS).get())
+        assertTrue(e.splashDarkEnabledFor(KitePlatform.ANDROID).get())
+    }
+
+    @Test
+    fun `the Android theme lives in the Android block`() {
+        val e = ext()
+        e.android.splash { theme.set("AppTheme") }
+
         assertEquals("AppTheme", e.effectiveSplashAndroidTheme.get())
     }
 }

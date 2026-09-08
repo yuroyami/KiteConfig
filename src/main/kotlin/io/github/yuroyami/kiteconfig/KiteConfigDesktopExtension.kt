@@ -41,6 +41,10 @@ import org.gradle.api.provider.Property
  */
 abstract class KiteConfigDesktopExtension : KitePlatformExtension() {
 
+    /** This platform's launch screen. */
+    fun splash(action: org.gradle.api.Action<in KiteSplashScope>) = action.execute(splashDetails)
+
+
     /** This platform's icon art and how much of the canvas the mark fills. */
     fun logo(action: org.gradle.api.Action<in KiteDesktopLogoScope>) = action.execute(desktopLogo)
 

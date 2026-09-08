@@ -133,6 +133,11 @@ class KiteConfigPlugin : Plugin<Project> {
             } else {
                 platform.extensions.create<KiteLogoScope>("logoDetails")
             }
+            if (platform is KiteConfigAndroidExtension) {
+                platform.extensions.create<KiteAndroidSplashScope>("splashDetails")
+            } else {
+                platform.extensions.create<KiteSplashScope>("splashDetails")
+            }
         }
 
         // Resolve console colour once. Tasks receive only the Boolean, which keeps
@@ -1660,10 +1665,10 @@ class KiteConfigPlugin : Plugin<Project> {
             ext.localesScope.tags,
             ext.logo.foreground, ext.logo.background, ext.logo.foregroundScale,
             ext.logo.enabled, ext.logo.rewriteArmed,
-            ext.splash.declared, ext.splash.rewriteArmed, ext.splash.skipped, ext.splash.allowed,
+            ext.splash.enabled, ext.splash.rewriteArmed,
             ext.splash.image, ext.splash.backgroundColor,
-            ext.splash.dark.image, ext.splash.dark.backgroundColor,
-            ext.splash.android.theme,
+            ext.splash.dark.image, ext.splash.dark.backgroundColor, ext.splash.dark.enabled,
+            ext.android.androidSplash.theme,
             ext.modules.shared, ext.modules.androidApps,
             ext.modules.androidAppDirectory, ext.modules.composeResources,
         ) + listOf(
@@ -1684,6 +1689,10 @@ class KiteConfigPlugin : Plugin<Project> {
                 block.localesDetails.tags, block.localesDetails.enabled,
                 block.logoDetails.foreground, block.logoDetails.background,
                 block.logoDetails.foregroundScale, block.logoDetails.enabled,
+                block.splashDetails.enabled, block.splashDetails.image,
+                block.splashDetails.backgroundColor,
+                block.splashDetails.dark.image, block.splashDetails.dark.backgroundColor,
+                block.splashDetails.dark.enabled,
             )
         } + listOf(
             ext.ios.deploymentTarget, ext.ios.pbxproj, ext.ios.podfile,

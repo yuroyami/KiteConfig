@@ -38,7 +38,7 @@ class SplashDoctorFunctionalTest {
             kiteConfig {
                 modules { androidAppDirectory = file("androidApp") }
                 logo { background.set(color("#102A43")) }
-                splash { }
+                splash { enabled = true }
             }
             """.trimIndent(),
         )
@@ -53,7 +53,8 @@ class SplashDoctorFunctionalTest {
             kiteConfig {
                 modules { androidAppDirectory = file("androidApp") }
                 logo { background.set(color("#102A43")) }
-                splash { android { theme.set("AppTheme") } }
+                splash { enabled = true }
+                android { splash { theme.set("AppTheme") } }
             }
             """.trimIndent(),
         )
@@ -81,10 +82,11 @@ class SplashDoctorFunctionalTest {
             kiteConfig {
                 logo { background.set(color("#102A43")) }
                 splash {
-                    skip(desktop)
-                    android { theme.set("AppTheme") }
+                    enabled = true
                     rewrite { }
                 }
+                desktop { splash { enabled = false } }
+                android { splash { theme.set("AppTheme") } }
             }
             """.trimIndent(),
         )
