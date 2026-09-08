@@ -27,6 +27,17 @@ private data class Token(
     val range: IntRange get() = start until endExclusive
 }
 
+/**
+ * True when this token is the punctuation [symbol] itself.
+ *
+ * A quoted scalar can carry the same text: `PRODUCT_NAME = "}";` lexes to a
+ * string whose value is `}`. Comparing only the value let such a value close a
+ * dictionary that was never opened, so every structural branch asks this
+ * instead.
+ */
+private fun Token?.isSymbol(symbol: String): Boolean =
+    this != null && kind == TokenKind.SYMBOL && value == symbol
+
 private data class LexResult(val tokens: List<Token>, val error: String? = null)
 
 private fun lexPbx(text: String): LexResult {
@@ -102,7 +113,7 @@ private fun parseAssignments(tokens: List<Token>, context: String): AssignmentPa
     val errors = mutableListOf<String>()
     var i = 0
     while (i < tokens.size) {
-        if (tokens[i].kind == TokenKind.SYMBOL || tokens.getOrNull(i + 1)?.value != "=") {
+        if (tokens[i].kind == TokenKind.SYMBOL || !tokens.getOrNull(i + 1).isSymbol("=")) {
             errors += "$context contains an unexpected token '${tokens[i].value}' at offset ${tokens[i].start}"
             break
         }
@@ -112,12 +123,15 @@ private fun parseAssignments(tokens: List<Token>, context: String): AssignmentPa
         var parens = 0
         var malformed = false
         while (j < tokens.size) {
-            when (tokens[j].value) {
-                "{" -> braces++
-                "}" -> if (braces == 0) malformed = true else braces--
-                "(" -> parens++
-                ")" -> if (parens == 0) malformed = true else parens--
-                ";" -> if (braces == 0 && parens == 0) break
+            val token = tokens[j]
+            if (token.kind == TokenKind.SYMBOL) {
+                when (token.value) {
+                    "{" -> braces++
+                    "}" -> if (braces == 0) malformed = true else braces--
+                    "(" -> parens++
+                    ")" -> if (parens == 0) malformed = true else parens--
+                    ";" -> if (braces == 0 && parens == 0) break
+                }
             }
             if (malformed) break
             j++
@@ -129,8 +143,8 @@ private fun parseAssignments(tokens: List<Token>, context: String): AssignmentPa
         val value = tokens.subList(start + 2, j)
         val structurallyValid = when {
             value.size == 1 -> value.single().kind != TokenKind.SYMBOL
-            value.firstOrNull()?.value == "{" && value.lastOrNull()?.value == "}" -> true
-            value.firstOrNull()?.value == "(" && value.lastOrNull()?.value == ")" -> true
+            value.firstOrNull().isSymbol("{") && value.lastOrNull().isSymbol("}") -> true
+            value.firstOrNull().isSymbol("(") && value.lastOrNull().isSymbol(")") -> true
             else -> false
         }
         if (!structurallyValid) {
@@ -152,7 +166,7 @@ private fun Assignment.scalar(): String? = tokens.singleOrNull()?.value
 private data class FlatListResult(val values: List<String>, val error: String? = null)
 
 private fun parseFlatList(tokens: List<Token>, context: String, valuePattern: Regex? = null): FlatListResult {
-    if (tokens.firstOrNull()?.value != "(" || tokens.lastOrNull()?.value != ")") {
+    if (!tokens.firstOrNull().isSymbol("(") || !tokens.lastOrNull().isSymbol(")")) {
         return FlatListResult(emptyList(), "$context is not a list")
     }
     val inner = tokens.drop(1).dropLast(1)
@@ -167,7 +181,7 @@ private fun parseFlatList(tokens: List<Token>, context: String, valuePattern: Re
             values += token.value
             expectsValue = false
         } else {
-            if (token.value != ",") {
+            if (!token.isSymbol(",")) {
                 return FlatListResult(emptyList(), "$context is missing a comma before '${token.value}'")
             }
             expectsValue = true
@@ -193,12 +207,13 @@ private fun objectGraph(text: String): ObjectGraph {
     val lexed = lexPbx(text)
     lexed.error?.let { return ObjectGraph(emptyMap(), null, listOf("pbxproj parse error: $it")) }
     val t = lexed.tokens
-    if (t.size < 2 || t.first().value != "{" || t.last().value != "}") {
+    if (t.size < 2 || !t.first().isSymbol("{") || !t.last().isSymbol("}")) {
         return ObjectGraph(emptyMap(), null, listOf("pbxproj root must be exactly one dictionary"))
     }
     var rootDepth = 0
     var rootClose = -1
     t.forEachIndexed { index, token ->
+        if (token.kind != TokenKind.SYMBOL) return@forEachIndexed
         when (token.value) {
             "{" -> rootDepth++
             "}" -> {
@@ -223,7 +238,7 @@ private fun objectGraph(text: String): ObjectGraph {
         )
     }
     val objectsTokens = objectsAssignments.single().tokens
-    if (objectsTokens.firstOrNull()?.value != "{" || objectsTokens.lastOrNull()?.value != "}") {
+    if (!objectsTokens.firstOrNull().isSymbol("{") || !objectsTokens.lastOrNull().isSymbol("}")) {
         return ObjectGraph(emptyMap(), null, listOf("pbxproj objects value is not a dictionary"))
     }
     val rootObjectAssignments = rootAssignments.filter { it.name == "rootObject" }
@@ -239,7 +254,7 @@ private fun objectGraph(text: String): ObjectGraph {
     while (i < objectBody.size) {
         val id = objectBody[i].value
         if (objectBody[i].kind != TokenKind.ATOM || !PBX_ID.matches(id) ||
-            objectBody.getOrNull(i + 1)?.value != "=" || objectBody.getOrNull(i + 2)?.value != "{"
+            !objectBody.getOrNull(i + 1).isSymbol("=") || !objectBody.getOrNull(i + 2).isSymbol("{")
         ) {
             errors += "pbxproj objects dictionary contains malformed entry at offset ${objectBody[i].start}"
             break
@@ -248,9 +263,12 @@ private fun objectGraph(text: String): ObjectGraph {
         var depth = 1
         var objectClose = objectOpen + 1
         while (objectClose < objectBody.size && depth > 0) {
-            when (objectBody[objectClose].value) {
-                "{" -> depth++
-                "}" -> depth--
+            val token = objectBody[objectClose]
+            if (token.kind == TokenKind.SYMBOL) {
+                when (token.value) {
+                    "{" -> depth++
+                    "}" -> depth--
+                }
             }
             objectClose++
         }
@@ -259,7 +277,7 @@ private fun objectGraph(text: String): ObjectGraph {
             break
         }
         val closeToken = objectClose - 1
-        if (objectBody.getOrNull(objectClose)?.value != ";") {
+        if (!objectBody.getOrNull(objectClose).isSymbol(";")) {
             errors += "object $id is not terminated by a semicolon"
             break
         }
@@ -456,7 +474,7 @@ private fun locateBuildSettingsFromGraph(
     for (config in configs) {
         val buildSettings = config.assignments.filter { it.name == "buildSettings" }
         val tokens = buildSettings.singleOrNull()?.tokens
-        if (tokens == null || tokens.firstOrNull()?.value != "{" || tokens.lastOrNull()?.value != "}") {
+        if (tokens == null || !tokens.firstOrNull().isSymbol("{") || !tokens.lastOrNull().isSymbol("}")) {
             errors += "XCBuildConfiguration ${config.id} does not contain exactly one buildSettings dictionary"
             continue
         }

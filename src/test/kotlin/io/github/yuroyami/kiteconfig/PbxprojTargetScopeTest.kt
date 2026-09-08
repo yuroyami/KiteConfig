@@ -264,4 +264,60 @@ class PbxprojTargetScopeTest {
         assertTrue(result.spans.isEmpty())
         assertTrue(result.errors.any { it.contains("malformed entry") }, result.errors.toString())
     }
+
+    /**
+     * A quoted scalar whose whole content is one reserved character. The lexer
+     * marks it a string, but every structural walk used to compare only the
+     * token's text, so `"}"` closed a dictionary that was never open.
+     */
+    private fun projectWithBuildSetting(setting: String): String = """
+        {
+            objects = {
+                AA00000000000000000000AA = {
+                    isa = PBXNativeTarget;
+                    name = App;
+                    buildConfigurationList = AA00000000000000000000A1;
+                    productType = "com.apple.product-type.application";
+                };
+                AA00000000000000000000A1 = {
+                    isa = XCConfigurationList;
+                    buildConfigurations = ( AA00000000000000000000A2, );
+                };
+                AA00000000000000000000A2 = {
+                    isa = XCBuildConfiguration;
+                    buildSettings = { MARKETING_VERSION = 1.0; $setting };
+                };
+                EE00000000000000000000EE = {
+                    isa = PBXProject;
+                    knownRegions = ( Base, en, );
+                };
+            };
+            rootObject = EE00000000000000000000EE;
+        }
+    """.trimIndent()
+
+    @Test
+    fun `a quoted reserved character is a value, never structure`() {
+        listOf("{", "}", "(", ")", ";", ",", "=").forEach { punctuation ->
+            val text = projectWithBuildSetting("PRODUCT_NAME = \"$punctuation\";")
+            assertEquals(
+                emptyList<String>(),
+                analyzePbxproj(text).structuralErrors(),
+                "a quoted \"$punctuation\" was read as structure",
+            )
+        }
+    }
+
+    @Test
+    fun `an app name of reserved punctuation survives parse rewrite parse rewrite`() {
+        val original = projectWithBuildSetting("PRODUCT_NAME = App;")
+        listOf("{", "}", "(", ")", ";", ",", "=").forEach { name ->
+            val first = rewritePbxproj(original, null, null, name, null, null)
+            assertTrue(first.errors.isEmpty(), "first rewrite to \"$name\": ${first.errors}")
+
+            val second = rewritePbxproj(first.text, null, null, name, null, null)
+            assertTrue(second.errors.isEmpty(), "second rewrite to \"$name\": ${second.errors}")
+            assertEquals(first.text, second.text, "rewriting to \"$name\" is not stable")
+        }
+    }
 }
