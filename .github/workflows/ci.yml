@@ -98,7 +98,11 @@ jobs:
       - name: Exercise Gradle floor and real AGP consumer builds
         if: matrix.os == 'ubuntu-24.04' && matrix.java == 21
         shell: bash
-        run: ./gradlew agpCompatibilityTest --stacktrace
+        run: |
+          # The documented contributor command, with the cache flags it documents.
+          # Storing the entry used to fail after all nine fixtures had passed.
+          ./gradlew agpCompatibilityTest \
+            --configuration-cache --configuration-cache-problems=fail --stacktrace
 
       - name: Ordinary build must not mutate tracked source
         shell: bash

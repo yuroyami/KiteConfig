@@ -12,6 +12,7 @@ import org.gradle.api.file.FileSystemOperations
 import org.gradle.api.tasks.InputDirectory
 import org.gradle.api.tasks.OutputDirectory
 import org.gradle.api.tasks.Sync
+import org.gradle.process.CommandLineArgumentProvider
 import org.gradle.api.tasks.TaskAction
 import javax.inject.Inject
 import org.cyclonedx.gradle.BaseCyclonedxTask
@@ -242,7 +243,7 @@ tasks.named<Test>("test") {
 // Android plugin. CI runs this task once on Linux while `test` remains suitable
 // for the full OS/JDK/Gradle matrix.
 val testSourceSet = sourceSets.named("test")
-val pluginJar = tasks.named<Jar>("jar")
+val pluginJarFile = tasks.named<Jar>("jar").flatMap { it.archiveFile }
 tasks.register<Test>("agpCompatibilityTest") {
     group = LifecycleBasePlugin.VERIFICATION_GROUP
     description = "Runs real AGP floor/current consumer-build compatibility fixtures."
@@ -251,10 +252,15 @@ tasks.register<Test>("agpCompatibilityTest") {
     useJUnitPlatform {
         includeTags("agp-compatibility")
     }
-    dependsOn(pluginJar)
-    doFirst {
-        systemProperty("kiteconfig.test.pluginJar", pluginJar.get().archiveFile.get().asFile.absolutePath)
-    }
+    // The jar reaches the fixtures as a declared input rather than through a
+    // doFirst closure. That closure captured the build script, which the
+    // configuration cache cannot serialize, so the documented cache-enabled
+    // command ran all nine fixtures and then failed while storing its entry.
+    jvmArgumentProviders.add(
+        objects.newInstance<PluginJarArgumentProvider>().apply {
+            pluginJar.set(pluginJarFile)
+        },
+    )
     shouldRunAfter(tasks.named("test"))
 }
 
@@ -329,6 +335,23 @@ dokka {
  * KDoc gained tables. Dropping the hash keeps the class name stable and styles
  * identically, since no stylesheet can target a per-run value anyway.
  */
+/**
+ * Hands the built plugin jar to the compatibility fixtures as a real task input.
+ *
+ * Declaring it this way keeps the path out of a task action, so the task stays
+ * serializable for the configuration cache, and a rebuilt jar correctly marks
+ * the fixtures out of date.
+ */
+abstract class PluginJarArgumentProvider : CommandLineArgumentProvider {
+
+    @get:InputFile
+    @get:PathSensitive(PathSensitivity.NONE)
+    abstract val pluginJar: RegularFileProperty
+
+    override fun asArguments(): Iterable<String> =
+        listOf("-Dkiteconfig.test.pluginJar=${pluginJar.get().asFile.absolutePath}")
+}
+
 abstract class NormalizeDokkaHtmlTask : DefaultTask() {
 
     @get:InputDirectory
