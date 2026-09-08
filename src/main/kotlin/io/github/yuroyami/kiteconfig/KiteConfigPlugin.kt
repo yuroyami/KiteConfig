@@ -81,11 +81,7 @@ class KiteConfigPlugin : Plugin<Project> {
             desktopApps.convention(emptyList())
         }
 
-        extAware.extensions.create<KiteVersionScope>("versionScope").apply {
-            android.reupload.convention(0)
-            ios.reupload.convention(0)
-            desktop.reupload.convention(0)
-        }
+        extAware.extensions.create<KiteVersionScope>("versionScope")
         extAware.extensions.create<KiteLocalesScope>("localesScope")
         extAware.extensions.create<KiteSplashScope>("splash")
         val androidExtension = extAware.extensions.create<KiteConfigAndroidExtension>("android")
@@ -118,6 +114,7 @@ class KiteConfigPlugin : Plugin<Project> {
         listOf(androidExtension, iosExtension, desktopExtension).forEach { platform ->
             (platform as ExtensionAware).extensions.create<KiteAppNameScope>("appNameDetails")
             platform.extensions.create<KiteAppIdScope>("appIdDetails")
+            platform.extensions.create<KitePlatformVersionScope>("versionDetails")
         }
 
         // Resolve console colour once. Tasks receive only the Boolean, which keeps
@@ -274,7 +271,7 @@ class KiteConfigPlugin : Plugin<Project> {
                 val missing = buildList {
                     if (!ext.effectiveAppName.isPresent) add("appName")
                     if (!ext.effectiveVersion.isPresent) add("version")
-                    if (!ext.effectiveAndroidVersionCode.isPresent) add("version or version(\"x\") { android { pin } }")
+                    if (!ext.effectiveAndroidVersionCode.isPresent) add("version or ${buildNumberProperty("android")}")
                     if (!ext.appId.isPresent) add("appId")
                 }
                 if (missing.isNotEmpty()) {
@@ -587,17 +584,17 @@ class KiteConfigPlugin : Plugin<Project> {
                 ext.android.ndk.orNull?.let(::validateNdkVersion)
             }
             if (detectedAndroidApplications.isNotEmpty() && ext.effectivePropagateVersion.get()) {
-                ext.versionScope.android.shipped.orNull?.let { published ->
+                ext.android.versionDetails.publishedBuildNumber.orNull?.let { published ->
                     validatePublishedVersionCode(ext.effectiveAndroidVersionCode.orNull, published)
                 }
             }
             if (ext.effectiveSyncIos.get() && ext.effectivePropagateVersion.get()) {
-                ext.versionScope.ios.shipped.orNull?.let { published ->
+                ext.ios.versionDetails.publishedBuildNumber.orNull?.let { published ->
                     validatePublishedBuildNumber(ext.effectiveIosBuildNumber.orNull, published)
                 }
             }
             if (detectedDesktopApplications.isNotEmpty() && ext.effectivePropagateVersion.get()) {
-                ext.versionScope.desktop.shipped.orNull?.let { published ->
+                ext.desktop.versionDetails.publishedBuildNumber.orNull?.let { published ->
                     validatePublishedBuildNumber(ext.effectiveDesktopBuildNumber.orNull, published, platform = "desktop")
                 }
             }
@@ -1638,7 +1635,6 @@ class KiteConfigPlugin : Plugin<Project> {
             ext.logoConfigured, ext.optInsDeclared, ext.buildConfigDeclared,
             ext.skipped, ext.allowed,
         ) + listOf(
-            ext.versionScope.skipped, ext.versionScope.allowed,
             ext.localesScope.skipped, ext.localesScope.allowed, ext.localesScope.pinned,
             ext.logo.skipped, ext.logo.allowed,
             ext.splash.declared, ext.splash.rewriteArmed, ext.splash.skipped, ext.splash.allowed,
@@ -1650,14 +1646,7 @@ class KiteConfigPlugin : Plugin<Project> {
         ) + listOf(
             ext.android.compileSdk, ext.android.minSdk,
             ext.android.targetSdk, ext.android.ndk,
-            ext.versionScope.formulaProp,
-            ext.versionScope.android.reupload, ext.versionScope.android.shipped,
-            ext.versionScope.android.pin, ext.versionScope.android.formulaProp,
-            ext.versionScope.ios.reupload, ext.versionScope.ios.shipped,
-            ext.versionScope.ios.pin, ext.versionScope.ios.marketingVersion,
-            ext.versionScope.ios.formulaProp,
-            ext.versionScope.desktop.reupload, ext.versionScope.desktop.shipped,
-            ext.versionScope.desktop.pin, ext.versionScope.desktop.formulaProp,
+            ext.versionScope.schemeProp, ext.versionScope.rebuild,
             ext.localesScope.pinned, ext.localesScope.filterAndroidRes,
         ) + KitePlatform.entries.flatMap { platform ->
             val block = ext.platformExtension(platform)
@@ -1665,6 +1654,10 @@ class KiteConfigPlugin : Plugin<Project> {
                 block.appName, block.appId,
                 block.appNameDetails.enabled,
                 block.appIdDetails.suffix, block.appIdDetails.enabled,
+                block.version,
+                block.versionDetails.schemeProp, block.versionDetails.rebuild,
+                block.versionDetails.buildNumber, block.versionDetails.publishedBuildNumber,
+                block.versionDetails.enabled,
             )
         } + listOf(
             ext.ios.deploymentTarget, ext.ios.pbxproj, ext.ios.podfile,

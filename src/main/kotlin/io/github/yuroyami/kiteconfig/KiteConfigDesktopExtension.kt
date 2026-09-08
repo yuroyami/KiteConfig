@@ -13,7 +13,8 @@ import org.gradle.api.provider.Property
  *     appName = "Jetzy"
  *     appId = "com.example.jetzy"
  *     desktop { appId { suffix = ".desktop" } }
- *     version("1.4.0") { desktop { reupload = 2 } }
+ *     version = "1.4.0"
+ *     desktop { version { rebuild = 2 } }
  * }
  * ```
  *
@@ -35,7 +36,7 @@ import org.gradle.api.provider.Property
  * carries art that flows to desktop.
  *
  * @see KiteConfigModulesExtension.desktopApps to pick which projects this applies to.
- * @see KiteVersionScope.formula for the build-number formula every platform shares.
+ * @see KiteVersionScope for the build-number scheme every platform shares.
  * @see KiteConfigLogoExtension for the art that becomes installer icons.
  */
 abstract class KiteConfigDesktopExtension : KitePlatformExtension() {

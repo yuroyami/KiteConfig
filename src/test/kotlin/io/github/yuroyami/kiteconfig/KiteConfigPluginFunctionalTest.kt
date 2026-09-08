@@ -157,7 +157,8 @@ class KiteConfigPluginFunctionalTest {
                 version = "1.2.3"
                 appId = "com.demo.app"
                 locales { pin("fr", "pt-BR") }
-                version("1.2.3") { ios { marketingVersion = "1.2.3"; pin = "42" } }
+                version = "1.2.3"
+                ios { version { buildNumber = "42" } }
                 ios {
                     rewrite { cleanPlist = true }
                 }
@@ -194,7 +195,8 @@ class KiteConfigPluginFunctionalTest {
                 appName = "Demo"
                 version = "1.2.3"
                 appId = "com.demo.app"
-                version("1.2.3") { ios { marketingVersion = "1.2.3"; pin = "7" } }
+                version = "1.2.3"
+                ios { version { buildNumber = "7" } }
                 ios {
                     rewrite {
                         $targetSelector
@@ -231,7 +233,8 @@ class KiteConfigPluginFunctionalTest {
             kiteConfig {
                 appName = "Demo"
                 version = "1.2.3"
-                version("1.2.3") { ios { marketingVersion = "1.2.3"; pin = "7" } }
+                version = "1.2.3"
+                ios { version { buildNumber = "7" } }
                 ios {
                     rewrite { }
                 }
@@ -882,7 +885,8 @@ class KiteConfigPluginFunctionalTest {
             """
             plugins { id("io.github.yuroyami.kiteconfig") }
             kiteConfig {
-                version("x".repeat(256)) { android { pin = 42 } }
+                version = "x".repeat(256)
+                android { version { buildNumber = "42" } }
             }
             """.trimIndent(),
         )
@@ -1259,7 +1263,8 @@ class KiteConfigPluginFunctionalTest {
             plugins { id("io.github.yuroyami.kiteconfig") }
             kiteConfig {
                 appName = "PublishedGuard"
-                version("1.4.0") { ios { shipped = "1001004000" } }
+                version = "1.4.0"
+                ios { version { publishedBuildNumber = "1001004000" } }
                 ios {
                     rewrite { }
                 }
@@ -1276,7 +1281,8 @@ class KiteConfigPluginFunctionalTest {
             plugins { id("io.github.yuroyami.kiteconfig") }
             kiteConfig {
                 appName = "PublishedGuard"
-                version("1.4.0") { ios { reupload = 1; shipped = "1001004000" } }
+                version = "1.4.0"
+                ios { version { rebuild = 1; publishedBuildNumber = "1001004000" } }
                 ios {
                     rewrite { }
                 }
@@ -1565,7 +1571,7 @@ class KiteConfigPluginFunctionalTest {
                 version = "1.2.3"
                 appId = "com.acme.app"
                 desktop { appId { suffix = ".desktop" } }
-                version("1.2.3") { desktop { reupload = 2 } }
+                desktop { version { rebuild = 2 } }
             }
             """.trimIndent(),
         )
@@ -1968,7 +1974,7 @@ class KiteConfigPluginFunctionalTest {
     @Test
     fun `a desktop build number that does not beat the published baseline fails the build`() {
         write("settings.gradle.kts", settingsWithSharedAndDesktop(":desktopApp"))
-        write("build.gradle.kts", desktopRootBuild("version(\"1.2.3\") { desktop { shipped = \"9999999999\" } }"))
+        write("build.gradle.kts", desktopRootBuild("desktop { version { publishedBuildNumber = \"9999999999\" } }"))
         write("shared/build.gradle.kts", sharedJvmModule())
         write(
             "desktopApp/build.gradle.kts",

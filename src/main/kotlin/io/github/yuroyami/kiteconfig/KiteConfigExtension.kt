@@ -45,14 +45,10 @@ import org.gradle.api.provider.Provider
  *
  *     jvmTarget = 21                 // Java + Kotlin JVM level, whole build
  *
- *     version("1.4.0") {
- *         // formula { v -> ... }        // optional: your own build-number formula
- *         android {
- *             reupload = 1               // re-upload same version to Play
- *             shipped  = 1001003090      // highest code ever shipped, guard
- *         }
- *         ios { shipped = "1001003090" }
- *         desktop { shipped = "1001003090" }
+ *     version = "1.4.0"
+ *     version {
+ *         // scheme { v -> "..." }       // optional: your own build-number scheme
+ *         rebuild = 0                    // re-upload the same version to a store
  *     }
  *
  *     locales {
@@ -82,6 +78,10 @@ import org.gradle.api.provider.Provider
  *
  *     android {
  *         appId { suffix = ".android" }  // applicationId = appId + suffix
+ *         version {
+ *             rebuild = 1                        // this platform's counter
+ *             publishedBuildNumber = "1001003090" // new numbers must beat it
+ *         }
  *         sdk(min = 26, target = 36, compile = 36)
  *     }
  *
@@ -122,8 +122,8 @@ import org.gradle.api.provider.Provider
  * | `appName` / `appId` | `android`, `ios`, `desktop` | that platform's own value |
  * | `appId { suffix }` | `android`, `ios`, `desktop` | appended to the shared `appId` |
  * | `android { }` / `ios { }` / `desktop { }` corner | `version`, `logo` | platform detail scope |
- * | `pin` | `version` corners, `locales` | manual value, machinery skipped |
- * | `reupload`, `shipped`, `formula` | `version` and its corners | store counter, guard floor, number formula |
+ * | `version` / `version { }` | `android`, `ios`, `desktop` | that platform's version and numbering |
+ * | `rebuild`, `buildNumber`, `publishedBuildNumber` | `version` in a platform block | counter, exact number, guard floor |
  * | `rewrite { }` | `logo`, `splash`, `ios` | the only acting word, arms a task |
  * | `dark { }` | `splash` | dark-mode variant |
  * | typed `*Field(...)` | `buildConfig` | generated constants |
@@ -564,50 +564,51 @@ abstract class KiteConfigExtension : KiteFlowScope(), KiteConfigValues {
 
     // --- version numbers ---
 
-    /** Detailed form of [version]: the shared formula and platform corners. */
-    fun version(value: String, action: Action<in KiteVersionScope>) {
-        version.set(value)
-        action.execute(versionScope)
-    }
+    /** Details for [version]: the shared scheme and rebuild counter. */
+    fun version(action: Action<in KiteVersionScope>) = action.execute(versionScope)
 
     internal val versionScope: KiteVersionScope
         get() = nested()
 
     internal fun versionFlowsTo(p: KitePlatform): Provider<Boolean> =
-        flowsTo(p).zip(versionScope.flowsTo(p)) { root, topic -> root && topic }
+        flowsTo(p).zip(platformExtension(p).versionDetails.enabled.orElse(true)) { selected, delivered ->
+            selected && delivered
+        }
 
-    // Corner formula beats the topic formula, which beats the default.
-    private fun activeFormula(corner: Provider<VersionCodeScheme>): Provider<VersionCodeScheme> =
-        corner.orElse(versionScope.formulaProp).orElse(VersionSchemes.DEFAULT)
+    /** The release version [p] shows, its own if it set one. */
+    internal fun effectiveVersionFor(p: KitePlatform): Provider<String> =
+        platformExtension(p).version.orElse(version)
+
+    private fun effectiveRebuildFor(p: KitePlatform): Provider<Int> =
+        platformExtension(p).versionDetails.rebuild.orElse(versionScope.rebuild).orElse(0)
+
+    private fun effectiveSchemeFor(p: KitePlatform): Provider<VersionCodeScheme> =
+        platformExtension(p).versionDetails.schemeProp
+            .orElse(versionScope.schemeProp)
+            .orElse(VersionSchemes.DEFAULT)
+
+    /** The build number [p] receives: its own exact value, otherwise the scheme's answer. */
+    internal fun effectiveBuildNumberFor(p: KitePlatform): Provider<String> =
+        platformExtension(p).versionDetails.buildNumber.orElse(
+            effectiveVersionFor(p).zip(
+                effectiveRebuildFor(p).zip(effectiveSchemeFor(p)) { rebuild, scheme -> rebuild to scheme },
+            ) { version, (rebuild, scheme) ->
+                computeBuildNumber(scheme, version, rebuild, p.name.lowercase())
+            },
+        )
 
     internal val effectiveAndroidVersionCode: Provider<Int>
-        get() = versionScope.android.pin
-            .orElse(
-                effectiveVersion.zip(
-                    versionScope.android.reupload.orElse(0)
-                        .zip(activeFormula(versionScope.android.formulaProp)) { r, s -> r to s },
-                ) { version, (reupload, activeScheme) ->
-                    computeVersionCode(activeScheme, version, reupload, "android")
-                },
-            )
+        get() = effectiveBuildNumberFor(KitePlatform.ANDROID).map(::androidVersionCodeFrom)
 
-    /** True only when a code was pinned by hand, so no formula was consulted. */
+    /** True only when Android was given an exact number, so no scheme was consulted. */
     internal val effectiveHasExplicitVersionCode: Provider<Boolean>
-        get() = versionScope.android.pin.map { true }.orElse(false)
+        get() = android.versionDetails.buildNumber.map { true }.orElse(false)
 
     internal val effectiveIosBuildNumber: Provider<String>
-        get() = versionScope.ios.pin
-            .orElse(
-                effectiveVersion.zip(
-                    versionScope.ios.reupload.orElse(0)
-                        .zip(activeFormula(versionScope.ios.formulaProp)) { r, s -> r to s },
-                ) { version, (reupload, activeScheme) ->
-                    computeVersionCode(activeScheme, version, reupload, "ios").toString()
-                },
-            )
+        get() = effectiveBuildNumberFor(KitePlatform.IOS)
 
     internal val effectiveIosMarketingVersion: Provider<String>
-        get() = versionScope.ios.marketingVersion.orElse(effectiveVersion)
+        get() = effectiveVersionFor(KitePlatform.IOS)
 
     // --- ios ---
 
@@ -723,15 +724,7 @@ abstract class KiteConfigExtension : KiteFlowScope(), KiteConfigValues {
         get() = modules.desktopApps
 
     internal val effectiveDesktopBuildNumber: Provider<String>
-        get() = versionScope.desktop.pin
-            .orElse(
-                effectiveVersion.zip(
-                    versionScope.desktop.reupload.orElse(0)
-                        .zip(activeFormula(versionScope.desktop.formulaProp)) { r, s -> r to s },
-                ) { version, (reupload, activeScheme) ->
-                    computeVersionCode(activeScheme, version, reupload, "desktop").toString()
-                },
-            )
+        get() = effectiveBuildNumberFor(KitePlatform.DESKTOP)
 
     // Logo art flowing to desktop: presence of art, not an armed rewrite.
     internal val effectiveDesktopIcons: Provider<Boolean>

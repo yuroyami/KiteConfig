@@ -46,6 +46,19 @@ abstract class KitePlatformExtension : KitePlatformRef {
      */
     abstract val appId: Property<String>
 
+    /**
+     * The release version on this platform. Unset means the shared `version`.
+     *
+     * On iOS this is the marketing version customers see.
+     */
+    abstract val version: Property<String>
+
+    /** This platform's build number, counter, scheme, and delivery switch. */
+    fun version(action: Action<in KitePlatformVersionScope>) = action.execute(versionDetails)
+
+    internal val versionDetails: KitePlatformVersionScope
+        get() = (this as ExtensionAware).extensions.getByType(KitePlatformVersionScope::class.java)
+
     /** Whether this platform receives the app name. */
     fun appName(action: Action<in KiteAppNameScope>) = action.execute(appNameDetails)
 

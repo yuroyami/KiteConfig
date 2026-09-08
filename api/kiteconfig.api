@@ -32,7 +32,7 @@ public final class io/github/yuroyami/kiteconfig/ConfigVersion {
 	public final fun getMajor ()I
 	public final fun getMinor ()I
 	public final fun getPatch ()I
-	public final fun getReupload ()I
+	public final fun getRebuild ()I
 	public fun toString ()Ljava/lang/String;
 }
 
@@ -275,7 +275,7 @@ public abstract class io/github/yuroyami/kiteconfig/KiteConfigExtension : io/git
 	public final fun modules (Lorg/gradle/api/Action;)V
 	public final fun optIns (Lorg/gradle/api/Action;)V
 	public final fun splash (Lorg/gradle/api/Action;)V
-	public final fun version (Ljava/lang/String;Lorg/gradle/api/Action;)V
+	public final fun version (Lorg/gradle/api/Action;)V
 	public final fun web (Lorg/gradle/api/Action;)V
 }
 
@@ -479,10 +479,19 @@ public abstract class io/github/yuroyami/kiteconfig/KitePlatformExtension : io/g
 	public final fun appName (Lorg/gradle/api/Action;)V
 	public abstract fun getAppId ()Lorg/gradle/api/provider/Property;
 	public abstract fun getAppName ()Lorg/gradle/api/provider/Property;
+	public abstract fun getVersion ()Lorg/gradle/api/provider/Property;
+	public final fun version (Lorg/gradle/api/Action;)V
 }
 
 public abstract interface class io/github/yuroyami/kiteconfig/KitePlatformRef {
 	public abstract fun getPlatform ()Lio/github/yuroyami/kiteconfig/KitePlatform;
+}
+
+public abstract class io/github/yuroyami/kiteconfig/KitePlatformVersionScope : io/github/yuroyami/kiteconfig/KiteVersionScope {
+	public fun <init> ()V
+	public abstract fun getBuildNumber ()Lorg/gradle/api/provider/Property;
+	public abstract fun getEnabled ()Lorg/gradle/api/provider/Property;
+	public abstract fun getPublishedBuildNumber ()Lorg/gradle/api/provider/Property;
 }
 
 public abstract class io/github/yuroyami/kiteconfig/KiteSplashScope : io/github/yuroyami/kiteconfig/KiteFlowScope {
@@ -514,44 +523,10 @@ public abstract class io/github/yuroyami/kiteconfig/KiteSplashScope$KiteSplashRe
 	public fun <init> ()V
 }
 
-public abstract class io/github/yuroyami/kiteconfig/KiteVersionScope : io/github/yuroyami/kiteconfig/KiteFlowScope {
+public abstract class io/github/yuroyami/kiteconfig/KiteVersionScope {
 	public fun <init> ()V
-	public final fun android (Lorg/gradle/api/Action;)V
-	public final fun desktop (Lorg/gradle/api/Action;)V
-	public final fun formula (Lio/github/yuroyami/kiteconfig/VersionCodeScheme;)V
-	public final fun getAndroid ()Lio/github/yuroyami/kiteconfig/KiteVersionScope$AndroidCorner;
-	public final fun getDesktop ()Lio/github/yuroyami/kiteconfig/KiteVersionScope$DesktopCorner;
-	public final fun getIos ()Lio/github/yuroyami/kiteconfig/KiteVersionScope$IosCorner;
-	protected abstract fun getObjects ()Lorg/gradle/api/model/ObjectFactory;
-	public final fun ios (Lorg/gradle/api/Action;)V
-}
-
-public abstract class io/github/yuroyami/kiteconfig/KiteVersionScope$AndroidCorner : io/github/yuroyami/kiteconfig/KitePlatformRef {
-	public fun <init> ()V
-	public final fun formula (Lio/github/yuroyami/kiteconfig/VersionCodeScheme;)V
-	public abstract fun getPin ()Lorg/gradle/api/provider/Property;
-	public final fun getPlatform ()Lio/github/yuroyami/kiteconfig/KitePlatform;
-	public abstract fun getReupload ()Lorg/gradle/api/provider/Property;
-	public abstract fun getShipped ()Lorg/gradle/api/provider/Property;
-}
-
-public abstract class io/github/yuroyami/kiteconfig/KiteVersionScope$DesktopCorner : io/github/yuroyami/kiteconfig/KitePlatformRef {
-	public fun <init> ()V
-	public final fun formula (Lio/github/yuroyami/kiteconfig/VersionCodeScheme;)V
-	public abstract fun getPin ()Lorg/gradle/api/provider/Property;
-	public final fun getPlatform ()Lio/github/yuroyami/kiteconfig/KitePlatform;
-	public abstract fun getReupload ()Lorg/gradle/api/provider/Property;
-	public abstract fun getShipped ()Lorg/gradle/api/provider/Property;
-}
-
-public abstract class io/github/yuroyami/kiteconfig/KiteVersionScope$IosCorner : io/github/yuroyami/kiteconfig/KitePlatformRef {
-	public fun <init> ()V
-	public final fun formula (Lio/github/yuroyami/kiteconfig/VersionCodeScheme;)V
-	public abstract fun getMarketingVersion ()Lorg/gradle/api/provider/Property;
-	public abstract fun getPin ()Lorg/gradle/api/provider/Property;
-	public final fun getPlatform ()Lio/github/yuroyami/kiteconfig/KitePlatform;
-	public abstract fun getReupload ()Lorg/gradle/api/provider/Property;
-	public abstract fun getShipped ()Lorg/gradle/api/provider/Property;
+	public abstract fun getRebuild ()Lorg/gradle/api/provider/Property;
+	public final fun scheme (Lio/github/yuroyami/kiteconfig/VersionCodeScheme;)V
 }
 
 public final class io/github/yuroyami/kiteconfig/PlistConflictPolicy : java/lang/Enum {
@@ -655,7 +630,7 @@ public final class io/github/yuroyami/kiteconfig/SyncIosLogoTask$Companion {
 }
 
 public abstract interface class io/github/yuroyami/kiteconfig/VersionCodeScheme {
-	public abstract fun compute (Lio/github/yuroyami/kiteconfig/ConfigVersion;)I
+	public abstract fun compute (Lio/github/yuroyami/kiteconfig/ConfigVersion;)Ljava/lang/String;
 }
 
 public final class io/github/yuroyami/kiteconfig/VersionSchemes {

@@ -18,7 +18,8 @@ import org.gradle.api.provider.Property
  *     appName = "Jetzy"
  *     appId = "com.example.jetzy"
  *     ios { appId { suffix = ".iosApp" } }
- *     version("1.4.0") { ios { reupload = 3 } }
+ *     version = "1.4.0"
+ *     ios { version { rebuild = 3 } }
  *
  *     ios {
  *         rewrite {
@@ -46,11 +47,11 @@ import org.gradle.api.provider.Property
  *
  * | Field | Set with | Xcode setting | Who sees it | Rule |
  * |---|---|---|---|---|
- * | Marketing version | `version("x") { ios { marketingVersion } }` | `MARKETING_VERSION` | App Store customers | may repeat across uploads |
- * | Build number | `version("x") { ios { pin } }`, else the formula | `CURRENT_PROJECT_VERSION` | TestFlight testers | must be new for each upload of the same version |
+ * | Marketing version | `ios { version = "..." }`, else the shared `version` | `MARKETING_VERSION` | App Store customers | may repeat across uploads |
+ * | Build number | `ios { version { buildNumber } }`, else the scheme | `CURRENT_PROJECT_VERSION` | TestFlight testers | must be new for each upload of the same version |
  *
  * So a re-upload of `1.4.0` keeps the marketing version and needs a fresh build
- * number. Turn `version("x") { ios { reupload } }` rather than inventing a
+ * number. Turn `ios { version { rebuild } }` rather than inventing a
  * version nobody shipped.
  *
  * ## What this block does and does not touch
@@ -66,7 +67,7 @@ import org.gradle.api.provider.Property
  *
  * @see KiteConfigIosSyncExtension for the gate that authorizes those writes.
  * @see KiteConfigAndroidExtension for the Android half of the same identity.
- * @see KiteVersionScope.formula for the formula every platform shares.
+ * @see KiteVersionScope for the scheme every platform shares.
  */
 abstract class KiteConfigIosExtension : KitePlatformExtension() {
 

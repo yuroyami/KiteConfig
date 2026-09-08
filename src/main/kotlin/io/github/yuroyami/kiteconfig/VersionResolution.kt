@@ -4,6 +4,10 @@ import org.gradle.api.GradleException
 
 private val VERSION_SEGMENT = Regex("""0|[1-9]\d*""")
 
+/** The DSL path that sets an exact build number, named per platform in error messages. */
+internal fun buildNumberProperty(platform: String): String =
+    "$platform { version { buildNumber = \"...\" } }"
+
 /**
  * Split a `x.y.z` version string into the four numbers a scheme reads.
  *
@@ -25,27 +29,24 @@ internal fun parseConfigVersion(version: String, rebuild: Int, property: String)
         major = segments[0].toIntOrNull() ?: outOfRange(version, property),
         minor = segments[1].toIntOrNull() ?: outOfRange(version, property),
         patch = segments[2].toIntOrNull() ?: outOfRange(version, property),
-        reupload = rebuild,
+        rebuild = rebuild,
     )
 }
 
 /**
- * Run [scheme] over a version string and validate the number it produced.
+ * Run [scheme] over a version string and return the build-number text it produced.
  *
  * [platform] names the block whose override the user should reach for when the
- * result does not fit, so the error is actionable instead of generic.
+ * result does not suit, so the error is actionable instead of generic. The text
+ * is not checked here; each platform holds it to its own store's rules.
  */
-internal fun computeVersionCode(
+internal fun computeBuildNumber(
     scheme: VersionCodeScheme,
     version: String,
     rebuild: Int,
     platform: String,
-): Int {
-    val property = when (platform) {
-        "ios" -> "version(\"x\") { ios { pin = \"...\" } }"
-        "desktop" -> "version(\"x\") { desktop { pin = \"...\" } }"
-        else -> "version(\"x\") { android { pin = ... } }"
-    }
+): String {
+    val property = buildNumberProperty(platform)
     requireRebuild(rebuild, platform)
     val parsed = parseConfigVersion(version, rebuild, property)
     val computed = try {
@@ -54,17 +55,41 @@ internal fun computeVersionCode(
         throw failure
     } catch (failure: Exception) {
         throw GradleException(
-            "kiteConfig { version { formula } } failed on version $parsed: ${failure.message}. " +
-                "Return a plain Int, or set the number yourself with $property.",
+            "kiteConfig { version { scheme } } failed on version $parsed: ${failure.message}. " +
+                "Return a String, or set the number yourself with $property.",
             failure,
         )
     }
-    return validateResolvedVersionCode(computed)
+    if (computed.isBlank()) {
+        throw GradleException(
+            "kiteConfig { version { scheme } } returned an empty build number for version $parsed. " +
+                "Return a non-empty String, or set the number yourself with $property.",
+        )
+    }
+    return computed
+}
+
+/**
+ * Read a build number as the single decimal integer Android requires.
+ *
+ * Apple accepts dotted build numbers, so the shared contract is text. Android is
+ * the platform that has to narrow it, and it says so when the text will not fit.
+ */
+internal fun androidVersionCodeFrom(text: String): Int {
+    val trimmed = text.trim()
+    val parsed = trimmed.toIntOrNull()
+        ?: throw GradleException(
+            "kiteConfig: Android needs its versionCode to be one whole number, and the build " +
+                "number resolved to \"${diagnosticSafeText(trimmed, 64)}\". Give Android its own " +
+                "number with ${buildNumberProperty("android")}, or return a plain integer from " +
+                "version { scheme { v -> ... } }.",
+        )
+    return validateVersionCode(parsed)
 }
 
 private fun requireRebuild(rebuild: Int, platform: String) {
     if (rebuild >= 0) return
-    throw GradleException("kiteConfig { $platform { rebuild } } must be zero or greater; got $rebuild.")
+    throw GradleException("kiteConfig { $platform { version { rebuild } } } must be zero or greater; got $rebuild.")
 }
 
 private fun outOfRange(version: String, property: String): Nothing = throw GradleException(

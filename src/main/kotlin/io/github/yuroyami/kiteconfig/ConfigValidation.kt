@@ -75,7 +75,7 @@ internal fun validateAppleMarketingVersion(value: String): String {
 internal fun validateAppleBuildNumber(value: String): String {
     if (!isValidAppleBuildNumber(value)) {
         throw GradleException(
-            "kiteConfig { version { ios { pin } } } \"${diagnosticSafeText(value, 32)}\" is invalid. " +
+            "kiteConfig { ${buildNumberProperty("ios")} } \"${diagnosticSafeText(value, 32)}\" is invalid. " +
                 "CFBundleVersion requires one to three numeric components, each at most " +
                 "$MAX_APPLE_BUILD_COMPONENT_DIGITS digits, and a first component that is not zero."
         )
@@ -159,23 +159,20 @@ internal fun compareAppleBuildNumbers(a: String, b: String): Int {
  * block the failure names.
  */
 internal fun validatePublishedBuildNumber(next: String?, published: String, platform: String = "ios"): String {
-    val dsl = when (platform) {
-        "desktop" -> "desktop {"
-        else -> "ios {"
-    }
+    val baselineProperty = "$platform { version { publishedBuildNumber } }"
     val noun = when (platform) {
         "desktop" -> "macOS package build version"
         else -> "Apple build number"
     }
     if (!isValidAppleBuildNumber(published)) {
         throw GradleException(
-            "kiteConfig { $dsl shipped } } \"${diagnosticSafeText(published, 32)}\" is invalid. " +
+            "kiteConfig { $baselineProperty } \"${diagnosticSafeText(published, 32)}\" is invalid. " +
                 "CFBundleVersion requires one to three numeric components, each at most " +
                 "$MAX_APPLE_BUILD_COMPONENT_DIGITS digits, and a first component that is not zero.",
         )
     }
     val candidate = next ?: throw GradleException(
-        "kiteConfig { $dsl shipped } } requires a resolvable build number.",
+        "kiteConfig { $baselineProperty } requires a resolvable build number.",
     )
     if (!isValidAppleBuildNumber(candidate)) {
         throw GradleException(
@@ -185,8 +182,8 @@ internal fun validatePublishedBuildNumber(next: String?, published: String, plat
     if (compareAppleBuildNumbers(candidate, published) <= 0) {
         throw GradleException(
             "kiteConfig resolved $noun \"$candidate\" must be greater than the published " +
-                "baseline \"$published\". Bump the reupload dial, or set the pin, in version { $dsl } }, " +
-                "before release.",
+                "baseline \"$published\". Bump $platform { version { rebuild } }, or set " +
+                "${buildNumberProperty(platform)}, before release.",
         )
     }
     return candidate

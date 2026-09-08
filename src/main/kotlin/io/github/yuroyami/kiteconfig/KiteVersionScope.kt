@@ -1,99 +1,91 @@
 package io.github.yuroyami.kiteconfig
 
-import org.gradle.api.Action
-import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.Property
-import javax.inject.Inject
 
 /**
- * Details for [KiteConfigExtension.version]: the shared formula and platform corners.
+ * Details for [KiteConfigExtension.version], inside `kiteConfig { version { ... } }`.
  *
- * | member | meaning | default | flow class |
- * |---|---|---|---|
- * | `formula { v -> ... }` | version to every store's build number | [VersionSchemes.DEFAULT] | memory |
- * | corner `reupload` | re-upload counter, feeds the formula | 0 | memory |
- * | corner `shipped` | highest number ever shipped, guard floor | unset | memory |
- * | corner `pin` | hard number, formula skipped | unset | memory |
- * | corner `formula` | platform-only formula override | shared formula | memory |
- * | `ios { marketingVersion }` | shown version on iOS | base version | memory |
- * | `skip(p)` / `only(p)` | flow control | flow everywhere | n/a |
+ * The release version itself is the scalar next to this block. This block says
+ * how a build number is derived from it.
+ *
+ * | member | meaning | default |
+ * |---|---|---|
+ * | `scheme(...)` | how the version becomes a build number | [VersionSchemes.DEFAULT] |
+ * | `rebuild` | extra counter for re-uploading the same version | 0 |
+ *
+ * ```kotlin
+ * kiteConfig {
+ *     version = "1.4.0"
+ *     version {
+ *         rebuild = 1
+ *     }
+ * }
+ * ```
+ *
+ * A platform block carries the same members plus its own exact build number and
+ * published baseline. See [KitePlatformVersionScope].
  */
-abstract class KiteVersionScope : KiteFlowScope() {
+abstract class KiteVersionScope {
 
-    /** The shared version-to-build-number formula. Corners can override it. */
-    internal abstract val formulaProp: Property<VersionCodeScheme>
+    internal abstract val schemeProp: Property<VersionCodeScheme>
 
-    /** Set the formula every platform uses unless its corner overrides it. */
-    fun formula(s: VersionCodeScheme) = formulaProp.set(s)
+    /**
+     * Extra counter for re-uploading the same release version to a store.
+     * Default: `0`. The scheme reads it.
+     */
+    abstract val rebuild: Property<Int>
 
-    /** Android's version corner: Play counters and the versionCode pin. */
-    abstract class AndroidCorner : KitePlatformRef {
-        final override val platform: KitePlatform = KitePlatform.ANDROID
+    /** Use a built-in scheme, for example `scheme(VersionSchemes.DEFAULT)`. */
+    fun scheme(scheme: VersionCodeScheme) = schemeProp.set(scheme)
+}
 
-        /** Counter to re-upload the same version to Play. Feeds the formula. */
-        abstract val reupload: Property<Int>
+/**
+ * A platform's version details, inside `kiteConfig { android { version { ... } } }`.
+ *
+ * Everything in [KiteVersionScope] applies here too, for this platform only.
+ *
+ * | member | meaning | default |
+ * |---|---|---|
+ * | `buildNumber` | exact build number, the scheme is skipped | derived |
+ * | `publishedBuildNumber` | highest number already shipped here | none |
+ * | `enabled` | deliver the version to this platform | true |
+ *
+ * ```kotlin
+ * kiteConfig {
+ *     version = "1.4.0"
+ *     android {
+ *         version {
+ *             rebuild = 1
+ *             publishedBuildNumber = "1001004001"
+ *         }
+ *     }
+ * }
+ * ```
+ *
+ * Both numbers are text at this boundary. Android reads its own as a decimal
+ * integer and holds it to the store's range; Apple compares by numeric
+ * component, so a dotted build number is fine there.
+ *
+ * Publication histories are separate. A baseline set here says nothing about
+ * any other platform.
+ */
+abstract class KitePlatformVersionScope : KiteVersionScope() {
 
-        /** Highest versionCode ever shipped. New codes must beat it. */
-        abstract val shipped: Property<Int>
+    /**
+     * Exact build number for this platform. The scheme is not consulted.
+     *
+     * Android needs a plain decimal integer inside the store's range.
+     */
+    abstract val buildNumber: Property<String>
 
-        /** Hard versionCode. The formula is skipped. */
-        abstract val pin: Property<Int>
+    /**
+     * The highest build number already published for this platform.
+     *
+     * The resolved number must beat it, or the build fails before release.
+     * Nothing contacts a store; this is a value you keep yourself.
+     */
+    abstract val publishedBuildNumber: Property<String>
 
-        internal abstract val formulaProp: Property<VersionCodeScheme>
-
-        /** Android-only formula override. */
-        fun formula(s: VersionCodeScheme) = formulaProp.set(s)
-    }
-
-    /** The iOS version corner: TestFlight counters, pins, and the shown version. */
-    abstract class IosCorner : KitePlatformRef {
-        final override val platform: KitePlatform = KitePlatform.IOS
-
-        /** Counter to re-upload the same version to App Store Connect. */
-        abstract val reupload: Property<Int>
-
-        /** Highest build number ever shipped. New numbers must beat it. */
-        abstract val shipped: Property<String>
-
-        /** Hard buildNumber. The formula is skipped. */
-        abstract val pin: Property<String>
-
-        /** Version shown to users. Defaults to the base version. */
-        abstract val marketingVersion: Property<String>
-
-        internal abstract val formulaProp: Property<VersionCodeScheme>
-
-        /** iOS-only formula override. */
-        fun formula(s: VersionCodeScheme) = formulaProp.set(s)
-    }
-
-    /** The desktop version corner: installer build counters and pins. */
-    abstract class DesktopCorner : KitePlatformRef {
-        final override val platform: KitePlatform = KitePlatform.DESKTOP
-
-        /** Counter to re-release the same version. Feeds the formula. */
-        abstract val reupload: Property<Int>
-
-        /** Highest build number ever shipped. New numbers must beat it. */
-        abstract val shipped: Property<String>
-
-        /** Hard build number. The formula is skipped. */
-        abstract val pin: Property<String>
-
-        internal abstract val formulaProp: Property<VersionCodeScheme>
-
-        /** Desktop-only formula override. */
-        fun formula(s: VersionCodeScheme) = formulaProp.set(s)
-    }
-
-    @get:Inject
-    protected abstract val objects: ObjectFactory
-
-    val android: AndroidCorner by lazy { objects.newInstance(AndroidCorner::class.java) }
-    val ios: IosCorner by lazy { objects.newInstance(IosCorner::class.java) }
-    val desktop: DesktopCorner by lazy { objects.newInstance(DesktopCorner::class.java) }
-
-    fun android(action: Action<in AndroidCorner>) = action.execute(android)
-    fun ios(action: Action<in IosCorner>) = action.execute(ios)
-    fun desktop(action: Action<in DesktopCorner>) = action.execute(desktop)
+    /** Deliver the version and build number to this platform. Default: `true`. */
+    abstract val enabled: Property<Boolean>
 }

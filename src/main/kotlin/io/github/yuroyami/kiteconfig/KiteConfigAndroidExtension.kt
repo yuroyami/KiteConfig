@@ -9,7 +9,8 @@ import org.gradle.api.provider.Property
  * kiteConfig {
  *     appId = "com.example.jetzy"
  *     android { appId { suffix = ".debug" } }
- *     version("1.4.0") { android { reupload = 1 } }
+ *     version = "1.4.0"
+ *     android { version { rebuild = 1 } }
  *
  *     android {
  *         sdk(min = 26, target = 36, compile = 36)
