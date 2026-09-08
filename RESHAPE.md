@@ -1,7 +1,8 @@
 # KiteConfig 2.0 reshape
 
-Status: **phases 0, 1, 2, 5 and 6 are implemented and green. Phases 3 and 4 are
-partly done.** Section 14 records exactly where each one stands. Every Kotlin
+Status: **all six phases are implemented and green. The `v2.0.0` tag is the
+one step left.** Section 14 records where each phase landed, and section 16
+lists the two acceptance items that are honestly still open. Every Kotlin
 example in this document, in the README and in the KDoc is compiled by the test
 suite, so the surface below is the surface that exists.
 
