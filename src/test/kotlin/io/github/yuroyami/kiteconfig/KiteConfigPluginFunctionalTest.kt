@@ -155,7 +155,7 @@ class KiteConfigPluginFunctionalTest {
             kiteConfig {
                 appName = "Demo App"
                 version = "1.2.3"
-                id = "com.demo.app"
+                appId = "com.demo.app"
                 locales { pin("fr", "pt-BR") }
                 version("1.2.3") { ios { marketingVersion = "1.2.3"; pin = "42" } }
                 ios {
@@ -193,7 +193,7 @@ class KiteConfigPluginFunctionalTest {
             kiteConfig {
                 appName = "Demo"
                 version = "1.2.3"
-                id = "com.demo.app"
+                appId = "com.demo.app"
                 version("1.2.3") { ios { marketingVersion = "1.2.3"; pin = "7" } }
                 ios {
                     rewrite {
@@ -472,7 +472,7 @@ class KiteConfigPluginFunctionalTest {
                 modules { shared = ":shared" }
                 appName = "Demo"
                 version = "1.2.3"
-                id = "com.acme.app"
+                appId = "com.acme.app"
                 locales { pin("en", "pt-BR") }
                 dryRun = true
                 buildConfig {
@@ -538,7 +538,7 @@ class KiteConfigPluginFunctionalTest {
                 modules { shared = ":shared" }
                 appName = "Demo"
                 version = "1.2.3"
-                id = "com.acme.app"
+                appId = "com.acme.app"
                 buildConfig {
                     packageName = "com.acme.gen"
                     className = "AppConfig"
@@ -1330,7 +1330,7 @@ class KiteConfigPluginFunctionalTest {
             kiteConfig {
                 appName = "Detected"
                 version = "1.2.3"
-                id = "com.acme.app"
+                appId = "com.acme.app"
                 buildConfig {
                     packageName = "com.acme.gen"
                     className = "AppConfig"
@@ -1415,7 +1415,7 @@ class KiteConfigPluginFunctionalTest {
             kiteConfig {
                 appName = "Ambiguous"
                 version = "1.0.0"
-                id = "com.acme.app"
+                appId = "com.acme.app"
                 buildConfig { packageName = "com.acme.gen" }
             }
             """.trimIndent(),
@@ -1442,7 +1442,7 @@ class KiteConfigPluginFunctionalTest {
             kiteConfig {
                 appName = "NoShared"
                 version = "1.0.0"
-                id = "com.acme.app"
+                appId = "com.acme.app"
                 buildConfig { packageName = "demo.build" }
             }
             """.trimIndent(),
@@ -1563,7 +1563,8 @@ class KiteConfigPluginFunctionalTest {
                 modules { shared = ":shared" }
                 appName = "Demo"
                 version = "1.2.3"
-                id("com.acme.app") { desktop { suffix = ".desktop" } }
+                appId = "com.acme.app"
+                desktop { appId { suffix = ".desktop" } }
                 version("1.2.3") { desktop { reupload = 2 } }
             }
             """.trimIndent(),
@@ -1596,7 +1597,7 @@ class KiteConfigPluginFunctionalTest {
                 modules { shared = ":shared" }
                 appName = "Demo"
                 version = "1.2.3"
-                id = "com.acme.app"
+                appId = "com.acme.app"
                 desktop {
                     deriveUpgradeUuid = true
                 }
@@ -1634,7 +1635,7 @@ class KiteConfigPluginFunctionalTest {
             modules { shared = ":shared" }
             appName = "Demo"
             version = "1.2.3"
-            id = "com.acme.app"
+            appId = "com.acme.app"
             $body
             $logo
         }
@@ -1697,7 +1698,7 @@ class KiteConfigPluginFunctionalTest {
     @Test
     fun `the native application receives the same identity as the JVM application`() {
         write("settings.gradle.kts", settingsWithSharedAndDesktop(":nativeApp"))
-        write("build.gradle.kts", desktopRootBuild("id(\"com.acme.app\") { desktop { suffix = \".desktop\" } }"))
+        write("build.gradle.kts", desktopRootBuild("desktop { appId { suffix = \".desktop\" } }"))
         write("shared/build.gradle.kts", sharedJvmModule())
         write(
             "nativeApp/build.gradle.kts",
@@ -1904,7 +1905,7 @@ class KiteConfigPluginFunctionalTest {
                 }
                 appName = "Demo"
                 version = "1.2.3"
-                id = "com.acme.app"
+                appId = "com.acme.app"
                 desktop { }
             }
             """.trimIndent(),
@@ -2006,7 +2007,7 @@ class KiteConfigPluginFunctionalTest {
             kiteConfig {
                 appName = "Demo"
                 version = "1.2.3"
-                id = "com.acme.app"
+                appId = "com.acme.app"
                 desktop { }
             }
             """.trimIndent(),
@@ -2045,7 +2046,7 @@ class KiteConfigPluginFunctionalTest {
                 modules { shared = ":shared" }
                 appName = "Demo"
                 version = "1.2.3"
-                id = "com.acme.app"
+                appId = "com.acme.app"
             }
             """.trimIndent(),
         )

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1254 1254" role="img" aria-labelledby="kiteconfig-logo-title kiteconfig-logo-desc" preserveAspectRatio="xMidYMid meet">
+  <title id="kiteconfig-logo-title">KiteConfig logo</title>
+  <desc id="kiteconfig-logo-desc">A K-shaped common configuration bus. Its upper route grows into an Android-green twin antenna adapter, its lower route resolves into a blue native-mobile home-slot adapter, and its Kotlin-coloured spine remains the shared multiplatform source.</desc>
+  <defs>
+    <linearGradient id="kcl-spine" x1="285" y1="126" x2="407" y2="1127" gradientUnits="userSpaceOnUse"><stop stop-color="#7B61FF"/><stop offset=".37" stop-color="#CA1AC8"/><stop offset=".7" stop-color="#9638C3"/><stop offset="1" stop-color="#F04A59"/></linearGradient>
+    <linearGradient id="kcl-android-route" x1="0" y1="0" x2="740" y2="0" gradientUnits="userSpaceOnUse"><stop stop-color="#C41CCB"/><stop offset=".52" stop-color="#8758EC"/><stop offset=".78" stop-color="#48BCA0"/><stop offset="1" stop-color="#3DDC84"/></linearGradient>
+    <linearGradient id="kcl-native-route" x1="0" y1="0" x2="760" y2="0" gradientUnits="userSpaceOnUse"><stop stop-color="#C21CCB"/><stop offset=".5" stop-color="#765CEB"/><stop offset=".78" stop-color="#5B8FEC"/><stop offset="1" stop-color="#82C3FA"/></linearGradient>
+    <linearGradient id="kcl-source-fold" x1="292" y1="118" x2="407" y2="300" gradientUnits="userSpaceOnUse"><stop stop-color="#7F62FF"/><stop offset=".5" stop-color="#D71CC4"/><stop offset="1" stop-color="#F24A55"/></linearGradient>
+    <clipPath id="kcl-spine-clip"><path d="M305 125H373Q405 125 405 157V1097Q405 1129 373 1129H305Q273 1129 273 1097V157Q273 125 305 125Z"/></clipPath>
+  </defs>
+  <path d="M280 92H398Q438 92 438 132V1122Q438 1162 398 1162H280Q240 1162 240 1122V132Q240 92 280 92Z" fill="#45105E"/>
+  <path d="M305 125H373Q405 125 405 157V1097Q405 1129 373 1129H305Q273 1129 273 1097V157Q273 125 305 125Z" fill="url(#kcl-spine)"/>
+  <g clip-path="url(#kcl-spine-clip)"><path d="M273 125H405V212L337 177L273 235Z" fill="url(#kcl-source-fold)"/><path d="M273 125L337 177L296 235L273 247Z" fill="#7A63FF" opacity=".94"/><path d="M337 177L405 212V264L296 235Z" fill="#F14958" opacity=".94"/><path d="M273 804L405 704V1129H273Z" fill="#F04A59" opacity=".22"/></g>
+  <g transform="translate(346 621) rotate(-36)">
+    <path d="M-32-91H643Q689-91 713-57Q739-19 720 27Q701 73 650 88L613 91H-32Z" fill="#45105E"/><path d="M0-62H626Q657-62 675-40Q697-13 683 19Q670 48 636 58L601 62H0Z" fill="url(#kcl-android-route)"/><path d="M438-62H626Q657-62 675-40Q697-13 683 19Q670 48 636 58L601 62H510Z" fill="#3DDC84" opacity=".3"/>
+    <path d="M571-53C585-89 591-117 591-148M642-49C670-77 688-101 699-129" fill="none" stroke="#45105E" stroke-width="48" stroke-linecap="round"/><path d="M571-53C584-87 588-115 588-145M642-49C668-75 685-99 696-126" fill="none" stroke="#71ECA8" stroke-width="25" stroke-linecap="round"/><path d="M26 0H520" fill="none" stroke="#F5ECFF" stroke-width="14" stroke-linecap="round" opacity=".54"/>
+  </g>
+  <g transform="translate(346 629) rotate(35)">
+    <path d="M-32-91H640Q682-91 706-58Q736-18 716 30Q697 76 646 89L611 91H-32Z" fill="#45105E"/><path d="M0-62H625Q652-62 670-42Q694-14 680 18Q667 48 632 58L600 62H0Z" fill="url(#kcl-native-route)"/><path d="M462-62H625Q652-62 670-42Q694-14 680 18Q667 48 632 58L600 62H530Z" fill="#80C2FA" opacity=".3"/>
+    <path d="M26 0H536" fill="none" stroke="#F5ECFF" stroke-width="14" stroke-linecap="round" opacity=".54"/><path d="M603 32H659" fill="none" stroke="#FFF" stroke-width="13" stroke-linecap="round" opacity=".94"/>
+  </g>
+  <path d="M339 233C329 386 330 509 339 606M339 646C331 795 333 947 339 1062" fill="none" stroke="#F5ECFF" stroke-width="14" stroke-linecap="round" opacity=".66"/>
+  <circle cx="346" cy="625" r="24" fill="#45105E"/><circle cx="346" cy="625" r="10" fill="#F9F0FF"/>
+</svg>

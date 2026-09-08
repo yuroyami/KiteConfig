@@ -103,19 +103,18 @@ public abstract class io/github/yuroyami/kiteconfig/GenerateIoWorkerTask : org/g
 	public abstract fun getWorkerPackage ()Lorg/gradle/api/provider/Property;
 }
 
-public abstract class io/github/yuroyami/kiteconfig/KiteAppNameScope : io/github/yuroyami/kiteconfig/KiteFlowScope {
-	public fun <init> (Lorg/gradle/api/model/ObjectFactory;)V
-	public final fun getAndroid ()Lio/github/yuroyami/kiteconfig/KiteAppNameScope$NameToken;
-	public final fun getDesktop ()Lio/github/yuroyami/kiteconfig/KiteAppNameScope$NameToken;
-	public final fun getIos ()Lio/github/yuroyami/kiteconfig/KiteAppNameScope$NameToken;
+public abstract class io/github/yuroyami/kiteconfig/KiteAppIdScope {
+	public fun <init> ()V
+	public abstract fun getEnabled ()Lorg/gradle/api/provider/Property;
+	public abstract fun getSuffix ()Lorg/gradle/api/provider/Property;
 }
 
-public final class io/github/yuroyami/kiteconfig/KiteAppNameScope$NameToken : io/github/yuroyami/kiteconfig/KitePlatformRef {
-	public fun getPlatform ()Lio/github/yuroyami/kiteconfig/KitePlatform;
-	public final fun invoke (Ljava/lang/String;)V
+public abstract class io/github/yuroyami/kiteconfig/KiteAppNameScope {
+	public fun <init> ()V
+	public abstract fun getEnabled ()Lorg/gradle/api/provider/Property;
 }
 
-public abstract class io/github/yuroyami/kiteconfig/KiteConfigAndroidExtension : io/github/yuroyami/kiteconfig/KitePlatformRef {
+public abstract class io/github/yuroyami/kiteconfig/KiteConfigAndroidExtension : io/github/yuroyami/kiteconfig/KitePlatformExtension {
 	public fun <init> ()V
 	public abstract fun getCompileSdk ()Lorg/gradle/api/provider/Property;
 	public abstract fun getMinSdk ()Lorg/gradle/api/provider/Property;
@@ -150,7 +149,7 @@ public abstract class io/github/yuroyami/kiteconfig/KiteConfigCheckTask : io/git
 	public abstract fun getReportFormat ()Lorg/gradle/api/provider/Property;
 }
 
-public abstract class io/github/yuroyami/kiteconfig/KiteConfigDesktopExtension : io/github/yuroyami/kiteconfig/KitePlatformRef {
+public abstract class io/github/yuroyami/kiteconfig/KiteConfigDesktopExtension : io/github/yuroyami/kiteconfig/KitePlatformExtension {
 	public fun <init> ()V
 	public abstract fun getDeriveUpgradeUuid ()Lorg/gradle/api/provider/Property;
 	public abstract fun getLinuxPackageName ()Lorg/gradle/api/provider/Property;
@@ -238,12 +237,13 @@ public abstract class io/github/yuroyami/kiteconfig/KiteConfigDoctorTask : io/gi
 public abstract class io/github/yuroyami/kiteconfig/KiteConfigExtension : io/github/yuroyami/kiteconfig/KiteFlowScope, io/github/yuroyami/kiteconfig/KiteConfigValues {
 	public fun <init> ()V
 	public final fun android (Lorg/gradle/api/Action;)V
-	public final fun appName (Ljava/lang/String;Lorg/gradle/api/Action;)V
+	public fun appIdFor (Lio/github/yuroyami/kiteconfig/KitePlatform;)Lorg/gradle/api/provider/Provider;
 	public fun appNameFor (Lio/github/yuroyami/kiteconfig/KitePlatform;)Lorg/gradle/api/provider/Provider;
 	public final fun buildConfig (Lorg/gradle/api/Action;)V
 	public final fun desktop (Lorg/gradle/api/Action;)V
 	public final fun getAndroid ()Lio/github/yuroyami/kiteconfig/KiteConfigAndroidExtension;
 	public fun getAndroidApplicationId ()Lorg/gradle/api/provider/Provider;
+	public abstract fun getAppId ()Lorg/gradle/api/provider/Property;
 	public abstract fun getAppName ()Lorg/gradle/api/provider/Property;
 	public abstract fun getBackups ()Lorg/gradle/api/provider/Property;
 	public final fun getBuildConfig ()Lio/github/yuroyami/kiteconfig/KiteConfigBuildConfigExtension;
@@ -253,7 +253,6 @@ public abstract class io/github/yuroyami/kiteconfig/KiteConfigExtension : io/git
 	public fun getDesktopBuildNumber ()Lorg/gradle/api/provider/Provider;
 	public fun getDesktopBundleId ()Lorg/gradle/api/provider/Provider;
 	public abstract fun getDryRun ()Lorg/gradle/api/provider/Property;
-	public abstract fun getId ()Lorg/gradle/api/provider/Property;
 	public abstract fun getIgnoreVersionGuards ()Lorg/gradle/api/provider/Property;
 	public final fun getIos ()Lio/github/yuroyami/kiteconfig/KiteConfigIosExtension;
 	public fun getIosBuildNumber ()Lorg/gradle/api/provider/Provider;
@@ -270,7 +269,6 @@ public abstract class io/github/yuroyami/kiteconfig/KiteConfigExtension : io/git
 	public abstract fun getVersion ()Lorg/gradle/api/provider/Property;
 	public fun getVersionCode ()Lorg/gradle/api/provider/Provider;
 	public final fun getWeb ()Lio/github/yuroyami/kiteconfig/KiteConfigWebExtension;
-	public final fun id (Ljava/lang/String;Lorg/gradle/api/Action;)V
 	public final fun ios (Lorg/gradle/api/Action;)V
 	public final fun locales (Lorg/gradle/api/Action;)V
 	public final fun logo (Lorg/gradle/api/Action;)V
@@ -290,7 +288,7 @@ public abstract class io/github/yuroyami/kiteconfig/KiteConfigIoWorkerExtension 
 	public final fun targets ([Ljava/lang/String;)V
 }
 
-public abstract class io/github/yuroyami/kiteconfig/KiteConfigIosExtension : io/github/yuroyami/kiteconfig/KitePlatformRef {
+public abstract class io/github/yuroyami/kiteconfig/KiteConfigIosExtension : io/github/yuroyami/kiteconfig/KitePlatformExtension {
 	public fun <init> ()V
 	public abstract fun getAppDirectory ()Lorg/gradle/api/file/DirectoryProperty;
 	public abstract fun getAppIconDirectory ()Lorg/gradle/api/file/DirectoryProperty;
@@ -389,14 +387,15 @@ public final class io/github/yuroyami/kiteconfig/KiteConfigPlugin$Companion {
 }
 
 public abstract interface class io/github/yuroyami/kiteconfig/KiteConfigValues {
+	public abstract fun appIdFor (Lio/github/yuroyami/kiteconfig/KitePlatform;)Lorg/gradle/api/provider/Provider;
 	public abstract fun appNameFor (Lio/github/yuroyami/kiteconfig/KitePlatform;)Lorg/gradle/api/provider/Provider;
 	public abstract fun getAndroidApplicationId ()Lorg/gradle/api/provider/Provider;
+	public abstract fun getAppId ()Lorg/gradle/api/provider/Provider;
 	public abstract fun getAppName ()Lorg/gradle/api/provider/Provider;
 	public abstract fun getCanonicalLocales ()Lorg/gradle/api/provider/Provider;
 	public abstract fun getCompileSdk ()Lorg/gradle/api/provider/Provider;
 	public abstract fun getDesktopBuildNumber ()Lorg/gradle/api/provider/Provider;
 	public abstract fun getDesktopBundleId ()Lorg/gradle/api/provider/Provider;
-	public abstract fun getId ()Lorg/gradle/api/provider/Provider;
 	public abstract fun getIosBuildNumber ()Lorg/gradle/api/provider/Provider;
 	public abstract fun getIosBundleId ()Lorg/gradle/api/provider/Provider;
 	public abstract fun getIosMarketingVersion ()Lorg/gradle/api/provider/Provider;
@@ -459,21 +458,6 @@ public abstract class io/github/yuroyami/kiteconfig/KiteFlowScope {
 	public final fun skip ([Lio/github/yuroyami/kiteconfig/KitePlatformRef;)V
 }
 
-public abstract class io/github/yuroyami/kiteconfig/KiteIdScope : io/github/yuroyami/kiteconfig/KiteFlowScope {
-	public fun <init> (Lorg/gradle/api/model/ObjectFactory;)V
-	public final fun android (Lorg/gradle/api/Action;)V
-	public final fun desktop (Lorg/gradle/api/Action;)V
-	public final fun getAndroid ()Lio/github/yuroyami/kiteconfig/KiteIdScope$IdCorner;
-	public final fun getDesktop ()Lio/github/yuroyami/kiteconfig/KiteIdScope$IdCorner;
-	public final fun getIos ()Lio/github/yuroyami/kiteconfig/KiteIdScope$IdCorner;
-	public final fun ios (Lorg/gradle/api/Action;)V
-}
-
-public final class io/github/yuroyami/kiteconfig/KiteIdScope$IdCorner : io/github/yuroyami/kiteconfig/KitePlatformRef {
-	public fun getPlatform ()Lio/github/yuroyami/kiteconfig/KitePlatform;
-	public final fun getSuffix ()Lorg/gradle/api/provider/Property;
-}
-
 public abstract class io/github/yuroyami/kiteconfig/KiteLocalesScope : io/github/yuroyami/kiteconfig/KiteFlowScope {
 	public fun <init> ()V
 	public abstract fun getFilterAndroidRes ()Lorg/gradle/api/provider/Property;
@@ -487,6 +471,14 @@ public final class io/github/yuroyami/kiteconfig/KitePlatform : java/lang/Enum {
 	public static fun getEntries ()Lkotlin/enums/EnumEntries;
 	public static fun valueOf (Ljava/lang/String;)Lio/github/yuroyami/kiteconfig/KitePlatform;
 	public static fun values ()[Lio/github/yuroyami/kiteconfig/KitePlatform;
+}
+
+public abstract class io/github/yuroyami/kiteconfig/KitePlatformExtension : io/github/yuroyami/kiteconfig/KitePlatformRef {
+	public fun <init> ()V
+	public final fun appId (Lorg/gradle/api/Action;)V
+	public final fun appName (Lorg/gradle/api/Action;)V
+	public abstract fun getAppId ()Lorg/gradle/api/provider/Property;
+	public abstract fun getAppName ()Lorg/gradle/api/provider/Property;
 }
 
 public abstract interface class io/github/yuroyami/kiteconfig/KitePlatformRef {
@@ -612,6 +604,7 @@ public abstract class io/github/yuroyami/kiteconfig/SyncIosConfigTask : org/grad
 	public abstract fun getAppName ()Lorg/gradle/api/provider/Property;
 	public abstract fun getAppiconsetDir ()Lorg/gradle/api/file/DirectoryProperty;
 	public abstract fun getBackup ()Lorg/gradle/api/provider/Property;
+	public abstract fun getBackupDir ()Lorg/gradle/api/file/DirectoryProperty;
 	public abstract fun getBuildNumber ()Lorg/gradle/api/provider/Property;
 	public abstract fun getBundleId ()Lorg/gradle/api/provider/Property;
 	public abstract fun getDryRun ()Lorg/gradle/api/provider/Property;

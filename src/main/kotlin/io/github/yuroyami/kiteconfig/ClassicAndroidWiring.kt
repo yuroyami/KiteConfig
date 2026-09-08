@@ -58,7 +58,7 @@ internal object ClassicAndroidWiring {
 
             if (receivesAppScopedValues) {
                 project.wireValueGroup(resilient, "applicationId") {
-                    if (ext.idFlowsTo(KitePlatform.ANDROID).get() && ext.id.isPresent) {
+                    if (ext.appIdFlowsTo(KitePlatform.ANDROID).get() && ext.appId.isPresent) {
                         val applied = ext.androidApplicationId.get()
                         drift.observe("applicationId", dc.applicationId, applied)
                         dc.applicationId = applied

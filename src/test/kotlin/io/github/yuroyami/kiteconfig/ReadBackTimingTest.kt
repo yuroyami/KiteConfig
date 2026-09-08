@@ -40,7 +40,7 @@ class ReadBackTimingTest {
         write("build.gradle.kts", """
             plugins { id("io.github.yuroyami.kiteconfig") }
             kiteConfig {
-                id.set("com.example.app")
+                appId.set("com.example.app")
                 version.set("1.4.0")
                 $rootExtras
             }
@@ -146,7 +146,7 @@ class ReadBackTimingTest {
                 id("io.github.yuroyami.kiteconfig")
             }
             kiteConfig {
-                id.set("com.example.app")
+                appId.set("com.example.app")
                 version.set("1.4.0")
                 dryRun = true
             }

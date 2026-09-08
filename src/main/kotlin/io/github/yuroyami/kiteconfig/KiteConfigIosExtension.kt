@@ -16,7 +16,8 @@ import org.gradle.api.provider.Property
  * ```kotlin
  * kiteConfig {
  *     appName = "Jetzy"
- *     id("com.example.jetzy") { ios { suffix = ".iosApp" } }
+ *     appId = "com.example.jetzy"
+ *     ios { appId { suffix = ".iosApp" } }
  *     version("1.4.0") { ios { reupload = 3 } }
  *
  *     ios {
@@ -34,7 +35,7 @@ import org.gradle.api.provider.Property
  * when `rewrite { }` is configured and you run `kiteRewriteXcode` yourself.
  *
  * The resolved bundle id is readable as `kiteConfig.iosBundleId`: the root `id`
- * followed by the suffix from `id("base") { ios { suffix } }`.
+ * followed by the suffix from `ios { appId { suffix } }`.
  *
  * ## The two Apple version fields
  *
@@ -60,14 +61,14 @@ import org.gradle.api.provider.Property
  * | [deploymentTarget] | **no**, it only validates the AppIcon catalog |
  * | [pbxproj], [podfile], [infoPlist], [appDirectory], [appIconDirectory] | no, they say where to look |
  *
- * Those three are declared elsewhere: the bundle id in `id("base") { ios { suffix } }`,
+ * Those three are declared elsewhere: the bundle id in `ios { appId { suffix } }`,
  * and both version fields in the version topic's `ios { }` corner.
  *
  * @see KiteConfigIosSyncExtension for the gate that authorizes those writes.
  * @see KiteConfigAndroidExtension for the Android half of the same identity.
  * @see KiteVersionScope.formula for the formula every platform shares.
  */
-abstract class KiteConfigIosExtension : KitePlatformRef {
+abstract class KiteConfigIosExtension : KitePlatformExtension() {
 
     final override val platform: KitePlatform = KitePlatform.IOS
 

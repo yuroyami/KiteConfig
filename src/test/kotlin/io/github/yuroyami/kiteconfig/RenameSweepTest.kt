@@ -15,19 +15,11 @@ class RenameSweepTest {
 
     /** Historical documents, plus this file, which must name the old spellings. */
     private val exemptFiles = setOf(
-        "CHANGELOG.md", "OVERHAUL.md", "SOLAUDIT.md", "RenameSweepTest.kt",
+        "CHANGELOG.md", "RenameSweepTest.kt",
     )
 
-    /**
-     * `specs/` and `docs/superpowers/` hold design documents and plans for work
-     * that already shipped. They record decisions as they were made, under the
-     * name the plugin had at the time.
-     */
     private val exemptDirs =
         listOf(
-            "docs/superpowers/",
-            "specs/",
-            ".superpowers/",
             // Release notes describe one shipped version and name the plugin it
             // migrated from. They are frozen the moment that version is tagged.
             ".github/release-notes/",

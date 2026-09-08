@@ -1,5 +1,9 @@
 # KiteConfig
 
+<p align="center">
+  <img src="art/kiteconfig-platform-gear-concept.png" width="180" alt="KiteConfig logo">
+</p>
+
 A Gradle plugin for Kotlin Multiplatform projects. You write your app's values
 once, in one block, in the root build file: app name, app id, version, version
 code, build number, locales, app logo, splash screen, generated build config,

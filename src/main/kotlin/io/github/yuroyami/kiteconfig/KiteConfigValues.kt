@@ -54,26 +54,34 @@ interface KiteConfigValues {
      *
      * This is the value the platform would receive. It does not account for
      * `skip()` / `only()`: flow control decides whether KiteConfig writes the
-     * value, not what the value is. The same holds for [androidApplicationId],
-     * [iosBundleId], and [desktopBundleId].
+     * value, not what the value is. The same holds for [appIdFor],
+     * [androidApplicationId], [iosBundleId], and [desktopBundleId].
      */
     fun appNameFor(platform: KitePlatform): Provider<String>
 
-    /** The declared base id, before any platform suffix. */
-    val id: Provider<String>
+    /** The declared base identifier, before any platform suffix or override. */
+    val appId: Provider<String>
 
-    /** Android application id: [id] plus its android corner suffix. Not gated by `skip()` / `only()`; see [appNameFor]. */
+    /**
+     * The identifier resolved for [platform]: that platform's own `appId`, or the
+     * shared one plus that platform's suffix.
+     *
+     * Like [appNameFor], this is the value the platform would receive. It does
+     * not account for selection or for a platform that turned delivery off.
+     */
+    fun appIdFor(platform: KitePlatform): Provider<String>
+
+    /** Android application id: the effective [appId] for Android. See [appNameFor]. */
     val androidApplicationId: Provider<String>
 
-    /** Apple bundle id: [id] plus its ios corner suffix. Not gated by `skip()` / `only()`; see [appNameFor]. */
+    /** Apple bundle id: the effective [appId] for iOS. See [appNameFor]. */
     val iosBundleId: Provider<String>
 
     /**
-     * Desktop bundle id: [id] plus its desktop corner suffix.
+     * Desktop bundle id: the effective [appId] for desktop.
      *
-     * Not gated by `skip()` / `only()`; see [appNameFor]. Unlike the other
-     * values here, this one validates on read and throws when the result is
-     * not a valid reverse-DNS identifier.
+     * See [appNameFor]. Unlike the other values here, this one validates on read
+     * and throws when the result is not a valid reverse-DNS identifier.
      */
     val desktopBundleId: Provider<String>
 

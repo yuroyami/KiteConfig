@@ -37,7 +37,7 @@ class ReadBackAccessorTest {
         write("build.gradle.kts", """
             plugins { id("io.github.yuroyami.kiteconfig") }
             kiteConfig {
-                id.set("com.example.app")
+                appId.set("com.example.app")
                 version.set("1.4.0")
             }
         """)
@@ -69,7 +69,7 @@ class ReadBackAccessorTest {
         """)
         write("build.gradle.kts", """
             plugins { id("io.github.yuroyami.kiteconfig") }
-            kiteConfig { id.set("com.example.app") }
+            kiteConfig { appId.set("com.example.app") }
         """)
         write("app/build.gradle.kts", """
             import io.github.yuroyami.kiteconfig.kiteConfig
@@ -124,7 +124,7 @@ class ReadBackAccessorTest {
         write("build.gradle.kts", """
             plugins { id("io.github.yuroyami.kiteconfig") }
             kiteConfig {
-                id.set("com.example.app")
+                appId.set("com.example.app")
                 version.set("1.4.0")
             }
         """)

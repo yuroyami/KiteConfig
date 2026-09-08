@@ -80,8 +80,7 @@ class KiteConfigPlugin : Plugin<Project> {
             androidApps.convention(emptyList())
             desktopApps.convention(emptyList())
         }
-        extAware.extensions.create<KiteAppNameScope>("appNameScope")
-        extAware.extensions.create<KiteIdScope>("idScope")
+
         extAware.extensions.create<KiteVersionScope>("versionScope").apply {
             android.reupload.convention(0)
             ios.reupload.convention(0)
@@ -89,7 +88,7 @@ class KiteConfigPlugin : Plugin<Project> {
         }
         extAware.extensions.create<KiteLocalesScope>("localesScope")
         extAware.extensions.create<KiteSplashScope>("splash")
-        extAware.extensions.create<KiteConfigAndroidExtension>("android")
+        val androidExtension = extAware.extensions.create<KiteConfigAndroidExtension>("android")
         val iosExtension = extAware.extensions.create<KiteConfigIosExtension>("ios")
         (iosExtension as ExtensionAware).extensions.create<KiteConfigIosSyncExtension>("rewrite").apply {
             targets.convention(emptyList())
@@ -112,7 +111,14 @@ class KiteConfigPlugin : Plugin<Project> {
             allowBuildCache.convention(false)
             fields.convention(emptyList())
         }
-        extAware.extensions.create<KiteConfigDesktopExtension>("desktop")
+        val desktopExtension = extAware.extensions.create<KiteConfigDesktopExtension>("desktop")
+
+        // Every platform block carries the same identity details, so the shared
+        // facts and their per-platform differences read the same way everywhere.
+        listOf(androidExtension, iosExtension, desktopExtension).forEach { platform ->
+            (platform as ExtensionAware).extensions.create<KiteAppNameScope>("appNameDetails")
+            platform.extensions.create<KiteAppIdScope>("appIdDetails")
+        }
 
         // Resolve console colour once. Tasks receive only the Boolean, which keeps
         // them configuration-cache safe and stops every task action re-detecting.
@@ -198,14 +204,14 @@ class KiteConfigPlugin : Plugin<Project> {
             // Validate the resolved model once, before any explicit mutation task runs.
             val buildConfigIdentity = ext.effectiveBuildConfigEnabled.get() && ext.buildConfig.includeIdentity.get()
             val usesAppName = ext.appNameFlowsAnywhere().get() || buildConfigIdentity
-            val usesBundleId = ext.idFlowsAnywhere().get() || buildConfigIdentity
+            val usesBundleId = ext.appIdFlowsAnywhere().get() || buildConfigIdentity
             val usesVersion = ext.effectivePropagateVersion.get() || buildConfigIdentity
             val usesLocaleModel = ext.localesFlowsAnywhere().get() || ext.effectiveFilterAndroidResources.get() || buildConfigIdentity
             val usesSharedSelection = ext.effectiveBuildConfigEnabled.get() || ext.effectiveNativeOptInsEnabled.get() ||
                 ext.effectiveIoWorkerEnabled.get() || usesLocaleModel
             val usesAndroidApplicationSelection =
                 (ext.appNameFlowsAnywhere().get() && ext.effectiveAppName.isPresent) ||
-                    (ext.idFlowsAnywhere().get() && ext.id.isPresent) ||
+                    (ext.appIdFlowsAnywhere().get() && ext.appId.isPresent) ||
                     (ext.effectivePropagateVersion.get() &&
                         (ext.effectiveVersion.isPresent || ext.effectiveAndroidVersionCode.isPresent)) ||
                     ext.effectiveFilterAndroidResources.get() || ext.effectivePropagateLogo.get() ||
@@ -218,7 +224,7 @@ class KiteConfigPlugin : Plugin<Project> {
                 ext.effectiveAndroidVersionCode.get()
             }
             if (usesVersion) ext.effectiveAndroidVersionCode.orNull?.let(::validateVersionCode)
-            if (usesBundleId && ext.id.isPresent) {
+            if (usesBundleId && ext.appId.isPresent) {
                 validateAndroidApplicationId(ext.androidApplicationId.get())
                 validateAppleBundleId(ext.iosBundleId.get())
             }
@@ -245,11 +251,11 @@ class KiteConfigPlugin : Plugin<Project> {
                 ) {
                     throw GradleException("kiteConfig { ios { rewrite { targets } } } must contain unique, non-blank names without controls.")
                 }
-                if (iosTargetNames.size > 1 && ext.idFlowsAnywhere().get() && ext.id.isPresent) {
+                if (iosTargetNames.size > 1 && ext.appIdFlowsAnywhere().get() && ext.appId.isPresent) {
                     throw GradleException(
                         "kiteConfig refuses to assign one Apple bundle identifier to multiple application targets " +
                             "(${iosTargetNames.joinToString()}). Select one target, or stop the id flowing to iOS " +
-                            "with id(\"base\") { skip(KitePlatform.IOS) }."
+                            "with ios { appId { enabled = false } }."
                     )
                 }
             }
@@ -269,7 +275,7 @@ class KiteConfigPlugin : Plugin<Project> {
                     if (!ext.effectiveAppName.isPresent) add("appName")
                     if (!ext.effectiveVersion.isPresent) add("version")
                     if (!ext.effectiveAndroidVersionCode.isPresent) add("version or version(\"x\") { android { pin } }")
-                    if (!ext.id.isPresent) add("appId")
+                    if (!ext.appId.isPresent) add("appId")
                 }
                 if (missing.isNotEmpty()) {
                     throw GradleException(
@@ -507,7 +513,7 @@ class KiteConfigPlugin : Plugin<Project> {
             fun diagnosticBoolean(value: () -> Boolean): Boolean = runCatching(value).getOrDefault(false)
             val diagnosticNeedsAndroidIntegration = detectedAndroidProjects.isNotEmpty() && (
                 diagnosticBoolean { ext.appNameFlowsAnywhere().get() && ext.effectiveAppName.isPresent } ||
-                    diagnosticBoolean { ext.idFlowsAnywhere().get() && ext.id.isPresent } ||
+                    diagnosticBoolean { ext.appIdFlowsAnywhere().get() && ext.appId.isPresent } ||
                     diagnosticBoolean {
                         ext.effectivePropagateVersion.get() &&
                             (ext.effectiveVersion.isPresent || ext.effectiveAndroidVersionCode.isPresent)
@@ -597,7 +603,7 @@ class KiteConfigPlugin : Plugin<Project> {
             }
             val needsApplicationSelection =
                 (ext.appNameFlowsAnywhere().get() && ext.effectiveAppName.isPresent) ||
-                    (ext.idFlowsAnywhere().get() && ext.id.isPresent) ||
+                    (ext.appIdFlowsAnywhere().get() && ext.appId.isPresent) ||
                     (ext.effectivePropagateVersion.get() &&
                         (ext.effectiveVersion.isPresent || ext.effectiveAndroidVersionCode.isPresent)) ||
                     ext.effectiveFilterAndroidResources.get()
@@ -624,11 +630,11 @@ class KiteConfigPlugin : Plugin<Project> {
                                 "apply com.android.application: ${unknown.sorted().joinToString()}."
                         )
                     }
-                    if (selectedApplications.size > 1 && ext.idFlowsAnywhere().get() && ext.id.isPresent) {
+                    if (selectedApplications.size > 1 && ext.appIdFlowsAnywhere().get() && ext.appId.isPresent) {
                         throw GradleException(
                             "kiteConfig refuses to assign one Android applicationId to multiple selected apps " +
                                 "(${selectedApplications.joinToString()}). Select one app, or set " +
-                                "id(\"base\") { skip(KitePlatform.ANDROID) } and give each app module its own id."
+                                "android { appId { enabled = false } } and give each app module its own identifier."
                         )
                     }
                 }
@@ -683,7 +689,7 @@ class KiteConfigPlugin : Plugin<Project> {
 
             val needsAndroidIntegration = detectedAndroidProjects.isNotEmpty() && (
                 (ext.appNameFlowsAnywhere().get() && ext.effectiveAppName.isPresent) ||
-                    (ext.idFlowsAnywhere().get() && ext.id.isPresent) ||
+                    (ext.appIdFlowsAnywhere().get() && ext.appId.isPresent) ||
                     (ext.effectivePropagateVersion.get() &&
                         (ext.effectiveVersion.isPresent || ext.effectiveAndroidVersionCode.isPresent)) ||
                     (ext.effectiveApplySdkLevels.get() && listOf(
@@ -1104,7 +1110,7 @@ class KiteConfigPlugin : Plugin<Project> {
             iosPreviousSharedModuleName.set(ext.effectiveIosPreviousSharedModuleName)
             propagateVersion.set(ext.versionFlowsTo(KitePlatform.IOS))
             propagateAppName.set(ext.effectiveAppNameFor(KitePlatform.IOS).map { ext.appNameFlowsTo(KitePlatform.IOS).get() }.orElse(false))
-            propagateBundleId.set(ext.id.map { ext.idFlowsTo(KitePlatform.IOS).get() }.orElse(false))
+            propagateBundleId.set(ext.appId.map { ext.appIdFlowsTo(KitePlatform.IOS).get() }.orElse(false))
             propagateLocaleList.set(
                 ext.canonicalLocales.map { it.isNotEmpty() && ext.localesFlowsTo(KitePlatform.IOS).get() }
             )
@@ -1215,10 +1221,10 @@ class KiteConfigPlugin : Plugin<Project> {
             desktopUpgradeCode.set(root.resilientValue {
                 if (ext.effectiveDesktopEnabled.get() &&
                     ext.desktop.deriveUpgradeUuid.getOrElse(false) &&
-                    ext.idFlowsTo(KitePlatform.DESKTOP).get() &&
-                    ext.id.isPresent
+                    ext.appIdFlowsTo(KitePlatform.DESKTOP).get() &&
+                    ext.appId.isPresent
                 ) {
-                    deriveUpgradeUuid(ext.id.get())
+                    deriveUpgradeUuid(ext.appId.get())
                 } else {
                     null
                 }
@@ -1449,7 +1455,7 @@ class KiteConfigPlugin : Plugin<Project> {
         colorEnabled.set(colorSupported)
         propagateAppName.set(ext.appNameFlowsAnywhere())
         appName.set(ext.effectiveAppName)
-        propagateBundleId.set(ext.idFlowsAnywhere())
+        propagateBundleId.set(ext.appIdFlowsAnywhere())
         iosBundleId.set(ext.iosBundleId)
         propagateVersion.set(ext.effectivePropagateVersion)
         versionName.set(ext.effectiveVersion)
@@ -1538,8 +1544,8 @@ class KiteConfigPlugin : Plugin<Project> {
         composeOnClasspath.set(COMPOSE_ON_CLASSPATH)
         if (COMPOSE_ON_CLASSPATH) runtimeComposeVersion()?.let(this.activeComposeVersion::set)
         desktopApplicationProjects.set(ext.effectiveDesktopApps)
-        appId.set(ext.id)
-        desktopBundleId.set(ext.effectiveIdFor(KitePlatform.DESKTOP))
+        appId.set(ext.appId)
+        desktopBundleId.set(ext.effectiveAppIdFor(KitePlatform.DESKTOP))
         desktopLinuxPackageName.set(ext.desktop.linuxPackageName)
         desktopDeriveUpgradeUuid.set(ext.desktop.deriveUpgradeUuid.orElse(false))
     }
@@ -1627,13 +1633,11 @@ class KiteConfigPlugin : Plugin<Project> {
     @OptIn(DiscouragedKiteApi::class)
     private fun modelValues(ext: KiteConfigExtension): List<HasConfigurableValue> =
         listOf(
-            ext.appName, ext.version, ext.id, ext.jvmTarget,
+            ext.appName, ext.version, ext.appId, ext.jvmTarget,
             ext.dryRun, ext.backups, ext.ignoreVersionGuards,
             ext.logoConfigured, ext.optInsDeclared, ext.buildConfigDeclared,
-            ext.skipped, ext.allowed, ext.doubleSetWarnings,
+            ext.skipped, ext.allowed,
         ) + listOf(
-            ext.appNameScope.skipped, ext.appNameScope.allowed,
-            ext.idScope.skipped, ext.idScope.allowed,
             ext.versionScope.skipped, ext.versionScope.allowed,
             ext.localesScope.skipped, ext.localesScope.allowed, ext.localesScope.pinned,
             ext.logo.skipped, ext.logo.allowed,
@@ -1654,9 +1658,15 @@ class KiteConfigPlugin : Plugin<Project> {
             ext.versionScope.ios.formulaProp,
             ext.versionScope.desktop.reupload, ext.versionScope.desktop.shipped,
             ext.versionScope.desktop.pin, ext.versionScope.desktop.formulaProp,
-            ext.idScope.android.suffix, ext.idScope.ios.suffix, ext.idScope.desktop.suffix,
             ext.localesScope.pinned, ext.localesScope.filterAndroidRes,
-        ) + listOf(
+        ) + KitePlatform.entries.flatMap { platform ->
+            val block = ext.platformExtension(platform)
+            listOf(
+                block.appName, block.appId,
+                block.appNameDetails.enabled,
+                block.appIdDetails.suffix, block.appIdDetails.enabled,
+            )
+        } + listOf(
             ext.ios.deploymentTarget, ext.ios.pbxproj, ext.ios.podfile,
             ext.ios.infoPlist, ext.ios.appDirectory, ext.ios.appIconDirectory,
         ) + listOf(

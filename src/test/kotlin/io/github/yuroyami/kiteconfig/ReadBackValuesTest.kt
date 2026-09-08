@@ -33,14 +33,14 @@ class ReadBackValuesTest {
     fun `identity reads back with its platform suffixes applied`() {
         val e = values()
         e.appName.set("Syncplay")
-        e.id("com.example.app") {
-            android { suffix.set(".droid") }
-        }
+        e.appId.set("com.example.app")
+        e.android.appId { suffix.set(".droid") }
         val read: KiteConfigValues = e
 
         assertEquals("Syncplay", read.appName.get())
         assertEquals("Syncplay", read.appNameFor(KitePlatform.ANDROID).get())
-        assertEquals("com.example.app", read.id.get())
+        assertEquals("com.example.app", read.appId.get())
+        assertEquals("com.example.app.droid", read.appIdFor(KitePlatform.ANDROID).get())
         assertEquals("com.example.app.droid", read.androidApplicationId.get())
         assertEquals("com.example.app", read.iosBundleId.get())
         assertEquals("com.example.app", read.desktopBundleId.get())

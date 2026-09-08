@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1254 1254" role="img" aria-labelledby="kiteconfig-icon-title kiteconfig-icon-desc" preserveAspectRatio="xMidYMid meet">
+  <title id="kiteconfig-icon-title">KiteConfig compact icon</title>
+  <desc id="kiteconfig-icon-desc">A compact K-shaped multiplatform configuration route with an Android-green twin antenna endpoint and a blue native-mobile endpoint.</desc>
+  <defs>
+    <linearGradient id="kci-spine" x1="286" y1="125" x2="405" y2="1129" gradientUnits="userSpaceOnUse"><stop stop-color="#7B61FF"/><stop offset=".38" stop-color="#CD19C7"/><stop offset=".7" stop-color="#9738C3"/><stop offset="1" stop-color="#F04A59"/></linearGradient>
+    <linearGradient id="kci-android" x1="0" y1="0" x2="720" y2="0" gradientUnits="userSpaceOnUse"><stop stop-color="#C41CCB"/><stop offset=".54" stop-color="#8659EC"/><stop offset=".8" stop-color="#48BE9F"/><stop offset="1" stop-color="#3DDC84"/></linearGradient>
+    <linearGradient id="kci-native" x1="0" y1="0" x2="740" y2="0" gradientUnits="userSpaceOnUse"><stop stop-color="#C21CCB"/><stop offset=".53" stop-color="#765CEB"/><stop offset=".81" stop-color="#5D92EE"/><stop offset="1" stop-color="#82C3FA"/></linearGradient>
+    <clipPath id="kci-spine-clip"><path d="M304 124H374Q407 124 407 157V1098Q407 1131 374 1131H304Q271 1131 271 1098V157Q271 124 304 124Z"/></clipPath>
+  </defs>
+  <path d="M279 90H399Q440 90 440 131V1123Q440 1164 399 1164H279Q238 1164 238 1123V131Q238 90 279 90Z" fill="#45105E"/>
+  <path d="M304 124H374Q407 124 407 157V1098Q407 1131 374 1131H304Q271 1131 271 1098V157Q271 124 304 124Z" fill="url(#kci-spine)"/>
+  <g clip-path="url(#kci-spine-clip)"><path d="M271 124H407V216L337 177L271 239Z" fill="#D21AC6"/><path d="M271 124L337 177L296 239L271 249Z" fill="#7A63FF"/><path d="M337 177L407 216V266L296 239Z" fill="#F14958"/></g>
+  <g transform="translate(346 621) rotate(-36)">
+    <path d="M-34-94H643Q691-94 716-58Q743-19 723 29Q703 76 651 91L612 94H-34Z" fill="#45105E"/><path d="M0-63H626Q658-63 677-41Q700-13 685 20Q672 50 636 60L600 63H0Z" fill="url(#kci-android)"/>
+    <path d="M571-54C585-90 591-119 591-151M642-50C671-78 689-102 700-131" fill="none" stroke="#45105E" stroke-width="56" stroke-linecap="round"/><path d="M571-54C584-88 588-116 588-147M642-50C668-76 686-100 697-127" fill="none" stroke="#70EBA8" stroke-width="31" stroke-linecap="round"/>
+  </g>
+  <g transform="translate(346 629) rotate(35)">
+    <path d="M-34-94H640Q684-94 709-60Q740-19 719 31Q699 79 646 92L610 94H-34Z" fill="#45105E"/><path d="M0-63H625Q653-63 672-43Q697-14 682 19Q669 50 632 60L599 63H0Z" fill="url(#kci-native)"/><path d="M601 33H661" fill="none" stroke="#FFF" stroke-width="19" stroke-linecap="round"/>
+  </g>
+  <circle cx="346" cy="625" r="28" fill="#45105E"/><circle cx="346" cy="625" r="11" fill="#F9F0FF"/>
+</svg>

@@ -181,7 +181,7 @@ Renames and moves, hard break with no deprecation bridge:
 
 ## [3.0.1]
 
-An external audit (SOLAUDIT.md) reviewed the 3.0.0 source. These are the
+An external audit reviewed the 3.0.0 source. These are the
 safety-critical findings from it, with the reported behaviour reproduced as a
 failing test first in every case.
 

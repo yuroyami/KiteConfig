@@ -31,19 +31,20 @@ class ReadBackBoundaryTest {
     }
 
     @Test
-    fun `the interface exposes all eighteen values`() {
+    fun `the interface exposes every resolved value`() {
         val names = members().map { it.name }.toSet()
 
         val expected = setOf(
             "getVersion", "getVersionCode", "getIosBuildNumber",
             "getIosMarketingVersion", "getDesktopBuildNumber",
-            "getAppName", "appNameFor", "getId", "getAndroidApplicationId",
-            "getIosBundleId", "getDesktopBundleId",
+            "getAppName", "appNameFor", "getAppId", "appIdFor",
+            "getAndroidApplicationId", "getIosBundleId", "getDesktopBundleId",
             "getCanonicalLocales", "getJvmTarget", "getResolvedSharedProjectPath",
             "getMinSdk", "getTargetSdk", "getCompileSdk", "getNdk",
         )
 
-        assertEquals(18, expected.size)
+        assertEquals(19, expected.size)
         assertTrue(names.containsAll(expected), "missing: ${expected - names}")
+        assertEquals(emptySet<String>(), names - expected, "undocumented member: ${names - expected}")
     }
 }

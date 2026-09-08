@@ -86,7 +86,7 @@ internal fun KiteConfigExtension.resolveAgp8Inputs(project: org.gradle.api.Proje
     val applyVersion = appScoped &&
         (resolve("the version values") { versionFlowsTo(KitePlatform.ANDROID).get() } ?: false)
     val applyApplicationId = appScoped &&
-        (resolve("applicationId") { idFlowsTo(KitePlatform.ANDROID).get() && id.isPresent } ?: false)
+        (resolve("applicationId") { appIdFlowsTo(KitePlatform.ANDROID).get() && appId.isPresent } ?: false)
     val applicationId = if (applyApplicationId) {
         resolve("applicationId") { androidApplicationId.orNull }
     } else {

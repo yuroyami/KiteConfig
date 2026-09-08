@@ -1,35 +1,30 @@
 package io.github.yuroyami.kiteconfig
 
-import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.Property
-import javax.inject.Inject
 
 /**
- * Details for [KiteConfigExtension.appName]: per-platform name overrides
- * and flow modifiers. `android("x")` overrides the shown name there.
+ * Details for a platform's [KitePlatformExtension.appName], inside
+ * `kiteConfig { android { appName { ... } } }`.
  *
- * | member | meaning | default | flow class |
- * |---|---|---|---|
- * | `android("v")` / `ios("v")` / `desktop("v")` | that platform shows its own name | base value | memory |
- * | `skip(p)` / `only(p)` | flow control | flow everywhere | n/a |
+ * The name itself is the scalar next to this block. This block only decides
+ * whether the platform receives it.
+ *
+ * | member | meaning | default |
+ * |---|---|---|
+ * | `enabled` | deliver the app name to this platform | true |
+ *
+ * ```kotlin
+ * kiteConfig {
+ *     appName = "Jetzy"
+ *     ios { appName { enabled = false } }   // iOS keeps whatever it has
+ * }
+ * ```
+ *
+ * Turning delivery off keeps the value readable. `kiteConfig.appNameFor(IOS)`
+ * still answers; only the write to the iOS project stops.
  */
-abstract class KiteAppNameScope @Inject constructor(objects: ObjectFactory) : KiteFlowScope() {
+abstract class KiteAppNameScope {
 
-    /** A platform word usable two ways: `ios("value")` and `skip(ios)`. */
-    class NameToken internal constructor(
-        override val platform: KitePlatform,
-        internal val override: Property<String>,
-    ) : KitePlatformRef {
-        operator fun invoke(value: String) = override.set(value)
-    }
-
-    val android: NameToken = NameToken(KitePlatform.ANDROID, objects.property(String::class.java))
-    val ios: NameToken = NameToken(KitePlatform.IOS, objects.property(String::class.java))
-    val desktop: NameToken = NameToken(KitePlatform.DESKTOP, objects.property(String::class.java))
-
-    internal fun overrideFor(p: KitePlatform): Property<String> = when (p) {
-        KitePlatform.ANDROID -> android.override
-        KitePlatform.IOS -> ios.override
-        KitePlatform.DESKTOP -> desktop.override
-    }
+    /** Deliver the effective app name to this platform. Default: `true`. */
+    abstract val enabled: Property<Boolean>
 }

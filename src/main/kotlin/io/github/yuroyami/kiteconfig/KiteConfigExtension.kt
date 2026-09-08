@@ -28,8 +28,8 @@ import org.gradle.api.provider.Provider
  * ```kotlin
  * kiteConfig {
  *     appName = "Jetzy"
+ *     appId   = "com.example.jetzy"
  *     version = "1.4.0"
- *     id      = "com.example.jetzy"
  * }
  * ```
  *
@@ -40,18 +40,10 @@ import org.gradle.api.provider.Provider
  *
  * ```kotlin
  * kiteConfig {
- *     appName("Jetzy") {
- *         ios("Jetzy Lite")          // platform value override
- *         skip(desktop)              // this fact does not flow there
- *     }
+ *     appName = "Jetzy"
+ *     appId   = "com.example.jetzy"
  *
  *     jvmTarget = 21                 // Java + Kotlin JVM level, whole build
- *
- *     id("com.example.jetzy") {
- *         android { suffix = ".android" }   // applicationId = base + suffix
- *         ios     { suffix = ".ios" }       // bundle id     = base + suffix
- *         desktop { suffix = ".desktop" }
- *     }
  *
  *     version("1.4.0") {
  *         // formula { v -> ... }        // optional: your own build-number formula
@@ -88,9 +80,13 @@ import org.gradle.api.provider.Provider
  *         add("kotlinx.cinterop.ExperimentalForeignApi")
  *     }
  *
- *     android { sdk(min = 26, target = 36, compile = 36) }
+ *     android {
+ *         appId { suffix = ".android" }  // applicationId = appId + suffix
+ *         sdk(min = 26, target = 36, compile = 36)
+ *     }
  *
  *     ios {
+ *         appName = "Jetzy Lite"         // only this platform differs
  *         deploymentTarget = "15.0"
  *         rewrite {                      // arms kiteRewriteXcode (source edits)
  *             targets("iosApp")
@@ -98,7 +94,10 @@ import org.gradle.api.provider.Provider
  *         }
  *     }
  *
- *     desktop { linuxPackageName = "jetzy" }
+ *     desktop {
+ *         appId { suffix = ".desktop" }
+ *         linuxPackageName = "jetzy"
+ *     }
  *
  *     web { ioWorker { targets("js") } }
  *
@@ -119,12 +118,12 @@ import org.gradle.api.provider.Provider
  *
  * | You can inject | Works in | Meaning |
  * |---|---|---|
- * | `skip(p...)` / `only(p...)` | root, `appName`, `id`, `version`, `locales`, `logo`, `splash` | flow control, at root = platform master |
- * | `android("v")` / `ios("v")` / `desktop("v")` | `appName` | platform value override |
- * | `android { }` / `ios { }` / `desktop { }` corner | `id`, `version`, `logo` | platform detail scope |
+ * | `skip(p...)` / `only(p...)` | root, `version`, `locales`, `logo`, `splash` | flow control, at root = platform master |
+ * | `appName` / `appId` | `android`, `ios`, `desktop` | that platform's own value |
+ * | `appId { suffix }` | `android`, `ios`, `desktop` | appended to the shared `appId` |
+ * | `android { }` / `ios { }` / `desktop { }` corner | `version`, `logo` | platform detail scope |
  * | `pin` | `version` corners, `locales` | manual value, machinery skipped |
  * | `reupload`, `shipped`, `formula` | `version` and its corners | store counter, guard floor, number formula |
- * | `suffix` | `id` corners | appended to the base id |
  * | `rewrite { }` | `logo`, `splash`, `ios` | the only acting word, arms a task |
  * | `dark { }` | `splash` | dark-mode variant |
  * | typed `*Field(...)` | `buildConfig` | generated constants |
@@ -172,21 +171,31 @@ abstract class KiteConfigExtension : KiteFlowScope(), KiteConfigValues {
      */
     abstract override val appName: Property<String>
 
-    /** Detailed form of [appName]: per-platform overrides and flow modifiers. */
-    fun appName(value: String, action: Action<in KiteAppNameScope>) {
-        if (appName.isPresent) doubleSetWarnings.add("appName")
-        appName.set(value)
-        action.execute(appNameScope)
+    /**
+     * The reverse-DNS identifier shared by every platform.
+     *
+     * A platform appends to it with `android { appId { suffix } }`, or replaces
+     * it outright with `ios { appId = "..." }`.
+     */
+    abstract override val appId: Property<String>
+
+    /** The platform block that holds this platform's differences and native settings. */
+    internal fun platformExtension(p: KitePlatform): KitePlatformExtension = when (p) {
+        KitePlatform.ANDROID -> android
+        KitePlatform.IOS -> ios
+        KitePlatform.DESKTOP -> desktop
     }
 
-    internal val appNameScope: KiteAppNameScope
-        get() = nested()
-
-    /** Facts set twice through mixed forms; kiteDoctor warns on these. */
-    internal abstract val doubleSetWarnings: org.gradle.api.provider.SetProperty<String>
-
     internal fun effectiveAppNameFor(p: KitePlatform): Provider<String> =
-        appNameScope.overrideFor(p).orElse(appName)
+        platformExtension(p).appName.orElse(appName)
+
+    /** A platform's own identifier, otherwise the shared base plus that platform's suffix. */
+    internal fun effectiveAppIdFor(p: KitePlatform): Provider<String> {
+        val platform = platformExtension(p)
+        return platform.appId.orElse(
+            appId.zip(platform.appIdDetails.suffix.orElse("")) { base, suffix -> base + suffix },
+        )
+    }
 
     // ------------------------------------------------------------------ Splash
 
@@ -231,7 +240,14 @@ abstract class KiteConfigExtension : KiteFlowScope(), KiteConfigValues {
             .zip(splashFlowsTo(KitePlatform.IOS)) { on, flows -> on && flows }
 
     internal fun appNameFlowsTo(p: KitePlatform): Provider<Boolean> =
-        flowsTo(p).zip(appNameScope.flowsTo(p)) { root, topic -> root && topic }
+        flowsTo(p).zip(platformExtension(p).appNameDetails.enabled.orElse(true)) { selected, delivered ->
+            selected && delivered
+        }
+
+    internal fun appIdFlowsTo(p: KitePlatform): Provider<Boolean> =
+        flowsTo(p).zip(platformExtension(p).appIdDetails.enabled.orElse(true)) { selected, delivered ->
+            selected && delivered
+        }
 
     /**
      * The release version you show to users, as `x.y.z`.
@@ -378,45 +394,26 @@ abstract class KiteConfigExtension : KiteFlowScope(), KiteConfigValues {
 
     // ------------------------------------------------------ Derived, read-only
 
-    /** Reverse-DNS id base shared by every platform. Simple form of [id]. */
-    abstract override val id: Property<String>
-
-    /** Detailed form of [id]: per-platform suffix corners and flow modifiers. */
-    fun id(value: String, action: Action<in KiteIdScope>) {
-        if (id.isPresent) doubleSetWarnings.add("id")
-        id.set(value)
-        action.execute(idScope)
-    }
-
-    internal val idScope: KiteIdScope
-        get() = nested()
-
-    // Transition bridge: falls back to the 2.x/3.0 chains until the purge task
-    // deletes them. New surface wins wherever both are set.
-    internal fun effectiveIdFor(p: KitePlatform): Provider<String> {
-        val base = id
-        return base.zip(idScope.suffixFor(p).orElse("")) { b, s -> b + s }
-    }
-
-    internal fun idFlowsTo(p: KitePlatform): Provider<Boolean> =
-        flowsTo(p).zip(idScope.flowsTo(p)) { root, topic -> root && topic }
-
-    /** Android application id: [id] plus its android corner suffix. */
+    /** Android application id: the effective [appId] for Android. */
     override val androidApplicationId: Provider<String>
-        get() = effectiveIdFor(KitePlatform.ANDROID)
+        get() = effectiveAppIdFor(KitePlatform.ANDROID)
 
-    /** Apple bundle id: [id] plus its ios corner suffix. */
+    /** Apple bundle id: the effective [appId] for iOS. */
     override val iosBundleId: Provider<String>
-        get() = effectiveIdFor(KitePlatform.IOS)
+        get() = effectiveAppIdFor(KitePlatform.IOS)
 
     /**
-     * Desktop bundle id: [id] plus its desktop corner suffix.
+     * Desktop bundle id: the effective [appId] for desktop.
      *
      * @throws org.gradle.api.GradleException when read, if the result is not a
      *   valid reverse-DNS identifier.
      */
     override val desktopBundleId: Provider<String>
-        get() = effectiveIdFor(KitePlatform.DESKTOP).map(::validateAppleBundleId)
+        get() = effectiveAppIdFor(KitePlatform.DESKTOP).map(::validateAppleBundleId)
+
+    /** The identifier [platform] receives, suffix or exact override applied. */
+    override fun appIdFor(platform: KitePlatform): Provider<String> =
+        effectiveAppIdFor(platform)
 
     /** The resolved Android `versionCode` for this build. */
     override val versionCode: Provider<Int>
@@ -500,7 +497,7 @@ abstract class KiteConfigExtension : KiteFlowScope(), KiteConfigValues {
             .zip(gate(KitePlatform.DESKTOP)) { x, d -> x || d }
 
     internal fun appNameFlowsAnywhere(): Provider<Boolean> = anywhere(::appNameFlowsTo)
-    internal fun idFlowsAnywhere(): Provider<Boolean> = anywhere(::idFlowsTo)
+    internal fun appIdFlowsAnywhere(): Provider<Boolean> = anywhere(::appIdFlowsTo)
     internal fun localesFlowsAnywhere(): Provider<Boolean> = anywhere(::localesFlowsTo)
 
     internal val effectiveLocales: Provider<List<String>>
@@ -569,7 +566,6 @@ abstract class KiteConfigExtension : KiteFlowScope(), KiteConfigValues {
 
     /** Detailed form of [version]: the shared formula and platform corners. */
     fun version(value: String, action: Action<in KiteVersionScope>) {
-        if (version.isPresent) doubleSetWarnings.add("version")
         version.set(value)
         action.execute(versionScope)
     }

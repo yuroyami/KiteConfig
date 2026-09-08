@@ -7,7 +7,8 @@ import org.gradle.api.provider.Property
  *
  * ```kotlin
  * kiteConfig {
- *     id("com.example.jetzy") { android { suffix = ".debug" } }
+ *     appId = "com.example.jetzy"
+ *     android { appId { suffix = ".debug" } }
  *     version("1.4.0") { android { reupload = 1 } }
  *
  *     android {
@@ -17,7 +18,7 @@ import org.gradle.api.provider.Property
  * ```
  *
  * Shared truth stays at root. This block holds only the Android SDK and NDK
- * levels. The id suffix lives in `id("base") { android { suffix } }`, and the
+ * levels. The identifier suffix lives in `android { appId { suffix } }`, and the
  * build-number dials live in `version("x") { android { } }`.
  *
  * The resolved application id is readable as `kiteConfig.androidApplicationId`:
@@ -55,7 +56,7 @@ import org.gradle.api.provider.Property
  * @see KiteConfigIosExtension for the Apple half of the same identity.
  * @see KiteConfigModulesExtension.androidApps when more than one module is an application.
  */
-abstract class KiteConfigAndroidExtension : KitePlatformRef {
+abstract class KiteConfigAndroidExtension : KitePlatformExtension() {
 
     final override val platform: KitePlatform = KitePlatform.ANDROID
 

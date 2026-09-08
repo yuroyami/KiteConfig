@@ -11,7 +11,8 @@ import org.gradle.api.provider.Property
  * ```kotlin
  * kiteConfig {
  *     appName = "Jetzy"
- *     id("com.example.jetzy") { desktop { suffix = ".desktop" } }
+ *     appId = "com.example.jetzy"
+ *     desktop { appId { suffix = ".desktop" } }
  *     version("1.4.0") { desktop { reupload = 2 } }
  * }
  * ```
@@ -37,7 +38,7 @@ import org.gradle.api.provider.Property
  * @see KiteVersionScope.formula for the build-number formula every platform shares.
  * @see KiteConfigLogoExtension for the art that becomes installer icons.
  */
-abstract class KiteConfigDesktopExtension : KitePlatformRef {
+abstract class KiteConfigDesktopExtension : KitePlatformExtension() {
 
     final override val platform: KitePlatform = KitePlatform.DESKTOP
 

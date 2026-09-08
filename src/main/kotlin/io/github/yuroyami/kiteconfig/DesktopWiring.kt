@@ -184,7 +184,7 @@ internal object DesktopWiring {
             }
         }
         project.wireValueGroup(resilient, "the desktop bundle identifier") {
-            if (ext.idFlowsTo(KitePlatform.DESKTOP).get() && ext.id.isPresent) {
+            if (ext.appIdFlowsTo(KitePlatform.DESKTOP).get() && ext.appId.isPresent) {
                 val applied = ext.desktopBundleId.get()
                 drift.observe("macOS.bundleID", macOS.bundleID, applied)
                 macOS.bundleID = applied
@@ -232,10 +232,10 @@ internal object DesktopWiring {
         project.wireValueGroup(resilient, "the Windows upgrade code") {
             val windows = distributions.windows
             if (windows.upgradeUuid != null) return@wireValueGroup
-            if (ext.idFlowsTo(KitePlatform.DESKTOP).get() && ext.desktop.deriveUpgradeUuid.getOrElse(false) &&
-                ext.id.isPresent
+            if (ext.appIdFlowsTo(KitePlatform.DESKTOP).get() && ext.desktop.deriveUpgradeUuid.getOrElse(false) &&
+                ext.appId.isPresent
             ) {
-                windows.upgradeUuid = deriveUpgradeUuid(ext.id.get())
+                windows.upgradeUuid = deriveUpgradeUuid(ext.appId.get())
             }
         }
         if (iconTask != null) {

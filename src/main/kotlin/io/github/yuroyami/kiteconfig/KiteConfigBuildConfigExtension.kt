@@ -15,7 +15,7 @@ import javax.inject.Inject
  * kiteConfig {
  *     appName = "Jetzy"
  *     version = "1.4.0"
- *     id = "com.example.jetzy"
+ *     appId = "com.example.jetzy"
  *     modules { shared = ":shared" }
  *
  *     buildConfig {
