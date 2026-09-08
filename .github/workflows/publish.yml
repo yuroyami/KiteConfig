@@ -241,6 +241,7 @@ jobs:
             echo "No notes file for $GITHUB_REF_NAME; generating notes."
           fi
           gh release create "$GITHUB_REF_NAME" \
+            --title "KiteConfig $KITE_CONFIG_VERSION" \
             build/libs/*.jar \
             build/libs/*.asc \
             build/artifact-checksums.sha256 \
