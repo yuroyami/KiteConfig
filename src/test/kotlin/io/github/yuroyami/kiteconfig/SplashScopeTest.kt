@@ -98,6 +98,26 @@ class SplashScopeTest {
         assertFalse(e.effectiveDesktopSplash.get())
     }
 
+    /**
+     * An excluded platform's values are never read, not merely ignored. A
+     * provider that would throw proves it: if anything asked, this test fails
+     * with that message instead of passing.
+     */
+    @Test
+    fun `an excluded platform's own providers are never queried`() {
+        val project = ProjectBuilder.builder().build()
+        project.plugins.apply(KiteConfigPlugin::class.java)
+        val e = project.extensions.getByType(KiteConfigExtension::class.java)
+
+        e.skip(e.desktop)
+        e.desktop.splash {
+            enabled.set(project.provider { error("the excluded desktop splash gate was read") })
+            backgroundColor.set(project.provider { error("the excluded desktop splash color was read") })
+        }
+
+        assertFalse(e.effectiveDesktopSplash.get())
+    }
+
     @Test
     fun `iOS follows the same switch as everyone else`() {
         val e = ext()

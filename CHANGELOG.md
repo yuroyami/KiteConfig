@@ -149,6 +149,10 @@ value of your own that the merge replaces, instead of asking you to add a line.
 
 ### Fixed
 
+- **An excluded platform's own values are never read.** Every platform gate
+  resolved both sides before deciding, so `skip(desktop)` still queried the
+  desktop block. A provider that threw took down a build that had already
+  excluded the platform it belonged to.
 - **The Android splash resources reach an AGP 9 build.** They were added through
   the old source-set API, which AGP 9 refuses for generated output, so any
   project with the splash on failed to configure.

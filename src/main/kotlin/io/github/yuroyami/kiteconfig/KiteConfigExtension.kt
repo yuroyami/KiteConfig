@@ -204,11 +204,21 @@ public abstract class KiteConfigExtension : KiteFlowScope(), KiteConfigValues {
         get() = nested()
 
     /** Turned on for [p] when that platform, or the root, asked for a launch screen. */
+    /**
+     * True only when the root selected [p] AND that platform's own gate says so.
+     *
+     * `flatMap`, not `zip`: `zip` resolves both sides before deciding, so an
+     * excluded platform's own providers would still be read, and a provider that
+     * throws would take down a build that had already excluded it.
+     */
+    private fun gated(p: KitePlatform, delivered: () -> Provider<Boolean>): Provider<Boolean> =
+        flowsTo(p).flatMap { selected -> if (selected) delivered() else providers.provider { false } }
+
     internal fun splashEnabledFor(p: KitePlatform): Provider<Boolean> =
         platformExtension(p).splashDetails.enabled.orElse(splash.enabled).orElse(false)
 
     internal fun splashFlowsTo(p: KitePlatform): Provider<Boolean> =
-        flowsTo(p).zip(splashEnabledFor(p)) { selected, on -> selected && on }
+        gated(p) { splashEnabledFor(p) }
 
     /** Splash art for [p]: its own, the shared one, otherwise that platform's logo. */
     internal fun effectiveSplashImageFor(p: KitePlatform): Provider<org.gradle.api.file.RegularFile> =
@@ -263,14 +273,10 @@ public abstract class KiteConfigExtension : KiteFlowScope(), KiteConfigValues {
         get() = splashFlowsTo(KitePlatform.IOS)
 
     internal fun appNameFlowsTo(p: KitePlatform): Provider<Boolean> =
-        flowsTo(p).zip(platformExtension(p).appNameDetails.enabled.orElse(true)) { selected, delivered ->
-            selected && delivered
-        }
+        gated(p) { platformExtension(p).appNameDetails.enabled.orElse(true) }
 
     internal fun appIdFlowsTo(p: KitePlatform): Provider<Boolean> =
-        flowsTo(p).zip(platformExtension(p).appIdDetails.enabled.orElse(true)) { selected, delivered ->
-            selected && delivered
-        }
+        gated(p) { platformExtension(p).appIdDetails.enabled.orElse(true) }
 
     /**
      * The release version you show to users, as `x.y.z`.
@@ -414,10 +420,7 @@ public abstract class KiteConfigExtension : KiteFlowScope(), KiteConfigValues {
 
     /** The topic is on for [p] once art exists, unless that platform turned it off. */
     internal fun logoFlowsTo(p: KitePlatform): Provider<Boolean> =
-        flowsTo(p)
-            .zip(platformExtension(p).logoDetails.enabled.orElse(logoDeclared)) { selected, on ->
-                selected && on
-            }
+        gated(p) { platformExtension(p).logoDetails.enabled.orElse(logoDeclared) }
 
     /** The shared plate color, absent when the shared background is an image. */
     internal val rootLogoBackgroundColor: Provider<String>
@@ -586,9 +589,7 @@ public abstract class KiteConfigExtension : KiteFlowScope(), KiteConfigValues {
         get() = nested()
 
     internal fun localesFlowsTo(p: KitePlatform): Provider<Boolean> =
-        flowsTo(p).zip(platformExtension(p).localesDetails.enabled.orElse(true)) { selected, delivered ->
-            selected && delivered
-        }
+        gated(p) { platformExtension(p).localesDetails.enabled.orElse(true) }
 
     /** The tags [p] ships: its own list if it declared one, otherwise the shared list. */
     internal fun effectiveLocalesFor(p: KitePlatform): Provider<List<String>> =
@@ -679,9 +680,7 @@ public abstract class KiteConfigExtension : KiteFlowScope(), KiteConfigValues {
         get() = nested()
 
     internal fun versionFlowsTo(p: KitePlatform): Provider<Boolean> =
-        flowsTo(p).zip(platformExtension(p).versionDetails.enabled.orElse(true)) { selected, delivered ->
-            selected && delivered
-        }
+        gated(p) { platformExtension(p).versionDetails.enabled.orElse(true) }
 
     /** The release version [p] shows, its own if it set one. */
     internal fun effectiveVersionFor(p: KitePlatform): Provider<String> =

@@ -1091,34 +1091,40 @@ configuration-cache reuse check.
 
 - [ ] The minimal example builds an Android app, an iOS framework, and a
       desktop package from a fresh KMP wizard project with no other
-      configuration.
-- [ ] `appId` is the only identifier name in the DSL, the read-back view, the
+      configuration. **Not verified.** Every piece has a fixture, but nothing
+      runs the whole wizard project end to end, so this is a claim the test
+      suite does not make.
+- [x] `appId` is the only identifier name in the DSL, the read-back view, the
       diagnostics, and the docs.
-- [ ] Every shared topic has the same name and shape at the root and inside
+- [x] Every shared topic has the same name and shape at the root and inside
       each platform block; a platform value beats a root value regardless of
       declaration order.
-- [ ] `ios { jvm { } }` does not compile. `android { skip(ios) }` does not
+- [x] `ios { jvm { } }` does not compile. `android { skip(ios) }` does not
       compile.
-- [ ] An empty or art-only `splash { }` produces no output on any platform.
-- [ ] Root `skip(desktop)` wins over `desktop { splash { enabled = true } }`
+- [x] An empty or art-only `splash { }` produces no output on any platform.
+- [x] Root `skip(desktop)` wins over `desktop { splash { enabled = true } }`
       and reads no desktop provider.
 - [ ] `logo { foreground }` plus `autoApply = true` installs and references the
-      icon on Android, iOS, and desktop with no other line.
-- [ ] `splash { enabled = true }` plus `autoApply = true` installs the launch
+      icon on Android, iOS, and desktop with no other line. **Installs, does not
+      reference.** Android still needs `android:icon="@mipmap/ic_launcher"` in
+      the manifest, for the reason section 8 gives: an overlay attribute naming
+      a resource that `kiteApply` has to install first would turn a plain build
+      into an `aapt2` error. The doctor still checks that line.
+- [x] `splash { enabled = true }` plus `autoApply = true` installs the launch
       screen on every platform; setting it back to false removes the plugin's
       own integration on the next apply.
-- [ ] No example in the docs contains `rewrite`, a per-installer flag, or a
+- [x] No example in the docs contains `rewrite`, a per-installer flag, or a
       manual task name, except the section that describes `kiteApply`.
-- [ ] `VersionSchemes.DEFAULT` produces the same numbers as 1.0.0 on every
+- [x] `VersionSchemes.DEFAULT` produces the same numbers as 1.0.0 on every
       platform.
-- [ ] A module with Java and Kotlin sources compiles with `jvm { target }`.
-- [ ] Re-running `kiteApply` on an applied tree changes no file and no
+- [x] A module with Java and Kotlin sources compiles with `jvm { target }`.
+- [x] Re-running `kiteApply` on an applied tree changes no file and no
       timestamp.
-- [ ] An Android build never modifies an iOS file.
-- [ ] Section 8 records the measured Xcode behavior, first and second build.
-- [ ] `kiteCheck`, `kiteDoctor`, `kitePlan`, `kiteVerify`, and a normal build
+- [x] An Android build never modifies an iOS file.
+- [x] Section 8 records the measured Xcode behavior, first and second build.
+- [x] `kiteCheck`, `kiteDoctor`, `kitePlan`, `kiteVerify`, and a normal build
       report the same findings, and none of them writes a source file.
-- [ ] `./gradlew build`, `checkKotlinAbi`, `agpCompatibilityTest`, and a
+- [x] `./gradlew build`, `checkKotlinAbi`, `agpCompatibilityTest`, and a
       second configuration-cache run all pass.
 
 ## 17. Decisions and why

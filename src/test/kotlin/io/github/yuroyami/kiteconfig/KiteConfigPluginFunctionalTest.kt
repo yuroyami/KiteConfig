@@ -191,6 +191,56 @@ class KiteConfigPluginFunctionalTest {
     """.trimIndent()
 
     /**
+     * Four ways to ask the same question have to give the same answer, and none
+     * of them may change a file on the way. A diagnostic that disagrees with the
+     * build it describes is worse than no diagnostic.
+     */
+    @Test
+    fun `every diagnostic agrees with the build and none of them writes a file`() {
+        writeBothPlatformFixture(bothPlatforms)
+        // The launcher icon is the one <application> attribute the overlay does
+        // not supply, because it names a resource kiteApply has to install first.
+        write(
+            "androidApp/src/main/AndroidManifest.xml",
+            """
+            <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+                <application
+                    android:icon="@mipmap/ic_launcher"
+                    android:roundIcon="@mipmap/ic_launcher_round" />
+            </manifest>
+            """.trimIndent(),
+        )
+        run("kiteApply")
+
+        val watched = listOf(
+            "androidApp/src/main/AndroidManifest.xml",
+            "iosApp/iosApp/Info.plist",
+            "iosApp/iosApp.xcodeproj/project.pbxproj",
+        )
+        val before = watched.associateWith { File(projectDir, it).readText() }
+
+        // kitePlan and kiteDoctor report; kiteVerify and kiteCheck also gate.
+        val plan = run("kitePlan")
+        val doctor = run("kiteDoctor")
+        val verify = run("kiteVerify")
+        val check = run("kiteCheck")
+
+        for (output in listOf(plan.output, doctor.output, verify.output, check.output)) {
+            assertTrue(output.contains("BUILD SUCCESSFUL"), output)
+        }
+        // The same model, so the same verdict on the same rule.
+        assertTrue(doctor.output.contains("KTCNFG100"), doctor.output)
+        assertTrue(check.output.contains("KTCNFG100"), check.output)
+
+        for (path in watched) {
+            assertEquals(before[path], File(projectDir, path).readText(), "a diagnostic wrote $path")
+        }
+
+        // And the same configuration a diagnostic accepted still builds.
+        assertTrue(run("help").output.contains("BUILD SUCCESSFUL"))
+    }
+
+    /**
      * A second apply must be a true no-op.
      *
      * Byte equality alone would pass while every file was rewritten with the same

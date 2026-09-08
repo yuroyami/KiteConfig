@@ -48,4 +48,35 @@ class RootFlowTest {
         assertTrue(e.appIdFlowsTo(KitePlatform.IOS).get())
         assertTrue(e.appNameFlowsTo(KitePlatform.ANDROID).get())
     }
+
+    /**
+     * An excluded platform's own providers are never read, not merely ignored.
+     *
+     * The gates used to combine both sides with `zip`, which resolves them both
+     * before deciding. A provider that throws proves the difference: if any gate
+     * still asked, this fails with that provider's message rather than passing.
+     */
+    @Test
+    fun `an excluded platform's own gates are never queried`() {
+        val project = ProjectBuilder.builder().build()
+        project.plugins.apply(KiteConfigPlugin::class.java)
+        val e = project.extensions.getByType(KiteConfigExtension::class.java)
+
+        fun exploding(topic: String) = project.provider<Boolean> { error("read the excluded desktop $topic") }
+
+        e.skip(e.desktop)
+        e.desktop.appName { enabled.set(exploding("appName")) }
+        e.desktop.appId { enabled.set(exploding("appId")) }
+        e.desktop.version { enabled.set(exploding("version")) }
+        e.desktop.locales { enabled.set(exploding("locales")) }
+        e.desktop.logo { enabled.set(exploding("logo")) }
+        e.desktop.splash { enabled.set(exploding("splash")) }
+
+        assertFalse(e.appNameFlowsTo(KitePlatform.DESKTOP).get())
+        assertFalse(e.appIdFlowsTo(KitePlatform.DESKTOP).get())
+        assertFalse(e.versionFlowsTo(KitePlatform.DESKTOP).get())
+        assertFalse(e.localesFlowsTo(KitePlatform.DESKTOP).get())
+        assertFalse(e.logoFlowsTo(KitePlatform.DESKTOP).get())
+        assertFalse(e.splashFlowsTo(KitePlatform.DESKTOP).get())
+    }
 }
