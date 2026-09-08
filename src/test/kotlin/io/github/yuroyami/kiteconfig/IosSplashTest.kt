@@ -7,7 +7,12 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.io.TempDir
+import org.gradle.api.GradleException
+import org.gradle.testfixtures.ProjectBuilder
+import java.awt.Color
 import java.awt.image.BufferedImage
+import java.io.File
 import java.nio.charset.StandardCharsets
 
 class IosSplashTest {
@@ -283,5 +288,101 @@ class IosSplashTest {
 
         assertNull(result.text)
         assertTrue(result.errors.any { it.contains("duplicate key") }, result.errors.toString())
+    }
+
+    // --- Installing into a real catalog -------------------------------------
+
+    @TempDir
+    lateinit var projectDir: File
+
+    private fun logger() = ProjectBuilder.builder().withProjectDir(projectDir).build().logger
+
+    private fun catalog(): File =
+        projectDir.resolve("iosApp/iosApp/Assets.xcassets").also { it.mkdirs() }
+
+    private fun install(assets: File, darkImage: BufferedImage?, backup: Boolean) =
+        writeIosSplashAssets(
+            assetsDir = assets,
+            rendered = renderIosSplashAssets(Color.RED, null, art(), darkImage),
+            projectRoot = projectDir,
+            backupRoot = projectDir.resolve(".kiteconfig/recovery/ios-splash"),
+            backup = backup,
+            logger = logger(),
+        )
+
+    private fun handWrittenSplashImage(assets: File, bytes: ByteArray): File {
+        val file = assets.resolve("$IOS_SPLASH_IMAGESET.imageset/$IOS_SPLASH_IMAGE_FILE")
+        file.parentFile.mkdirs()
+        file.writeBytes(bytes)
+        return file
+    }
+
+    /**
+     * The installer used to write each file directly, so a splash image someone
+     * made by hand was replaced with no recovery copy even with backups on.
+     */
+    @Test
+    fun `an unowned splash image is refused when there is nowhere to recover it`() {
+        val assets = catalog()
+        val mine = byteArrayOf(1, 2, 3, 4)
+        val handWritten = handWrittenSplashImage(assets, mine)
+
+        val failure = assertThrows(GradleException::class.java) {
+            install(assets, darkImage = null, backup = false)
+        }
+
+        assertTrue(failure.message.orEmpty().contains("unowned"), failure.message.orEmpty())
+        assertEquals(mine.toList(), handWritten.readBytes().toList())
+    }
+
+    @Test
+    fun `an unowned splash image is recovered before the installer claims it`() {
+        val assets = catalog()
+        val mine = byteArrayOf(1, 2, 3, 4)
+        val handWritten = handWrittenSplashImage(assets, mine)
+
+        install(assets, darkImage = null, backup = true)
+
+        assertFalse(handWritten.readBytes().toList() == mine.toList(), "the installer did not claim the path")
+        val recovered = projectDir.resolve(".kiteconfig/recovery/ios-splash")
+            .walkTopDown()
+            .filter { it.isFile }
+            .any { it.readBytes().toList() == mine.toList() }
+        assertTrue(recovered, "the replaced file was not copied into the recovery area")
+    }
+
+    /**
+     * A dark image installed once and then removed left its PNG behind after the
+     * catalog stopped referring to it.
+     */
+    @Test
+    fun `dropping the dark variant removes the image it owned`() {
+        val assets = catalog()
+        install(assets, darkImage = art(), backup = false)
+        val darkFile = assets.resolve("$IOS_SPLASH_IMAGESET.imageset/$IOS_SPLASH_DARK_IMAGE_FILE")
+        assertTrue(darkFile.isFile, "the dark image was never installed")
+
+        install(assets, darkImage = null, backup = false)
+
+        assertFalse(darkFile.exists(), "the dark image outlived the catalog entry that referenced it")
+        assertTrue(assets.resolve("$IOS_SPLASH_IMAGESET.imageset/$IOS_SPLASH_IMAGE_FILE").isFile)
+    }
+
+    @Test
+    fun `two catalogs in one project own their files separately`() {
+        val first = iosSplashCatalogIdentity(projectDir, projectDir.resolve("appOne/Assets.xcassets"))
+        val second = iosSplashCatalogIdentity(projectDir, projectDir.resolve("appTwo/Assets.xcassets"))
+
+        assertFalse(first == second, "two catalogs shared one ownership id")
+        assertTrue(first.startsWith("ios-splash-"), first)
+    }
+
+    @Test
+    fun `the ownership receipt stays outside the catalog Xcode reads`() {
+        val assets = catalog()
+        install(assets, darkImage = null, backup = false)
+
+        val strays = assets.walkTopDown().filter { it.isFile && it.path.contains(".kiteconfig") }.toList()
+        assertTrue(strays.isEmpty(), "receipt files landed inside the asset catalog: $strays")
     }
 }

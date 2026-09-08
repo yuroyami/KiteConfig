@@ -11,6 +11,7 @@ import java.io.File
 import java.io.StringReader
 import java.io.StringWriter
 import java.nio.charset.StandardCharsets
+import java.security.MessageDigest
 import java.util.Locale
 import javax.xml.XMLConstants
 import javax.xml.parsers.DocumentBuilderFactory
@@ -102,32 +103,71 @@ internal fun renderIosSplashAssets(
     return rendered
 }
 
-/** Install [rendered] under [assetsDir], returning how many files actually changed. */
+/**
+ * Owner id for the splash entries in one specific asset catalog.
+ *
+ * Two catalogs can share a directory name, so the id hashes the path relative to
+ * the project root. Each catalog then owns its own files and cannot claim
+ * another's.
+ */
+internal fun iosSplashCatalogIdentity(projectRoot: File, assetsDir: File): String {
+    val root = projectRoot.toPath().toAbsolutePath().normalize()
+    val output = assetsDir.toPath().toAbsolutePath().normalize()
+    require(output.startsWith(root)) { "iOS splash asset catalog is outside project root: $output" }
+    val relative = root.relativize(output).joinToString("/") { it.toString() }
+    val hash = MessageDigest.getInstance("SHA-256")
+        .digest(relative.toByteArray(StandardCharsets.UTF_8))
+        .take(10)
+        .joinToString("") { "%02x".format(it.toInt() and 0xff) }
+    return "ios-splash-$hash"
+}
+
+/** Where this catalog's splash ownership receipt lives, beside the catalog rather than inside it. */
+internal fun iosSplashManifestFile(assetsDir: File, identity: String): File =
+    (assetsDir.parentFile ?: assetsDir).resolve(".kiteconfig/$identity/owned-files-v1")
+
+/**
+ * Install [rendered] under [assetsDir] through the ownership machinery.
+ *
+ * The installer used to write each file directly, so an existing hand-made
+ * `KiteSplashImage.png` was replaced with no recovery copy even with backups on,
+ * and a dark image left behind by an earlier run was never cleaned up. Both are
+ * the ownership receipt's job: it refuses unknown or hand-edited content, and it
+ * removes the files this installer owns that the new set no longer contains.
+ *
+ * Returns the catalog-relative paths this installer now owns.
+ */
 internal fun writeIosSplashAssets(
     assetsDir: File,
     rendered: Map<String, ByteArray>,
+    projectRoot: File,
+    backupRoot: File,
     backup: Boolean,
     logger: Logger,
-): Int {
-    var written = 0
-    rendered.forEach { (relative, bytes) ->
-        val target = assetsDir.resolve(relative)
-        OwnedOutputSafety.requireSafePath(target, "iOS splash asset")
-        val changed = if (relative.endsWith(".json")) {
-            writeTextSafely(
-                target,
-                String(bytes, StandardCharsets.UTF_8),
-                backup,
-                dryRun = false,
-                logger = logger,
-                label = "iOS splash $relative",
-            )
-        } else {
-            writeBytesSafely(target, bytes, dryRun = false, logger = logger, label = "iOS splash $relative")
-        }
-        if (changed) written++
+): List<String> {
+    OwnedOutputSafety.requireSafePath(assetsDir, "iOS splash asset catalog")
+    val identity = iosSplashCatalogIdentity(projectRoot, assetsDir)
+    val manifest = iosSplashManifestFile(assetsDir, identity)
+    if (backup) {
+        OwnedOutputSafety.replaceInstalledFilesWithBackup(
+            installationRoot = assetsDir,
+            manifestFile = manifest,
+            backupRoot = backupRoot.resolve(identity),
+            projectRoot = projectRoot,
+            owner = identity,
+            files = rendered,
+        )
+    } else {
+        OwnedOutputSafety.replaceInstalledFiles(
+            installationRoot = assetsDir,
+            manifestFile = manifest,
+            projectRoot = projectRoot,
+            owner = identity,
+            files = rendered,
+        )
     }
-    return written
+    logger.info("[kiteConfig] iOS splash assets owned by $identity: ${rendered.keys.joinToString()}")
+    return rendered.keys.toList()
 }
 
 private fun srgbComponent(channel: Int): String = String.format(Locale.ROOT, "%.3f", channel / 255.0)

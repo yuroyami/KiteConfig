@@ -186,6 +186,7 @@ abstract class SyncIosConfigTask : DefaultTask() {
         targetNames.convention(emptyList())
         projectRootDir.convention(project.layout.projectDirectory)
         splashEnabled.convention(false)
+        backupDir.convention(project.layout.projectDirectory.dir(".kiteconfig/recovery/ios-splash"))
     }
 
     @get:Internal abstract val projectRootDir: DirectoryProperty
@@ -194,6 +195,9 @@ abstract class SyncIosConfigTask : DefaultTask() {
     @get:Internal abstract val podfile: RegularFileProperty
     @get:Internal abstract val iosAppDir: DirectoryProperty
     @get:Internal abstract val appiconsetDir: DirectoryProperty
+
+    /** Durable recovery copies taken before this installer claims an existing asset. */
+    @get:Internal abstract val backupDir: DirectoryProperty
 
     @get:Input @get:Optional abstract val marketingVersion: Property<String>
     @get:Input @get:Optional abstract val buildNumber: Property<String>
@@ -249,6 +253,11 @@ abstract class SyncIosConfigTask : DefaultTask() {
             planSharedModuleMigration(iosRoot, plan, summary, budget)
         }
 
+        // Rendered and validated before anything is committed. This used to run
+        // after the plist and project file were already written, so art that failed
+        // to decode left metadata referring to an asset that was never installed.
+        val splash = if (splashEnabled.get()) prepareSplashAssets(root) else null
+
         if (plan.isEmpty()) {
             logger.info("[kiteConfig] iOS migration plan is empty; no source files need changes.")
         } else {
@@ -262,7 +271,7 @@ abstract class SyncIosConfigTask : DefaultTask() {
         }
         // The catalog entries follow the committed plist, so a refused plist plan
         // never leaves splash assets behind that nothing references.
-        if (splashEnabled.get()) installSplashAssets(root)
+        splash?.let { installSplashAssets(root, it) }
     }
 
     private fun planInfoPlist(
@@ -477,11 +486,20 @@ abstract class SyncIosConfigTask : DefaultTask() {
         }
     }
 
+    /** Everything the splash installer will write, rendered and checked but not yet on disk. */
+    private class PreparedSplashAssets(
+        val assets: java.io.File,
+        val rendered: Map<String, ByteArray>,
+        val hasDarkImage: Boolean,
+    )
+
     /**
-     * Installs the splash color set and image set into the asset catalog that
-     * holds [appiconsetDir]. Respects dryRun and backups like every other installer.
+     * Resolves the catalog, validates the art, and renders every splash byte.
+     *
+     * Nothing here touches the working tree, so a missing path or an image that
+     * will not decode fails before the plist and project file are committed.
      */
-    private fun installSplashAssets(root: java.io.File) {
+    private fun prepareSplashAssets(root: java.io.File): PreparedSplashAssets {
         val appicon = appiconsetDir.asFile.get()
         val assets = appicon.parentFile ?: throw GradleException(
             "[kiteConfig] iOS splash needs an Assets.xcassets directory; ${appicon.path} has no parent catalog.",
@@ -506,17 +524,31 @@ abstract class SyncIosConfigTask : DefaultTask() {
             image = decodeSplashArt(imageFile, "splash { image }"),
             darkImage = darkImageFile?.let { decodeSplashArt(it, "splash { dark { image } }") },
         )
+        return PreparedSplashAssets(assets, rendered, darkImageFile != null)
+    }
 
+    /**
+     * Installs the prepared color set and image set into the asset catalog that
+     * holds [appiconsetDir]. Respects dryRun and backups like every other installer.
+     */
+    private fun installSplashAssets(root: java.io.File, prepared: PreparedSplashAssets) {
         if (dryRun.get()) {
-            iosSplashOwnedPaths(assets, darkImageFile != null).forEach {
+            iosSplashOwnedPaths(prepared.assets, prepared.hasDarkImage).forEach {
                 logger.lifecycle("[kiteConfig][dry-run] would write iOS splash asset: ${it.path}")
             }
             return
         }
-        val written = writeIosSplashAssets(assets, rendered, backup.get(), logger)
+        val owned = writeIosSplashAssets(
+            assetsDir = prepared.assets,
+            rendered = prepared.rendered,
+            projectRoot = root,
+            backupRoot = backupDir.asFile.get(),
+            backup = backup.get(),
+            logger = logger,
+        )
         logger.lifecycle(
-            "[kiteConfig] iOS splash installed into ${displayProjectPath(root, assets)}: " +
-                "$IOS_SPLASH_COLORSET.colorset and $IOS_SPLASH_IMAGESET.imageset ($written file(s) changed).",
+            "[kiteConfig] iOS splash installed into ${displayProjectPath(root, prepared.assets)}: " +
+                "$IOS_SPLASH_COLORSET.colorset and $IOS_SPLASH_IMAGESET.imageset (${owned.size} owned file(s)).",
         )
     }
 
