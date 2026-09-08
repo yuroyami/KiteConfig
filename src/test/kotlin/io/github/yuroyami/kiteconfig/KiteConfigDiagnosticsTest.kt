@@ -864,4 +864,28 @@ class KiteConfigDiagnosticsTest {
         |</dict>
         |</plist>
     """.trimMargin()
+
+    /**
+     * The one iOS fact a passing build never teaches you: Xcode read the files
+     * before Gradle wrote them.
+     */
+    @Test
+    fun `an iOS project is told when its changes land in the next Xcode build`() {
+        val automatic = KiteConfigDiagnosticEngine.evaluate(
+            quietContext(syncIos = true).copy(autoRewrites = true),
+        ).single { it.id == "KTCNFG095" }
+        assertEquals(KiteConfigDiagnosticSeverity.WARNING, automatic.severity)
+        assertTrue(automatic.detail.contains("next Xcode build"), automatic.detail)
+        assertTrue(automatic.remediation!!.contains("kiteApplyIos"), automatic.remediation)
+
+        val manual = KiteConfigDiagnosticEngine.evaluate(
+            quietContext(syncIos = true),
+        ).single { it.id == "KTCNFG095" }
+        assertTrue(manual.detail.contains("changes no iOS file"), manual.detail)
+
+        // Nothing to warn about when iOS is not in the picture.
+        assertTrue(
+            KiteConfigDiagnosticEngine.evaluate(quietContext()).none { it.id == "KTCNFG095" },
+        )
+    }
 }

@@ -235,6 +235,26 @@ internal object KiteConfigDiagnosticEngine {
                 ),
             )
         }
+        // Xcode reads project.pbxproj, Info.plist and the asset catalog when it
+        // starts. Gradle runs inside that build, so what it writes is read by the
+        // build after it. Nobody discovers this on their own from a passing build.
+        if (context.syncIos) {
+            add(
+                diagnostic(
+                    "KTCNFG095",
+                    KiteConfigDiagnosticSeverity.WARNING,
+                    "Xcode-driven builds",
+                    if (context.autoRewrites) {
+                        "A build you start from Xcode applies the iOS changes while it is already running, " +
+                            "so they show up in the next Xcode build, not this one."
+                    } else {
+                        "autoApply is off, so a build you start from Xcode changes no iOS file at all."
+                    },
+                    "Run ./gradlew kiteApplyIos before building from Xcode, or start the build from " +
+                        "Gradle, and the values are in place before Xcode reads them.",
+                ),
+            )
+        }
         if (context.splashIos && !context.autoRewrites) {
             add(
                 diagnostic(

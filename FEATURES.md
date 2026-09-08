@@ -702,7 +702,7 @@ splash {
 
 Android and desktop splashes are generated into `build/`. The iOS delivery
 writes `UILaunchScreen` and asset-catalog entries into your Xcode project, so it
-is applied with the rest of the iOS plan. Diagnostics are `KTCNFG090` to `KTCNFG094`.
+is applied with the rest of the iOS plan. Diagnostics are `KTCNFG090` to `KTCNFG095`.
 
 ## Diagnostics
 
@@ -739,7 +739,7 @@ Stable diagnostic families are:
 | `KTCNFG060` to `KTCNFG062` | KGP visibility and active AGP or KGP compatibility |
 | `KTCNFG070` to `KTCNFG071` | Exact Android project and Xcode target selectors |
 | `KTCNFG080` to `KTCNFG087` | Desktop identity, icons, Compose plugin compatibility, application selection, bundle identifier, package version, and Linux or Windows packaging names |
-| `KTCNFG090` to `KTCNFG094` | Splash delivery and its Android prerequisites |
+| `KTCNFG090` to `KTCNFG095` | Splash delivery, automatic application, and Xcode-driven build timing |
 | `KTCNFG901` to `KTCNFG952` | Provider, path, and input-fingerprint resolution |
 | `KTCNFG960` to `KTCNFG967` | Splash, version-guard, and auto-rewrite provider resolution |
 | `KTCNFG999` | Unexpected diagnostic-engine failure |
