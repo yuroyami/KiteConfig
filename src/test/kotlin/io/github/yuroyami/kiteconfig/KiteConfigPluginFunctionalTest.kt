@@ -1,6 +1,7 @@
 package io.github.yuroyami.kiteconfig
 
 import org.gradle.testkit.runner.GradleRunner
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -2129,5 +2130,74 @@ class KiteConfigPluginFunctionalTest {
         // The real proof: both languages actually compile together.
         val compiled = run(":mixed:compileKotlin", ":mixed:compileJava")
         assertTrue(compiled.output.contains("BUILD SUCCESSFUL") || compiled.output.isNotEmpty())
+    }
+
+    /**
+     * Exclusion has to be a real boundary, not a display convention.
+     *
+     * Both installers used to ask whether the logo topic was on *anywhere*, so
+     * turning it off for one platform still wrote that platform's files. A
+     * model-level test cannot catch this: the task has to run against a real
+     * tree with a file in it.
+     */
+    @Test
+    fun `a platform that declined the logo keeps its own files untouched`() {
+        write("settings.gradle.kts", "rootProject.name = \"fixture\"")
+        write(
+            "build.gradle.kts",
+            """
+            plugins { id("io.github.yuroyami.kiteconfig") }
+            kiteConfig {
+                logo {
+                    foreground = file("art/fg.png")
+                    background = color("#FF5500")
+                }
+                ios { logo { enabled = false } }
+            }
+            """.trimIndent(),
+        )
+        writePng("art/fg.png", 64)
+        val sentinel = "not written by kiteconfig".toByteArray()
+        write("iosApp/iosApp/Assets.xcassets/AppIcon.appiconset/Contents.json", String(sentinel))
+
+        val result = run("kiteInternalIosLogo")
+
+        assertTrue(result.output.contains("SKIPPED"), result.output)
+        assertEquals(
+            String(sentinel),
+            File(projectDir, "iosApp/iosApp/Assets.xcassets/AppIcon.appiconset/Contents.json").readText(),
+            "the excluded platform's file was rewritten",
+        )
+    }
+
+    @Test
+    fun `root exclusion stops the installer for that platform`() {
+        write("settings.gradle.kts", "rootProject.name = \"fixture\"")
+        write(
+            "build.gradle.kts",
+            """
+            plugins { id("io.github.yuroyami.kiteconfig") }
+            kiteConfig {
+                modules { androidAppDirectory = file("androidApp") }
+                logo {
+                    foreground = file("art/fg.png")
+                    background = color("#FF5500")
+                }
+                skip(android)
+            }
+            """.trimIndent(),
+        )
+        writePng("art/fg.png", 64)
+        val sentinel = "hand written"
+        write("androidApp/src/main/res/mipmap-hdpi/ic_launcher.png", sentinel)
+
+        val result = run("kiteInternalAndroidLogo")
+
+        assertTrue(result.output.contains("SKIPPED"), result.output)
+        assertEquals(
+            sentinel,
+            File(projectDir, "androidApp/src/main/res/mipmap-hdpi/ic_launcher.png").readText(),
+            "an excluded platform's resource was rewritten",
+        )
     }
 }

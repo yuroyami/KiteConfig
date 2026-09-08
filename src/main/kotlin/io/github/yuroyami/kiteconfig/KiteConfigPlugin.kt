@@ -243,8 +243,7 @@ class KiteConfigPlugin : Plugin<Project> {
                     (ext.appIdFlowsAnywhere().get() && ext.appId.isPresent) ||
                     (ext.effectivePropagateVersion.get() &&
                         (ext.effectiveVersion.isPresent || ext.effectiveAndroidVersionCode.isPresent)) ||
-                    ext.effectiveFilterAndroidResources.get() || ext.effectivePropagateLogo.get() ||
-                    ext.effectiveTakeOverLegacyIcons.get()
+                    ext.effectiveFilterAndroidResources.get() || ext.effectiveAndroidLogoInstall.get()
             if (usesAppName) ext.effectiveAppName.orNull?.let(::validateAppName)
             if (usesVersion) ext.effectiveVersion.orNull?.let(::validateVersionName)
             if ((ext.effectivePropagateVersion.get() || buildConfigIdentity) &&
@@ -329,7 +328,7 @@ class KiteConfigPlugin : Plugin<Project> {
                 }
             }
             // Safe-zone ratio sanity.
-            if (ext.effectivePropagateLogo.get() && ext.effectiveLogoSafeZone.isPresent) {
+            if (ext.effectiveAndroidLogoInstall.get() && ext.effectiveLogoSafeZone.isPresent) {
                 validateLogoSafeZoneRatio(ext.effectiveLogoSafeZone.get())
             }
             // Logo: FG must be paired with exactly one BG source (PNG or color).
@@ -624,8 +623,7 @@ class KiteConfigPlugin : Plugin<Project> {
                     (ext.effectivePropagateVersion.get() &&
                         (ext.effectiveVersion.isPresent || ext.effectiveAndroidVersionCode.isPresent)) ||
                     ext.effectiveFilterAndroidResources.get()
-            val usesApplicationSelection = needsApplicationSelection || ext.effectivePropagateLogo.get() ||
-                ext.effectiveTakeOverLegacyIcons.get()
+            val usesApplicationSelection = needsApplicationSelection || ext.effectiveAndroidLogoInstall.get()
             val selectedApplications = if (usesApplicationSelection) {
                 ext.effectiveAndroidApps.get()
             } else {
@@ -658,7 +656,7 @@ class KiteConfigPlugin : Plugin<Project> {
             }
 
             val effectiveApplications = selectedApplications.ifEmpty { detectedAndroidApplications.toList() }
-            if ((ext.effectivePropagateLogo.get() || ext.effectiveTakeOverLegacyIcons.get()) &&
+            if (ext.effectiveAndroidLogoInstall.get() &&
                 effectiveApplications.size > 1
             ) {
                 throw GradleException(
@@ -1134,7 +1132,7 @@ class KiteConfigPlugin : Plugin<Project> {
                 ext.canonicalLocales.map { it.isNotEmpty() && ext.localesFlowsTo(KitePlatform.IOS).get() }
             )
             propagateSharedModule.set(ext.effectivePropagateSharedModule)
-            propagateLogo.set(ext.effectivePropagateLogo)
+            propagateLogo.set(ext.effectiveIosLogoInstall)
             splashEnabled.set(ext.effectiveIosSplash)
             splashColor.set(ext.effectiveSplashColor)
             splashDarkColor.set(ext.effectiveSplashDarkColor)
@@ -1153,7 +1151,7 @@ class KiteConfigPlugin : Plugin<Project> {
         ext: KiteConfigExtension,
     ): TaskProvider<SyncIosLogoTask> =
         root.tasks.register<SyncIosLogoTask>("kiteInternalIosLogo") {
-            val runCondition = ext.effectiveSyncIos.zip(ext.effectivePropagateLogo) { a, b -> a && b }
+            val runCondition = ext.effectiveIosLogoInstall
             onlyIf { runCondition.get() }
             foregroundPng.set(ext.effectiveLogoForegroundFor(KitePlatform.IOS))
             projectRootDir.set(root.layout.projectDirectory)
@@ -1173,7 +1171,7 @@ class KiteConfigPlugin : Plugin<Project> {
         androidOutputApproved: Provider<Boolean>,
     ): TaskProvider<SyncAndroidLogoTask> =
         root.tasks.register<SyncAndroidLogoTask>("kiteInternalAndroidLogo") {
-            val runCondition = ext.effectivePropagateLogo
+            val runCondition = ext.effectiveAndroidLogoInstall
             onlyIf { runCondition.get() }
             foregroundPng.set(ext.effectiveLogoForegroundFor(KitePlatform.ANDROID))
             projectRootDir.set(root.layout.projectDirectory)
@@ -1309,8 +1307,8 @@ class KiteConfigPlugin : Plugin<Project> {
                     if (ext.effectiveSyncIos.get() && ext.effectivePropagateSharedModule.get()) {
                         add("migrate explicit Pod/Swift module references")
                     }
-                    if (ext.effectiveSyncIos.get() && ext.effectivePropagateLogo.get()) add("install iOS AppIcon assets")
-                    if (ext.effectivePropagateLogo.get()) add("install Android launcher assets")
+                    if (ext.effectiveIosLogoInstall.get()) add("install iOS AppIcon assets")
+                    if (ext.effectiveAndroidLogoInstall.get()) add("install Android launcher assets")
                     if (ext.effectiveTakeOverLegacyIcons.get()) {
                         add("transactionally take over legacy Android logo artifacts")
                     }
@@ -1342,7 +1340,7 @@ class KiteConfigPlugin : Plugin<Project> {
                         addTextTarget(ext.effectiveIosPodfile.get().asFile)
                         add(ext.effectiveIosAppDirectory.get().asFile.path)
                     }
-                    if (ext.effectiveSyncIos.get() && ext.effectivePropagateLogo.get()) {
+                    if (ext.effectiveIosLogoInstall.get()) {
                         val icons = ext.effectiveIosAppIconDirectory.get().asFile
                         add(icons.path)
                         val identity = SyncIosLogoTask.catalogIdentity(root.projectDir, icons)
@@ -1355,7 +1353,7 @@ class KiteConfigPlugin : Plugin<Project> {
                             add(root.projectDir.resolve(".kiteconfig/recovery/ios-appicon/$identity").path)
                         }
                     }
-                    if (ext.effectivePropagateLogo.get() || ext.effectiveTakeOverLegacyIcons.get()) {
+                    if (ext.effectiveAndroidLogoInstall.get()) {
                         androidResourceDirectories.forEach { res ->
                             add(res.path)
                             val manifest = res.parentFile.resolve(".kiteconfig/android-logo-owned-files-v1")

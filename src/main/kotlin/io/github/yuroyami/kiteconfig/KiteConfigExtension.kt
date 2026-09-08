@@ -812,8 +812,22 @@ abstract class KiteConfigExtension : KiteFlowScope(), KiteConfigValues {
 
     /** Art exists and reaches at least one platform that installs it into source. */
     internal val effectiveLogoRewriteArmed: Provider<Boolean>
+        get() = effectiveAndroidLogoInstall
+            .zip(effectiveIosLogoInstall) { android, ios -> android || ios }
+
+    /**
+     * Whether Android installs the icon into its own source tree.
+     *
+     * Each installer asks about its own platform. Asking whether the topic is on
+     * *anywhere* is what let `logo { only(android) }` still write the iOS
+     * catalog, and excluding Android still write Android's.
+     */
+    internal val effectiveAndroidLogoInstall: Provider<Boolean>
         get() = logoFlowsTo(KitePlatform.ANDROID)
-            .zip(logoFlowsTo(KitePlatform.IOS)) { android, ios -> android || ios }
+
+    /** Whether iOS installs the icon into its own asset catalog. */
+    internal val effectiveIosLogoInstall: Provider<Boolean>
+        get() = logoFlowsTo(KitePlatform.IOS)
 
     internal val effectivePropagateLogo: Provider<Boolean>
         get() = effectiveLogoRewriteArmed
@@ -838,7 +852,7 @@ abstract class KiteConfigExtension : KiteFlowScope(), KiteConfigValues {
      * `.kiteconfig/recovery` first and recorded, so adoption is recoverable.
      */
     internal val effectiveTakeOverLegacyIcons: Provider<Boolean>
-        get() = logoFlowsTo(KitePlatform.ANDROID)
+        get() = effectiveAndroidLogoInstall
 
     // --- native opt-ins ---
 
