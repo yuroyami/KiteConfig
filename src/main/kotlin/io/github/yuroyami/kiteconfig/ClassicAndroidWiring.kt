@@ -86,9 +86,18 @@ internal object ClassicAndroidWiring {
                 }
                 project.wireValueGroup(resilient, "the locale filters") {
                     if (ext.effectiveFilterAndroidResources.get()) {
+                        // AGP settles its resource configuration here, which is before
+                        // the project census that discovers a sole shared module. So
+                        // discovery can genuinely have no answer yet, and the message
+                        // has to name the two ways to give it one rather than say the
+                        // list came out empty.
                         val l = ext.canonicalLocales.get().map(::bcp47ToAndroidQualifier)
                         require(l.isNotEmpty()) {
-                            "[kiteConfig] android { locales { filterResources } } requires at least one canonical locale."
+                            "[kiteConfig] android { locales { filterResources } } needs the locale list " +
+                                "before Android settles its resources, and nothing has answered yet. " +
+                                "Name the languages with locales { tags = listOf(\"en\", \"fr\") }, or name " +
+                                "the module that holds the Compose resources with " +
+                                "modules { shared = \":shared\" }."
                         }
                         android.androidResources.localeFilters.clear()
                         android.androidResources.localeFilters.addAll(l)
