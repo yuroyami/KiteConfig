@@ -54,6 +54,7 @@ sealed interface LogoBackground : Serializable {
  * Apple rejects icons that carry transparency, so the Apple output is always
  * flattened onto the background. Android keeps the two adaptive layers.
  */
+@KiteDsl
 abstract class KiteLogoScope @Inject constructor(private val objects: ObjectFactory) {
 
     /**
@@ -118,6 +119,7 @@ abstract class KiteLogoScope @Inject constructor(private val objects: ObjectFact
  *
  * Everything in [KiteLogoScope] applies here too, plus the macOS shape.
  */
+@KiteDsl
 abstract class KiteDesktopLogoScope @Inject constructor(objects: ObjectFactory) : KiteLogoScope(objects) {
 
     /** Round the generated macOS icon. Default: `true`, the macOS style. */
@@ -125,6 +127,7 @@ abstract class KiteDesktopLogoScope @Inject constructor(objects: ObjectFactory) 
 }
 
 /** Options for the armed logo source rewrite. */
+@KiteDsl
 abstract class KiteLogoRewrite {
 
     /**

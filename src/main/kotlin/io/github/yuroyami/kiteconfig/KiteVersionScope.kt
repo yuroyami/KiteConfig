@@ -25,6 +25,7 @@ import org.gradle.api.provider.Property
  * A platform block carries the same members plus its own exact build number and
  * published baseline. See [KitePlatformVersionScope].
  */
+@KiteDsl
 abstract class KiteVersionScope {
 
     internal abstract val schemeProp: Property<VersionCodeScheme>
@@ -69,6 +70,7 @@ abstract class KiteVersionScope {
  * Publication histories are separate. A baseline set here says nothing about
  * any other platform.
  */
+@KiteDsl
 abstract class KitePlatformVersionScope : KiteVersionScope() {
 
     /**

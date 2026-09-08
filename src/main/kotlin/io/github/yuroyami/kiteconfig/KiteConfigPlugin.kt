@@ -855,7 +855,7 @@ class KiteConfigPlugin : Plugin<Project> {
             }
             if (ext.effectiveFilterAndroidResources.get() && ext.canonicalLocales.get().isEmpty()) {
                 throw GradleException(
-                    "kiteConfig { locales { filterAndroidRes } } requires at least one locale. " +
+                    "kiteConfig { android { locales { filterResources } } } requires at least one locale. " +
                         "Configure locales explicitly or add a supported values-<locale> resource directory."
                 )
             }

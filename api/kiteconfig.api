@@ -452,6 +452,9 @@ public abstract class io/github/yuroyami/kiteconfig/KiteDesktopLogoScope : io/gi
 	public abstract fun getRoundMac ()Lorg/gradle/api/provider/Property;
 }
 
+public abstract interface annotation class io/github/yuroyami/kiteconfig/KiteDsl : java/lang/annotation/Annotation {
+}
+
 public abstract class io/github/yuroyami/kiteconfig/KiteFlowScope {
 	public fun <init> ()V
 	public final fun only ([Lio/github/yuroyami/kiteconfig/KitePlatformRef;)V
@@ -488,11 +491,12 @@ public abstract class io/github/yuroyami/kiteconfig/KiteLogoScope {
 	public final fun rewrite (Lorg/gradle/api/Action;)V
 }
 
-public final class io/github/yuroyami/kiteconfig/KitePlatform : java/lang/Enum {
+public final class io/github/yuroyami/kiteconfig/KitePlatform : java/lang/Enum, io/github/yuroyami/kiteconfig/KitePlatformRef {
 	public static final field ANDROID Lio/github/yuroyami/kiteconfig/KitePlatform;
 	public static final field DESKTOP Lio/github/yuroyami/kiteconfig/KitePlatform;
 	public static final field IOS Lio/github/yuroyami/kiteconfig/KitePlatform;
 	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public fun getPlatform ()Lio/github/yuroyami/kiteconfig/KitePlatform;
 	public static fun valueOf (Ljava/lang/String;)Lio/github/yuroyami/kiteconfig/KitePlatform;
 	public static fun values ()[Lio/github/yuroyami/kiteconfig/KitePlatform;
 }

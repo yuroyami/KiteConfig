@@ -23,6 +23,7 @@ import org.gradle.api.provider.Property
  * Turning delivery off keeps the value readable. `kiteConfig.appNameFor(IOS)`
  * still answers; only the write to the iOS project stops.
  */
+@KiteDsl
 abstract class KiteAppNameScope {
 
     /** Deliver the effective app name to this platform. Default: `true`. */

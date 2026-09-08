@@ -27,6 +27,7 @@ import org.gradle.api.provider.Property
  * Android and desktop can each override either value. iOS cannot: there is no
  * JVM there, and `ios { jvm { } }` does not compile.
  */
+@KiteDsl
 abstract class KiteJvmScope {
 
     /**

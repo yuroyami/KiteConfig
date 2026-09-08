@@ -41,6 +41,7 @@ import org.gradle.api.provider.Property
  * @see KiteConfigExtension.locales for what [composeResources] feeds.
  * @see KiteConfigBuildConfigExtension for the feature that most often needs [shared].
  */
+@KiteDsl
 abstract class KiteConfigModulesExtension {
 
     /**

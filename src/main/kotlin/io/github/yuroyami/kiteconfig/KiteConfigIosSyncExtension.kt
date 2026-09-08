@@ -49,6 +49,7 @@ import org.gradle.api.provider.Property
  * @see KiteConfigIosExtension for the values these tasks propagate.
  * @see PlistConflictPolicy for the policy this block selects.
  */
+@KiteDsl
 abstract class KiteConfigIosSyncExtension {
 
 

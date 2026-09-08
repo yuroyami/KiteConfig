@@ -30,6 +30,7 @@ import org.gradle.api.plugins.ExtensionAware
  *
  * @see KiteConfigIoWorkerExtension for the only feature this block currently holds.
  */
+@KiteDsl
 abstract class KiteConfigWebExtension {
 
     /**

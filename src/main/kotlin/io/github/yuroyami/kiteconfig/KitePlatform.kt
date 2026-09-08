@@ -3,8 +3,17 @@ package io.github.yuroyami.kiteconfig
 import org.gradle.api.provider.Provider
 import org.gradle.api.provider.SetProperty
 
-/** The three delivery targets a fact can flow to. */
-enum class KitePlatform { ANDROID, IOS, DESKTOP }
+/**
+ * The three delivery targets a fact can flow to.
+ *
+ * Usable directly in [KiteFlowScope.skip] and [KiteFlowScope.only], so
+ * `skip(KitePlatform.DESKTOP)` and `skip(desktop)` both compile.
+ */
+enum class KitePlatform : KitePlatformRef {
+    ANDROID, IOS, DESKTOP;
+
+    override val platform: KitePlatform get() = this
+}
 
 /** Anything that can stand for a platform in skip()/only(). */
 interface KitePlatformRef {

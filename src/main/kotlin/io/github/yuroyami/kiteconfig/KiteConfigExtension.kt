@@ -157,6 +157,7 @@ import org.gradle.api.provider.Provider
  * @see KiteSplashScope for launch-screen art on all three platforms.
  * @see VersionCodeScheme for the build-number formula input.
  */
+@KiteDsl
 abstract class KiteConfigExtension : KiteFlowScope(), KiteConfigValues {
 
     // ---------------------------------------------------------------- Identity

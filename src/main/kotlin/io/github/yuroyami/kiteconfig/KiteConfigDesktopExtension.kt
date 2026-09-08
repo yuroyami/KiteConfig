@@ -39,6 +39,7 @@ import org.gradle.api.provider.Property
  * @see KiteVersionScope for the build-number scheme every platform shares.
  * @see KiteConfigLogoExtension for the art that becomes installer icons.
  */
+@KiteDsl
 abstract class KiteConfigDesktopExtension : KitePlatformExtension() {
 
     /** This platform's launch screen. */

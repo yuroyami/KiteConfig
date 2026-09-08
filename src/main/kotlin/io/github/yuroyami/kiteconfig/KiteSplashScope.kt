@@ -35,6 +35,7 @@ import javax.inject.Inject
  * A logo whose background is an image gives the splash no color: set
  * `splash { backgroundColor }` in that case.
  */
+@KiteDsl
 abstract class KiteSplashScope @Inject constructor(private val objects: ObjectFactory) {
 
     /**
@@ -56,6 +57,7 @@ abstract class KiteSplashScope @Inject constructor(private val objects: ObjectFa
     abstract val backgroundColor: Property<String>
 
     /** Dark-mode overrides. Unset members fall back to the light values. */
+    @KiteDsl
     abstract class DarkVariant {
 
         /** Dark-mode splash art. Default: the light [KiteSplashScope.image]. */
@@ -90,6 +92,7 @@ abstract class KiteSplashScope @Inject constructor(private val objects: ObjectFa
     }
 
     /** Options for the armed iOS splash delivery. Empty today, kept for growth. */
+    @KiteDsl
     abstract class KiteSplashRewrite
 
     internal val rewriteSpec: KiteSplashRewrite = objects.newInstance(KiteSplashRewrite::class.java)
@@ -101,6 +104,7 @@ abstract class KiteSplashScope @Inject constructor(private val objects: ObjectFa
  * Everything in [KiteSplashScope] applies here too, plus the theme the
  * generated style inherits.
  */
+@KiteDsl
 abstract class KiteAndroidSplashScope @Inject constructor(objects: ObjectFactory) : KiteSplashScope(objects) {
 
     /**

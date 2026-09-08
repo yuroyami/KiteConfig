@@ -53,7 +53,7 @@ final class Agp8ClassicAndroidWiring {
             if (in.filterResources) {
                 if (in.localeFilters.isEmpty()) {
                     throw new IllegalArgumentException(
-                        "[kiteConfig] android { filterResourcesToLocales } requires at least one canonical locale."
+                        "[kiteConfig] android { locales { filterResources } } requires at least one canonical locale."
                     );
                 }
                 // AGP 8 multiplexes locale, density, ABI, and other legacy

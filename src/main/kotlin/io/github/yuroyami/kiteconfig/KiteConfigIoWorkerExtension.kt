@@ -51,6 +51,7 @@ import org.gradle.api.provider.Property
  *
  * @see KiteConfigWebExtension for the enclosing block.
  */
+@KiteDsl
 abstract class KiteConfigIoWorkerExtension {
 
     /** Set when the enclosing `ioWorker { }` block is opened. Presence is the opt-in. */

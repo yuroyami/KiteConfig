@@ -75,6 +75,7 @@ import javax.inject.Inject
  * @see KiteConfigModulesExtension.shared for selecting the module explicitly.
  * @see includeIdentity to generate fields only.
  */
+@KiteDsl
 abstract class KiteConfigBuildConfigExtension {
 
     /** Gradle-injected, used only to build the failure path for an empty provider. */

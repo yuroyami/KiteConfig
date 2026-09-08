@@ -134,7 +134,7 @@ abstract class KiteConfigDiagnosticTaskBase : DefaultTask() {
             resolvedVersionCode = resolve<Int?>("KTCNFG952", "versionCode", null) { resolvedVersionCode.orNull },
             propagateLocaleList = resolve("KTCNFG906", "locales flow (skip/only)", false) { propagateLocaleList.getOrElse(false) },
             locales = resolve("KTCNFG907", "locales", emptyList()) { locales.getOrElse(emptyList()) },
-            filterAndroidResources = resolve("KTCNFG938", "locales { filterAndroidRes }", false) {
+            filterAndroidResources = resolve("KTCNFG938", "android { locales { filterResources } }", false) {
                 filterAndroidResources.getOrElse(false)
             },
             syncIos = resolve("KTCNFG908", "ios { rewrite }", false) { syncIos.getOrElse(false) },

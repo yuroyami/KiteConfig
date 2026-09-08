@@ -36,6 +36,7 @@ import org.gradle.api.provider.Property
  *
  * @see KiteConfigModulesExtension.shared for the project used when [projects] is empty.
  */
+@KiteDsl
 abstract class KiteConfigNativeOptInsExtension {
 
     /**

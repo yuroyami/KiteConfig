@@ -57,6 +57,7 @@ import org.gradle.api.provider.Property
  * @see KiteConfigIosExtension for the Apple half of the same identity.
  * @see KiteConfigModulesExtension.androidApps when more than one module is an application.
  */
+@KiteDsl
 abstract class KiteConfigAndroidExtension : KitePlatformExtension() {
 
     /** This platform's launch screen. */

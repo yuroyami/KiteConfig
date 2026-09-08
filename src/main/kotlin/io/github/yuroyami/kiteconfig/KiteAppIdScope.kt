@@ -23,6 +23,7 @@ import org.gradle.api.provider.Property
  * suffix belongs to the shared base, so setting one and then the other is not
  * a combination: the exact value wins and no suffix is appended.
  */
+@KiteDsl
 abstract class KiteAppIdScope {
 
     /**

@@ -21,6 +21,7 @@ import org.gradle.api.provider.Property
  * Assigning the list replaces it. `tags = emptyList()` means this app has no
  * locale list, not "go and detect one".
  */
+@KiteDsl
 abstract class KiteLocalesScope {
 
     /**
@@ -43,6 +44,7 @@ abstract class KiteLocalesScope {
  * Everything in [KiteLocalesScope] applies here too, plus one Android-only
  * policy.
  */
+@KiteDsl
 abstract class KiteAndroidLocalesScope : KiteLocalesScope() {
 
     /**

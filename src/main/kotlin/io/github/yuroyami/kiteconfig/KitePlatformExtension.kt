@@ -31,6 +31,7 @@ import org.gradle.api.provider.Property
  * @see KiteAppIdScope for the suffix and the delivery switch.
  * @see KiteAppNameScope for the name's delivery switch.
  */
+@KiteDsl
 abstract class KitePlatformExtension : KitePlatformRef {
 
     /**
