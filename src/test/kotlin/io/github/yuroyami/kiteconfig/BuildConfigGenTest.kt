@@ -54,6 +54,41 @@ class BuildConfigGenTest {
         assertEquals(listOf("CHANNEL: String = \"stable\""), extension.fields.get())
     }
 
+    /** A lazy value should not be a privilege of the string helper. */
+    @Test
+    fun `every field type accepts a provider`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.objects.newInstance(KiteConfigBuildConfigExtension::class.java)
+        extension.fields.convention(emptyList())
+        extension.intField("TIMEOUT_MS", project.providers.provider { 30_000 })
+        extension.longField("BUDGET", project.providers.provider { 9_000_000_000L })
+        extension.booleanField("ANALYTICS", project.providers.provider { true })
+        extension.doubleField("RATIO", project.providers.provider { 0.75 })
+
+        assertEquals(
+            listOf(
+                "TIMEOUT_MS: Int = 30000",
+                "BUDGET: Long = 9000000000L",
+                "ANALYTICS: Boolean = true",
+                "RATIO: Double = 0.75",
+            ),
+            extension.fields.get(),
+        )
+    }
+
+    @Test
+    fun `a non-string field with an empty provider names its own helper`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.objects.newInstance(KiteConfigBuildConfigExtension::class.java)
+        extension.fields.convention(emptyList())
+        extension.intField("TIMEOUT_MS", project.providers.gradleProperty("t").map(String::toInt))
+
+        val reported = reportedText(assertThrows(Exception::class.java) { extension.fields.get() })
+        assertTrue(reported.contains("intField"), reported)
+        assertTrue(reported.contains("TIMEOUT_MS"), reported)
+        assertTrue(reported.contains("orElse"), reported)
+    }
+
     @Test
     fun `emits identity and custom fields under the chosen class name`() {
         val src = generateBuildConfigSource(

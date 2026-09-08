@@ -351,7 +351,7 @@ When enabled, KiteConfig:
 - can include the app name, version, version code, Android application ID,
   Apple bundle ID, and locales;
 - supports custom `String`, `Int`, `Long`, `Boolean`, and `Double` fields;
-- accepts a lazy `Provider<String>` for string fields;
+- accepts a lazy `Provider` for any field type, not only strings;
 - supports a fields-only object with `includeIdentity = false`;
 - keeps generation active when `dryRun = true`, because the generated file is a
   compilation input.

@@ -18,6 +18,7 @@ import org.gradle.kotlin.dsl.register
 import org.gradle.util.GradleVersion
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
 import org.jetbrains.kotlin.gradle.plugin.KotlinPlatformType
+import org.jetbrains.kotlin.gradle.targets.js.dsl.KotlinJsSubTargetContainerDsl
 
 /**
  * Root aggregation plugin for the `kiteConfig` application model.
@@ -824,24 +825,42 @@ class KiteConfigPlugin : Plugin<Project> {
         if (requestedNames.isEmpty()) {
             throw GradleException(
                 "kiteConfig web worker generation is enabled for ${project.path}, but no browser target " +
-                    "was selected. Add web { browserTargetNames.add(\"js\") } (or the exact custom " +
-                    "Kotlin/JS browser target name). Browser capability is never inferred for Node targets."
+                    "was selected. Add web { ioWorker { targets(\"js\") } } with the exact Kotlin/JS " +
+                    "browser target name. Browser capability is never inferred."
             )
         }
         if (requestedNames.any { it.isBlank() } || requestedNames.distinct().size != requestedNames.size) {
             throw GradleException(
-                "kiteConfig { web { browserTargetNames } } must contain unique, non-blank target names."
+                "kiteConfig { web { ioWorker { targets } } } must contain unique, non-blank target names."
             )
         }
         val allTargetsByName = kmp.targets.associateBy { it.targetName }
         val invalidTargets = requestedNames.filter { allTargetsByName[it]?.platformType != KotlinPlatformType.js }
         if (invalidTargets.isNotEmpty()) {
             throw GradleException(
-                "kiteConfig browser target selector(s) ${invalidTargets.joinToString()} in ${project.path} " +
-                    "do not resolve to Kotlin/JS targets. wasmJs and Node-only targets are unsupported."
+                "kiteConfig { web { ioWorker { targets } } } named ${invalidTargets.joinToString()} in " +
+                    "${project.path}, which are not Kotlin/JS targets. wasmJs is unsupported."
             )
         }
         val jsTargets = requestedNames.map { allTargetsByName.getValue(it) }
+
+        // The helper needs Worker, Blob, and object URLs, none of which exist in
+        // Node. Naming a Node-only target used to generate code that compiled and
+        // then failed at runtime, which is the worst place to find out.
+        // Only inline operations here, and only String afterwards. A lambda over a
+        // KGP type becomes a synthetic method whose signature names that type, and
+        // Gradle then cannot decorate this plugin at all when KGP is absent.
+        val nodeOnly = jsTargets
+            .filter { (it as? KotlinJsSubTargetContainerDsl)?.isBrowserConfigured == false }
+            .map { it.targetName }
+        if (nodeOnly.isNotEmpty()) {
+            throw GradleException(
+                "kiteConfig { web { ioWorker { targets } } } named ${nodeOnly.joinToString()} in " +
+                    "${project.path}, which declare nodejs() and not browser(). The generated helper " +
+                    "needs the browser Worker and Blob APIs. Add browser() to that target, or name a " +
+                    "target that has it."
+            )
+        }
 
         // Validate the destination package early. A malformed value would otherwise
         // appear as a confusing compile error inside the generated file.

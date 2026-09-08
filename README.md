@@ -112,7 +112,7 @@ kiteConfig {
         allowBuildCache = false             // default
         stringField("API_HOST", "api.jetzy.app")
         intField("MAX_RETRIES", 3)
-        // longField, booleanField, doubleField, and stringField(name, provider)
+        // longField, booleanField, doubleField, each also taking a Provider
     }
 
     optIns {                            // on as soon as a marker is added

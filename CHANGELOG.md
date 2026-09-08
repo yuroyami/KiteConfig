@@ -103,6 +103,13 @@ A root `false` is an inheritable default rather than a ban: a platform can still
 ask for one the root left off. Root exclusion is the one thing a platform cannot
 argue with.
 
+### Generated fields can all be lazy
+
+`stringField` was the only helper that took a `Provider`. `intField`,
+`longField`, `booleanField` and `doubleField` now take one too, with the same
+rule: give it a fallback, because an absent provider fails the build naming the
+field instead of emptying the whole set.
+
 ### iOS finally offers the languages you list
 
 `locales { tags = listOf("en", "fr") }` used to reach iOS as `knownRegions` in

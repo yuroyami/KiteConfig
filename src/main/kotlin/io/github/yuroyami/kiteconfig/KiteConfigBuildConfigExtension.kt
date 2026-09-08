@@ -55,10 +55,11 @@ import javax.inject.Inject
  * | `stringField(name, value)` | `public const val name: String` |
  * | `intField` / `longField` / `doubleField` | the matching numeric `const val` |
  * | `booleanField(name, value)` | `public const val name: Boolean` |
- * | `stringField(name, provider)` | same, resolved lazily at task time |
+ * | any of them with a `Provider` | the same constant, resolved at task time |
  *
- * Only `stringField` accepts a `Provider`. Give it a fallback: an absent
- * provider fails the build naming the field, rather than emptying the whole set.
+ * Every helper accepts a `Provider` of its own type. Give it a fallback: an
+ * absent provider fails the build naming the field, rather than emptying the
+ * whole set.
  *
  * ```kotlin
  * stringField("CHANNEL", providers.gradleProperty("channel").orElse("stable"))
@@ -161,21 +162,36 @@ abstract class KiteConfigBuildConfigExtension {
      * stringField("CHANNEL", providers.gradleProperty("publicChannel").orElse("stable"))
      * ```
      */
-    fun stringField(name: String, value: Provider<String>) {
+    fun stringField(name: String, value: Provider<String>) =
+        lazyField("stringField", name, value) { checked, resolved ->
+            BuildConfigField.StringValue(checked, resolved)
+        }
+
+    /**
+     * Adds one field whose value arrives from a provider.
+     *
+     * Gradle voids the WHOLE list when an added provider has no value, so an
+     * unset `-P` would otherwise surface as "customFields doesn't have a
+     * configured value" with nothing pointing back to the field that caused it.
+     * The `orElse` below trades that for a message naming the field.
+     */
+    private fun <T : Any> lazyField(
+        helper: String,
+        name: String,
+        value: Provider<T>,
+        build: (String, T) -> BuildConfigField,
+    ) {
         val checkedName = name.checkedFieldName()
-        // Gradle voids the WHOLE list when an added provider has no value, so an
-        // unset -P would otherwise surface as "customFields doesn't have a
-        // configured value" with nothing pointing back to the field that caused it.
         fields.add(
-            value.map { BuildConfigField.StringValue(checkedName, it).renderBody() }
-                .orElse(providerFactory.provider { missingFieldValue(checkedName) }),
+            value.map { build(checkedName, it).renderBody() }
+                .orElse(providerFactory.provider { missingFieldValue(helper, checkedName) }),
         )
     }
 
-    private fun missingFieldValue(name: String): String = throw GradleException(
-        "kiteConfig { buildConfig { stringField(\"$name\", ...) } } was given a provider with no " +
+    private fun missingFieldValue(helper: String, name: String): String = throw GradleException(
+        "kiteConfig { buildConfig { $helper(\"$name\", ...) } } was given a provider with no " +
             "value, so the field cannot be generated. Supply a fallback with orElse(...), or pass " +
-            "a plain String.",
+            "a plain value.",
     )
 
     /** Add a validated Kotlin `Int` constant. `Int.MIN_VALUE` is emitted as valid Kotlin source. */
@@ -197,6 +213,30 @@ abstract class KiteConfigBuildConfigExtension {
     fun doubleField(name: String, value: Double) {
         fields.add(BuildConfigField.DoubleValue(name.checkedFieldName(), value).renderBody())
     }
+
+    /** [intField] from a provider. The same rules as [stringField] apply. */
+    fun intField(name: String, value: Provider<Int>) =
+        lazyField("intField", name, value) { checked, resolved ->
+            BuildConfigField.IntValue(checked, resolved)
+        }
+
+    /** [longField] from a provider. The same rules as [stringField] apply. */
+    fun longField(name: String, value: Provider<Long>) =
+        lazyField("longField", name, value) { checked, resolved ->
+            BuildConfigField.LongValue(checked, resolved)
+        }
+
+    /** [booleanField] from a provider. The same rules as [stringField] apply. */
+    fun booleanField(name: String, value: Provider<Boolean>) =
+        lazyField("booleanField", name, value) { checked, resolved ->
+            BuildConfigField.BooleanValue(checked, resolved)
+        }
+
+    /** [doubleField] from a provider. The same rules as [stringField] apply. */
+    fun doubleField(name: String, value: Provider<Double>) =
+        lazyField("doubleField", name, value) { checked, resolved ->
+            BuildConfigField.DoubleValue(checked, resolved)
+        }
 
     private fun String.checkedFieldName(): String = apply {
         require(isValidKotlinIdentifier(this)) {

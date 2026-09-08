@@ -460,6 +460,48 @@ class KiteConfigPluginFunctionalTest {
         assertTrue(result.output.contains("no longer referenced"), result.output)
     }
 
+    /**
+     * A Node target has no `Worker`, no `Blob`, and no object URLs. Generating
+     * the helper there produced code that compiled and then failed at runtime,
+     * which is the worst place to find out.
+     */
+    @Test
+    fun `a Node-only target is refused for the browser worker`() {
+        write("settings.gradle.kts", settingsWithShared())
+        write(
+            "build.gradle.kts",
+            """
+            plugins {
+                id("org.jetbrains.kotlin.multiplatform") apply false
+                id("io.github.yuroyami.kiteconfig")
+            }
+            kiteConfig {
+                modules { shared = ":shared" }
+                web {
+                    ioWorker {
+                        enabled = true
+                        projects(":shared")
+                        targets("js")
+                        packageName = "com.acme.gen"
+                    }
+                }
+            }
+            """.trimIndent(),
+        )
+        write(
+            "shared/build.gradle.kts",
+            """
+            plugins { id("org.jetbrains.kotlin.multiplatform") }
+            kotlin { js { nodejs() } }
+            """.trimIndent(),
+        )
+
+        val failure = runAndFail(":shared:tasks")
+
+        assertTrue(failure.output.contains("nodejs() and not browser()"), failure.output)
+        assertTrue(failure.output.contains("web { ioWorker { targets } }"), failure.output)
+    }
+
     @Test
     fun `web worker is selected explicitly and generated source compiles for browser JS`() {
         write("settings.gradle.kts", settingsWithShared())
