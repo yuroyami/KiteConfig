@@ -52,6 +52,9 @@ abstract class GenerateDesktopIconsTask : DefaultTask() {
     @get:[Input Optional]
     abstract val backgroundColor: Property<String>
 
+    /** How much of the canvas the mark fills. Unset keeps the whole canvas. */
+    @get:Input @get:Optional abstract val foregroundScale: Property<Double>
+
     @get:Input
     abstract val roundMacOsIcon: Property<Boolean>
 
@@ -84,7 +87,7 @@ abstract class GenerateDesktopIconsTask : DefaultTask() {
             color = Color.WHITE
             fillRect(0, 0, BASE_SIZE, BASE_SIZE)
             drawCover(bg, 0, 0, BASE_SIZE, BASE_SIZE)
-            drawContain(fg, 0, 0, BASE_SIZE, BASE_SIZE)
+            drawContainScaled(fg, BASE_SIZE, foregroundScale.getOrElse(1.0))
         }
         val macSource = if (roundMacOsIcon.get()) applyRoundedRectMask(base, MACOS_CORNER_RATIO) else base
         val files = mapOf(

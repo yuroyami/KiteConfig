@@ -65,6 +65,9 @@ abstract class SyncIosLogoTask : DefaultTask() {
     abstract val backgroundPng: RegularFileProperty
 
     @get:[Input Optional] abstract val backgroundColorHex: Property<String>
+
+    /** How much of the canvas the mark fills. Unset keeps the whole canvas. */
+    @get:[Input Optional] abstract val foregroundScale: Property<Double>
     @get:Internal abstract val dryRun: Property<Boolean>
     @get:Internal abstract val backup: Property<Boolean>
 
@@ -138,7 +141,7 @@ abstract class SyncIosLogoTask : DefaultTask() {
             color = Color.WHITE
             fillRect(0, 0, IOS_SIZE, IOS_SIZE)
             drawCover(bg, 0, 0, IOS_SIZE, IOS_SIZE)
-            drawContain(fg, 0, 0, IOS_SIZE, IOS_SIZE)
+            drawContainScaled(fg, IOS_SIZE, foregroundScale.getOrElse(1.0))
         }
 
         OwnedOutputSafety.requireSafePath(outDir, "iOS AppIcon output")

@@ -33,7 +33,7 @@ class SplashScopeTest {
     @Test
     fun `facts default to logo art`() {
         val e = ext()
-        e.logo { backgroundColor.set("#101014") }
+        e.logo { background.set(color("#101014")) }
         e.splash { }
         assertEquals("#101014", e.effectiveSplashColor.get())
     }

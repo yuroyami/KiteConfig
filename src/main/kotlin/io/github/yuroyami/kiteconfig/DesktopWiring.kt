@@ -149,10 +149,11 @@ internal object DesktopWiring {
         }
         if (!iconsEnabled) return null
         return project.tasks.register<GenerateDesktopIconsTask>("kiteInternalDesktopIcons") {
-            foreground.set(ext.effectiveLogoForeground)
-            background.set(ext.effectiveLogoBackground)
-            backgroundColor.set(ext.effectiveLogoBackgroundColor)
-            roundMacOsIcon.set(ext.logo.desktop.roundMac.orElse(true))
+            foreground.set(ext.effectiveLogoForegroundFor(KitePlatform.DESKTOP))
+            background.fileProvider(ext.effectiveLogoBackgroundImageFor(KitePlatform.DESKTOP))
+            backgroundColor.set(ext.effectiveLogoBackgroundColorFor(KitePlatform.DESKTOP))
+            foregroundScale.set(ext.effectiveLogoScaleFor(KitePlatform.DESKTOP))
+            roundMacOsIcon.set(ext.desktop.desktopLogo.roundMac.orElse(true))
             outputDir.set(project.layout.buildDirectory.dir("generated/kiteconfig/desktop-icons"))
             dryRun.set(ext.effectiveDryRun)
         }

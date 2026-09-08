@@ -90,7 +90,7 @@ class KiteConfigPlugin : Plugin<Project> {
         (iosExtension as ExtensionAware).extensions.create<KiteConfigIosSyncExtension>("rewrite").apply {
             targets.convention(emptyList())
         }
-        extAware.extensions.create<KiteConfigLogoExtension>("logo")
+        extAware.extensions.create<KiteLogoScope>("logo")
         extAware.extensions.create<KiteConfigNativeOptInsExtension>("optIns").apply {
             builtIns.convention(true)
             markers.convention(emptyList())
@@ -127,6 +127,11 @@ class KiteConfigPlugin : Plugin<Project> {
             platform.localesDetails.tags.convention(ext.effectiveLocales)
             if (platform !is KiteConfigIosExtension) {
                 platform.extensions.create<KiteJvmScope>("jvmDetails")
+            }
+            if (platform is KiteConfigDesktopExtension) {
+                platform.extensions.create<KiteDesktopLogoScope>("logoDetails")
+            } else {
+                platform.extensions.create<KiteLogoScope>("logoDetails")
             }
         }
 
@@ -317,34 +322,28 @@ class KiteConfigPlugin : Plugin<Project> {
             // Only validate when logo propagation is on, otherwise a stray FG with
             // propagateLogo = false shouldn't fail the build.
             if (ext.effectivePropagateLogo.get()) {
+                // The background is one choice now, so "both set" cannot happen.
                 val fgSet = ext.effectiveLogoForeground.isPresent
-                val bgSet = ext.effectiveLogoBackground.isPresent
-                val bgColorSet = ext.effectiveLogoBackgroundColor.isPresent
-                if (!fgSet && !bgSet && !bgColorSet) {
+                val backgroundSet = ext.logo.background.isPresent
+                if (!fgSet && !backgroundSet) {
                     throw GradleException(
-                        "kiteConfig { logo { } } requires foreground plus exactly one of " +
-                            "background or backgroundColor."
+                        "kiteConfig { logo { } } requires foreground plus a background: " +
+                            "background = color(\"#RRGGBB\") or background = image(file(\"...\")).",
                     )
                 }
-                if (bgSet && bgColorSet) {
+                if (fgSet && !backgroundSet) {
                     throw GradleException(
-                        "kiteConfig { logo { background } } and { logo { backgroundColor } } are " +
-                                "mutually exclusive. Set exactly one."
+                        "kiteConfig { logo { foreground } } is set but no background. Add " +
+                            "background = color(\"#RRGGBB\") or background = image(file(\"...\")).",
                     )
                 }
-                if (fgSet && !bgSet && !bgColorSet) {
-                    throw GradleException(
-                        "kiteConfig { logo { foreground } } is set but no background. Set either " +
-                                "logo { background } or logo { backgroundColor }."
-                    )
-                }
-                if (!fgSet && (bgSet || bgColorSet)) {
+                if (!fgSet) {
                     throw GradleException(
                         "kiteConfig { logo } has a background but no foreground. Set " +
-                                "logo { foreground }, or remove the background."
+                            "logo { foreground }, or remove the background.",
                     )
                 }
-                if (bgColorSet) validateLogoBackgroundColorHex(ext.effectiveLogoBackgroundColor.get())
+                ext.effectiveLogoBackgroundColor.orNull?.let(::validateLogoBackgroundColorHex)
                 if (ext.effectiveSyncIos.get()) {
                     val deploymentTarget = ext.ios.deploymentTarget.orNull ?: throw GradleException(
                         "kiteConfig universal iOS AppIcon propagation requires ios.deploymentTarget >= 12.0 " +
@@ -1152,10 +1151,11 @@ class KiteConfigPlugin : Plugin<Project> {
         root.tasks.register<SyncIosLogoTask>("kiteInternalIosLogo") {
             val runCondition = ext.effectiveSyncIos.zip(ext.effectivePropagateLogo) { a, b -> a && b }
             onlyIf { runCondition.get() }
-            foregroundPng.set(ext.effectiveLogoForeground)
+            foregroundPng.set(ext.effectiveLogoForegroundFor(KitePlatform.IOS))
             projectRootDir.set(root.layout.projectDirectory)
-            backgroundPng.set(ext.effectiveLogoBackground)
-            backgroundColorHex.set(ext.effectiveLogoBackgroundColor)
+            backgroundPng.fileProvider(ext.effectiveLogoBackgroundImageFor(KitePlatform.IOS))
+            backgroundColorHex.set(ext.effectiveLogoBackgroundColorFor(KitePlatform.IOS))
+            foregroundScale.set(ext.effectiveLogoScaleFor(KitePlatform.IOS))
             appiconsetDir.set(ext.effectiveIosAppIconDirectory)
             outputFiles.from(ext.effectiveIosAppIconDirectory.map { dir -> SyncIosLogoTask.OUTPUT_FILE_NAMES.map { dir.file(it) } })
             dryRun.set(ext.effectiveDryRun)
@@ -1171,10 +1171,10 @@ class KiteConfigPlugin : Plugin<Project> {
         root.tasks.register<SyncAndroidLogoTask>("kiteInternalAndroidLogo") {
             val runCondition = ext.effectivePropagateLogo
             onlyIf { runCondition.get() }
-            foregroundPng.set(ext.effectiveLogoForeground)
+            foregroundPng.set(ext.effectiveLogoForegroundFor(KitePlatform.ANDROID))
             projectRootDir.set(root.layout.projectDirectory)
-            backgroundPng.set(ext.effectiveLogoBackground)
-            backgroundColorHex.set(ext.effectiveLogoBackgroundColor)
+            backgroundPng.fileProvider(ext.effectiveLogoBackgroundImageFor(KitePlatform.ANDROID))
+            backgroundColorHex.set(ext.effectiveLogoBackgroundColorFor(KitePlatform.ANDROID))
             safeZoneRatio.set(ext.effectiveLogoSafeZone)
             emitMonochrome.set(ext.android.compileSdk.map { it >= 33 }.orElse(false))
             cleanupLegacyArtifacts.set(ext.effectiveTakeOverLegacyIcons)
@@ -1506,7 +1506,7 @@ class KiteConfigPlugin : Plugin<Project> {
                 logoInputFingerprintForFiles(
                     rendererVersion = SyncAndroidLogoTask.RENDERER_FINGERPRINT_VERSION,
                     foreground = ext.effectiveLogoForeground.get().asFile,
-                    background = ext.effectiveLogoBackground.orNull?.asFile,
+                    background = ext.effectiveLogoBackground.orNull,
                     backgroundColor = ext.effectiveLogoBackgroundColor.orNull,
                     parameters = mapOf(
                         "emitMonochrome" to (ext.android.compileSdk.orNull?.let { it >= 33 } == true).toString(),
@@ -1522,7 +1522,7 @@ class KiteConfigPlugin : Plugin<Project> {
                 logoInputFingerprintForFiles(
                     rendererVersion = SyncIosLogoTask.RENDERER_FINGERPRINT_VERSION,
                     foreground = ext.effectiveLogoForeground.get().asFile,
-                    background = ext.effectiveLogoBackground.orNull?.asFile,
+                    background = ext.effectiveLogoBackground.orNull,
                     backgroundColor = ext.effectiveLogoBackgroundColor.orNull,
                 )
             }
@@ -1538,7 +1538,7 @@ class KiteConfigPlugin : Plugin<Project> {
             }
         )
         propagateDesktop.set(ext.effectiveDesktopEnabled)
-        desktopIconsExplicit.set(ext.logo.declared.orElse(false).zip(ext.logo.flowsTo(KitePlatform.DESKTOP)) { d, f -> d && f })
+        desktopIconsExplicit.set(ext.logoFlowsTo(KitePlatform.DESKTOP))
         splashAndroid.set(ext.effectiveAndroidSplash)
         splashDesktop.set(ext.effectiveDesktopSplash)
         splashIosArmed.set(ext.splash.rewriteArmed.orElse(false))
@@ -1658,7 +1658,8 @@ class KiteConfigPlugin : Plugin<Project> {
             ext.skipped, ext.allowed,
         ) + listOf(
             ext.localesScope.tags,
-            ext.logo.skipped, ext.logo.allowed,
+            ext.logo.foreground, ext.logo.background, ext.logo.foregroundScale,
+            ext.logo.enabled, ext.logo.rewriteArmed,
             ext.splash.declared, ext.splash.rewriteArmed, ext.splash.skipped, ext.splash.allowed,
             ext.splash.image, ext.splash.backgroundColor,
             ext.splash.dark.image, ext.splash.dark.backgroundColor,
@@ -1681,6 +1682,8 @@ class KiteConfigPlugin : Plugin<Project> {
                 block.versionDetails.buildNumber, block.versionDetails.publishedBuildNumber,
                 block.versionDetails.enabled,
                 block.localesDetails.tags, block.localesDetails.enabled,
+                block.logoDetails.foreground, block.logoDetails.background,
+                block.logoDetails.foregroundScale, block.logoDetails.enabled,
             )
         } + listOf(
             ext.ios.deploymentTarget, ext.ios.pbxproj, ext.ios.podfile,
@@ -1691,9 +1694,7 @@ class KiteConfigPlugin : Plugin<Project> {
             ext.ios.rewrite.nonExemptEncryption, ext.ios.rewrite.proMotion,
             ext.ios.rewrite.previousSharedModuleName, ext.ios.rewrite.newSharedModuleName,
         ) + listOf(
-            ext.logo.declared, ext.logo.rewriteArmed, ext.logo.foreground, ext.logo.background,
-            ext.logo.backgroundColor, ext.logo.android.safeZone, ext.logo.desktop.roundMac,
-            ext.logo.rewriteSpec.replaceOld,
+            ext.desktop.desktopLogo.roundMac, ext.logo.rewriteSpec.replaceOld,
             ext.optIns.builtIns, ext.optIns.markers, ext.optIns.projects,
         ) + listOf(
             ext.web.ioWorker.declared,

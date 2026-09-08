@@ -41,6 +41,14 @@ import org.gradle.api.provider.Property
  */
 abstract class KiteConfigDesktopExtension : KitePlatformExtension() {
 
+    /** This platform's icon art and how much of the canvas the mark fills. */
+    fun logo(action: org.gradle.api.Action<in KiteDesktopLogoScope>) = action.execute(desktopLogo)
+
+    internal val desktopLogo: KiteDesktopLogoScope
+        get() = (this as org.gradle.api.plugins.ExtensionAware)
+            .extensions.getByType(KiteDesktopLogoScope::class.java)
+
+
     /** The JVM toolchain and bytecode level for this platform's compilations. */
     fun jvm(action: org.gradle.api.Action<in KiteJvmScope>) = action.execute(jvmDetails)
 

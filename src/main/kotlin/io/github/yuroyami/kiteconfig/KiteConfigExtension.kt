@@ -58,9 +58,8 @@ import org.gradle.api.provider.Provider
  *
  *     logo {
  *         foreground = file("art/logo-fg.png")
- *         backgroundColor = "#0B0B0F"
- *         android { safeZone = 0.611 }
- *         desktop { roundMac = true }    // desktop icons flow from presence
+ *         background = color("#0B0B0F")  // or image(file("art/bg.png"))
+ *         foregroundScale = 0.75         // optional, per renderer default
  *         rewrite { replaceOld = true }  // arms kiteRewriteLogo (source edits)
  *     }
  *
@@ -216,7 +215,7 @@ abstract class KiteConfigExtension : KiteFlowScope(), KiteConfigValues {
         get() = splash.image.orElse(logo.foreground)
 
     internal val effectiveSplashColor: Provider<String>
-        get() = splash.backgroundColor.orElse(logo.backgroundColor)
+        get() = splash.backgroundColor.orElse(rootLogoBackgroundColor)
 
     internal val effectiveSplashDarkImage: Provider<org.gradle.api.file.RegularFile>
         get() = splash.dark.image
@@ -346,19 +345,52 @@ abstract class KiteConfigExtension : KiteFlowScope(), KiteConfigValues {
     fun ios(action: Action<in KiteConfigIosExtension>) = action.execute(ios)
 
     /**
-     * App icon installation. Configure with `kiteConfig { logo { } }`.
+     * App icon art. Configure with `kiteConfig { logo { } }`.
      *
-     * Configuring this block authorizes the logo tasks. It does not run them.
+     * The topic is on as soon as [KiteLogoScope.foreground] is set.
      */
-    val logo: KiteConfigLogoExtension
+    val logo: KiteLogoScope
         get() = nested()
 
     /** Point KiteConfig at your foreground and background art. */
-    fun logo(action: Action<in KiteConfigLogoExtension>) {
+    fun logo(action: Action<in KiteLogoScope>) {
         logoConfigured.set(true)
-        logo.declared.set(true)
         action.execute(logo)
     }
+
+    /** The art [p] uses, its own if it set some. */
+    internal fun effectiveLogoForegroundFor(p: KitePlatform): Provider<org.gradle.api.file.RegularFile> =
+        platformExtension(p).logoDetails.foreground.orElse(logo.foreground)
+
+    internal fun effectiveLogoBackgroundFor(p: KitePlatform): Provider<LogoBackground> =
+        platformExtension(p).logoDetails.background.orElse(logo.background)
+
+    /** The background image, absent when the background is a color or unset. */
+    internal fun effectiveLogoBackgroundImageFor(p: KitePlatform): Provider<java.io.File> =
+        effectiveLogoBackgroundFor(p).map { (it as? LogoBackground.Image)?.file }
+
+    /** The background color, absent when the background is an image or unset. */
+    internal fun effectiveLogoBackgroundColorFor(p: KitePlatform): Provider<String> =
+        effectiveLogoBackgroundFor(p).map { (it as? LogoBackground.Color)?.hex }
+
+    /** How much of the canvas [p] gives the mark, when the build asked for a ratio. */
+    internal fun effectiveLogoScaleFor(p: KitePlatform): Provider<Double> =
+        platformExtension(p).logoDetails.foregroundScale.orElse(logo.foregroundScale)
+
+    /** The topic is on for [p] once art exists, unless that platform turned it off. */
+    internal fun logoFlowsTo(p: KitePlatform): Provider<Boolean> =
+        flowsTo(p)
+            .zip(platformExtension(p).logoDetails.enabled.orElse(logoDeclared)) { selected, on ->
+                selected && on
+            }
+
+    /** The shared plate color, absent when the shared background is an image. */
+    internal val rootLogoBackgroundColor: Provider<String>
+        get() = logo.background.map { (it as? LogoBackground.Color)?.hex }
+
+    /** Art was configured somewhere, which is what turns the topic on. */
+    internal val logoDeclared: Provider<Boolean>
+        get() = logo.foreground.map { true }.orElse(false)
 
     /**
      * Kotlin/Native interop opt-in markers. Configure with
@@ -695,14 +727,15 @@ abstract class KiteConfigExtension : KiteFlowScope(), KiteConfigValues {
     internal val effectiveLogoForeground: Provider<org.gradle.api.file.RegularFile>
         get() = logo.foreground
 
-    internal val effectiveLogoBackground: Provider<org.gradle.api.file.RegularFile>
-        get() = logo.background
+    internal val effectiveLogoBackground: Provider<java.io.File>
+        get() = effectiveLogoBackgroundImageFor(KitePlatform.ANDROID)
 
     internal val effectiveLogoBackgroundColor: Provider<String>
-        get() = logo.backgroundColor
+        get() = effectiveLogoBackgroundColorFor(KitePlatform.ANDROID)
 
+    /** Android's adaptive safe zone: the shared scale when set, else Android's own ratio. */
     internal val effectiveLogoSafeZone: Provider<Double>
-        get() = logo.android.safeZone.orElse(DEFAULT_ANDROID_SAFE_ZONE)
+        get() = effectiveLogoScaleFor(KitePlatform.ANDROID).orElse(DEFAULT_ANDROID_SAFE_ZONE)
 
     internal val effectiveTakeOverLegacyIcons: Provider<Boolean>
         get() = effectiveLogoRewriteArmed.zip(
@@ -757,9 +790,7 @@ abstract class KiteConfigExtension : KiteFlowScope(), KiteConfigValues {
 
     // Logo art flowing to desktop: presence of art, not an armed rewrite.
     internal val effectiveDesktopIcons: Provider<Boolean>
-        get() = logo.declared.orElse(false)
-            .zip(logo.flowsTo(KitePlatform.DESKTOP)) { declared, flows -> declared && flows }
-            .zip(flowsTo(KitePlatform.DESKTOP)) { topic, root -> topic && root }
+        get() = logoFlowsTo(KitePlatform.DESKTOP)
 
     internal companion object {
         internal const val DEFAULT_ANDROID_SAFE_ZONE: Double = 66.0 / 108.0

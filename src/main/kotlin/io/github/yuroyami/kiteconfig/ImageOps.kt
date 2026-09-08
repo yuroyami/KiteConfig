@@ -232,6 +232,20 @@ internal fun Graphics2D.drawContain(img: BufferedImage, x: Int, y: Int, w: Int, 
     drawImage(img, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh, null)
 }
 
+/**
+ * Draw [img] contained in a centred box that is [scale] of a square [canvas].
+ *
+ * The ratio is linear on each axis, so 0.75 means three quarters of the width
+ * and three quarters of the height, not three quarters of the area. Transparent
+ * padding inside [img] counts as part of the image, because the renderer cannot
+ * tell padding from artwork.
+ */
+internal fun Graphics2D.drawContainScaled(img: BufferedImage, canvas: Int, scale: Double) {
+    val side = (canvas * validateLogoSafeZoneRatio(scale)).toInt().coerceAtLeast(1)
+    val inset = (canvas - side) / 2
+    drawContain(img, inset, inset, side, side)
+}
+
 /** Draw [img] scaled to *cover* the box, preserving aspect ratio, centered; overflow is clipped. */
 internal fun Graphics2D.drawCover(img: BufferedImage, x: Int, y: Int, w: Int, h: Int) {
     val scale = maxOf(w.toDouble() / img.width, h.toDouble() / img.height)

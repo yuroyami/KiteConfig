@@ -59,6 +59,10 @@ import org.gradle.api.provider.Property
  */
 abstract class KiteConfigAndroidExtension : KitePlatformExtension() {
 
+    /** This platform's icon art and how much of the canvas the mark fills. */
+    fun logo(action: org.gradle.api.Action<in KiteLogoScope>) = action.execute(logoDetails)
+
+
     /** The JVM toolchain and bytecode level for this platform's compilations. */
     fun jvm(action: org.gradle.api.Action<in KiteJvmScope>) = action.execute(jvmDetails)
 

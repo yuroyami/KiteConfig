@@ -333,7 +333,7 @@ class KiteConfigPluginFunctionalTest {
                 }
                 logo {
                     foreground = file("art/fg.png")
-                    backgroundColor = "#80FF5500"
+                    background = color("#80FF5500")
                     rewrite { }
                 }
             }
@@ -631,7 +631,7 @@ class KiteConfigPluginFunctionalTest {
                 android { compileSdk = 33 }
                 logo {
                     foreground = file("art/fg.png")
-                    backgroundColor = "#FF5500"
+                    background = color("#FF5500")
                     rewrite { replaceOld = true }
                 }
             }
@@ -713,7 +713,7 @@ class KiteConfigPluginFunctionalTest {
                 ios { rewrite { } }
                 logo {
                     foreground = file("art/fg.png")
-                    backgroundColor = "#FF5500"
+                    background = color("#FF5500")
                     rewrite { }
                 }
             }
@@ -737,7 +737,7 @@ class KiteConfigPluginFunctionalTest {
             kiteConfig {
                 logo {
                     foreground = file("art/missing.png")
-                    backgroundColor = "#FF5500"
+                    background = color("#FF5500")
                     rewrite { }
                 }
             }
@@ -785,7 +785,7 @@ class KiteConfigPluginFunctionalTest {
                 ${if (requestAppSink) """
                 logo {
                     foreground = file("art/fg.png")
-                    backgroundColor = "#112233"
+                    background = color("#112233")
                     rewrite { }
                 }
                 """.trimIndent() else ""}
@@ -1201,7 +1201,7 @@ class KiteConfigPluginFunctionalTest {
                 modules { androidAppDirectory = file("androidApp") }
                 logo {
                     foreground = file("art/fg.png")
-                    backgroundColor = "#102A43"
+                    background = color("#102A43")
                     rewrite { }
                 }
             }
@@ -1307,7 +1307,7 @@ class KiteConfigPluginFunctionalTest {
                 modules { androidAppDirectory = file("androidApp") }
                 logo {
                     foreground = file("art/fg.png")
-                    backgroundColor = "#102A43"
+                    background = color("#102A43")
                     rewrite { }
                 }
             }
@@ -1474,7 +1474,7 @@ class KiteConfigPluginFunctionalTest {
                 version = "1.0.0"
                 logo {
                     foreground = file("art/fg.png")
-                    backgroundColor = "#102A43"
+                    background = color("#102A43")
                     rewrite { }
                 }
             }
@@ -1507,7 +1507,7 @@ class KiteConfigPluginFunctionalTest {
                 modules { androidAppDirectory = file("androidApp") }
                 logo {
                     foreground = file("art/fg.png")
-                    backgroundColor = "#102A43"
+                    background = color("#102A43")
                     rewrite { replaceOld = true }
                 }
             }
@@ -1536,7 +1536,7 @@ class KiteConfigPluginFunctionalTest {
                 version = "1.0.0"
                 logo {
                     foreground = file("art/fg.png")
-                    backgroundColor = "#102A43"
+                    background = color("#102A43")
                     rewrite { }
                 }
             }
@@ -1807,7 +1807,7 @@ class KiteConfigPluginFunctionalTest {
                 logo = """
                 logo {
                     foreground = file("art/logo_fg.png")
-                    backgroundColor = "#102A43"
+                    background = color("#102A43")
                     rewrite { }
                 }
                 """.trimIndent(),
@@ -1859,7 +1859,7 @@ class KiteConfigPluginFunctionalTest {
                 logo = """
                 logo {
                     foreground = file("art/logo_fg.png")
-                    backgroundColor = "#102A43"
+                    background = color("#102A43")
                     rewrite { }
                 }
                 """.trimIndent(),

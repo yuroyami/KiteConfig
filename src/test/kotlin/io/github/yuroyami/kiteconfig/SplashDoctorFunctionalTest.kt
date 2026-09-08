@@ -37,7 +37,7 @@ class SplashDoctorFunctionalTest {
             plugins { id("io.github.yuroyami.kiteconfig") }
             kiteConfig {
                 modules { androidAppDirectory = file("androidApp") }
-                logo { backgroundColor.set("#102A43") }
+                logo { background.set(color("#102A43")) }
                 splash { }
             }
             """.trimIndent(),
@@ -52,7 +52,7 @@ class SplashDoctorFunctionalTest {
             plugins { id("io.github.yuroyami.kiteconfig") }
             kiteConfig {
                 modules { androidAppDirectory = file("androidApp") }
-                logo { backgroundColor.set("#102A43") }
+                logo { background.set(color("#102A43")) }
                 splash { android { theme.set("AppTheme") } }
             }
             """.trimIndent(),
@@ -79,7 +79,7 @@ class SplashDoctorFunctionalTest {
             """
             plugins { id("io.github.yuroyami.kiteconfig") }
             kiteConfig {
-                logo { backgroundColor.set("#102A43") }
+                logo { background.set(color("#102A43")) }
                 splash {
                     skip(desktop)
                     android { theme.set("AppTheme") }

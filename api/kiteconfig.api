@@ -78,6 +78,7 @@ public abstract class io/github/yuroyami/kiteconfig/GenerateDesktopIconsTask : o
 	public abstract fun getBackgroundColor ()Lorg/gradle/api/provider/Property;
 	public abstract fun getDryRun ()Lorg/gradle/api/provider/Property;
 	public abstract fun getForeground ()Lorg/gradle/api/file/RegularFileProperty;
+	public abstract fun getForegroundScale ()Lorg/gradle/api/provider/Property;
 	public abstract fun getGeneratedRoot ()Lorg/gradle/api/file/DirectoryProperty;
 	public abstract fun getOutputDir ()Lorg/gradle/api/file/DirectoryProperty;
 	public abstract fun getRoundMacOsIcon ()Lorg/gradle/api/provider/Property;
@@ -128,6 +129,7 @@ public abstract class io/github/yuroyami/kiteconfig/KiteConfigAndroidExtension :
 	public abstract fun getTargetSdk ()Lorg/gradle/api/provider/Property;
 	public final fun jvm (Lorg/gradle/api/Action;)V
 	public final fun locales (Lorg/gradle/api/Action;)V
+	public final fun logo (Lorg/gradle/api/Action;)V
 	public final fun sdk (Ljava/lang/Integer;Ljava/lang/Integer;Ljava/lang/Integer;)V
 	public static synthetic fun sdk$default (Lio/github/yuroyami/kiteconfig/KiteConfigAndroidExtension;Ljava/lang/Integer;Ljava/lang/Integer;Ljava/lang/Integer;ILjava/lang/Object;)V
 }
@@ -163,6 +165,7 @@ public abstract class io/github/yuroyami/kiteconfig/KiteConfigDesktopExtension :
 	public final fun getPlatform ()Lio/github/yuroyami/kiteconfig/KitePlatform;
 	public final fun jvm (Lorg/gradle/api/Action;)V
 	public final fun locales (Lorg/gradle/api/Action;)V
+	public final fun logo (Lorg/gradle/api/Action;)V
 }
 
 public final class io/github/yuroyami/kiteconfig/KiteConfigDiagnosticReportFormat : java/lang/Enum {
@@ -269,7 +272,7 @@ public abstract class io/github/yuroyami/kiteconfig/KiteConfigExtension : io/git
 	public fun getIosMarketingVersion ()Lorg/gradle/api/provider/Provider;
 	public fun getJvmTarget ()Lorg/gradle/api/provider/Provider;
 	public fun getJvmToolchain ()Lorg/gradle/api/provider/Provider;
-	public final fun getLogo ()Lio/github/yuroyami/kiteconfig/KiteConfigLogoExtension;
+	public final fun getLogo ()Lio/github/yuroyami/kiteconfig/KiteLogoScope;
 	public fun getMinSdk ()Lorg/gradle/api/provider/Provider;
 	public final fun getModules ()Lio/github/yuroyami/kiteconfig/KiteConfigModulesExtension;
 	public fun getNdk ()Lorg/gradle/api/provider/Provider;
@@ -310,6 +313,7 @@ public abstract class io/github/yuroyami/kiteconfig/KiteConfigIosExtension : io/
 	public abstract fun getPodfile ()Lorg/gradle/api/file/RegularFileProperty;
 	public final fun getRewrite ()Lio/github/yuroyami/kiteconfig/KiteConfigIosSyncExtension;
 	public final fun locales (Lorg/gradle/api/Action;)V
+	public final fun logo (Lorg/gradle/api/Action;)V
 	public final fun rewrite (Lorg/gradle/api/Action;)V
 }
 
@@ -323,36 +327,6 @@ public abstract class io/github/yuroyami/kiteconfig/KiteConfigIosSyncExtension {
 	public abstract fun getTargets ()Lorg/gradle/api/provider/ListProperty;
 	public final fun renameSharedModule (Ljava/lang/String;Ljava/lang/String;)V
 	public final fun targets ([Ljava/lang/String;)V
-}
-
-public abstract class io/github/yuroyami/kiteconfig/KiteConfigLogoExtension : io/github/yuroyami/kiteconfig/KiteFlowScope {
-	public fun <init> (Lorg/gradle/api/model/ObjectFactory;)V
-	public final fun android (Lorg/gradle/api/Action;)V
-	public final fun desktop (Lorg/gradle/api/Action;)V
-	public final fun getAndroid ()Lio/github/yuroyami/kiteconfig/KiteConfigLogoExtension$AndroidCorner;
-	public abstract fun getBackground ()Lorg/gradle/api/file/RegularFileProperty;
-	public abstract fun getBackgroundColor ()Lorg/gradle/api/provider/Property;
-	public final fun getDesktop ()Lio/github/yuroyami/kiteconfig/KiteConfigLogoExtension$DesktopCorner;
-	public abstract fun getForeground ()Lorg/gradle/api/file/RegularFileProperty;
-	public final fun rewrite (Lorg/gradle/api/Action;)V
-}
-
-public abstract class io/github/yuroyami/kiteconfig/KiteConfigLogoExtension$AndroidCorner : io/github/yuroyami/kiteconfig/KitePlatformRef {
-	public fun <init> ()V
-	public final fun getPlatform ()Lio/github/yuroyami/kiteconfig/KitePlatform;
-	public abstract fun getSafeZone ()Lorg/gradle/api/provider/Property;
-}
-
-public abstract class io/github/yuroyami/kiteconfig/KiteConfigLogoExtension$DesktopCorner : io/github/yuroyami/kiteconfig/KitePlatformRef {
-	public fun <init> ()V
-	public final fun getPlatform ()Lio/github/yuroyami/kiteconfig/KitePlatform;
-	public abstract fun getRoundMac ()Lorg/gradle/api/provider/Property;
-}
-
-public abstract class io/github/yuroyami/kiteconfig/KiteConfigLogoExtension$LogoRewrite {
-	public fun <init> ()V
-	public abstract fun getAuto ()Lorg/gradle/api/provider/Property;
-	public abstract fun getReplaceOld ()Lorg/gradle/api/provider/Property;
 }
 
 public abstract class io/github/yuroyami/kiteconfig/KiteConfigModulesExtension {
@@ -465,6 +439,11 @@ public abstract class io/github/yuroyami/kiteconfig/KiteConfigWebExtension {
 	public final fun ioWorker (Lorg/gradle/api/Action;)V
 }
 
+public abstract class io/github/yuroyami/kiteconfig/KiteDesktopLogoScope : io/github/yuroyami/kiteconfig/KiteLogoScope {
+	public fun <init> (Lorg/gradle/api/model/ObjectFactory;)V
+	public abstract fun getRoundMac ()Lorg/gradle/api/provider/Property;
+}
+
 public abstract class io/github/yuroyami/kiteconfig/KiteFlowScope {
 	public fun <init> ()V
 	public final fun only ([Lio/github/yuroyami/kiteconfig/KitePlatformRef;)V
@@ -481,6 +460,24 @@ public abstract class io/github/yuroyami/kiteconfig/KiteLocalesScope {
 	public fun <init> ()V
 	public abstract fun getEnabled ()Lorg/gradle/api/provider/Property;
 	public abstract fun getTags ()Lorg/gradle/api/provider/ListProperty;
+}
+
+public abstract class io/github/yuroyami/kiteconfig/KiteLogoRewrite {
+	public fun <init> ()V
+	public abstract fun getAuto ()Lorg/gradle/api/provider/Property;
+	public abstract fun getReplaceOld ()Lorg/gradle/api/provider/Property;
+}
+
+public abstract class io/github/yuroyami/kiteconfig/KiteLogoScope {
+	public fun <init> (Lorg/gradle/api/model/ObjectFactory;)V
+	public final fun color (Ljava/lang/String;)Lio/github/yuroyami/kiteconfig/LogoBackground;
+	public abstract fun getBackground ()Lorg/gradle/api/provider/Property;
+	public abstract fun getEnabled ()Lorg/gradle/api/provider/Property;
+	public abstract fun getForeground ()Lorg/gradle/api/file/RegularFileProperty;
+	public abstract fun getForegroundScale ()Lorg/gradle/api/provider/Property;
+	public final fun image (Ljava/io/File;)Lio/github/yuroyami/kiteconfig/LogoBackground;
+	public final fun image (Lorg/gradle/api/file/RegularFile;)Lio/github/yuroyami/kiteconfig/LogoBackground;
+	public final fun rewrite (Lorg/gradle/api/Action;)V
 }
 
 public final class io/github/yuroyami/kiteconfig/KitePlatform : java/lang/Enum {
@@ -546,6 +543,31 @@ public abstract class io/github/yuroyami/kiteconfig/KiteVersionScope {
 	public fun <init> ()V
 	public abstract fun getRebuild ()Lorg/gradle/api/provider/Property;
 	public final fun scheme (Lio/github/yuroyami/kiteconfig/VersionCodeScheme;)V
+}
+
+public abstract interface class io/github/yuroyami/kiteconfig/LogoBackground : java/io/Serializable {
+}
+
+public final class io/github/yuroyami/kiteconfig/LogoBackground$Color : io/github/yuroyami/kiteconfig/LogoBackground {
+	public fun <init> (Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;)Lio/github/yuroyami/kiteconfig/LogoBackground$Color;
+	public static synthetic fun copy$default (Lio/github/yuroyami/kiteconfig/LogoBackground$Color;Ljava/lang/String;ILjava/lang/Object;)Lio/github/yuroyami/kiteconfig/LogoBackground$Color;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getHex ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/yuroyami/kiteconfig/LogoBackground$Image : io/github/yuroyami/kiteconfig/LogoBackground {
+	public fun <init> (Ljava/io/File;)V
+	public final fun component1 ()Ljava/io/File;
+	public final fun copy (Ljava/io/File;)Lio/github/yuroyami/kiteconfig/LogoBackground$Image;
+	public static synthetic fun copy$default (Lio/github/yuroyami/kiteconfig/LogoBackground$Image;Ljava/io/File;ILjava/lang/Object;)Lio/github/yuroyami/kiteconfig/LogoBackground$Image;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getFile ()Ljava/io/File;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
 }
 
 public final class io/github/yuroyami/kiteconfig/PlistConflictPolicy : java/lang/Enum {
@@ -640,6 +662,7 @@ public abstract class io/github/yuroyami/kiteconfig/SyncIosLogoTask : org/gradle
 	public abstract fun getBackupDir ()Lorg/gradle/api/file/DirectoryProperty;
 	public abstract fun getDryRun ()Lorg/gradle/api/provider/Property;
 	public abstract fun getForegroundPng ()Lorg/gradle/api/file/RegularFileProperty;
+	public abstract fun getForegroundScale ()Lorg/gradle/api/provider/Property;
 	public abstract fun getOutputFiles ()Lorg/gradle/api/file/ConfigurableFileCollection;
 	public abstract fun getProjectRootDir ()Lorg/gradle/api/file/DirectoryProperty;
 	public final fun sync ()V
