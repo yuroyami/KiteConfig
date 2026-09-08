@@ -41,6 +41,14 @@ import org.gradle.api.provider.Property
  */
 abstract class KiteConfigDesktopExtension : KitePlatformExtension() {
 
+    /** The JVM toolchain and bytecode level for this platform's compilations. */
+    fun jvm(action: org.gradle.api.Action<in KiteJvmScope>) = action.execute(jvmDetails)
+
+    internal val jvmDetails: KiteJvmScope
+        get() = (this as org.gradle.api.plugins.ExtensionAware)
+            .extensions.getByType(KiteJvmScope::class.java)
+
+
     /** The locale list this platform ships, when it differs from the shared one. */
     fun locales(action: org.gradle.api.Action<in KiteLocalesScope>) = action.execute(localesDetails)
 

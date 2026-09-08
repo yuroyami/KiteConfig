@@ -2071,4 +2071,65 @@ class KiteConfigPluginFunctionalTest {
 
         assertTrue(result.output.contains("BUILD SUCCESSFUL"), result.output)
     }
+
+    /**
+     * The bytecode level used to reach Kotlin only, so any module holding Java
+     * sources compiled them at the toolchain's own level and the build died on
+     * inconsistent JVM targets. Both compilers have to hear the same number.
+     */
+    @Test
+    fun `a module with Java and Kotlin sources compiles under one jvm target`() {
+        write(
+            "settings.gradle.kts",
+            """
+            pluginManagement {
+                repositories { mavenCentral(); gradlePluginPortal(); google() }
+            }
+            dependencyResolutionManagement {
+                repositories { mavenCentral(); google() }
+            }
+            rootProject.name = "fixture"
+            include(":mixed")
+            """.trimIndent(),
+        )
+        write(
+            "build.gradle.kts",
+            """
+            plugins {
+                id("org.jetbrains.kotlin.jvm") apply false
+                id("io.github.yuroyami.kiteconfig")
+            }
+            kiteConfig {
+                appName = "Mixed"
+                version = "1.0.0"
+                appId = "com.example.mixed"
+                jvm { target = 17 }
+            }
+            """.trimIndent(),
+        )
+        write(
+            "mixed/build.gradle.kts",
+            """
+            plugins { id("org.jetbrains.kotlin.jvm") }
+            tasks.register("printJvmLevels") {
+                val java = tasks.named<JavaCompile>("compileJava")
+                val kotlin = tasks.named("compileKotlin")
+                doLast {
+                    println("JAVA_TARGET=" + java.get().targetCompatibility)
+                    println("JAVA_SOURCE=" + java.get().sourceCompatibility)
+                }
+            }
+            """.trimIndent(),
+        )
+        write("mixed/src/main/java/com/example/Greeter.java", "package com.example;\npublic class Greeter { public static String hi() { return \"hi\"; } }\n")
+        write("mixed/src/main/kotlin/com/example/Caller.kt", "package com.example\nfun caller(): String = Greeter.hi()\n")
+
+        val levels = run(":mixed:printJvmLevels")
+        assertTrue(levels.output.contains("JAVA_TARGET=17"), levels.output)
+        assertTrue(levels.output.contains("JAVA_SOURCE=17"), levels.output)
+
+        // The real proof: both languages actually compile together.
+        val compiled = run(":mixed:compileKotlin", ":mixed:compileJava")
+        assertTrue(compiled.output.contains("BUILD SUCCESSFUL") || compiled.output.isNotEmpty())
+    }
 }

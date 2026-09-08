@@ -43,7 +43,10 @@ import org.gradle.api.provider.Provider
  *     appName = "Jetzy"
  *     appId   = "com.example.jetzy"
  *
- *     jvmTarget = 21                 // Java + Kotlin JVM level, whole build
+ *     jvm {
+ *         toolchain = 21             // build with this JDK
+ *         target = 17                // Java and Kotlin bytecode level together
+ *     }
  *
  *     version = "1.4.0"
  *     version {
@@ -255,14 +258,33 @@ abstract class KiteConfigExtension : KiteFlowScope(), KiteConfigValues {
      */
     abstract override val version: Property<String>
 
-    /**
-     * Java and Kotlin JVM level for the whole build, for example `21`.
-     *
-     * This sets Java compatibility in classic Android modules and aligns
-     * Kotlin JVM compile tasks. It is a build-wide policy, so project
-     * selectors do not narrow it.
-     */
-    abstract override val jvmTarget: Property<Int>
+    /** The JVM topic: the toolchain that builds and the bytecode level it emits. */
+    fun jvm(action: Action<in KiteJvmScope>) = action.execute(jvmScope)
+
+    internal val jvmScope: KiteJvmScope
+        get() = nested()
+
+    /** The bytecode level [p] compiles to, its own if it set one. */
+    internal fun effectiveJvmTargetFor(p: KitePlatform): Provider<Int> = when (p) {
+        KitePlatform.ANDROID -> android.jvmDetails.target.orElse(jvmScope.target)
+        KitePlatform.DESKTOP -> desktop.jvmDetails.target.orElse(jvmScope.target)
+        KitePlatform.IOS -> jvmScope.target
+    }
+
+    /** The JDK [p] builds with, its own if it set one. */
+    internal fun effectiveJvmToolchainFor(p: KitePlatform): Provider<Int> = when (p) {
+        KitePlatform.ANDROID -> android.jvmDetails.toolchain.orElse(jvmScope.toolchain)
+        KitePlatform.DESKTOP -> desktop.jvmDetails.toolchain.orElse(jvmScope.toolchain)
+        KitePlatform.IOS -> jvmScope.toolchain
+    }
+
+    /** The shared bytecode level, readable from any build file. */
+    override val jvmTarget: Provider<Int>
+        get() = jvmScope.target
+
+    /** The shared JDK selection, readable from any build file. */
+    override val jvmToolchain: Provider<Int>
+        get() = jvmScope.toolchain
 
     // ---------------------------------------------------------- Build numbers
 
@@ -479,7 +501,10 @@ abstract class KiteConfigExtension : KiteFlowScope(), KiteConfigValues {
         get() = version
 
     internal val effectiveJvmTarget: Provider<Int>
-        get() = jvmTarget
+        get() = jvmScope.target
+
+    internal val effectiveJvmToolchain: Provider<Int>
+        get() = jvmScope.toolchain
 
     /** The locales topic: the tag list every platform starts from. */
     fun locales(action: Action<in KiteLocalesScope>) = action.execute(localesScope)

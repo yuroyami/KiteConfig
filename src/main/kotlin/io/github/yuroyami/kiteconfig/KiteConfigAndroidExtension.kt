@@ -59,6 +59,14 @@ import org.gradle.api.provider.Property
  */
 abstract class KiteConfigAndroidExtension : KitePlatformExtension() {
 
+    /** The JVM toolchain and bytecode level for this platform's compilations. */
+    fun jvm(action: org.gradle.api.Action<in KiteJvmScope>) = action.execute(jvmDetails)
+
+    internal val jvmDetails: KiteJvmScope
+        get() = (this as org.gradle.api.plugins.ExtensionAware)
+            .extensions.getByType(KiteJvmScope::class.java)
+
+
     /** Android's locale list and its resource filter. */
     fun locales(action: org.gradle.api.Action<in KiteAndroidLocalesScope>) =
         action.execute(androidLocales)

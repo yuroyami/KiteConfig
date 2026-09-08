@@ -39,11 +39,12 @@ class ReadBackBoundaryTest {
             "getIosMarketingVersion", "getDesktopBuildNumber",
             "getAppName", "appNameFor", "getAppId", "appIdFor",
             "getAndroidApplicationId", "getIosBundleId", "getDesktopBundleId",
-            "getCanonicalLocales", "getJvmTarget", "getResolvedSharedProjectPath",
+            "getCanonicalLocales", "getJvmTarget", "getJvmToolchain",
+            "getResolvedSharedProjectPath",
             "getMinSdk", "getTargetSdk", "getCompileSdk", "getNdk",
         )
 
-        assertEquals(19, expected.size)
+        assertEquals(20, expected.size)
         assertTrue(names.containsAll(expected), "missing: ${expected - names}")
         assertEquals(emptySet<String>(), names - expected, "undocumented member: ${names - expected}")
     }

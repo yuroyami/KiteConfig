@@ -245,7 +245,7 @@ internal fun validateSdkLevels(compileSdk: Int?, minSdk: Int?, targetSdk: Int?) 
 
 internal fun validateJavaVersion(value: Int): Int {
     if (value !in 8..26) {
-        throw GradleException("kiteConfig { jvmTarget } must be a supported Java language level in 8..26; got $value.")
+        throw GradleException("kiteConfig { jvm { target } } must be a supported Java language level in 8..26; got $value.")
     }
     return value
 }

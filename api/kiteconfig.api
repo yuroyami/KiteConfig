@@ -126,6 +126,7 @@ public abstract class io/github/yuroyami/kiteconfig/KiteConfigAndroidExtension :
 	public abstract fun getNdk ()Lorg/gradle/api/provider/Property;
 	public final fun getPlatform ()Lio/github/yuroyami/kiteconfig/KitePlatform;
 	public abstract fun getTargetSdk ()Lorg/gradle/api/provider/Property;
+	public final fun jvm (Lorg/gradle/api/Action;)V
 	public final fun locales (Lorg/gradle/api/Action;)V
 	public final fun sdk (Ljava/lang/Integer;Ljava/lang/Integer;Ljava/lang/Integer;)V
 	public static synthetic fun sdk$default (Lio/github/yuroyami/kiteconfig/KiteConfigAndroidExtension;Ljava/lang/Integer;Ljava/lang/Integer;Ljava/lang/Integer;ILjava/lang/Object;)V
@@ -160,6 +161,7 @@ public abstract class io/github/yuroyami/kiteconfig/KiteConfigDesktopExtension :
 	public abstract fun getDeriveUpgradeUuid ()Lorg/gradle/api/provider/Property;
 	public abstract fun getLinuxPackageName ()Lorg/gradle/api/provider/Property;
 	public final fun getPlatform ()Lio/github/yuroyami/kiteconfig/KitePlatform;
+	public final fun jvm (Lorg/gradle/api/Action;)V
 	public final fun locales (Lorg/gradle/api/Action;)V
 }
 
@@ -265,7 +267,8 @@ public abstract class io/github/yuroyami/kiteconfig/KiteConfigExtension : io/git
 	public fun getIosBuildNumber ()Lorg/gradle/api/provider/Provider;
 	public fun getIosBundleId ()Lorg/gradle/api/provider/Provider;
 	public fun getIosMarketingVersion ()Lorg/gradle/api/provider/Provider;
-	public abstract fun getJvmTarget ()Lorg/gradle/api/provider/Property;
+	public fun getJvmTarget ()Lorg/gradle/api/provider/Provider;
+	public fun getJvmToolchain ()Lorg/gradle/api/provider/Provider;
 	public final fun getLogo ()Lio/github/yuroyami/kiteconfig/KiteConfigLogoExtension;
 	public fun getMinSdk ()Lorg/gradle/api/provider/Provider;
 	public final fun getModules ()Lio/github/yuroyami/kiteconfig/KiteConfigModulesExtension;
@@ -277,6 +280,7 @@ public abstract class io/github/yuroyami/kiteconfig/KiteConfigExtension : io/git
 	public fun getVersionCode ()Lorg/gradle/api/provider/Provider;
 	public final fun getWeb ()Lio/github/yuroyami/kiteconfig/KiteConfigWebExtension;
 	public final fun ios (Lorg/gradle/api/Action;)V
+	public final fun jvm (Lorg/gradle/api/Action;)V
 	public final fun locales (Lorg/gradle/api/Action;)V
 	public final fun logo (Lorg/gradle/api/Action;)V
 	public final fun modules (Lorg/gradle/api/Action;)V
@@ -408,6 +412,7 @@ public abstract interface class io/github/yuroyami/kiteconfig/KiteConfigValues {
 	public abstract fun getIosBundleId ()Lorg/gradle/api/provider/Provider;
 	public abstract fun getIosMarketingVersion ()Lorg/gradle/api/provider/Provider;
 	public abstract fun getJvmTarget ()Lorg/gradle/api/provider/Provider;
+	public abstract fun getJvmToolchain ()Lorg/gradle/api/provider/Provider;
 	public abstract fun getMinSdk ()Lorg/gradle/api/provider/Provider;
 	public abstract fun getNdk ()Lorg/gradle/api/provider/Provider;
 	public abstract fun getResolvedSharedProjectPath ()Lorg/gradle/api/provider/Provider;
@@ -464,6 +469,12 @@ public abstract class io/github/yuroyami/kiteconfig/KiteFlowScope {
 	public fun <init> ()V
 	public final fun only ([Lio/github/yuroyami/kiteconfig/KitePlatformRef;)V
 	public final fun skip ([Lio/github/yuroyami/kiteconfig/KitePlatformRef;)V
+}
+
+public abstract class io/github/yuroyami/kiteconfig/KiteJvmScope {
+	public fun <init> ()V
+	public abstract fun getTarget ()Lorg/gradle/api/provider/Property;
+	public abstract fun getToolchain ()Lorg/gradle/api/provider/Property;
 }
 
 public abstract class io/github/yuroyami/kiteconfig/KiteLocalesScope {

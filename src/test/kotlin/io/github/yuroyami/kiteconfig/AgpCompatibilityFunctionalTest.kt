@@ -312,7 +312,7 @@ class AgpCompatibilityFunctionalTest {
                 locales {
                     tags = ['en', 'pt-BR']
                 }
-                jvmTarget = 17
+                jvm { target = 17 }
                 modules {
                     androidApps(':app')
                 }

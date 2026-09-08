@@ -108,6 +108,9 @@ interface KiteConfigValues {
     /** The Java release level applied to JVM compilation. */
     val jvmTarget: Provider<Int>
 
+    /** The JDK major version the build uses, when `jvm { toolchain }` selected one. */
+    val jvmToolchain: Provider<Int>
+
     /**
      * The selected shared KMP project path.
      *

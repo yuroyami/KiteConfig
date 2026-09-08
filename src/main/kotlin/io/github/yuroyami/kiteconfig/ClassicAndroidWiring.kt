@@ -117,8 +117,9 @@ internal object ClassicAndroidWiring {
                 }
             }
             project.wireValueGroup(resilient, "the Java compatibility level") {
-                if (ext.effectiveJvmTarget.isPresent) {
-                    val jv = JavaVersion.toVersion(validateJavaVersion(ext.effectiveJvmTarget.get()))
+                val level = ext.effectiveJvmTargetFor(KitePlatform.ANDROID)
+                if (level.isPresent) {
+                    val jv = JavaVersion.toVersion(validateJavaVersion(level.get()))
                     android.compileOptions.sourceCompatibility = jv
                     android.compileOptions.targetCompatibility = jv
                 }
@@ -151,8 +152,9 @@ internal object ClassicAndroidWiring {
                 }
             }
             project.wireValueGroup(resilient, "the Java compatibility level") {
-                if (ext.effectiveJvmTarget.isPresent) {
-                    val jv = JavaVersion.toVersion(validateJavaVersion(ext.effectiveJvmTarget.get()))
+                val level = ext.effectiveJvmTargetFor(KitePlatform.ANDROID)
+                if (level.isPresent) {
+                    val jv = JavaVersion.toVersion(validateJavaVersion(level.get()))
                     android.compileOptions.sourceCompatibility = jv
                     android.compileOptions.targetCompatibility = jv
                 }

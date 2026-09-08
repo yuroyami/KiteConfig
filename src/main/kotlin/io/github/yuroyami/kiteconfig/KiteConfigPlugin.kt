@@ -82,6 +82,7 @@ class KiteConfigPlugin : Plugin<Project> {
         }
 
         extAware.extensions.create<KiteVersionScope>("versionScope")
+        extAware.extensions.create<KiteJvmScope>("jvmScope")
         extAware.extensions.create<KiteLocalesScope>("localesScope")
         extAware.extensions.create<KiteSplashScope>("splash")
         val androidExtension = extAware.extensions.create<KiteConfigAndroidExtension>("android")
@@ -124,6 +125,9 @@ class KiteConfigPlugin : Plugin<Project> {
             // this is what lets an explicitly empty list mean "no locales here"
             // instead of silently inheriting the shared one.
             platform.localesDetails.tags.convention(ext.effectiveLocales)
+            if (platform !is KiteConfigIosExtension) {
+                platform.extensions.create<KiteJvmScope>("jvmDetails")
+            }
         }
 
         // Resolve console colour once. Tasks receive only the Boolean, which keeps
@@ -464,6 +468,9 @@ class KiteConfigPlugin : Plugin<Project> {
                                 .toString()
                             KotlinJvmTargetWiring.apply(consumerProject, targetVersion)
                         }
+                        ext.effectiveJvmToolchain.orNull?.let { toolchain ->
+                            KotlinJvmTargetWiring.applyToolchain(consumerProject, toolchain)
+                        }
                         // wireWebIoWorker and wireBuildConfig moved to projectsEvaluated:
                         // both select their project against the shared module, which may
                         // only be KNOWN there when it comes from sole-KMP detection.
@@ -484,6 +491,9 @@ class KiteConfigPlugin : Plugin<Project> {
                                     .toVersion(validateJavaVersion(javaVersion))
                                     .toString()
                                 KotlinJvmTargetWiring.apply(consumerProject, targetVersion)
+                            }
+                            ext.effectiveJvmToolchain.orNull?.let { toolchain ->
+                                KotlinJvmTargetWiring.applyToolchain(consumerProject, toolchain)
                             }
                         }
                     } else if (!KGP_ON_CLASSPATH) {
@@ -1639,7 +1649,10 @@ class KiteConfigPlugin : Plugin<Project> {
     @OptIn(DiscouragedKiteApi::class)
     private fun modelValues(ext: KiteConfigExtension): List<HasConfigurableValue> =
         listOf(
-            ext.appName, ext.version, ext.appId, ext.jvmTarget,
+            ext.appName, ext.version, ext.appId,
+            ext.jvmScope.target, ext.jvmScope.toolchain,
+            ext.android.jvmDetails.target, ext.android.jvmDetails.toolchain,
+            ext.desktop.jvmDetails.target, ext.desktop.jvmDetails.toolchain,
             ext.dryRun, ext.backups, ext.ignoreVersionGuards,
             ext.logoConfigured, ext.optInsDeclared, ext.buildConfigDeclared,
             ext.skipped, ext.allowed,
