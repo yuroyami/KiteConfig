@@ -279,7 +279,40 @@ abstract class SyncIosConfigTask : DefaultTask() {
         }
         // The catalog entries follow the committed plist, so a refused plist plan
         // never leaves splash assets behind that nothing references.
-        splash?.let { installSplashAssets(root, it) }
+        if (splash != null) installSplashAssets(root, splash) else removeSplashAssets(root)
+    }
+
+    /**
+     * Takes back a launch screen this plugin installed and nobody wants now.
+     *
+     * Turning a feature off used to leave its files on disk and its keys in the
+     * plist, so the app kept showing something the build script no longer
+     * mentions. Only files the receipt still vouches for are removed.
+     */
+    private fun removeSplashAssets(root: java.io.File) {
+        val appicon = appiconsetDir.asFile.orNull ?: return
+        val assets = appicon.parentFile ?: return
+        if (!assets.isDirectory) return
+        val identity = runCatching { iosSplashCatalogIdentity(root, assets) }.getOrNull() ?: return
+        val manifest = iosSplashManifestFile(assets, identity)
+        if (!manifest.isFile) return
+
+        if (dryRun.get()) {
+            logger.lifecycle("[kiteConfig][dry-run] would remove the iOS splash assets owned by $identity.")
+            return
+        }
+        val removed = OwnedOutputSafety.removeInstalledFiles(
+            installationRoot = assets,
+            manifestFile = manifest,
+            projectRoot = root,
+            owner = identity,
+        )
+        if (removed.isNotEmpty()) {
+            logger.lifecycle(
+                "[kiteConfig] iOS splash is off, so ${removed.size} asset(s) it installed were removed from " +
+                    displayProjectPath(root, assets) + ".",
+            )
+        }
     }
 
     private fun planInfoPlist(

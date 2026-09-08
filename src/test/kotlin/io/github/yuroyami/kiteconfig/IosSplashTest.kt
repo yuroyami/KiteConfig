@@ -385,4 +385,65 @@ class IosSplashTest {
         val strays = assets.walkTopDown().filter { it.isFile && it.path.contains(".kiteconfig") }.toList()
         assertTrue(strays.isEmpty(), "receipt files landed inside the asset catalog: $strays")
     }
+
+    /**
+     * Turning a feature off used to leave its files on disk and its keys in the
+     * plist, so the app kept showing something the build script no longer
+     * mentions.
+     */
+    @Test
+    fun `a launch screen that is turned off is taken back out`() {
+        val assets = catalog()
+        install(assets, darkImage = null, backup = false)
+        val installed = iosSplashOwnedPaths(assets, withDarkImage = false)
+        assertTrue(installed.all { it.isFile }, "the splash was never installed")
+
+        val identity = iosSplashCatalogIdentity(projectDir, assets)
+        val removed = OwnedOutputSafety.removeInstalledFiles(
+            installationRoot = assets,
+            manifestFile = iosSplashManifestFile(assets, identity),
+            projectRoot = projectDir,
+            owner = identity,
+        )
+
+        assertEquals(installed.size, removed.size)
+        assertTrue(installed.none { it.exists() }, "files the plugin owned were left behind")
+        assertFalse(iosSplashManifestFile(assets, identity).exists(), "the receipt outlived its files")
+    }
+
+    @Test
+    fun `a file edited by hand survives the removal and is reported`() {
+        val assets = catalog()
+        install(assets, darkImage = null, backup = false)
+        val identity = iosSplashCatalogIdentity(projectDir, assets)
+        val edited = assets.resolve("$IOS_SPLASH_COLORSET.colorset/Contents.json")
+        edited.writeText("{ \"mine\": true }")
+
+        val failure = assertThrows(GradleException::class.java) {
+            OwnedOutputSafety.removeInstalledFiles(
+                installationRoot = assets,
+                manifestFile = iosSplashManifestFile(assets, identity),
+                projectRoot = projectDir,
+                owner = identity,
+            )
+        }
+
+        assertTrue(failure.message.orEmpty().contains("modified"), failure.message.orEmpty())
+        assertEquals("{ \"mine\": true }", edited.readText())
+    }
+
+    @Test
+    fun `removing when nothing was installed does nothing`() {
+        val assets = catalog()
+        val identity = iosSplashCatalogIdentity(projectDir, assets)
+
+        val removed = OwnedOutputSafety.removeInstalledFiles(
+            installationRoot = assets,
+            manifestFile = iosSplashManifestFile(assets, identity),
+            projectRoot = projectDir,
+            owner = identity,
+        )
+
+        assertTrue(removed.isEmpty())
+    }
 }

@@ -950,7 +950,7 @@ class KiteConfigPlugin : Plugin<Project> {
         ext: KiteConfigExtension,
     ): TaskProvider<SanitizeIosProjectTask> =
         root.tasks.register<SanitizeIosProjectTask>("kiteInternalPlistClean") {
-            val runCondition = ext.effectiveSyncIos.zip(ext.effectiveSanitizeIosProject) { a, b -> a && b }
+            val runCondition = KiteOperationPlanner.enabled(ext, KiteOperation.IOS_PLIST)
             onlyIf { runCondition.get() }
             projectRootDir.set(root.layout.projectDirectory)
             infoPlistFile.set(ext.effectiveIosInfoPlist)
@@ -973,7 +973,7 @@ class KiteConfigPlugin : Plugin<Project> {
         ext: KiteConfigExtension,
     ): TaskProvider<SyncIosConfigTask> =
         root.tasks.register<SyncIosConfigTask>("kiteInternalIosConfig") {
-            val runCondition = ext.effectiveSyncIos
+            val runCondition = KiteOperationPlanner.enabled(ext, KiteOperation.IOS_PROJECT)
             onlyIf { runCondition.get() }
             projectRootDir.set(root.layout.projectDirectory)
             pbxprojFile.set(ext.effectiveIosPbxproj)
@@ -1017,7 +1017,7 @@ class KiteConfigPlugin : Plugin<Project> {
         ext: KiteConfigExtension,
     ): TaskProvider<SyncIosLogoTask> =
         root.tasks.register<SyncIosLogoTask>("kiteInternalIosLogo") {
-            val runCondition = ext.effectiveIosLogoInstall
+            val runCondition = KiteOperationPlanner.enabled(ext, KiteOperation.IOS_APP_ICON)
             onlyIf { runCondition.get() }
             foregroundPng.set(ext.effectiveLogoForegroundFor(KitePlatform.IOS))
             projectRootDir.set(root.layout.projectDirectory)
@@ -1037,7 +1037,7 @@ class KiteConfigPlugin : Plugin<Project> {
         androidOutputApproved: Provider<Boolean>,
     ): TaskProvider<SyncAndroidLogoTask> =
         root.tasks.register<SyncAndroidLogoTask>("kiteInternalAndroidLogo") {
-            val runCondition = ext.effectiveAndroidLogoInstall
+            val runCondition = KiteOperationPlanner.enabled(ext, KiteOperation.ANDROID_LAUNCHER_ICON)
             onlyIf { runCondition.get() }
             foregroundPng.set(ext.effectiveLogoForegroundFor(KitePlatform.ANDROID))
             projectRootDir.set(root.layout.projectDirectory)
@@ -1061,7 +1061,7 @@ class KiteConfigPlugin : Plugin<Project> {
         androidOutputApproved: Provider<Boolean>,
     ): TaskProvider<CleanupLegacyAppLogoArtifactsTask> =
         root.tasks.register<CleanupLegacyAppLogoArtifactsTask>("kiteInternalLegacyIconCleanup") {
-            val runCondition = ext.effectiveTakeOverLegacyIcons
+            val runCondition = KiteOperationPlanner.enabled(ext, KiteOperation.ANDROID_LEGACY_ICONS)
             onlyIf { runCondition.get() }
             projectRootDir.set(root.layout.projectDirectory)
             dryRun.set(ext.effectiveDryRun)
@@ -1163,149 +1163,23 @@ class KiteConfigPlugin : Plugin<Project> {
         detectedApplications: List<String>,
         androidResourceDirectories: List<java.io.File>,
     ) {
+        val plan = root.provider {
+            KiteOperationPlanner.derive(root, ext, detectedApplications, androidResourceDirectories)
+        }
         planTask.configure {
-            operations.set(root.provider {
-                buildList {
-                    if (ext.effectiveSyncIos.get() && ext.effectiveSanitizeIosProject.get()) {
-                        add("sanitize source Info.plist in the iOS text transaction")
-                    }
-                    if (ext.effectiveSyncIos.get()) add("migrate selected Xcode build settings")
-                    if (ext.effectiveSyncIos.get() && ext.effectivePropagateSharedModule.get()) {
-                        add("migrate explicit Pod/Swift module references")
-                    }
-                    if (ext.effectiveIosLogoInstall.get()) add("install iOS AppIcon assets")
-                    if (ext.effectiveAndroidLogoInstall.get()) add("install Android launcher assets")
-                    if (ext.effectiveTakeOverLegacyIcons.get()) {
-                        add("transactionally take over legacy Android logo artifacts")
-                    }
-                    if (ext.effectiveIosSplash.get()) add("install iOS splash launch-screen assets")
-                }
-            })
-            mutationPaths.set(root.provider {
-                buildList {
-                    fun addTextTarget(file: java.io.File) {
-                        add(file.path)
-                        if (ext.effectiveBackups.get()) add(file.path + BACKUP_SUFFIX)
-                    }
-                    if (ext.effectiveSyncIos.get()) {
-                        addTextTarget(ext.effectiveIosPbxproj.get().asFile)
-                        add(root.layout.projectDirectory.file(".gradle/kiteconfig/rewrite.lock").asFile.path)
-                    }
-                    if (ext.effectiveSyncIos.get() &&
-                        (ext.effectiveSanitizeIosProject.get() || ext.effectiveIosSplash.get())
-                    ) {
-                        addTextTarget(ext.effectiveIosInfoPlist.get().asFile)
-                    }
-                    if (ext.effectiveIosSplash.get()) {
-                        iosSplashOwnedPaths(
-                            ext.effectiveIosAppIconDirectory.get().asFile.parentFile,
-                            ext.effectiveSplashDarkImage.isPresent,
-                        ).forEach { add(it.path) }
-                    }
-                    if (ext.effectiveSyncIos.get() && ext.effectivePropagateSharedModule.get()) {
-                        addTextTarget(ext.effectiveIosPodfile.get().asFile)
-                        add(ext.effectiveIosAppDirectory.get().asFile.path)
-                    }
-                    if (ext.effectiveIosLogoInstall.get()) {
-                        val icons = ext.effectiveIosAppIconDirectory.get().asFile
-                        add(icons.path)
-                        val identity = SyncIosLogoTask.catalogIdentity(root.projectDir, icons)
-                        val metadata = (icons.parentFile?.parentFile ?: icons.parentFile ?: icons)
-                            .resolve(".kiteconfig/$identity")
-                        val manifest = metadata.resolve("owned-files-v1")
-                        add(manifest.path)
-                        add(manifest.path + ".lock")
-                        if (ext.effectiveBackups.get()) {
-                            add(root.projectDir.resolve(".kiteconfig/recovery/ios-appicon/$identity").path)
-                        }
-                    }
-                    if (ext.effectiveAndroidLogoInstall.get()) {
-                        androidResourceDirectories.forEach { res ->
-                            add(res.path)
-                            val manifest = res.parentFile.resolve(".kiteconfig/android-logo-owned-files-v1")
-                            add(manifest.path)
-                            add(manifest.path + ".lock")
-                        }
-                    }
-                    if (ext.effectiveTakeOverLegacyIcons.get()) {
-                        val recovery = root.projectDir.resolve(".kiteconfig/recovery/android-logo")
-                        add(recovery.path)
-                        add(recovery.resolve("removal-provenance.tsv").path)
-                        add(recovery.resolve(".migration.lock").path)
-                    }
-                }
-            })
-            selectedTargets.set(root.provider {
-                ext.effectiveAndroidApps.get().ifEmpty { detectedApplications }
-                    .map { "Android project $it" } +
-                    ext.effectiveIosTargets.get().map { "Xcode target $it" }
-            })
-            policies.set(root.provider {
-                mapOf(
-                    "backups" to ext.effectiveBackups.get().toString(),
-                    "dryRun" to ext.effectiveDryRun.get().toString(),
-                    "ios.plist.policy" to ext.effectivePlistConflictPolicy.get().name,
-                    "ios.deploymentTarget" to ext.ios.deploymentTarget.orNull.orEmpty(),
-                    "pbxprojScope" to if (ext.effectiveIosTargets.get().isEmpty()) {
-                        "sole application target only"
-                    } else {
-                        "explicit targets"
-                    },
-                    "desktop.identity" to if (ext.effectiveDesktopEnabled.get()) "enabled" else "disabled",
-                    "sourceMutationDuringBuild" to "disabled",
-                )
-            })
-            exactChanges.set(root.provider {
-                buildList {
-                    if (ext.effectiveSyncIos.get()) {
-                        add(
-                            "iOS text transaction: calculate target-scoped unified diffs from " +
-                                ext.effectiveIosPbxproj.get().asFile.path,
-                        )
-                    }
-                    if (ext.effectiveSyncIos.get() && ext.effectiveSanitizeIosProject.get()) {
-                        add(
-                            "Info.plist: include the configured references/flags under " +
-                                "${ext.effectivePlistConflictPolicy.get()} policy",
-                        )
-                    }
-                    if (ext.effectiveSyncIos.get() && ext.effectivePropagateLogo.get()) {
-                        add(
-                            "iOS AppIcon: align the selected target's existing catalog setting, then render " +
-                                "AppIcon-1024.png and Contents.json after ownership validation",
-                        )
-                    }
-                    if (ext.effectivePropagateLogo.get()) {
-                        val versionQualifier = if (ext.android.compileSdk.orNull?.let { it >= 33 } == true) {
-                            "/v33"
-                        } else {
-                            ""
-                        }
-                        add(
-                            "Android icons: render density PNGs plus v26$versionQualifier wrappers " +
-                                "after ownership validation; KTCNFG003 verifies the user-owned manifest references",
-                        )
-                    }
-                }
-            })
+            operations.set(plan.map { derived -> derived.operations.map { it.description } })
             notes.set(
-                listOf(
-                    "Set dryRun=true and invoke an individual text migration task for its unified-style preview; " +
-                        "binary installers list exact owned paths.",
-                    "Generated BuildConfig/worker source is build-owned and is not part of this source mutation plan.",
-                    "The listed iOS app directory is a bounded discovery root; any matching Swift rewrite receives a sibling $BACKUP_SUFFIX backup when backups are enabled.",
-                    "Any provider-backed section that cannot be resolved is warned about and omitted; no mutation runs.",
-                ),
+                plan.map { derived ->
+                    derived.operations.map { "${it.description}: ${derived.reasons.getValue(it)}" }
+                },
             )
+            mutationPaths.set(plan.map { it.paths })
+            selectedTargets.set(plan.map { it.targets })
+            policies.set(plan.map { it.policies })
+            exactChanges.set(root.provider { emptyList() })
         }
     }
 
-    /**
-     * Wrap a provider that may throw (a scheme-derived version code or build
-     * number) so a resilient diagnostic task can bind it without ever failing
-     * configuration-cache serialization. A thrown [GradleException] becomes an
-     * absent value; the diagnostics engine already reports that as a finding.
-     */
     /**
      * Hooks automatic application onto each platform's ordinary build.
      *

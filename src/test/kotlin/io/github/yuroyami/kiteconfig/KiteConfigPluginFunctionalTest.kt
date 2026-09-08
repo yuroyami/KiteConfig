@@ -1147,8 +1147,11 @@ class KiteConfigPluginFunctionalTest {
 
         val result = run("kitePlan")
 
-        assertTrue(result.output.contains("sanitize source Info.plist"), result.output)
-        assertTrue(result.output.contains("migrate selected Xcode build settings"), result.output)
+        assertTrue(result.output.contains("maintain the managed keys in the source Info.plist"), result.output)
+        assertTrue(result.output.contains("write the selected Xcode build settings"), result.output)
+        // Every operation says why it is there, so the reader does not have to
+        // work it back out from their own build script.
+        assertTrue(result.output.contains("iOS is a selected platform"), result.output)
         assertTrue(result.output.contains("iosApp/iosApp.xcodeproj/project.pbxproj"), result.output)
         assertTrue(result.output.contains("project.pbxproj$BACKUP_SUFFIX"), result.output)
         assertTrue(result.output.contains(".gradle/kiteconfig/rewrite.lock"), result.output)

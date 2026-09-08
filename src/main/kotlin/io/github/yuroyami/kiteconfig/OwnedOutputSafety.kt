@@ -151,6 +151,14 @@ internal object OwnedOutputSafety {
         owner: String,
         files: Map<String, ByteArray>,
         inputFingerprint: String? = null,
+        /**
+         * Called before each write, with its position in the batch.
+         *
+         * Production passes nothing. Tests throw from it to prove that a failure
+         * partway through a batch leaves the tree as it was, which is the one
+         * property that cannot be checked by reading the code.
+         */
+        beforeMutation: (index: Int, target: Path) -> Unit = { _, _ -> },
     ) {
         requireProjectContainedPath(manifestFile, projectRoot, "ownership manifest")
         replaceOwnedFiles(
@@ -160,8 +168,53 @@ internal object OwnedOutputSafety {
             files = files,
             inputFingerprint = inputFingerprint,
             exclusiveRoot = false,
-            beforeMutation = { _, _ -> },
+            beforeMutation = beforeMutation,
         )
+    }
+
+    /**
+     * Removes everything an owner installed, and its receipt.
+     *
+     * This is how a feature that was turned off gets taken back out. Only files
+     * the receipt still vouches for are removed: one that was edited by hand
+     * since it was written is left where it is and reported, exactly as it would
+     * be during a replacement.
+     *
+     * Returns the paths that were removed, relative to [installationRoot].
+     */
+    fun removeInstalledFiles(
+        installationRoot: File,
+        manifestFile: File,
+        projectRoot: File,
+        owner: String,
+    ): List<String> {
+        requireProjectContainedPath(manifestFile, projectRoot, "ownership manifest")
+        val manifest = manifestFile.toPath().absoluteNormalized()
+        if (!Files.exists(manifest, NOFOLLOW_LINKS)) return emptyList()
+        val root = installationRoot.toPath().absoluteNormalized()
+        return withInstallationLock(manifestFile, projectRoot) {
+            val snapshot = readOwnershipManifest(manifest, owner)
+            val removed = mutableListOf<String>()
+            snapshot.entries.forEach { entry ->
+                val target = root.resolve(entry.relativePath).normalize()
+                requireContained(root, target, "owned output")
+                if (!Files.exists(target, NOFOLLOW_LINKS)) return@forEach
+                val attrs = safeAttributes(target, "owned output")
+                if (!attrs.isRegularFile) {
+                    throw GradleException("[kiteConfig] Owned output is no longer a regular file: $target")
+                }
+                if (sha256Bounded(target, MAX_MIGRATION_FILE_BYTES, "owned output") != entry.sha256) {
+                    throw GradleException(
+                        "[kiteConfig] Refusing to remove modified generated output: $target. " +
+                            "Move your changes, or delete the file yourself.",
+                    )
+                }
+                Files.delete(target)
+                removed += entry.relativePath
+            }
+            Files.deleteIfExists(manifest)
+            removed
+        }
     }
 
     /**
