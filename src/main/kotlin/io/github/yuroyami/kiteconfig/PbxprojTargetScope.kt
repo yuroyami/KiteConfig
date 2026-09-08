@@ -332,6 +332,8 @@ internal class PbxprojAnalysis private constructor(private val graph: ObjectGrap
     internal fun locatePbxLists(key: String): Pair<List<PbxListLocation>, List<String>> =
         locatePbxListsFromGraph(graph, key)
 
+    internal fun projectBuildConfigSpans(): List<IntRange> = projectBuildConfigSpansFromGraph(graph)
+
     internal companion object {
         internal fun parse(text: String): PbxprojAnalysis = PbxprojAnalysis(objectGraph(text))
     }
@@ -444,6 +446,33 @@ private fun resolveApplicationBuildConfigSpansFromGraph(
     return PbxTargetScopeResult(configSpans.distinct().sortedBy { it.first }, selected.map { it.second }, emptyList())
 }
 
+/**
+ * The PBXProject's own build configurations.
+ *
+ * Xcode writes most project-wide settings here and lets targets inherit them,
+ * so a setting a target never overrides is only readable at this level.
+ */
+private fun projectBuildConfigSpansFromGraph(graph: ObjectGraph): List<IntRange> {
+    if (graph.errors.isNotEmpty()) return emptyList()
+    val project = graph.objects[graph.rootProjectId] ?: return emptyList()
+    val listId = project.assignments.filter { it.name == "buildConfigurationList" }
+        .singleOrNull()?.scalar()
+        ?.takeIf(PBX_ID::matches)
+        ?: return emptyList()
+    val list = graph.objects[listId]?.takeIf {
+        it.assignments.singleOrNull { assignment -> assignment.name == "isa" }?.scalar() == "XCConfigurationList"
+    } ?: return emptyList()
+    val tokens = list.assignments.filter { it.name == "buildConfigurations" }.singleOrNull()?.tokens
+        ?: return emptyList()
+    val parsed = parseFlatList(tokens, "PBXProject buildConfigurations", PBX_ID)
+    if (parsed.error != null) return emptyList()
+    return parsed.values.mapNotNull { id ->
+        graph.objects[id]
+            ?.takeIf { it.assignments.singleOrNull { a -> a.name == "isa" }?.scalar() == "XCBuildConfiguration" }
+            ?.span
+    }
+}
+
 /** Compatibility helper retained for pure callers; ambiguity now returns no spans. */
 internal fun applicationBuildConfigSpans(text: String): List<IntRange> =
     resolveApplicationBuildConfigSpans(text).spans
@@ -520,4 +549,60 @@ private fun locatePbxListsFromGraph(
     val parsed = parseFlatList(assignment.tokens, "root PBXProject $key")
     parsed.error?.let { return emptyList<PbxListLocation>() to listOf(it) }
     return listOf(PbxListLocation(assignment.range, parsed.values)) to emptyList()
+}
+
+/**
+ * The lowest `IPHONEOS_DEPLOYMENT_TARGET` across the selected application
+ * target's build configurations, or null when the project does not say.
+ *
+ * The project already carries this. Asking the reader to restate it in
+ * `kiteConfig { }` only creates a second copy that can disagree with the first.
+ *
+ * The lowest one wins: an icon catalog has to work on the oldest OS the app
+ * still ships to, so a Debug configuration on a newer floor proves nothing.
+ */
+internal fun iosDeploymentTargetFrom(text: String, targets: Set<String> = emptySet()): String? {
+    val analysis = analyzePbxproj(text)
+    if (analysis.structuralErrors().isNotEmpty()) return null
+
+    fun lowestIn(spans: List<IntRange>): String? {
+        if (spans.isEmpty()) return null
+        val located = analysis.locateBuildSettings(spans, setOf(IPHONEOS_DEPLOYMENT_TARGET))
+        if (located.errors.isNotEmpty()) return null
+        return located.byConfig.values
+            .mapNotNull { settings -> settings[IPHONEOS_DEPLOYMENT_TARGET]?.singleOrNull() }
+            .mapNotNull { location -> deploymentTargetValue(text, location.assignmentRange) }
+            .minWithOrNull { left, right -> compareAppleVersions(left, right) }
+    }
+
+    // The target wins when it overrides. Otherwise the project level is what
+    // Xcode itself would use, which is where most projects declare it.
+    return lowestIn(analysis.resolveApplicationBuildConfigSpans(targets).spans)
+        ?: lowestIn(analysis.projectBuildConfigSpans())
+}
+
+private const val IPHONEOS_DEPLOYMENT_TARGET = "IPHONEOS_DEPLOYMENT_TARGET"
+
+/** Reads the right-hand side of a `KEY = VALUE;` assignment, unquoted. */
+private fun deploymentTargetValue(text: String, range: IntRange): String? = text
+    .substring(range)
+    .substringAfter('=', missingDelimiterValue = "")
+    .trim()
+    .removeSuffix(";")
+    .trim()
+    .trim('"')
+    .takeIf { it.isNotBlank() && APPLE_VERSION.matches(it) }
+
+private val APPLE_VERSION = Regex("""\d{1,9}(\.\d{1,9}){0,2}""")
+
+/** Component-wise ordering, so 9.0 sorts below 12.0 rather than above it. */
+private fun compareAppleVersions(left: String, right: String): Int {
+    fun parts(value: String) = value.split('.').map { it.toLongOrNull() ?: 0L }
+    val a = parts(left)
+    val b = parts(right)
+    for (index in 0 until maxOf(a.size, b.size)) {
+        val comparison = (a.getOrElse(index) { 0L }).compareTo(b.getOrElse(index) { 0L })
+        if (comparison != 0) return comparison
+    }
+    return 0
 }

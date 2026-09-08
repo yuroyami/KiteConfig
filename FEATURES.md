@@ -81,7 +81,6 @@ supported.
 | `ios { infoPlist { proMotion } }` and `{ nonExemptEncryption }` | Unset | An unset key is left exactly as it is. |
 | `ios { xcodeTargets(...) }` | Empty | KiteConfig finds a sole application target. Naming one is needed only when several exist. |
 | `ios { renameSharedModule(...) }` | Not called | Podfile and Swift module-reference migration is off. |
-| `ios { deploymentTarget }` | Unset | Checked as an icon-format compatibility assertion only when you declare it. |
 | `optIns` | Off | On once a marker is added, or with `enabled = true` for the built-in set alone. |
 | `buildConfig` | Off | On once a field is declared, or with `enabled = true` for identity-only output. |
 | `buildConfig { packageName }` | `kiteconfig.generated` | Generated source uses this package. |
@@ -620,7 +619,8 @@ Apple icon installation requires:
 - a configured `logo { }` block;
 - `logo.foreground`, a PNG;
 - exactly one of `logo.background` or `logo.backgroundColor`;
-- `ios.deploymentTarget >= 12.0`;
+- an `IPHONEOS_DEPLOYMENT_TARGET` of 12.0 or newer in the Xcode project, when
+  the project states one;
 - Xcode 14 or newer.
 
 The installer creates an opaque 1024 by 1024 composite and a universal

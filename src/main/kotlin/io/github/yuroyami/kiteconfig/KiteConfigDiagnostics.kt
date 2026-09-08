@@ -1207,33 +1207,35 @@ internal object KiteConfigDiagnosticEngine {
             return
         }
         val deploymentTarget = context.iosDeploymentTarget
-        val deploymentFailure = runCatching {
-            validateUniversalAppIconDeploymentTarget(
-                requireNotNull(deploymentTarget) {
-                    "ios.deploymentTarget is required for universal AppIcon propagation"
-                },
-            )
-        }.exceptionOrNull()
-        if (deploymentFailure == null) {
-            add(
-                diagnostic(
+        val deploymentFailure = deploymentTarget?.let {
+            runCatching { validateUniversalAppIconDeploymentTarget(it) }.exceptionOrNull()
+        }
+        add(
+            when {
+                // The project is the only source now, so a project that does not say
+                // is a fact to report, not a value somebody forgot to type.
+                deploymentTarget == null -> diagnostic(
+                    "KTCNFG023",
+                    KiteConfigDiagnosticSeverity.SKIPPED,
+                    "Universal AppIcon compatibility",
+                    "The Xcode project does not state IPHONEOS_DEPLOYMENT_TARGET, so Xcode's own default applies.",
+                )
+                deploymentFailure == null -> diagnostic(
                     "KTCNFG023",
                     KiteConfigDiagnosticSeverity.PASS,
                     "Universal AppIcon compatibility",
-                    "iOS deployment target $deploymentTarget supports the Xcode 14+ single-size AppIcon catalog.",
-                ),
-            )
-        } else {
-            add(
-                diagnostic(
+                    "The Xcode project targets iOS $deploymentTarget, which runs the single-size AppIcon catalog.",
+                )
+                else -> diagnostic(
                     "KTCNFG023",
                     KiteConfigDiagnosticSeverity.ERROR,
                     "Universal AppIcon compatibility",
                     diagnosticExceptionSummary(deploymentFailure),
-                    "Set ios.deploymentTarget to 12.0 or newer and build the asset catalog with Xcode 14 or newer.",
-                ),
-            )
-        }
+                    "Raise the target's iOS deployment target to 12.0 or newer in Xcode, and build the " +
+                        "asset catalog with Xcode 14 or newer.",
+                )
+            },
+        )
         val icons = context.appiconsetDir
         if (icons == null) {
             add(diagnostic("KTCNFG022", KiteConfigDiagnosticSeverity.WARNING, "iOS app icon set", "The appiconset path is unset."))

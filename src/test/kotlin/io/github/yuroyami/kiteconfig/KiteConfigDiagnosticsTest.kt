@@ -458,15 +458,23 @@ class KiteConfigDiagnosticsTest {
 
     @Test
     fun `universal AppIcon diagnostic requires a compatible deployment target`() {
-        val missing = KiteConfigDiagnosticEngine.evaluate(
+        // Nobody types this value any more, so a project that does not state it is
+        // a fact to report rather than something the reader forgot.
+        val unstated = KiteConfigDiagnosticEngine.evaluate(
             quietContext(syncIos = true, propagateLogo = true),
         ).single { it.id == "KTCNFG023" }
-        assertEquals(KiteConfigDiagnosticSeverity.ERROR, missing.severity)
+        assertEquals(KiteConfigDiagnosticSeverity.SKIPPED, unstated.severity)
 
         val compatible = KiteConfigDiagnosticEngine.evaluate(
             quietContext(syncIos = true, propagateLogo = true).copy(iosDeploymentTarget = "12.0"),
         ).single { it.id == "KTCNFG023" }
         assertEquals(KiteConfigDiagnosticSeverity.PASS, compatible.severity)
+
+        val tooOld = KiteConfigDiagnosticEngine.evaluate(
+            quietContext(syncIos = true, propagateLogo = true).copy(iosDeploymentTarget = "11.0"),
+        ).single { it.id == "KTCNFG023" }
+        assertEquals(KiteConfigDiagnosticSeverity.ERROR, tooOld.severity)
+        assertTrue(tooOld.remediation!!.contains("Xcode"), tooOld.remediation)
     }
 
     @Test

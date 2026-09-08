@@ -84,7 +84,6 @@ import org.gradle.api.provider.Provider
  *
  *     ios {
  *         appName = "Jetzy Lite"         // only this platform differs
- *         deploymentTarget = "15.0"
  *         infoPlist { proMotion = true }
  *         // xcodeTargets("iosApp")      // only with several app targets
  *     }

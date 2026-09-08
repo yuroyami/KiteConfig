@@ -54,6 +54,17 @@ class RealXcodeProjectCompatibilityTest {
         validateWithInstalledXcode(first.text)
     }
 
+    /** The value the reader now depends on, taken from a project Xcode itself wrote. */
+    @Test
+    fun `the deployment target is read out of a real Xcode project`() {
+        val original = checkNotNull(
+            javaClass.getResourceAsStream("/fixtures/RealApp.xcodeproj/project.pbxproj"),
+        ) { "real Xcode fixture is missing" }.bufferedReader().use { it.readText() }
+
+        assertEquals("14.0", iosDeploymentTargetFrom(original))
+        assertEquals("14.0", iosDeploymentTargetFrom(original, setOf("Fixture App")))
+    }
+
     private fun validateWithInstalledXcode(pbxproj: String) {
         val xcodebuild = File("/usr/bin/xcodebuild")
         assumeTrue(xcodebuild.canExecute(), "xcodebuild is unavailable on this host")

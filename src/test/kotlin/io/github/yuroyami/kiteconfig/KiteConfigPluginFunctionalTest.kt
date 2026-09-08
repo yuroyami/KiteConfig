@@ -425,9 +425,6 @@ class KiteConfigPluginFunctionalTest {
             """
             plugins { id("io.github.yuroyami.kiteconfig") }
             kiteConfig {
-                ios {
-                    deploymentTarget = "12.0"
-                }
                 logo {
                     foreground = file("art/fg.png")
                     background = color("#80FF5500")
@@ -836,25 +833,38 @@ class KiteConfigPluginFunctionalTest {
         )
         writePng("art/fg.png", 64)
 
-        // Nothing was declared about the deployment target, so nothing blocks the icon.
+        // No project file at all, so there is nothing to read and nothing to block.
         run("kiteInternalIosLogo")
 
-        write(
-            "build.gradle.kts",
-            """
-            plugins { id("io.github.yuroyami.kiteconfig") }
-            kiteConfig {
-                logo {
-                    foreground = file("art/fg.png")
-                    background = color("#FF5500")
-                }
-                ios { deploymentTarget = "11.0" }
-            }
-            """.trimIndent(),
+        // The project states it, so the reader finds it without being told.
+        fun writeProjectTargeting(version: String) = write(
+            "iosApp/iosApp.xcodeproj/project.pbxproj",
+            pbxProject("Phone").replace(
+                "CURRENT_PROJECT_VERSION = 1;",
+                "CURRENT_PROJECT_VERSION = 1;\n                        IPHONEOS_DEPLOYMENT_TARGET = $version;",
+            ),
         )
 
+        writeProjectTargeting("11.0")
         val failure = runAndFail("kiteInternalIosLogo")
         assertTrue(failure.output.contains("12.0"), failure.output)
+        assertTrue(failure.output.contains("11.0"), failure.output)
+
+        writeProjectTargeting("15.4")
+        run("kiteInternalIosLogo")
+    }
+
+    /** The project level is where Xcode itself puts it when no target overrides. */
+    @Test
+    fun `the deployment target is read from the project level too`() {
+        val project = pbxProject("Phone")
+        assertEquals(null, iosDeploymentTargetFrom(project))
+
+        val targetLevel = project.replace(
+            "CURRENT_PROJECT_VERSION = 1;",
+            "CURRENT_PROJECT_VERSION = 1;\n                        IPHONEOS_DEPLOYMENT_TARGET = 16.0;",
+        )
+        assertEquals("16.0", iosDeploymentTargetFrom(targetLevel))
     }
 
     @Test

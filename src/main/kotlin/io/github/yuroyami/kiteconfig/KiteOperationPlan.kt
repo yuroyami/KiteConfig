@@ -107,7 +107,6 @@ internal object KiteOperationPlanner {
                 "autoApply.android" to ext.effectiveAutoApplyFor(KitePlatform.ANDROID).get().toString(),
                 "autoApply.ios" to ext.effectiveAutoApplyFor(KitePlatform.IOS).get().toString(),
                 "ios.plist.policy" to ext.effectivePlistConflictPolicy.get().name,
-                "ios.deploymentTarget" to ext.ios.deploymentTarget.orNull.orEmpty(),
                 "pbxprojScope" to if (ext.effectiveIosTargets.get().isEmpty()) {
                     "sole application target only"
                 } else {

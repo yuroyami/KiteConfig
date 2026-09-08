@@ -58,7 +58,6 @@ import org.gradle.api.provider.Property
  * | Value | Written into your Xcode project |
  * |---|---|
  * | Bundle id, marketing version, build number | yes, by an explicit `kiteApplyIos` run |
- * | [deploymentTarget] | **no**, it only validates the AppIcon catalog |
  * | [pbxproj], [podfile], [infoPlist], [appDirectory], [appIconDirectory] | no, they say where to look |
  *
  * Those three are declared elsewhere: the bundle id in `ios { appId { suffix } }`,
@@ -96,22 +95,6 @@ abstract class KiteConfigIosExtension : KitePlatformExtension() {
 
 
     // --- Assets ---------------------------------------------------------------
-
-    /**
-     * The lowest iOS version your app supports, such as `"14.0"`. The minimum
-     * accepted value is `"12.0"`.
-     *
-     * KiteConfig reads it only to check that the universal AppIcon asset is valid
-     * for that version. It does NOT change Xcode's `IPHONEOS_DEPLOYMENT_TARGET`.
-     * The single-size universal catalog also needs Xcode 14 or newer.
-     *
-     * Required before the Apple icon installer will run.
-     *
-     * @throws org.gradle.api.GradleException during configuration when the value
-     *   is below `12.0` or is not a valid version string.
-     * @see KiteConfigLogoExtension for the icon source this validates against.
-     */
-    abstract val deploymentTarget: Property<String>
 
     // --- Paths ----------------------------------------------------------------
 

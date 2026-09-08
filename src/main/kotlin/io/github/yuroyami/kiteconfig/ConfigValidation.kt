@@ -83,10 +83,17 @@ internal fun validateAppleBuildNumber(value: String): String {
     return value
 }
 
+/**
+ * Whether [value], read from the Xcode project's `IPHONEOS_DEPLOYMENT_TARGET`,
+ * can run the single-size universal AppIcon catalog.
+ *
+ * Nobody types this into `kiteConfig { }`. The messages name Xcode, because
+ * that is the only place the value can be changed.
+ */
 internal fun validateUniversalAppIconDeploymentTarget(value: String): String {
     if (value.length > MAX_DEPLOYMENT_TARGET_CHARS) {
         throw GradleException(
-            "kiteConfig { ios { deploymentTarget } } is longer than " +
+            "The Xcode project's IPHONEOS_DEPLOYMENT_TARGET is longer than " +
                 "$MAX_DEPLOYMENT_TARGET_CHARS characters.",
         )
     }
@@ -96,13 +103,13 @@ internal fun validateUniversalAppIconDeploymentTarget(value: String): String {
     }
     if (!valid) {
         throw GradleException(
-            "kiteConfig { ios { deploymentTarget } } \"${diagnosticSafeText(value, 64)}\" is invalid. Use a numeric Apple " +
-                "deployment target such as 12.0."
+            "The Xcode project's IPHONEOS_DEPLOYMENT_TARGET \"${diagnosticSafeText(value, 64)}\" is not a " +
+                "numeric Apple deployment target such as 12.0."
         )
     }
     if (components.first().toLong() < 12L) {
         throw GradleException(
-            "kiteConfig's single-size universal AppIcon requires ios.deploymentTarget >= 12.0; got $value."
+            "The single-size universal AppIcon needs iOS 12.0 or newer; the Xcode project targets $value."
         )
     }
     return value

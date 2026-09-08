@@ -78,7 +78,9 @@ stops. Topic-level `skip` and `only` are gone. Root `skip` and `only` remain, an
 - `jvmTarget` is `jvm { target }`, beside `jvm { toolchain }`.
 - iOS plist facts are `ios { infoPlist { } }`; target selection is
   `ios { xcodeTargets(...) }`; `renameSharedModule` moved up beside them.
-- `ios { deploymentTarget }` is now checked only when you declare it.
+- `ios { deploymentTarget }` is gone. KiteConfig reads
+  `IPHONEOS_DEPLOYMENT_TARGET` from your Xcode project instead of asking you to
+  restate it, and the check that needed it still runs.
 
 ### Build numbers are text
 

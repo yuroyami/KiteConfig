@@ -1234,7 +1234,14 @@ class KiteConfigPlugin : Plugin<Project> {
         cleanupLegacyLogoArtifacts.set(ext.effectiveTakeOverLegacyIcons)
         iosMarketingVersion.set(ext.effectiveIosMarketingVersion)
         iosBuildNumber.set(root.resilientValue { ext.effectiveIosBuildNumber.orNull })
-        iosDeploymentTarget.set(ext.ios.deploymentTarget)
+        // Read from the Xcode project, which already states it. A second copy in
+        // kiteConfig { } could only ever disagree with the first.
+        iosDeploymentTarget.set(
+            root.resilientValue {
+                val pbxproj = ext.effectiveIosPbxproj.orNull?.asFile?.takeIf(java.io.File::isFile)
+                pbxproj?.let { iosDeploymentTargetFrom(it.readText(), ext.effectiveIosTargets.get().toSet()) }
+            },
+        )
         usesNonExemptEncryption.set(ext.effectiveNonExemptEncryption)
         proMotion120Hz.set(ext.effectiveProMotion)
         plistConflictPolicy.set(ext.effectivePlistConflictPolicy)
@@ -1525,10 +1532,15 @@ class KiteConfigPlugin : Plugin<Project> {
                         )
                     }
                     ext.effectiveLogoBackgroundColor.orNull?.let(::validateLogoBackgroundColorHex)
-                    // Checked when declared. The single-size universal catalog needs
-                    // iOS 12 and Xcode 14, but that is a fact about the project, not
-                    // something the build has to be told before it may own an icon.
-                    ext.ios.deploymentTarget.orNull?.let(::validateUniversalAppIconDeploymentTarget)
+                    // The single-size universal catalog needs iOS 12. That fact lives
+                    // in the Xcode project, so it is read rather than asked for, and
+                    // only when the iOS icon is actually going to be installed.
+                    if (ext.effectiveIosLogoInstall.get()) {
+                        ext.effectiveIosPbxproj.orNull?.asFile
+                            ?.takeIf(java.io.File::isFile)
+                            ?.let { iosDeploymentTargetFrom(it.readText(), ext.effectiveIosTargets.get().toSet()) }
+                            ?.let(::validateUniversalAppIconDeploymentTarget)
+                    }
                 }
 
                 // Legacy takeover is validated as part of the Android installer's
@@ -1613,7 +1625,7 @@ class KiteConfigPlugin : Plugin<Project> {
                 block.autoApply,
             )
         } + listOf(
-            ext.ios.deploymentTarget, ext.ios.pbxproj, ext.ios.podfile,
+            ext.ios.pbxproj, ext.ios.podfile,
             ext.ios.appDirectory, ext.ios.appIconDirectory,
         ) + listOf(
             ext.ios.infoPlist.path, ext.ios.infoPlist.nonExemptEncryption,

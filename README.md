@@ -450,6 +450,7 @@ silently.
 | `ios { rewrite { renameSharedModule(a, b) } }` | `ios { renameSharedModule(a, b) }` |
 | `./gradlew kiteRewriteLogo`, `kiteRewriteXcode` | `./gradlew kiteApply` |
 | `kiteConfig.id` | `kiteConfig.appId` |
+| `ios { deploymentTarget = "15.0" }` | nothing: read from your Xcode project |
 | `android:label="${appName}"` in your manifest | nothing: delete the line |
 | `android:theme="${kiteSplashTheme}"` in your manifest | nothing: delete the line |
 
