@@ -94,9 +94,15 @@ abstract class GenerateAndroidSplashTask : DefaultTask() {
         val color = validatedColor(backgroundColor.orNull, "splash { backgroundColor }")
         val darkColor = validatedColor(darkBackgroundColor.orNull, "splash { dark { backgroundColor } }")
         if (color == null) {
+            val darkNote = if (darkColor == null) {
+                ""
+            } else {
+                " Dark mode still uses splash { dark { backgroundColor } }."
+            }
             logger.warn(
                 "[kiteConfig] The Android splash has no plate color, so Android 12 keeps the window " +
-                    "background of your theme. Set splash { backgroundColor } or logo { backgroundColor }.",
+                    "background of your theme. Set splash { backgroundColor } or logo { backgroundColor }." +
+                    darkNote,
             )
         }
 
@@ -104,7 +110,15 @@ abstract class GenerateAndroidSplashTask : DefaultTask() {
         files["values/$SPLASH_RESOURCE_FILE"] = resourcesXml(aliasStyle(parent))
         files["values-v31/$SPLASH_RESOURCE_FILE"] = resourcesXml(androidTwelveStyle(parent, color))
         if (darkColor != null) {
-            files["values-night-v31/$SPLASH_RESOURCE_FILE"] = resourcesXml(colorOnly(darkColor))
+            // With a light colour the light style already points at the colour name,
+            // so overriding the colour alone lets Android resolve it per
+            // configuration. With no light colour there is nothing pointing at it,
+            // and a lone colour override would never be read, so night carries the
+            // whole style instead. Light still falls through to the theme's own
+            // window background.
+            files["values-night-v31/$SPLASH_RESOURCE_FILE"] = resourcesXml(
+                if (color != null) colorOnly(darkColor) else androidTwelveStyle(parent, darkColor),
+            )
         }
         renderIcons(art, "", files)
         darkImage.asFile.orNull?.let { dark ->

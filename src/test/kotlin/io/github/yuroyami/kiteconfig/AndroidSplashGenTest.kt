@@ -144,4 +144,26 @@ class AndroidSplashGenTest {
         assertTrue(message.contains("#RRGGBB"), message)
     }
 
+    /**
+     * The night file normally overrides the color alone, which works because the
+     * light style references it. With no light color there is no reference, so
+     * night has to carry the whole style or the dark plate never shows.
+     */
+    @Test
+    fun `a dark-only plate color is referenced by a night style`() {
+        val task = splashTask(into = "splash-res-dark-only")
+        task.image.set(art("splash.png"))
+        task.darkBackgroundColor.set("#000000")
+
+        task.generate()
+
+        val twelve = task.output("values-v31/kiteconfig_splash.xml").readText()
+        assertFalse(twelve.contains("windowSplashScreenBackground"), twelve)
+
+        val night = task.output("values-night-v31/kiteconfig_splash.xml").readText()
+        assertTrue(night.contains("<color name=\"kite_splash_bg\">#000000</color>"), night)
+        assertTrue(night.contains("<style name=\"KiteSplash\" parent=\"AppTheme\">"), night)
+        assertTrue(night.contains("windowSplashScreenBackground"), night)
+        assertTrue(night.contains("windowSplashScreenAnimatedIcon"), night)
+    }
 }
