@@ -32,6 +32,18 @@ import org.jetbrains.kotlin.gradle.plugin.KotlinPlatformType
  * Java 17. KGP-typed integrations require KGP to be declared in the root plugin
  * classloader; requested features fail with guidance when that contract is not met.
  */
+/**
+ * Whether the typed peer-plugin adapters may run for this consumer.
+ *
+ * [supported] answers "is this version on the tested matrix". [ignoreGuards] is
+ * the user's explicit decision to run anyway. Every adapter branch asks this one
+ * function, because a branch that consults [supported] alone leaves its
+ * integration silently off while the console reports that the typed
+ * integrations stayed active.
+ */
+internal fun typedIntegrationsActive(supported: Boolean, ignoreGuards: Boolean): Boolean =
+    supported || ignoreGuards
+
 class KiteConfigPlugin : Plugin<Project> {
 
     override fun apply(target: Project) {
@@ -379,7 +391,7 @@ class KiteConfigPlugin : Plugin<Project> {
                 detectedAndroidApplications += consumerProject.path
                 detectedAndroidProjects += consumerProject.path
                 val resilient = isResilientDiagnosticInvocation(target)
-                if (agpAdaptersUsable || ext.effectiveIgnoreVersionGuards.get()) {
+                if (typedIntegrationsActive(agpAdaptersUsable, ext.effectiveIgnoreVersionGuards.get())) {
                     if (useAgp8ClassicAdapter) {
                         Agp8ClassicAndroidWiringBridge.wireApplication(consumerProject, ext, resilient)
                     } else {
@@ -393,7 +405,7 @@ class KiteConfigPlugin : Plugin<Project> {
             plugins.withId("com.android.library") {
                 detectedAndroidProjects += consumerProject.path
                 val resilient = isResilientDiagnosticInvocation(target)
-                if (agpAdaptersUsable || ext.effectiveIgnoreVersionGuards.get()) {
+                if (typedIntegrationsActive(agpAdaptersUsable, ext.effectiveIgnoreVersionGuards.get())) {
                     if (useAgp8ClassicAdapter) {
                         Agp8ClassicAndroidWiringBridge.wireLibrary(consumerProject, ext, resilient)
                     } else {
@@ -409,7 +421,7 @@ class KiteConfigPlugin : Plugin<Project> {
             plugins.withId("com.android.kotlin.multiplatform.library") {
                 detectedAndroidProjects += consumerProject.path
                 val resilient = isResilientDiagnosticInvocation(target)
-                if (agpAdaptersUsable) {
+                if (typedIntegrationsActive(agpAdaptersUsable, ext.effectiveIgnoreVersionGuards.get())) {
                     if (!KmpAndroidLibraryWiring.apply(consumerProject, ext, resilient)) {
                         kmpAndroidProjectsWithoutComponents += consumerProject.path
                     }
@@ -427,7 +439,7 @@ class KiteConfigPlugin : Plugin<Project> {
                 if (isResilientDiagnosticInvocation(target)) {
                     // Diagnostic/report tasks resolve provider failures themselves;
                     // do not let peer-plugin adapters pre-empt those reports.
-                } else if (kgpAdaptersUsable || ext.effectiveIgnoreVersionGuards.get()) {
+                } else if (typedIntegrationsActive(kgpAdaptersUsable, ext.effectiveIgnoreVersionGuards.get())) {
                     propagateInteropOptIns(consumerProject, ext)
                     // withId fires during the subproject's `plugins {}` block, BEFORE its
                     // `kotlin { js() … }` body runs. The targets container is still empty
@@ -453,7 +465,7 @@ class KiteConfigPlugin : Plugin<Project> {
                     detectedKotlinJvmProjects += consumerProject.path
                     if (isResilientDiagnosticInvocation(target)) {
                         // See the KMP branch above.
-                    } else if (kgpAdaptersUsable || ext.effectiveIgnoreVersionGuards.get()) {
+                    } else if (typedIntegrationsActive(kgpAdaptersUsable, ext.effectiveIgnoreVersionGuards.get())) {
                         consumerProject.afterEvaluate {
                             ext.effectiveJvmTarget.orNull?.let { javaVersion ->
                                 val targetVersion = org.gradle.api.JavaVersion
@@ -824,7 +836,7 @@ class KiteConfigPlugin : Plugin<Project> {
             // Shared-scoped generation, wired once the shared module is settled. Each
             // function still self-selects (web can name projects beyond the shared one),
             // so simply offer every detected KMP project.
-            if (kgpAdaptersUsable || ext.effectiveIgnoreVersionGuards.get()) {
+            if (typedIntegrationsActive(kgpAdaptersUsable, ext.effectiveIgnoreVersionGuards.get())) {
                 detectedKmpProjects.forEach { path ->
                     target.findProject(path)?.let { kmpProject ->
                         wireWebIoWorker(kmpProject, ext)

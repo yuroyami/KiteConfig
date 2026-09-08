@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import java.io.File
 
 class VersionGuardFlagTest {
 
@@ -48,5 +49,36 @@ class VersionGuardFlagTest {
         assertEquals(KiteConfigDiagnosticSeverity.WARNING, soft.single { it.id == "KTCNFG061" }.severity)
         assertEquals(KiteConfigDiagnosticSeverity.WARNING, soft.single { it.id == "KTCNFG062" }.severity)
         assertTrue(soft.single { it.id == "KTCNFG061" }.detail.contains("ignoreVersionGuards"))
+    }
+
+    @Test
+    fun `the override activates the adapters an untested version would refuse`() {
+        assertTrue(typedIntegrationsActive(supported = true, ignoreGuards = false))
+        assertTrue(typedIntegrationsActive(supported = true, ignoreGuards = true))
+        assertTrue(typedIntegrationsActive(supported = false, ignoreGuards = true))
+        assertFalse(typedIntegrationsActive(supported = false, ignoreGuards = false))
+    }
+
+    /**
+     * The KMP-native Android branch used to decide on the tested matrix alone, so
+     * the override left that adapter off while the console said every typed
+     * integration stayed active. Nothing but the declarations may name the
+     * matrix answer directly.
+     */
+    @Test
+    fun `no adapter branch decides on the tested matrix alone`() {
+        val source = File("src/main/kotlin/io/github/yuroyami/kiteconfig/KiteConfigPlugin.kt")
+        assertTrue(source.isFile, "expected the project root, got ${File(".").absolutePath}")
+
+        val offenders = source.readLines().withIndex().filter { (_, line) ->
+            line.contains("AdaptersUsable") &&
+                !line.contains("typedIntegrationsActive") &&
+                !line.trimStart().startsWith("val ")
+        }
+        assertTrue(
+            offenders.isEmpty(),
+            "these lines gate an adapter without typedIntegrationsActive: " +
+                offenders.joinToString { "line ${it.index + 1}: ${it.value.trim()}" },
+        )
     }
 }
