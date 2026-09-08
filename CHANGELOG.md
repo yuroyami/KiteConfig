@@ -103,6 +103,16 @@ A root `false` is an inheritable default rather than a ban: a platform can still
 ask for one the root left off. Root exclusion is the one thing a platform cannot
 argue with.
 
+### iOS finally offers the languages you list
+
+`locales { tags = listOf("en", "fr") }` used to reach iOS as `knownRegions` in
+the Xcode project. That list never leaves the project file, and a Compose app
+has no `.lproj` directories for the system to find, so iOS offered nothing.
+
+The tags now go into `Info.plist` as `CFBundleLocalizations`, which is what iOS
+actually reads. `knownRegions` is still written, because Xcode uses it for
+projects that do have localized variant groups.
+
 ### Your manifest needs no KiteConfig lines
 
 Android used to need two hand-written lines before the app name or the launch

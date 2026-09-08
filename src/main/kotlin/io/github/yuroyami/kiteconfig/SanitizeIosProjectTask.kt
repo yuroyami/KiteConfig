@@ -4,6 +4,7 @@ import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.RegularFileProperty
+import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.Internal
@@ -71,6 +72,10 @@ abstract class SanitizeIosProjectTask : DefaultTask() {
     @get:Input abstract val propagateMarketingVersion: Property<Boolean>
     @get:Input abstract val propagateBuildNumber: Property<Boolean>
 
+    /** The languages the app offers. Written as CFBundleLocalizations. */
+    @get:Input abstract val propagateLocaleList: Property<Boolean>
+    @get:Input abstract val locales: ListProperty<String>
+
     // Read at execution via isPresent; @Optional only applies to input annotations
     // and conflicts with @Internal under Gradle 9.
     @get:Input @get:Optional abstract val usesNonExemptEncryption: Property<Boolean>
@@ -116,10 +121,16 @@ abstract class SanitizeIosProjectTask : DefaultTask() {
                 add(PlistBoolEntry("CADisableMinimumFrameDurationOnPhone", proMotion120Hz.get()))
             }
         }
-        if (stringEntries.isEmpty() && boolEntries.isEmpty()) return
+        val arrayEntries = buildList {
+            val tags = locales.get()
+            if (propagateLocaleList.get() && tags.isNotEmpty()) {
+                add(PlistArrayEntry("CFBundleLocalizations", tags))
+            }
+        }
+        if (stringEntries.isEmpty() && boolEntries.isEmpty() && arrayEntries.isEmpty()) return
 
         val snapshot = readUtf8SnapshotStrict(file)
-        val result = sanitizeInfoPlist(snapshot.text, stringEntries, boolEntries, conflictPolicy.get())
+        val result = sanitizeInfoPlist(snapshot.text, stringEntries, boolEntries, arrayEntries, conflictPolicy.get())
         result.warnings.forEach { logger.warn("[kiteConfig] $it") }
         if (result.errors.isNotEmpty()) {
             throw GradleException("Info.plist migration refused:\n- ${result.errors.joinToString("\n- ")}")

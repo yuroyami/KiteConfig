@@ -38,6 +38,9 @@ enum class PlistConflictPolicy {
 internal data class PlistStringEntry(val name: String, val value: String)
 internal data class PlistBoolEntry(val name: String, val value: Boolean)
 
+/** A key whose value is an array of strings, such as `CFBundleLocalizations`. */
+internal data class PlistArrayEntry(val name: String, val values: List<String>)
+
 internal data class PlistSanitizeResult(
     /** New plist text, or null when nothing changed or the plan failed. */
     val text: String?,
@@ -64,9 +67,10 @@ internal fun sanitizeInfoPlist(
     xml: String,
     stringEntries: List<PlistStringEntry>,
     boolEntries: List<PlistBoolEntry>,
+    arrayEntries: List<PlistArrayEntry> = emptyList(),
     conflictPolicy: PlistConflictPolicy = PlistConflictPolicy.FAIL,
 ): PlistSanitizeResult {
-    if (stringEntries.isEmpty() && boolEntries.isEmpty()) {
+    if (stringEntries.isEmpty() && boolEntries.isEmpty() && arrayEntries.isEmpty()) {
         return PlistSanitizeResult(null, emptyList(), emptyList(), emptyList())
     }
     // Fast-reject oversized ASCII before allocating an encoded copy. When the
@@ -81,7 +85,7 @@ internal fun sanitizeInfoPlist(
     if (containsInternalSubset(xml) || Regex("<!ENTITY\\b", RegexOption.IGNORE_CASE).containsMatchIn(xml)) {
         return plistFailure("Info.plist contains an internal DTD subset/entity declaration; refusing unsafe XML")
     }
-    val requestedNames = (stringEntries.map { it.name } + boolEntries.map { it.name })
+    val requestedNames = (stringEntries.map { it.name } + boolEntries.map { it.name } + arrayEntries.map { it.name })
     val duplicateRequests = requestedNames.groupingBy { it }.eachCount().filterValues { it > 1 }.keys
     if (duplicateRequests.isNotEmpty()) return plistFailure("duplicate requested plist key(s): ${duplicateRequests.joinToString()}")
 
@@ -156,6 +160,28 @@ internal fun sanitizeInfoPlist(
             value.tagName == desiredTag -> Unit
             else -> conflict(entry.name, value, "<$desiredTag/>") {
                 rootDict.replaceChild(doc.createElement(desiredTag), value)
+            }
+        }
+    }
+
+    for (entry in arrayEntries) {
+        fun desired() = doc.createElement("array").apply {
+            entry.values.forEach { value ->
+                appendChild(doc.createTextNode("\n$indent$indent"))
+                appendChild(doc.createElement("string").apply { textContent = value })
+            }
+            if (entry.values.isNotEmpty()) appendChild(doc.createTextNode("\n$indent"))
+        }
+        val value = scan.entries[entry.name]
+        val expected = entry.values.joinToString(", ")
+        when {
+            value == null -> {
+                appendKeyValue(rootDict, entry.name, desired(), indent)
+                inserted += entry.name
+            }
+            value.tagName == "array" && plistStringArrayValues(value) == entry.values -> Unit
+            else -> conflict(entry.name, value, "<array> of $expected") {
+                rootDict.replaceChild(desired(), value)
             }
         }
     }
@@ -305,6 +331,13 @@ private fun detectIndentUnit(dict: Element): String {
         }
     }
     return "\t"
+}
+
+/** The strings inside an `<array>`, or null when it holds anything else. */
+private fun plistStringArrayValues(array: Element): List<String>? {
+    val children = childElements(array)
+    if (children.any { it.tagName != "string" }) return null
+    return children.map { it.textContent }
 }
 
 private fun appendKeyValue(dict: Element, name: String, value: Element, indent: String) {

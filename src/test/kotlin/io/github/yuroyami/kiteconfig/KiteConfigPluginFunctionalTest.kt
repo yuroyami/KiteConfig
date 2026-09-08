@@ -286,6 +286,10 @@ class KiteConfigPluginFunctionalTest {
         assertTrue(pbx.contains("pt-BR"), pbx)
 
         val plistText = File(projectDir, "iosApp/iosApp/Info.plist").readText()
+        // knownRegions in the project file never reaches the built app, so the
+        // languages have to be declared in the plist to be offered at all.
+        assertTrue(plistText.contains("CFBundleLocalizations"), plistText)
+        assertTrue(plistText.contains("<string>pt-BR</string>"), plistText)
         assertTrue(plistText.contains("CFBundleName"), plistText)
         assertTrue(plistText.contains("\$(PRODUCT_NAME)"), plistText)
         assertTrue(plistText.contains("CFBundleVersion"), plistText)

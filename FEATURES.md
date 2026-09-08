@@ -287,9 +287,14 @@ entries.
 
 ### Platform behavior
 
-- Explicit Apple sync adds canonical tags to `knownRegions`. It preserves
-  `Base` and unrelated existing regions because KiteConfig does not own every
-  `.lproj` directory.
+- On iOS the canonical tags are written as `CFBundleLocalizations` in
+  `Info.plist`. That is the key iOS reads to decide which languages the app
+  offers. A Compose app has no `.lproj` directories, so without it the system
+  sees no languages at all.
+- The same tags are added to `knownRegions` in the Xcode project, which is
+  Xcode's own list for projects that do have localized variant groups. It
+  preserves `Base` and unrelated existing regions, because KiteConfig does not
+  own every `.lproj` directory.
 - Android resource filtering is separate and defaults to off.
 - With `android { locales { filterResources = true } }`, KiteConfig replaces the
   selected application's locale-filter set with the canonical list.

@@ -1024,11 +1024,16 @@ internal object KiteConfigDiagnosticEngine {
                 add(PlistBoolEntry("CADisableMinimumFrameDurationOnPhone", it))
             }
         }
-        if (stringEntries.isEmpty() && boolEntries.isEmpty()) {
+        val arrayEntries = buildList {
+            if (context.propagateLocaleList && context.locales.isNotEmpty()) {
+                add(PlistArrayEntry("CFBundleLocalizations", context.locales))
+            }
+        }
+        if (stringEntries.isEmpty() && boolEntries.isEmpty() && arrayEntries.isEmpty()) {
             add(diagnostic("KTCNFG011", KiteConfigDiagnosticSeverity.SKIPPED, "iOS Info.plist", "No source-plist key is configured for verification."))
             return
         }
-        val result = sanitizeInfoPlist(text, stringEntries, boolEntries, context.plistConflictPolicy)
+        val result = sanitizeInfoPlist(text, stringEntries, boolEntries, arrayEntries, context.plistConflictPolicy)
         when {
             result.errors.isNotEmpty() -> add(
                 diagnostic(

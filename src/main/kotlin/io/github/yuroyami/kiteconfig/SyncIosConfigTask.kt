@@ -364,7 +364,17 @@ abstract class SyncIosConfigTask : DefaultTask() {
                 add(PlistBoolEntry("CADisableMinimumFrameDurationOnPhone", proMotion120Hz.get()))
             }
         }
-        if (stringEntries.isEmpty() && boolEntries.isEmpty() && !splash) return
+        // CFBundleLocalizations is the key that makes iOS offer the languages.
+        // knownRegions in the project file is Xcode's own bookkeeping and never
+        // reaches the built app, so the project file alone delivered nothing for a
+        // Compose app, whose resources are not .lproj directories.
+        val arrayEntries = buildList {
+            val tags = locales.get()
+            if (sanitize && propagateLocaleList.get() && tags.isNotEmpty()) {
+                add(PlistArrayEntry("CFBundleLocalizations", tags))
+            }
+        }
+        if (stringEntries.isEmpty() && boolEntries.isEmpty() && arrayEntries.isEmpty() && !splash) return
         val snapshot = readUtf8SnapshotStrict(file)
         budget.recordSnapshot(snapshot, "Info.plist")
         val policy = plistConflictPolicy.get()
@@ -372,7 +382,7 @@ abstract class SyncIosConfigTask : DefaultTask() {
         val overwritten = mutableListOf<String>()
         var text = snapshot.text
 
-        val result = sanitizeInfoPlist(snapshot.text, stringEntries, boolEntries, policy)
+        val result = sanitizeInfoPlist(snapshot.text, stringEntries, boolEntries, arrayEntries, policy)
         result.warnings.forEach { logger.warn("[kiteConfig] $it") }
         if (result.errors.isNotEmpty()) {
             throw GradleException("Info.plist migration refused:\n- ${result.errors.joinToString("\n- ")}")

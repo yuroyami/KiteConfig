@@ -3,6 +3,7 @@ package io.github.yuroyami.kiteconfig
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
@@ -71,7 +72,7 @@ class PlistSanitizeTest {
     fun `overwrites a boolean flag when it differs`() {
         val r = sanitizeInfoPlist(
             plist("\t<key>ITSAppUsesNonExemptEncryption</key>\n\t<true/>"),
-            emptyList(), listOf(encEntry), PlistConflictPolicy.REPLACE,
+            emptyList(), listOf(encEntry), conflictPolicy = PlistConflictPolicy.REPLACE,
         )
         assertNotNull(r.text)
         assertTrue("ITSAppUsesNonExemptEncryption" in r.overwritten)
@@ -161,7 +162,7 @@ class PlistSanitizeTest {
     fun `nested element inside a managed key aborts the plan`() {
         val original = plist("\t<key><string>CFBundleName</string></key>\n\t<string>Hardcoded</string>")
 
-        val r = sanitizeInfoPlist(original, listOf(nameEntry), emptyList(), PlistConflictPolicy.REPLACE)
+        val r = sanitizeInfoPlist(original, listOf(nameEntry), emptyList(), conflictPolicy = PlistConflictPolicy.REPLACE)
 
         assertNull(r.text)
         assertTrue(r.errors.any { it.contains("key") && it.contains("text only") }, r.errors.toString())
@@ -171,7 +172,7 @@ class PlistSanitizeTest {
     fun `nested element inside a managed string aborts the plan`() {
         val original = plist("\t<key>CFBundleName</key>\n\t<string><foo>\$(PRODUCT_NAME)</foo></string>")
 
-        val r = sanitizeInfoPlist(original, listOf(nameEntry), emptyList(), PlistConflictPolicy.REPLACE)
+        val r = sanitizeInfoPlist(original, listOf(nameEntry), emptyList(), conflictPolicy = PlistConflictPolicy.REPLACE)
 
         assertNull(r.text)
         assertTrue(r.errors.any { it.contains("nested elements") }, r.errors.toString())
@@ -181,7 +182,7 @@ class PlistSanitizeTest {
     fun `non-empty managed boolean aborts the plan`() {
         val original = plist("\t<key>ITSAppUsesNonExemptEncryption</key>\n\t<true>garbage</true>")
 
-        val r = sanitizeInfoPlist(original, emptyList(), listOf(encEntry), PlistConflictPolicy.REPLACE)
+        val r = sanitizeInfoPlist(original, emptyList(), listOf(encEntry), conflictPolicy = PlistConflictPolicy.REPLACE)
 
         assertNull(r.text)
         assertTrue(r.errors.any { it.contains("non-empty") }, r.errors.toString())
@@ -208,7 +209,7 @@ class PlistSanitizeTest {
     @Test
     fun `keep policy preserves conflict and reports it`() {
         val original = plist("\t<key>CFBundleName</key>\n\t<string>Hardcoded</string>")
-        val r = sanitizeInfoPlist(original, listOf(nameEntry), emptyList(), PlistConflictPolicy.KEEP)
+        val r = sanitizeInfoPlist(original, listOf(nameEntry), emptyList(), conflictPolicy = PlistConflictPolicy.KEEP)
         assertNull(r.text)
         assertTrue(r.errors.isEmpty())
         assertTrue(r.warnings.any { it.contains("KEEP") })
@@ -218,10 +219,58 @@ class PlistSanitizeTest {
     fun `replace policy converges a string conflict`() {
         val r = sanitizeInfoPlist(
             plist("\t<key>CFBundleName</key>\n\t<string>Hardcoded</string>"),
-            listOf(nameEntry), emptyList(), PlistConflictPolicy.REPLACE,
+            listOf(nameEntry), emptyList(), conflictPolicy = PlistConflictPolicy.REPLACE,
         )
         assertNotNull(r.text)
         assertTrue("CFBundleName" in r.overwritten)
         assertTrue(r.text!!.contains("\$(PRODUCT_NAME)"))
+    }
+
+    /**
+     * `CFBundleLocalizations` is an array, which the sanitizer had no shape for.
+     * It is the only key that makes iOS offer a language a Compose app ships,
+     * because those resources are not `.lproj` directories.
+     */
+    @Test
+    fun `a locale array is inserted, matched, and conflict-checked`() {
+        val tags = listOf("en", "fr", "pt-BR")
+
+        val inserted = sanitizeInfoPlist(
+            plist("\t<key>CFBundleExecutable</key>\n\t<string>App</string>"),
+            emptyList(),
+            emptyList(),
+            listOf(PlistArrayEntry("CFBundleLocalizations", tags)),
+        )
+        assertEquals(listOf("CFBundleLocalizations"), inserted.inserted)
+        assertTrue(inserted.text!!.contains("<string>pt-BR</string>"), inserted.text)
+
+        // The same values again are not a change, so nothing is rewritten.
+        val idle = sanitizeInfoPlist(
+            inserted.text!!,
+            emptyList(),
+            emptyList(),
+            listOf(PlistArrayEntry("CFBundleLocalizations", tags)),
+        )
+        assertEquals(null, idle.text)
+
+        // A different list is a conflict, and FAIL leaves the file alone.
+        val conflict = sanitizeInfoPlist(
+            inserted.text!!,
+            emptyList(),
+            emptyList(),
+            listOf(PlistArrayEntry("CFBundleLocalizations", listOf("de"))),
+        )
+        assertEquals(null, conflict.text)
+        assertTrue(conflict.errors.single().contains("CFBundleLocalizations"), conflict.errors.toString())
+
+        val replaced = sanitizeInfoPlist(
+            inserted.text!!,
+            emptyList(),
+            emptyList(),
+            listOf(PlistArrayEntry("CFBundleLocalizations", listOf("de"))),
+            conflictPolicy = PlistConflictPolicy.REPLACE,
+        )
+        assertTrue(replaced.text!!.contains("<string>de</string>"), replaced.text)
+        assertTrue(!replaced.text!!.contains("pt-BR"), replaced.text)
     }
 }

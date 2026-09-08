@@ -20,6 +20,10 @@ import org.gradle.api.provider.Property
  *
  * Assigning the list replaces it. `tags = emptyList()` means this app has no
  * locale list, not "go and detect one".
+ *
+ * On iOS the list is written as `CFBundleLocalizations` in `Info.plist`, which
+ * is the key iOS reads to decide which languages to offer, and added to
+ * `knownRegions` in the Xcode project.
  */
 @KiteDsl
 abstract class KiteLocalesScope {

@@ -686,26 +686,59 @@ What 2.0 guarantees on iOS:
   the following Xcode build is correct. `kiteDoctor` says this in plain words
   when it detects an Xcode-driven workflow.
 
-What the implementation must try, as a spike before the iOS phase is done:
+### Spike result: pre-actions are early enough
 
-1. Generate an `.xcconfig` file with `PRODUCT_BUNDLE_IDENTIFIER`,
-   `PRODUCT_NAME`, `MARKETING_VERSION`, and `CURRENT_PROJECT_VERSION`, and
-   have the app target's configurations reference it. The reference is a
-   one-time project edit. After that, identity and version changes never touch
-   `project.pbxproj` again.
-2. Regenerate that file from a scheme pre-action (a short `./gradlew` call)
-   and measure with `xcodebuild` whether the same build picks the new values up.
-3. Record the result in this document. If pre-actions are early enough, the
-   "next build" limitation disappears for identity and version. If not, the
-   limitation stays documented and the doctor message stays.
+Measured with Xcode 26.6 on a hand-written project, building for the iOS
+Simulator. A scheme pre-action rewrote an `.xcconfig` that the app target
+referenced, and the same build used the new values.
+
+| What was read | Clean build | Second build, derived data kept |
+|---|---|---|
+| The build phase's `$MARKETING_VERSION` | new value | new value |
+| The built app's `CFBundleShortVersionString` | new value | new value |
+| The built app's `CFBundleVersion` | new value | new value |
+| The built app's `CFBundleIdentifier` | new value | new value |
+| The built app's `CFBundleName` | new value | new value |
+
+So the "next build" limitation is removable for identity and version. Two
+facts decide what it costs.
+
+**A key in the target's own `buildSettings` beats the xcconfig.** With the
+xcconfig saying one version and the target saying another, the target won. The
+one-time project edit is therefore not just adding a `baseConfigurationReference`.
+It also has to delete `MARKETING_VERSION`, `CURRENT_PROJECT_VERSION`,
+`PRODUCT_BUNDLE_IDENTIFIER` and `PRODUCT_NAME` from every selected
+configuration, which are exactly the four keys KiteConfig writes today.
+
+**The pre-action has to live in a scheme.** A shared scheme is another file
+people commit and merge. A per-user scheme is not committed at all, so a fresh
+clone silently loses the behaviour. And the pre-action runs a Gradle
+invocation on every Xcode build: roughly 0.6 to 0.8 seconds against a warm
+daemon on this repo, and a cold daemon start when there is no warm one, with no
+message explaining why Xcode appears to hang. `xcodebuild -showBuildSettings`
+and Xcode's own editor do not run pre-actions, so both keep showing the
+previous values until a build runs.
+
+**2.0 does not automate this.** The measurement says it works; the delivery is
+its own feature, with its own owned files, its own failure modes, and a
+per-build cost the reader has to agree to. Section 15 carries it as designed
+follow-up work rather than a maybe. Until then the guarantee above stands as
+written, and the doctor message stays.
+
+### Locales on iOS: the plist owns them
+
+Also measured, in the same build. `CFBundleLocalizations` in `Info.plist`
+reaches the built app. `knownRegions` from `project.pbxproj` appears nowhere in
+the product, and a Compose app has no `.lproj` directories for the system to
+find, so the project file alone offered the user nothing.
+
+KiteConfig now writes both. `CFBundleLocalizations` is what makes iOS offer the
+languages; `knownRegions` stays because Xcode uses it for projects that do have
+localized variant groups, and dropping it would regress those.
 
 Plist keys (`UILaunchScreen`, `ITSAppUsesNonExemptEncryption`,
 `CADisableMinimumFrameDurationOnPhone`) and the asset catalog remain source
-edits in every outcome. Locales on iOS must be checked during the same phase:
-Compose Multiplatform documents `CFBundleLocalizations` in `Info.plist` as the
-key that makes the system offer the app's languages, while the plugin writes
-`knownRegions` in the project file today. The phase decides which one the
-plugin owns and documents it.
+edits in every outcome.
 
 The Xcode project parser keeps its one known defect on the list: a quoted
 value consisting only of a brace, a parenthesis, or a semicolon is read as
@@ -865,7 +898,7 @@ its evidence exists, not when its checkbox is ticked.
 | 1. The model | Done. Typed platform blocks, lazy inheritance, content-based activation, the DSL marker, one validation layer, the renamed read-back. |
 | 2. Deliveries | Done, with one item softened. Identity, version, locales, JVM, logo and splash all deliver on the new model, and the splash fixture now runs the real resource compiler against a live Android SDK. Android resource filtering still cannot resolve a detected shared module before AGP asks; the failure now names the two ways to answer instead of pretending the list was empty. Renderer geometry is not yet measured from known input bounds. |
 | 3. The apply engine | Done, minus one. One planner now feeds both the preview and the tasks, a feature turned off has its installed output taken back out, fault injection covers every write step, and the manifest-overlay spike ran and landed. The one open item, two app targets sharing one project file, is iOS work and belongs to phase 4. |
-| 4. iOS | Not started. The xcconfig and pre-action spike, reading the deployment target from the project, and the `CFBundleLocalizations` decision are all open. Section 8 still describes the behaviour as it is, not as it will be. |
+| 4. iOS | Done, minus one. The deployment target is read from the Xcode project, the xcconfig and pre-action spike ran against Xcode 26.6 with its result in section 8, and the plist now carries `CFBundleLocalizations`, which is the only thing that made a Compose app's languages reachable. Still open: doctor wording for Xcode-driven workflows, which is one message. |
 | 5. Generated code and diagnostics | Done, minus two. Activation reads content, the vocabulary is current, and every message names a DSL path that exists. Not done: the browser-capability check for worker targets, and lazy values for every generated field type. |
 | 6. Documentation and release | Done, minus two. README, the site page, FEATURES, the changelog and the release notes are current, and the example test compiles the README's fences as well as the KDoc's. Not done: explicit API mode, and the tag. |
 
@@ -1045,7 +1078,7 @@ configuration-cache reuse check.
 | `splash.foregroundScale` | Needs its own reference canvas per renderer. |
 | Per-platform generated constants in `buildConfig` | Separate generation model. |
 | Write-ahead journal surviving a killed process | Staged writes already leave files whole. Cross-file recovery is a follow-up. |
-| Automatic Xcode project bootstrap beyond the xcconfig reference | Decided by the phase 4 spike. |
+| The xcconfig and scheme pre-action setup | The spike in section 8 proves it works. Delivering it means owning a scheme file, deleting four keys people committed, and paying a Gradle call per Xcode build. That is a feature with its own design, not a corner of this one. |
 | Gradle Isolated Projects | The read-back view reads across projects. Same as 1.0.0. |
 | Compatibility shims for 1.0.0 names | One migration table, one hard break. |
 | Per-flavor, per-build-type, or per-Xcode-configuration identity | One identity per platform is the 2.0 model. |

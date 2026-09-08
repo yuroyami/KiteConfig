@@ -964,6 +964,10 @@ class KiteConfigPlugin : Plugin<Project> {
             )
             usesNonExemptEncryption.set(ext.effectiveNonExemptEncryption)
             proMotion120Hz.set(ext.effectiveProMotion)
+            locales.set(ext.canonicalLocales)
+            propagateLocaleList.set(
+                ext.canonicalLocales.map { it.isNotEmpty() && ext.localesFlowsTo(KitePlatform.IOS).get() },
+            )
             conflictPolicy.set(ext.effectivePlistConflictPolicy)
             dryRun.set(ext.effectiveDryRun)
             backup.set(ext.effectiveBackups)
