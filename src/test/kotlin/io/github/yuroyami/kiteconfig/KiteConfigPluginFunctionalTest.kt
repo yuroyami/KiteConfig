@@ -146,7 +146,7 @@ class KiteConfigPluginFunctionalTest {
             "<plist version=\"1.0\">\n<dict>\n$body\n</dict>\n</plist>"
 
     @Test
-    fun `explicit sanitize and sync rewrite one selected iOS application`() {
+    fun `applying iOS changes touches one selected application target`() {
         write("settings.gradle.kts", "rootProject.name = \"fixture\"")
         write(
             "build.gradle.kts",
@@ -157,11 +157,7 @@ class KiteConfigPluginFunctionalTest {
                 version = "1.2.3"
                 appId = "com.demo.app"
                 locales { tags = listOf("fr", "pt-BR") }
-                version = "1.2.3"
                 ios { version { buildNumber = "42" } }
-                ios {
-                    rewrite { cleanPlist = true }
-                }
             }
             """.trimIndent(),
         )
@@ -195,12 +191,9 @@ class KiteConfigPluginFunctionalTest {
                 appName = "Demo"
                 version = "1.2.3"
                 appId = "com.demo.app"
-                version = "1.2.3"
-                ios { version { buildNumber = "7" } }
                 ios {
-                    rewrite {
-                        $targetSelector
-                    }
+                    version { buildNumber = "7" }
+                    $targetSelector
                 }
             }
         """.trimIndent()
@@ -215,7 +208,7 @@ class KiteConfigPluginFunctionalTest {
             "ambiguous migration changed the pbxproj",
         )
 
-        write("build.gradle.kts", build("targets(\"Phone\")"))
+        write("build.gradle.kts", build("xcodeTargets(\"Phone\")"))
         run("kiteInternalIosConfig")
         val selected = File(projectDir, "iosApp/iosApp.xcodeproj/project.pbxproj").readText()
         assertTrue(selected.contains("PRODUCT_NAME = \"Demo\";"), selected)
@@ -224,7 +217,7 @@ class KiteConfigPluginFunctionalTest {
     }
 
     @Test
-    fun `configured missing pbxproj fails instead of reporting a successful sync`() {
+    fun `a chosen pbxproj path that does not exist is an error`() {
         write("settings.gradle.kts", "rootProject.name = \"fixture\"")
         write(
             "build.gradle.kts",
@@ -233,17 +226,16 @@ class KiteConfigPluginFunctionalTest {
             kiteConfig {
                 appName = "Demo"
                 version = "1.2.3"
-                version = "1.2.3"
-                ios { version { buildNumber = "7" } }
                 ios {
-                    rewrite { }
+                    version { buildNumber = "7" }
+                    pbxproj = file("iosApp/custom.xcodeproj/project.pbxproj")
                 }
             }
             """.trimIndent(),
         )
 
         val failure = runAndFail("kiteInternalIosConfig")
-        assertTrue(failure.output.contains("Configured pbxproj does not exist"), failure.output)
+        assertTrue(failure.output.contains("ios { pbxproj }"), failure.output)
         assertTrue(failure.output.contains("project.pbxproj"), failure.output)
     }
 
@@ -256,9 +248,7 @@ class KiteConfigPluginFunctionalTest {
             plugins { id("io.github.yuroyami.kiteconfig") }
             kiteConfig {
                 ios {
-                    rewrite {
-                        renameSharedModule(from = "shared", to = "composeApp")
-                    }
+                    renameSharedModule(from = "shared", to = "composeApp")
                 }
             }
             """.trimIndent(),
@@ -288,9 +278,7 @@ class KiteConfigPluginFunctionalTest {
             kiteConfig {
                 appName = "Migrated"
                 ios {
-                    rewrite {
-                        renameSharedModule(from = "shared", to = "composeApp")
-                    }
+                    renameSharedModule(from = "shared", to = "composeApp")
                 }
             }
             """.trimIndent(),
@@ -329,12 +317,10 @@ class KiteConfigPluginFunctionalTest {
             kiteConfig {
                 ios {
                     deploymentTarget = "12.0"
-                    rewrite { }
                 }
                 logo {
                     foreground = file("art/fg.png")
                     background = color("#80FF5500")
-                    rewrite { }
                 }
             }
             """.trimIndent(),
@@ -632,7 +618,6 @@ class KiteConfigPluginFunctionalTest {
                 logo {
                     foreground = file("art/fg.png")
                     background = color("#FF5500")
-                    rewrite { replaceOld = true }
                 }
             }
             """.trimIndent(),
@@ -686,45 +671,77 @@ class KiteConfigPluginFunctionalTest {
     }
 
     @Test
-    fun `enabled logo propagation requires a complete logo plan`() {
+    fun `no art means the installer has nothing to do`() {
         write("settings.gradle.kts", "rootProject.name = \"fixture\"")
         write(
             "build.gradle.kts",
             """
             plugins { id("io.github.yuroyami.kiteconfig") }
-            kiteConfig { logo { rewrite { } } }
+            kiteConfig { }
             """.trimIndent(),
         )
 
-        val failure = runAndFail("kiteInternalAndroidLogo")
+        val result = run("kiteInternalAndroidLogo")
 
-        assertTrue(failure.output.contains("logo { } } requires foreground"), failure.output)
-        assertTrue(!failure.output.contains("SKIPPED"), failure.output)
+        assertTrue(result.output.contains("SKIPPED"), result.output)
     }
 
+    /** Half a logo is a mistake worth naming, and it still is. */
     @Test
-    fun `universal iOS logo requires an explicit compatible deployment target`() {
+    fun `a foreground with no background is refused`() {
         write("settings.gradle.kts", "rootProject.name = \"fixture\"")
         write(
             "build.gradle.kts",
             """
             plugins { id("io.github.yuroyami.kiteconfig") }
             kiteConfig {
-                ios { rewrite { } }
+                logo { foreground = file("art/fg.png") }
+            }
+            """.trimIndent(),
+        )
+        writePng("art/fg.png", 64)
+
+        val failure = runAndFail("kiteInternalAndroidLogo")
+
+        assertTrue(failure.output.contains("no background"), failure.output)
+    }
+
+    @Test
+    fun `an incompatible deployment target is refused, and an absent one is not`() {
+        write("settings.gradle.kts", "rootProject.name = \"fixture\"")
+        write(
+            "build.gradle.kts",
+            """
+            plugins { id("io.github.yuroyami.kiteconfig") }
+            kiteConfig {
                 logo {
                     foreground = file("art/fg.png")
                     background = color("#FF5500")
-                    rewrite { }
                 }
             }
             """.trimIndent(),
         )
         writePng("art/fg.png", 64)
 
-        val failure = runAndFail("kiteInternalIosLogo")
+        // Nothing was declared about the deployment target, so nothing blocks the icon.
+        run("kiteInternalIosLogo")
 
-        assertTrue(failure.output.contains("ios.deploymentTarget >= 12.0"), failure.output)
-        assertTrue(failure.output.contains("Xcode 14"), failure.output)
+        write(
+            "build.gradle.kts",
+            """
+            plugins { id("io.github.yuroyami.kiteconfig") }
+            kiteConfig {
+                logo {
+                    foreground = file("art/fg.png")
+                    background = color("#FF5500")
+                }
+                ios { deploymentTarget = "11.0" }
+            }
+            """.trimIndent(),
+        )
+
+        val failure = runAndFail("kiteInternalIosLogo")
+        assertTrue(failure.output.contains("12.0"), failure.output)
     }
 
     @Test
@@ -738,7 +755,6 @@ class KiteConfigPluginFunctionalTest {
                 logo {
                     foreground = file("art/missing.png")
                     background = color("#FF5500")
-                    rewrite { }
                 }
             }
             """.trimIndent(),
@@ -786,7 +802,6 @@ class KiteConfigPluginFunctionalTest {
                 logo {
                     foreground = file("art/fg.png")
                     background = color("#112233")
-                    rewrite { }
                 }
                 """.trimIndent() else ""}
             }
@@ -958,7 +973,6 @@ class KiteConfigPluginFunctionalTest {
             kiteConfig {
                 appName = "Demo"
                 version = "1.0.0"
-                ios { rewrite { } }
             }
             """.trimIndent(),
         )
@@ -976,8 +990,12 @@ class KiteConfigPluginFunctionalTest {
         assertTrue(result.output.contains("[FAIL]"), result.output)
     }
 
+    /**
+     * The root block is the source of truth for the keys KiteConfig owns, so a
+     * stale value in the plist is replaced rather than negotiated.
+     */
     @Test
-    fun `diagnostics honor KEEP plist conflict policy from the DSL`() {
+    fun `managed plist keys carry the declared value`() {
         write("settings.gradle.kts", "rootProject.name = \"fixture\"")
         write(
             "build.gradle.kts",
@@ -985,12 +1003,6 @@ class KiteConfigPluginFunctionalTest {
             plugins { id("io.github.yuroyami.kiteconfig") }
             kiteConfig {
                 appName = "Demo"
-                ios {
-                    rewrite {
-                        cleanPlist = true
-                        onConflict = io.github.yuroyami.kiteconfig.PlistConflictPolicy.KEEP
-                    }
-                }
             }
             """.trimIndent(),
         )
@@ -1002,10 +1014,11 @@ class KiteConfigPluginFunctionalTest {
             ),
         )
 
-        val result = run("kiteDoctor")
-        assertTrue(result.output.contains("[WARN] KTCNFG011"), result.output)
-        assertTrue(result.output.contains("conflictPolicy=KEEP"), result.output)
-        assertFalse(result.output.contains("[FAIL] KTCNFG011"), result.output)
+        run("kiteInternalIosConfig")
+
+        val plist = File(projectDir, "iosApp/iosApp/Info.plist").readText()
+        assertTrue(plist.contains("\$(PRODUCT_NAME)"), plist)
+        assertFalse(plist.contains("Legacy name"), plist)
     }
 
     @Test
@@ -1093,7 +1106,7 @@ class KiteConfigPluginFunctionalTest {
             """
             plugins { id("io.github.yuroyami.kiteconfig") }
             kiteConfig {
-                ios { rewrite { targets("Phone", "Phone") } }
+                ios { xcodeTargets("Phone", "Phone") }
             }
             """.trimIndent(),
         )
@@ -1120,11 +1133,9 @@ class KiteConfigPluginFunctionalTest {
             """
             plugins { id("io.github.yuroyami.kiteconfig") }
             kiteConfig {
+                appName = "Demo"
                 ios {
-                    rewrite {
-                        cleanPlist = true
-                        targets("DemoApp")
-                    }
+                    xcodeTargets("DemoApp")
                 }
             }
             """.trimIndent(),
@@ -1139,7 +1150,7 @@ class KiteConfigPluginFunctionalTest {
         assertTrue(result.output.contains(".gradle/kiteconfig/rewrite.lock"), result.output)
         assertTrue(result.output.contains("Xcode target DemoApp"), result.output)
         // Padding is computed from the longest key, so match the pair, not the spacing.
-        assertTrue(Regex("""ios\.rewrite\.onConflict\s+= FAIL""").containsMatchIn(result.output), result.output)
+        assertTrue(Regex("""ios\.plist\.policy\s+= REPLACE""").containsMatchIn(result.output), result.output)
         assertTrue(Regex("""pbxprojScope\s+= explicit targets""").containsMatchIn(result.output), result.output)
         assertTrue(result.output.contains("No files were changed."), result.output)
         assertFalse(File(projectDir, "iosApp/iosApp.xcodeproj/project.pbxproj").exists())
@@ -1157,7 +1168,7 @@ class KiteConfigPluginFunctionalTest {
                 version = "1.0.0"
                 locales { tags = listOf("en-us", "en-US", "fr") }
                 ios {
-                    rewrite { renameSharedModule(from = "shared", to = "SharedKit") }
+                    renameSharedModule(from = "shared", to = "SharedKit")
                 }
                 modules {
                     androidAppDirectory.set(layout.projectDirectory.dir("customAndroidApp"))
@@ -1202,7 +1213,6 @@ class KiteConfigPluginFunctionalTest {
                 logo {
                     foreground = file("art/fg.png")
                     background = color("#102A43")
-                    rewrite { }
                 }
             }
             """.trimIndent(),
@@ -1265,9 +1275,6 @@ class KiteConfigPluginFunctionalTest {
                 appName = "PublishedGuard"
                 version = "1.4.0"
                 ios { version { publishedBuildNumber = "1001004000" } }
-                ios {
-                    rewrite { }
-                }
             }
             """.trimIndent(),
         )
@@ -1283,9 +1290,6 @@ class KiteConfigPluginFunctionalTest {
                 appName = "PublishedGuard"
                 version = "1.4.0"
                 ios { version { rebuild = 1; publishedBuildNumber = "1001004000" } }
-                ios {
-                    rewrite { }
-                }
             }
             """.trimIndent(),
         )
@@ -1308,7 +1312,6 @@ class KiteConfigPluginFunctionalTest {
                 logo {
                     foreground = file("art/fg.png")
                     background = color("#102A43")
-                    rewrite { }
                 }
             }
             """.trimIndent(),
@@ -1475,7 +1478,6 @@ class KiteConfigPluginFunctionalTest {
                 logo {
                     foreground = file("art/fg.png")
                     background = color("#102A43")
-                    rewrite { }
                 }
             }
             """.trimIndent(),
@@ -1508,7 +1510,6 @@ class KiteConfigPluginFunctionalTest {
                 logo {
                     foreground = file("art/fg.png")
                     background = color("#102A43")
-                    rewrite { replaceOld = true }
                 }
             }
             """.trimIndent(),
@@ -1537,7 +1538,6 @@ class KiteConfigPluginFunctionalTest {
                 logo {
                     foreground = file("art/fg.png")
                     background = color("#102A43")
-                    rewrite { }
                 }
             }
             """.trimIndent(),
@@ -1808,7 +1808,6 @@ class KiteConfigPluginFunctionalTest {
                 logo {
                     foreground = file("art/logo_fg.png")
                     background = color("#102A43")
-                    rewrite { }
                 }
                 """.trimIndent(),
             ),
@@ -1860,7 +1859,6 @@ class KiteConfigPluginFunctionalTest {
                 logo {
                     foreground = file("art/logo_fg.png")
                     background = color("#102A43")
-                    rewrite { }
                 }
                 """.trimIndent(),
             ),

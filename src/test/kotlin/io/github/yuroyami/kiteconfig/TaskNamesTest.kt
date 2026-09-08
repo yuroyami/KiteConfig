@@ -13,9 +13,9 @@ class TaskNamesTest {
     fun `new entry points exist and old names are gone`() {
         val project = ProjectBuilder.builder().build()
         project.plugins.apply(KiteConfigPlugin::class.java)
-        listOf("kiteCheck", "kiteDoctor", "kiteVerify", "kitePlan", "kiteRewriteLogo", "kiteRewriteXcode")
+        listOf("kiteCheck", "kiteDoctor", "kiteVerify", "kitePlan", "kiteApply", "kiteApplyAndroid", "kiteApplyIos")
             .forEach { assertNotNull(project.tasks.findByName(it), "missing $it") }
-        listOf("kiteConfigCheck", "kiteConfigDoctor", "kiteConfigPlan", "kiteConfigSyncIosConfig")
+        listOf("kiteRewriteLogo", "kiteRewriteXcode", "kiteConfigCheck", "kiteConfigDoctor")
             .forEach { assertNull(project.tasks.findByName(it), "$it should be gone") }
     }
     /**

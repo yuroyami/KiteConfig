@@ -48,6 +48,15 @@ abstract class KitePlatformExtension : KitePlatformRef {
     abstract val appId: Property<String>
 
     /**
+     * Apply this platform's source changes automatically. Unset means the
+     * shared `autoApply`.
+     *
+     * Set it false here to keep one platform manual while the rest are
+     * automatic. `kiteApply` still applies it when you ask.
+     */
+    abstract val autoApply: Property<Boolean>
+
+    /**
      * The release version on this platform. Unset means the shared `version`.
      *
      * On iOS this is the marketing version customers see.

@@ -4,6 +4,7 @@ import org.gradle.api.Action
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.plugins.ExtensionAware
+import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.Property
 
 /**
@@ -22,9 +23,7 @@ import org.gradle.api.provider.Property
  *     ios { version { rebuild = 3 } }
  *
  *     ios {
- *         rewrite {
- *             targets("iosApp")
- *         }
+ *         infoPlist { proMotion = true }
  *     }
  * }
  * ```
@@ -33,9 +32,9 @@ import org.gradle.api.provider.Property
  * Set one only when your tree looks different.
  *
  * Nothing in this block writes a file on its own. Apple sources change only
- * when `rewrite { }` is configured and you run `kiteRewriteXcode` yourself.
+ * when `autoApply` is on, or you run `kiteApply` yourself.
  *
- * The resolved bundle id is readable as `kiteConfig.iosBundleId`: the root `id`
+ * The resolved bundle id is readable as `kiteConfig.iosBundleId`: the root `appId`
  * followed by the suffix from `ios { appId { suffix } }`.
  *
  * ## The two Apple version fields
@@ -58,7 +57,7 @@ import org.gradle.api.provider.Property
  *
  * | Value | Written into your Xcode project |
  * |---|---|
- * | Bundle id, marketing version, build number | yes, by an explicit `kiteRewriteXcode` run |
+ * | Bundle id, marketing version, build number | yes, by an explicit `kiteApplyIos` run |
  * | [deploymentTarget] | **no**, it only validates the AppIcon catalog |
  * | [pbxproj], [podfile], [infoPlist], [appDirectory], [appIconDirectory] | no, they say where to look |
  *
@@ -130,12 +129,6 @@ abstract class KiteConfigIosExtension : KitePlatformExtension() {
      */
     abstract val podfile: RegularFileProperty
 
-    /**
-     * The source XML `Info.plist` that plist sanitization maintains.
-     *
-     * Default: `iosApp/iosApp/Info.plist`.
-     */
-    abstract val infoPlist: RegularFileProperty
 
     /**
      * The Apple source tree searched when Swift imports are migrated.
@@ -153,21 +146,48 @@ abstract class KiteConfigIosExtension : KitePlatformExtension() {
 
     // --- Nested blocks --------------------------------------------------------
 
-    /**
-     * Apple source sync policy. Configure it with
-     * `kiteConfig { ios { sync { ... } } }`.
-     */
-    val rewrite: KiteConfigIosSyncExtension
-        get() = (this as ExtensionAware).extensions.getByType(KiteConfigIosSyncExtension::class.java)
+    /** Facts your app declares in its `Info.plist`, and where that file lives. */
+    fun infoPlist(action: Action<in KiteInfoPlistScope>) = action.execute(infoPlist)
+
+    internal val infoPlist: KiteInfoPlistScope
+        get() = (this as ExtensionAware).extensions.getByType(KiteInfoPlistScope::class.java)
+
+    // --- Selection ------------------------------------------------------------
 
     /**
-     * Configure the nested Apple sync model.
+     * The exact Xcode application targets whose build settings may change.
      *
-     * Calling this authorizes the explicit Apple source tasks. It does not run
-     * them. See [KiteConfigIosSyncExtension].
+     * Needed only when the project has more than one application target. With
+     * one, KiteConfig finds it. Naming a target that is not an application
+     * target, or one that matches twice, is reported with the candidates.
      */
-    fun rewrite(action: Action<in KiteConfigIosSyncExtension>) {
-        rewrite.rewriteArmed.set(true)
-        action.execute(rewrite)
+    fun xcodeTargets(vararg names: String) {
+        xcodeTargetNames.addAll(*names)
     }
+
+    internal abstract val xcodeTargetNames: ListProperty<String>
+
+    // --- Transitions ----------------------------------------------------------
+
+    /**
+     * Rename the CocoaPods and Swift module across the Apple sources.
+     *
+     * `from` is the name in the files today, `to` is the name you want. This
+     * rewrites your Swift source, so read the diff once and commit it. It
+     * renames no directories, no Gradle projects, and no package declarations.
+     *
+     * ```kotlin
+     * ios { renameSharedModule(from = "OldShared", to = "Shared") }
+     * ```
+     *
+     * Once the references are renamed it does nothing on later builds.
+     */
+    fun renameSharedModule(from: String, to: String) {
+        previousSharedModuleName.set(from)
+        newSharedModuleName.set(to)
+    }
+
+    internal abstract val previousSharedModuleName: Property<String>
+
+    internal abstract val newSharedModuleName: Property<String>
 }

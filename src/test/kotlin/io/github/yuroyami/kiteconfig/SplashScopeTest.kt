@@ -48,14 +48,13 @@ class SplashScopeTest {
     }
 
     @Test
-    fun `enabling it turns on the platforms that deliver in memory`() {
+    fun `enabling it turns it on everywhere`() {
         val e = ext()
         e.splash { enabled.set(true) }
 
         assertTrue(e.effectiveAndroidSplash.get())
         assertTrue(e.effectiveDesktopSplash.get())
-        // iOS still edits source, so it needs the armed rewrites as well.
-        assertFalse(e.effectiveIosSplash.get())
+        assertTrue(e.effectiveIosSplash.get())
     }
 
     @Test
@@ -100,14 +99,13 @@ class SplashScopeTest {
     }
 
     @Test
-    fun `ios needs both rewrites armed`() {
+    fun `iOS follows the same switch as everyone else`() {
         val e = ext()
         e.splash { enabled.set(true) }
-        e.splash { rewrite { } }
-        assertFalse(e.effectiveIosSplash.get())
-
-        e.ios { rewrite { } }
         assertTrue(e.effectiveIosSplash.get())
+
+        e.ios.splash { enabled.set(false) }
+        assertFalse(e.effectiveIosSplash.get())
     }
 
     @Test

@@ -384,7 +384,9 @@ private fun resolveApplicationBuildConfigSpansFromGraph(
             }
             1 -> named
             else -> {
-                errors += "pbxproj has multiple application targets (${named.joinToString { it.second }}); set ios.targetNames explicitly"
+                errors += "pbxproj has multiple application targets (" +
+                    named.joinToString { it.second } +
+                    "); name one with ios { xcodeTargets(...) }"
                 emptyList()
             }
         }

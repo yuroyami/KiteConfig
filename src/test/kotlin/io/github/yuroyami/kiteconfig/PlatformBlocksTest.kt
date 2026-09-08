@@ -31,16 +31,30 @@ class PlatformBlocksTest {
     }
 
     @Test
-    fun `ios rewrite arms the xcode task and cleanPlist rides it`() {
+    fun `iOS source work exists whenever iOS is selected`() {
         val e = ext()
-        e.ios {
-            rewrite {
-                targets("iosApp")
-                cleanPlist.set(true)
-            }
-        }
+        e.ios { xcodeTargets("iosApp") }
+
         assertTrue(e.effectiveSyncIos.get())
-        assertTrue(e.effectiveSanitizeIosProject.get())
+        assertEquals(listOf("iosApp"), e.effectiveIosTargets.get())
+
+        val excluded = ext()
+        excluded.skip(excluded.ios)
+        assertFalse(excluded.effectiveSyncIos.get())
+    }
+
+    /** The plist is maintained when there is a managed key or fact to write. */
+    @Test
+    fun `the plist is touched only when something needs writing`() {
+        assertFalse(ext().effectiveSanitizeIosProject.get())
+
+        val named = ext()
+        named.appName.set("Jetzy")
+        assertTrue(named.effectiveSanitizeIosProject.get())
+
+        val fact = ext()
+        fact.ios.infoPlist { proMotion.set(true) }
+        assertTrue(fact.effectiveSanitizeIosProject.get())
     }
 
     @Test

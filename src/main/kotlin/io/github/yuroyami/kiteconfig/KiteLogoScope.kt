@@ -1,12 +1,9 @@
 package io.github.yuroyami.kiteconfig
 
-import org.gradle.api.Action
 import org.gradle.api.file.RegularFileProperty
-import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.Property
 import java.io.File
 import java.io.Serializable
-import javax.inject.Inject
 
 /**
  * What sits behind the app icon: one choice, not two properties.
@@ -55,7 +52,7 @@ sealed interface LogoBackground : Serializable {
  * flattened onto the background. Android keeps the two adaptive layers.
  */
 @KiteDsl
-abstract class KiteLogoScope @Inject constructor(private val objects: ObjectFactory) {
+abstract class KiteLogoScope {
 
     /**
      * PNG holding the artwork that sits on top: your mark, your glyph.
@@ -100,18 +97,6 @@ abstract class KiteLogoScope @Inject constructor(private val objects: ObjectFact
     /** A PNG behind the mark, from a Gradle file provider. */
     fun image(file: org.gradle.api.file.RegularFile): LogoBackground = LogoBackground.Image(file.asFile)
 
-    internal val rewriteSpec: KiteLogoRewrite = objects.newInstance(KiteLogoRewrite::class.java)
-
-    internal abstract val rewriteArmed: Property<Boolean>
-
-    /**
-     * Arms the task that writes Android res and the iOS asset catalog.
-     * Nothing runs until you invoke it by name; dryRun and backups apply.
-     */
-    fun rewrite(action: Action<in KiteLogoRewrite>) {
-        rewriteArmed.set(true)
-        action.execute(rewriteSpec)
-    }
 }
 
 /**
@@ -120,28 +105,10 @@ abstract class KiteLogoScope @Inject constructor(private val objects: ObjectFact
  * Everything in [KiteLogoScope] applies here too, plus the macOS shape.
  */
 @KiteDsl
-abstract class KiteDesktopLogoScope @Inject constructor(objects: ObjectFactory) : KiteLogoScope(objects) {
+abstract class KiteDesktopLogoScope : KiteLogoScope() {
 
     /** Round the generated macOS icon. Default: `true`, the macOS style. */
     abstract val roundMac: Property<Boolean>
 }
 
-/** Options for the armed logo source rewrite. */
-@KiteDsl
-abstract class KiteLogoRewrite {
-
-    /**
-     * Also claim and remove legacy launcher icons the plugin did not create.
-     * Default: false. Claimed files are copied to `.kiteconfig/recovery` first.
-     */
-    abstract val replaceOld: Property<Boolean>
-
-    /**
-     * Run this rewrite automatically before Android app builds instead of
-     * waiting for kiteRewriteLogo. Default: false. Discouraged: ordinary
-     * builds then edit committed files, and clean checkouts build dirty.
-     */
-    @DiscouragedKiteApi
-    abstract val auto: Property<Boolean>
-}
 

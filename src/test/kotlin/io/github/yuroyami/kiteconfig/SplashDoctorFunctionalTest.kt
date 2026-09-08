@@ -73,7 +73,7 @@ class SplashDoctorFunctionalTest {
     }
 
     @Test
-    fun `armed splash without the xcode rewrite warns`() {
+    fun `an enabled splash reports its per-platform state`() {
         write("settings.gradle.kts", "rootProject.name = \"fixture\"")
         write(
             "build.gradle.kts",
@@ -81,10 +81,7 @@ class SplashDoctorFunctionalTest {
             plugins { id("io.github.yuroyami.kiteconfig") }
             kiteConfig {
                 logo { background.set(color("#102A43")) }
-                splash {
-                    enabled = true
-                    rewrite { }
-                }
+                splash { enabled = true }
                 desktop { splash { enabled = false } }
                 android { splash { theme.set("AppTheme") } }
             }

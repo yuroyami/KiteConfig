@@ -138,9 +138,9 @@ abstract class KiteConfigDiagnosticTaskBase : DefaultTask() {
                 filterAndroidResources.getOrElse(false)
             },
             syncIos = resolve("KTCNFG908", "ios { rewrite }", false) { syncIos.getOrElse(false) },
-            sanitizeIosProject = resolve("KTCNFG918", "ios { rewrite { cleanPlist } }", false) { sanitizeIosProject.getOrElse(false) },
+            sanitizeIosProject = resolve("KTCNFG918", "ios { infoPlist }", false) { sanitizeIosProject.getOrElse(false) },
             propagateLogo = resolve("KTCNFG917", "logo { }", false) { propagateLogo.getOrElse(false) },
-            cleanupLegacyLogoArtifacts = resolve("KTCNFG939", "logo { rewrite { replaceOld } }", false) {
+            cleanupLegacyLogoArtifacts = resolve("KTCNFG939", "logo { foreground }", false) {
                 cleanupLegacyLogoArtifacts.getOrElse(false)
             },
             iosMarketingVersion = resolve<String?>("KTCNFG919", "ios { marketingVersion }", null) { iosMarketingVersion.orNull },
@@ -221,7 +221,7 @@ abstract class KiteConfigDiagnosticTaskBase : DefaultTask() {
             versionGuardsIgnored = resolve("KTCNFG966", "ignoreVersionGuards", false) {
                 versionGuardsIgnored.getOrElse(false)
             },
-            autoRewrites = resolve("KTCNFG967", "rewrite { auto }", false) {
+            autoRewrites = resolve("KTCNFG967", "autoApply", false) {
                 autoRewrites.getOrElse(false)
             },
         )

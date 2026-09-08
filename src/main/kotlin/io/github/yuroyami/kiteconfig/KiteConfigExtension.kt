@@ -60,13 +60,11 @@ import org.gradle.api.provider.Provider
  *         foreground = file("art/logo-fg.png")
  *         background = color("#0B0B0F")  // or image(file("art/bg.png"))
  *         foregroundScale = 0.75         // optional, per renderer default
- *         rewrite { replaceOld = true }  // arms kiteRewriteLogo (source edits)
  *     }
  *
  *     splash {
  *         enabled = true                 // off until you say this
  *         dark { backgroundColor = "#000000" }
- *         rewrite { }                    // arms the iOS launch-screen delivery
  *     }
  *
  *     optIns {
@@ -87,10 +85,8 @@ import org.gradle.api.provider.Provider
  *     ios {
  *         appName = "Jetzy Lite"         // only this platform differs
  *         deploymentTarget = "15.0"
- *         rewrite {                      // arms kiteRewriteXcode (source edits)
- *             targets("iosApp")
- *             cleanPlist = true
- *         }
+ *         infoPlist { proMotion = true }
+ *         // xcodeTargets("iosApp")      // only with several app targets
  *     }
  *
  *     desktop {
@@ -107,6 +103,7 @@ import org.gradle.api.provider.Provider
  *
  *     modules { shared = ":shared" }     // only when detection guesses wrong
  *
+ *     autoApply = true                   // ordinary builds apply the changes
  *     dryRun  = false
  *     backups = true
  *     // ignoreVersionGuards = true  // off the tested AGP/KGP/Compose matrix, on your own head
@@ -123,16 +120,17 @@ import org.gradle.api.provider.Provider
  * | `android { }` / `ios { }` / `desktop { }` corner | `version`, `logo` | platform detail scope |
  * | `version` / `version { }` | `android`, `ios`, `desktop` | that platform's version and numbering |
  * | `rebuild`, `buildNumber`, `publishedBuildNumber` | `version` in a platform block | counter, exact number, guard floor |
- * | `rewrite { }` | `logo`, `splash`, `ios` | the only acting word, arms a task |
  * | `dark { }` | `splash` | dark-mode variant |
  * | typed `*Field(...)` | `buildConfig` | generated constants |
  *
  * ## Tasks
  *
- * `kiteCheck`, `kiteDoctor`, `kiteVerify`, `kitePlan` are read-only and always
- * safe. `kiteRewriteLogo` and `kiteRewriteXcode` run only when armed by a
- * `rewrite { }` block and only when you invoke them. CLI overrides:
- * `-Pkiteconfig.dryRun=true`, `-Pkiteconfig.backups=false`.
+ * `kiteCheck`, `kiteDoctor`, `kiteVerify`, and `kitePlan` are read-only and
+ * always safe. `kiteApply` applies the configured source changes for every
+ * selected platform; `kiteApplyAndroid` and `kiteApplyIos` apply one. With
+ * `autoApply = true` an ordinary build runs the plan for the platform it is
+ * building. CLI overrides: `-Pkiteconfig.dryRun=true`,
+ * `-Pkiteconfig.backups=false`.
  *
  * ## Read-back
  *
@@ -262,9 +260,7 @@ abstract class KiteConfigExtension : KiteFlowScope(), KiteConfigValues {
         get() = splashFlowsTo(KitePlatform.DESKTOP)
 
     internal val effectiveIosSplash: Provider<Boolean>
-        get() = splash.rewriteArmed.orElse(false)
-            .zip(effectiveSyncIos) { armed, sync -> armed && sync }
-            .zip(splashFlowsTo(KitePlatform.IOS)) { on, flows -> on && flows }
+        get() = splashFlowsTo(KitePlatform.IOS)
 
     internal fun appNameFlowsTo(p: KitePlatform): Provider<Boolean> =
         flowsTo(p).zip(platformExtension(p).appNameDetails.enabled.orElse(true)) { selected, delivered ->
@@ -326,6 +322,18 @@ abstract class KiteConfigExtension : KiteFlowScope(), KiteConfigValues {
      * change to your source tree.
      */
     abstract val dryRun: Property<Boolean>
+
+    /**
+     * Apply the configured source changes as part of an ordinary build.
+     *
+     * Default: `false`, and then nothing touches your own files until you run
+     * `kiteApply`. Turning it on is the single opt-in: KiteConfig works out
+     * which changes each platform needs and makes them.
+     *
+     * It does not turn optional features on. A splash still needs
+     * `splash { enabled = true }`.
+     */
+    abstract val autoApply: Property<Boolean>
 
     /**
      * Treat AGP, KGP, and Compose versions outside the tested range as supported.
@@ -468,6 +476,12 @@ abstract class KiteConfigExtension : KiteFlowScope(), KiteConfigValues {
         action.execute(desktop)
     }
 
+    private fun <T : Any> objectsProvider(value: T): Provider<T> = providers.provider { value }
+
+    /** Gradle's provider factory, injected for the constant providers above. */
+    @get:javax.inject.Inject
+    protected abstract val providers: org.gradle.api.provider.ProviderFactory
+
     private inline fun <reified T : Any> nested(): T =
         (this as ExtensionAware).extensions.getByType(T::class.java)
 
@@ -591,15 +605,21 @@ abstract class KiteConfigExtension : KiteFlowScope(), KiteConfigValues {
     internal val effectiveLocales: Provider<List<String>>
         get() = localesScope.tags
 
-    /** Armed logo rewrite that also asked to ride ordinary Android builds. */
-    internal val effectiveAutoRewriteLogo: Provider<Boolean>
-        @OptIn(DiscouragedKiteApi::class)
-        get() = effectiveLogoRewriteArmed.zip(logo.rewriteSpec.auto.orElse(false)) { armed, auto -> armed && auto }
+    /**
+     * Whether [p] applies its source changes as part of an ordinary build.
+     *
+     * A platform inherits the shared switch and can disagree with it.
+     */
+    internal fun effectiveAutoApplyFor(p: KitePlatform): Provider<Boolean> =
+        platformExtension(p).autoApply.orElse(autoApply).orElse(false)
 
-    /** Armed Xcode rewrite that also asked to ride ordinary iOS builds. */
+    internal val effectiveAutoRewriteLogo: Provider<Boolean>
+        get() = effectiveAutoApplyFor(KitePlatform.ANDROID)
+            .zip(logoFlowsTo(KitePlatform.ANDROID)) { auto, on -> auto && on }
+
     internal val effectiveAutoRewriteXcode: Provider<Boolean>
-        @OptIn(DiscouragedKiteApi::class)
-        get() = effectiveSyncIos.zip(ios.rewrite.auto.orElse(false)) { armed, auto -> armed && auto }
+        get() = effectiveAutoApplyFor(KitePlatform.IOS)
+            .zip(effectiveSyncIos) { auto, on -> auto && on }
 
     internal val effectiveIgnoreVersionGuards: Provider<Boolean>
         @OptIn(DiscouragedKiteApi::class)
@@ -701,13 +721,32 @@ abstract class KiteConfigExtension : KiteFlowScope(), KiteConfigValues {
     // --- ios ---
 
     internal val effectiveIosPbxproj: Provider<org.gradle.api.file.RegularFile>
-        get() = ios.pbxproj
+        get() = ios.pbxproj.orElse(defaultIosPbxproj)
+
+    /** True when the build script chose the project path rather than taking the default. */
+    internal val effectiveIosPbxprojExplicit: Provider<Boolean>
+        get() = ios.pbxproj.map { true }.orElse(false)
+
+    internal abstract val defaultIosPbxproj: org.gradle.api.file.RegularFileProperty
 
     internal val effectiveIosPodfile: Provider<org.gradle.api.file.RegularFile>
         get() = ios.podfile
 
+    /**
+     * Where the source plist lives.
+     *
+     * The default is resolved here rather than as a convention on the property,
+     * because a convention answers for an unset property and then nothing can
+     * tell a chosen path from a defaulted one.
+     */
     internal val effectiveIosInfoPlist: Provider<org.gradle.api.file.RegularFile>
-        get() = ios.infoPlist
+        get() = ios.infoPlist.path.orElse(defaultIosInfoPlist)
+
+    /** True when the build script chose the plist path rather than taking the default. */
+    internal val effectiveIosInfoPlistExplicit: Provider<Boolean>
+        get() = ios.infoPlist.path.map { true }.orElse(false)
+
+    internal abstract val defaultIosInfoPlist: org.gradle.api.file.RegularFileProperty
 
     internal val effectiveIosAppDirectory: Provider<org.gradle.api.file.Directory>
         get() = ios.appDirectory
@@ -715,38 +754,66 @@ abstract class KiteConfigExtension : KiteFlowScope(), KiteConfigValues {
     internal val effectiveIosAppIconDirectory: Provider<org.gradle.api.file.Directory>
         get() = ios.appIconDirectory
 
+    /**
+     * iOS source work exists whenever iOS is selected.
+     *
+     * There is no arming block any more: the plan is derived from what you
+     * declared, and `autoApply` or `kiteApply` decides who runs it.
+     */
     internal val effectiveSyncIos: Provider<Boolean>
-        get() = ios.rewrite.rewriteArmed.orElse(false)
+        get() = flowsTo(KitePlatform.IOS)
 
-    internal val effectiveSanitizeIosProject: Provider<Boolean>
-        get() = ios.rewrite.cleanPlist.orElse(false)
+    /**
+     * The plist is maintained when there is a managed key or fact to write.
+     *
+     * "Reaches iOS" is not enough on its own: a delivery gate is open by
+     * default, so the value also has to exist before there is anything to write.
+     */
+    internal val effectiveSanitizeIosProject: Provider<Boolean> get() {
+        fun declared(gate: Provider<Boolean>, value: Provider<*>): Provider<Boolean> =
+            gate.zip(value.map { true }.orElse(false)) { reaches, exists -> reaches && exists }
+
+        return declared(appNameFlowsTo(KitePlatform.IOS), appName)
+            .zip(declared(versionFlowsTo(KitePlatform.IOS), version)) { name, version -> name || version }
+            .zip(ios.infoPlist.nonExemptEncryption.map { true }.orElse(false)) { a, b -> a || b }
+            .zip(ios.infoPlist.proMotion.map { true }.orElse(false)) { a, b -> a || b }
+            .zip(flowsTo(KitePlatform.IOS)) { needed, selected -> needed && selected }
+    }
 
     internal val effectiveIosTargets: Provider<List<String>>
-        get() = ios.rewrite.targets
+        get() = ios.xcodeTargetNames
 
+    /**
+     * Managed keys carry the value you declared.
+     *
+     * The root block is the source of truth for the keys KiteConfig owns, which
+     * is the whole point of the plugin. Every other key in the file is left
+     * alone.
+     */
     internal val effectivePlistConflictPolicy: Provider<PlistConflictPolicy>
-        get() = ios.rewrite.onConflict.orElse(PlistConflictPolicy.FAIL)
+        get() = objectsProvider(PlistConflictPolicy.REPLACE)
 
     internal val effectiveNonExemptEncryption: Provider<Boolean>
-        get() = ios.rewrite.nonExemptEncryption
+        get() = ios.infoPlist.nonExemptEncryption
 
     internal val effectiveProMotion: Provider<Boolean>
-        get() = ios.rewrite.proMotion
+        get() = ios.infoPlist.proMotion
 
     internal val effectiveIosSharedModuleName: Provider<String>
-        get() = ios.rewrite.newSharedModuleName
+        get() = ios.newSharedModuleName
 
     internal val effectiveIosPreviousSharedModuleName: Provider<String>
-        get() = ios.rewrite.previousSharedModuleName
+        get() = ios.previousSharedModuleName
 
     internal val effectivePropagateSharedModule: Provider<Boolean>
-        get() = ios.rewrite.newSharedModuleName.map { true }.orElse(false)
+        get() = ios.newSharedModuleName.map { true }.orElse(false)
 
     // --- logo ---
 
-    /** True when `logo { rewrite { } }` armed the source-writing tasks. */
+    /** Art exists and reaches at least one platform that installs it into source. */
     internal val effectiveLogoRewriteArmed: Provider<Boolean>
-        get() = logo.rewriteArmed.orElse(false)
+        get() = logoFlowsTo(KitePlatform.ANDROID)
+            .zip(logoFlowsTo(KitePlatform.IOS)) { android, ios -> android || ios }
 
     internal val effectivePropagateLogo: Provider<Boolean>
         get() = effectiveLogoRewriteArmed
@@ -764,10 +831,14 @@ abstract class KiteConfigExtension : KiteFlowScope(), KiteConfigValues {
     internal val effectiveLogoSafeZone: Provider<Double>
         get() = effectiveLogoScaleFor(KitePlatform.ANDROID).orElse(DEFAULT_ANDROID_SAFE_ZONE)
 
+    /**
+     * Installing a launcher icon means claiming the paths it occupies.
+     *
+     * There is no separate opt-in: the files are copied into
+     * `.kiteconfig/recovery` first and recorded, so adoption is recoverable.
+     */
     internal val effectiveTakeOverLegacyIcons: Provider<Boolean>
-        get() = effectiveLogoRewriteArmed.zip(
-            logo.rewriteSpec.replaceOld.orElse(false),
-        ) { armed, takeOver -> armed && takeOver }
+        get() = logoFlowsTo(KitePlatform.ANDROID)
 
     // --- native opt-ins ---
 

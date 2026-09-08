@@ -71,6 +71,10 @@ class KiteConfigPlugin : Plugin<Project> {
             ?.major == 8
 
         val ext = target.extensions.create<KiteConfigExtension>("kiteConfig")
+        ext.defaultIosInfoPlist.set(target.layout.projectDirectory.file("iosApp/iosApp/Info.plist"))
+        ext.defaultIosPbxproj.set(
+            target.layout.projectDirectory.file("iosApp/iosApp.xcodeproj/project.pbxproj"),
+        )
 
         // Nested DSL blocks. Gradle can't decorate an abstract property of a
         // non-managed type on KiteConfigExtension, so we create them explicitly and
@@ -87,9 +91,8 @@ class KiteConfigPlugin : Plugin<Project> {
         extAware.extensions.create<KiteSplashScope>("splash")
         val androidExtension = extAware.extensions.create<KiteConfigAndroidExtension>("android")
         val iosExtension = extAware.extensions.create<KiteConfigIosExtension>("ios")
-        (iosExtension as ExtensionAware).extensions.create<KiteConfigIosSyncExtension>("rewrite").apply {
-            targets.convention(emptyList())
-        }
+        (iosExtension as ExtensionAware).extensions.create<KiteInfoPlistScope>("infoPlist")
+        iosExtension.xcodeTargetNames.convention(emptyList())
         extAware.extensions.create<KiteLogoScope>("logo")
         extAware.extensions.create<KiteConfigNativeOptInsExtension>("optIns").apply {
             builtIns.convention(true)
@@ -170,11 +173,9 @@ class KiteConfigPlugin : Plugin<Project> {
             ?.let { ext.backupsOverride.set(strictBooleanProperty("kiteconfig.backups", it)) }
 
         ext.ios.apply {
-            pbxproj.convention(
-                target.layout.projectDirectory.file("iosApp/iosApp.xcodeproj/project.pbxproj"),
-            )
+
             podfile.convention(target.layout.projectDirectory.file("iosApp/Podfile"))
-            infoPlist.convention(target.layout.projectDirectory.file("iosApp/iosApp/Info.plist"))
+
             appDirectory.convention(target.layout.projectDirectory.dir("iosApp"))
             appIconDirectory.convention(
                 target.layout.projectDirectory.dir("iosApp/iosApp/Assets.xcassets/AppIcon.appiconset"),
@@ -197,17 +198,25 @@ class KiteConfigPlugin : Plugin<Project> {
         registerSyncIosLogoTask(target, ext)
         registerSyncAndroidLogoTask(target, ext, resolvedAndroidAppDirectory, androidOutputApproved)
         registerCleanupLegacyLogoTask(target, ext, resolvedAndroidAppDirectory, androidOutputApproved)
-        target.tasks.register("kiteRewriteLogo") {
+        // One verb. kiteApply applies every selected platform's plan; the
+        // per-platform tasks apply one, which is what an ordinary Android build
+        // depends on so it can never drag iOS source edits along with it.
+        target.tasks.register("kiteApplyAndroid") {
             group = "kiteconfig"
-            description = "Installs the logo into Android res and the iOS asset catalog."
-            dependsOn("kiteInternalAndroidLogo", "kiteInternalIosLogo", "kiteInternalLegacyIconCleanup")
+            description = "Applies the Android source changes: launcher icons and their ownership."
+            dependsOn("kiteInternalAndroidLogo", "kiteInternalLegacyIconCleanup")
         }
-        target.tasks.register("kiteRewriteXcode") {
+        target.tasks.register("kiteApplyIos") {
             group = "kiteconfig"
-            description = "Rewrites the Xcode project files from the declared facts."
-            dependsOn("kiteInternalIosConfig", "kiteInternalPlistClean")
+            description = "Applies the iOS source changes: Xcode settings, plist, catalog, launch screen."
+            dependsOn("kiteInternalIosConfig", "kiteInternalPlistClean", "kiteInternalIosLogo")
         }
-        wireAutoRewrites(target, ext)
+        target.tasks.register("kiteApply") {
+            group = "kiteconfig"
+            description = "Applies the configured source changes for every selected platform."
+            dependsOn("kiteApplyAndroid", "kiteApplyIos")
+        }
+        wireAutomaticApplication(target, ext)
         val verifyTask = registerVerifyTask(target, ext, colorSupported)
         val doctorTask = registerDoctorTask(target, ext, resolvedAndroidAppDirectory, colorSupported)
         val checkTask = registerCheckTask(target, ext, resolvedAndroidAppDirectory, colorSupported)
@@ -269,7 +278,7 @@ class KiteConfigPlugin : Plugin<Project> {
                 if (iosTargetNames.distinct().size != iosTargetNames.size ||
                     iosTargetNames.any { it.isBlank() || it.any(Char::isISOControl) }
                 ) {
-                    throw GradleException("kiteConfig { ios { rewrite { targets } } } must contain unique, non-blank names without controls.")
+                    throw GradleException("kiteConfig { ios { xcodeTargets } } must contain unique, non-blank names without controls.")
                 }
                 if (iosTargetNames.size > 1 && ext.appIdFlowsAnywhere().get() && ext.appId.isPresent) {
                     throw GradleException(
@@ -308,7 +317,7 @@ class KiteConfigPlugin : Plugin<Project> {
                 if (!ext.effectiveIosSharedModuleName.isPresent || !ext.effectiveIosPreviousSharedModuleName.isPresent) {
                     throw GradleException(
                         "kiteConfig shared-module migration needs both names. Call " +
-                            "ios { rewrite { renameSharedModule(from = \"old\", to = \"new\") } }. " +
+                            "ios { renameSharedModule(from = \"old\", to = \"new\") }. " +
                             "Automatic Pod/Swift rename inference is disabled."
                     )
                 }
@@ -349,28 +358,16 @@ class KiteConfigPlugin : Plugin<Project> {
                     )
                 }
                 ext.effectiveLogoBackgroundColor.orNull?.let(::validateLogoBackgroundColorHex)
-                if (ext.effectiveSyncIos.get()) {
-                    val deploymentTarget = ext.ios.deploymentTarget.orNull ?: throw GradleException(
-                        "kiteConfig universal iOS AppIcon propagation requires ios.deploymentTarget >= 12.0 " +
-                            "and Xcode 14 or newer."
-                    )
-                    validateUniversalAppIconDeploymentTarget(deploymentTarget)
-                }
+                // Checked when declared. The single-size universal catalog needs
+                // iOS 12 and Xcode 14, but that is a fact about the project, not
+                // something the build has to be told before it may own an icon.
+                ext.ios.deploymentTarget.orNull?.let(::validateUniversalAppIconDeploymentTarget)
             }
 
             // Legacy takeover is validated as part of the Android installer's
             // transaction. The standalone cleanup task remains available for an
             // explicitly requested one-shot recovery workflow.
-            if (ext.effectiveTakeOverLegacyIcons.get()) {
-                if (!ext.effectivePropagateLogo.get() || !ext.effectiveLogoForeground.isPresent ||
-                    (!ext.effectiveLogoBackground.isPresent && !ext.effectiveLogoBackgroundColor.isPresent)
-                ) {
-                    throw GradleException(
-                        "kiteConfig { logo { rewrite { replaceOld } } } requires a complete replacement " +
-                            "logo plan: a foreground plus exactly one background."
-                    )
-                }
-            }
+
             finalizeModel(ext)
         }
 
@@ -1117,6 +1114,8 @@ class KiteConfigPlugin : Plugin<Project> {
             projectRootDir.set(root.layout.projectDirectory)
             pbxprojFile.set(ext.effectiveIosPbxproj)
             infoPlistFile.set(ext.effectiveIosInfoPlist)
+            infoPlistExplicit.set(ext.effectiveIosInfoPlistExplicit)
+            pbxprojExplicit.set(ext.effectiveIosPbxprojExplicit)
             podfile.set(ext.effectiveIosPodfile)
             iosAppDir.set(ext.effectiveIosAppDirectory)
             appiconsetDir.set(ext.effectiveIosAppIconDirectory)
@@ -1381,7 +1380,7 @@ class KiteConfigPlugin : Plugin<Project> {
                 mapOf(
                     "backups" to ext.effectiveBackups.get().toString(),
                     "dryRun" to ext.effectiveDryRun.get().toString(),
-                    "ios.rewrite.onConflict" to ext.effectivePlistConflictPolicy.get().name,
+                    "ios.plist.policy" to ext.effectivePlistConflictPolicy.get().name,
                     "ios.deploymentTarget" to ext.ios.deploymentTarget.orNull.orEmpty(),
                     "pbxprojScope" to if (ext.effectiveIosTargets.get().isEmpty()) {
                         "sole application target only"
@@ -1444,20 +1443,25 @@ class KiteConfigPlugin : Plugin<Project> {
      * absent value; the diagnostics engine already reports that as a finding.
      */
     /**
-     * The discouraged auto mode: armed rewrites ride ordinary builds. Android
-     * app preBuild pulls kiteRewriteLogo; iOS framework link/embed tasks pull
-     * kiteRewriteXcode. Gates stay lazy so plain configuration never arms them.
+     * Hooks automatic application onto each platform's ordinary build.
+     *
+     * Android app `preBuild` pulls the Android plan; the iOS framework link and
+     * embed tasks pull the iOS plan. The two are separate on purpose: an Android
+     * build must never edit an iOS source file on its way past.
+     *
+     * Gates stay lazy, so a project that never sets `autoApply` adds no
+     * dependency at all.
      */
-    private fun wireAutoRewrites(root: Project, ext: KiteConfigExtension) {
+    private fun wireAutomaticApplication(root: Project, ext: KiteConfigExtension) {
         root.allprojects(Action {
             tasks.matching { it.name == "preBuild" }.configureEach(Action {
-                if (ext.effectiveAutoRewriteLogo.get()) dependsOn(root.tasks.named("kiteRewriteLogo"))
+                if (ext.effectiveAutoRewriteLogo.get()) dependsOn(root.tasks.named("kiteApplyAndroid"))
             })
             tasks.matching {
                 it.name == "embedAndSignAppleFrameworkForXcode" ||
                     (it.name.startsWith("link") && it.name.contains("Framework") && it.name.contains("Ios"))
             }.configureEach(Action {
-                if (ext.effectiveAutoRewriteXcode.get()) dependsOn(root.tasks.named("kiteRewriteXcode"))
+                if (ext.effectiveAutoRewriteXcode.get()) dependsOn(root.tasks.named("kiteApplyIos"))
             })
         })
     }
@@ -1546,7 +1550,7 @@ class KiteConfigPlugin : Plugin<Project> {
         desktopIconsExplicit.set(ext.logoFlowsTo(KitePlatform.DESKTOP))
         splashAndroid.set(ext.effectiveAndroidSplash)
         splashDesktop.set(ext.effectiveDesktopSplash)
-        splashIosArmed.set(ext.splash.rewriteArmed.orElse(false))
+        splashIosArmed.set(ext.effectiveIosSplash)
         splashIos.set(ext.effectiveIosSplash)
         splashThemeSet.set(ext.effectiveSplashAndroidTheme.map { true }.orElse(false))
         versionGuardsIgnored.set(ext.effectiveIgnoreVersionGuards)
@@ -1664,8 +1668,8 @@ class KiteConfigPlugin : Plugin<Project> {
         ) + listOf(
             ext.localesScope.tags,
             ext.logo.foreground, ext.logo.background, ext.logo.foregroundScale,
-            ext.logo.enabled, ext.logo.rewriteArmed,
-            ext.splash.enabled, ext.splash.rewriteArmed,
+            ext.logo.enabled,
+            ext.splash.enabled,
             ext.splash.image, ext.splash.backgroundColor,
             ext.splash.dark.image, ext.splash.dark.backgroundColor, ext.splash.dark.enabled,
             ext.android.androidSplash.theme,
@@ -1693,17 +1697,17 @@ class KiteConfigPlugin : Plugin<Project> {
                 block.splashDetails.backgroundColor,
                 block.splashDetails.dark.image, block.splashDetails.dark.backgroundColor,
                 block.splashDetails.dark.enabled,
+                block.autoApply,
             )
         } + listOf(
             ext.ios.deploymentTarget, ext.ios.pbxproj, ext.ios.podfile,
-            ext.ios.infoPlist, ext.ios.appDirectory, ext.ios.appIconDirectory,
+            ext.ios.appDirectory, ext.ios.appIconDirectory,
         ) + listOf(
-            ext.ios.rewrite.rewriteArmed, ext.ios.rewrite.targets,
-            ext.ios.rewrite.cleanPlist, ext.ios.rewrite.onConflict,
-            ext.ios.rewrite.nonExemptEncryption, ext.ios.rewrite.proMotion,
-            ext.ios.rewrite.previousSharedModuleName, ext.ios.rewrite.newSharedModuleName,
+            ext.ios.infoPlist.path, ext.ios.infoPlist.nonExemptEncryption,
+            ext.ios.infoPlist.proMotion, ext.ios.xcodeTargetNames,
+            ext.ios.previousSharedModuleName, ext.ios.newSharedModuleName,
         ) + listOf(
-            ext.desktop.desktopLogo.roundMac, ext.logo.rewriteSpec.replaceOld,
+            ext.autoApply, ext.desktop.desktopLogo.roundMac,
             ext.optIns.builtIns, ext.optIns.markers, ext.optIns.projects,
         ) + listOf(
             ext.web.ioWorker.declared,

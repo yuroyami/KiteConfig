@@ -137,7 +137,7 @@ internal object KiteConfigDiagnosticEngine {
                         append(", ios=").append(
                             when {
                                 context.splashIos -> "on"
-                                context.splashIosArmed -> "armed, waiting for ios { rewrite { } }"
+                                context.splashIosArmed -> "armed, waiting for autoApply"
                                 else -> "off"
                             },
                         )
@@ -172,20 +172,21 @@ internal object KiteConfigDiagnosticEngine {
                 diagnostic(
                     "KTCNFG094",
                     KiteConfigDiagnosticSeverity.WARNING,
-                    "Auto rewrites",
-                    "rewrite { auto = true } is on: ordinary builds edit committed source files.",
-                    "Expect dirty git trees on clean checkouts. Turn auto off to go back to explicit kiteRewrite* runs.",
+                    "Automatic application",
+                    "autoApply is on: ordinary builds apply the configured source changes.",
+                    "A checkout that has not been applied yet builds dirty once. " +
+                        "Turn it off to apply only when you run kiteApply.",
                 ),
             )
         }
-        if (context.splashIosArmed && !context.splashIos) {
+        if (context.splashIos && !context.autoRewrites) {
             add(
                 diagnostic(
                     "KTCNFG093",
-                    KiteConfigDiagnosticSeverity.WARNING,
+                    KiteConfigDiagnosticSeverity.SKIPPED,
                     "Splash iOS delivery",
-                    "splash { rewrite { } } is armed, but the Xcode rewrite is not.",
-                    "Add ios { rewrite { } } so kiteRewriteXcode can deliver the launch screen.",
+                    "The iOS launch screen is enabled, and automatic application is off.",
+                    "Run kiteApply when you want it written, or set autoApply = true.",
                 ),
             )
         }
@@ -931,7 +932,7 @@ internal object KiteConfigDiagnosticEngine {
                     KiteConfigDiagnosticSeverity.ERROR,
                     "iOS Info.plist",
                     "Configured source Info.plist does not exist at ${context.shortPath(plist)}.",
-                    "Correct ios { infoPlist } or disable ios { rewrite { cleanPlist } } for a generated plist.",
+                    "Correct ios { infoPlist } or disable ios { infoPlist } for a generated plist.",
                     location = plist.path,
                 ),
             )
@@ -1074,7 +1075,7 @@ internal object KiteConfigDiagnosticEngine {
                         KiteConfigDiagnosticSeverity.ERROR,
                         "iOS pbxproj",
                         "Project file not found at ${context.shortPath(pbxproj)}.",
-                        "Correct ios { pbxproj } or remove the ios { rewrite { } } block.",
+                        "Correct ios { pbxproj }, or exclude iOS with skip(ios).",
                     ),
                 )
             } else if (pbxprojExists == true) {
@@ -1114,7 +1115,7 @@ internal object KiteConfigDiagnosticEngine {
                                 KiteConfigDiagnosticSeverity.ERROR,
                                 "iOS pbxproj configuration drift",
                                 "Configured setting(s) differ: ${result.changedSettings.sorted().joinToString()}.",
-                                "Review the bounded dry-run diff, then run kiteRewriteXcode explicitly.",
+                                "Review the bounded dry-run diff, then run kiteApplyIos explicitly.",
                                 location = pbxproj.path,
                             ),
                         )
@@ -1201,7 +1202,7 @@ internal object KiteConfigDiagnosticEngine {
                             KiteConfigDiagnosticSeverity.ERROR,
                             "iOS app icon set",
                             problems.joinToString("; "),
-                            "Review and explicitly rerun kiteRewriteLogo; unowned files are never repaired automatically.",
+                            "Review and explicitly rerun kiteApplyAndroid; unowned files are never repaired automatically.",
                             location = icons.path,
                         ),
                     )
@@ -1281,7 +1282,7 @@ private fun MutableList<KiteConfigDiagnostic>.diagnoseAndroidIcons(context: Kite
                     KiteConfigDiagnosticSeverity.ERROR,
                     "Android launcher icons",
                     ownershipProblems.joinToString("; "),
-                    "Review and explicitly rerun kiteRewriteLogo; modified or unowned files are never overwritten automatically.",
+                    "Review and explicitly rerun kiteApplyAndroid; modified or unowned files are never overwritten automatically.",
                     location = res.path,
                 ),
             )

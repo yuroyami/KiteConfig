@@ -79,23 +79,6 @@ abstract class KiteSplashScope @Inject constructor(private val objects: ObjectFa
 
     fun dark(action: Action<in DarkVariant>) = action.execute(dark)
 
-    internal abstract val rewriteArmed: Property<Boolean>
-
-    /**
-     * Arms the iOS launch-screen delivery: the plist entry plus asset catalog
-     * entries, running with kiteRewriteXcode. Source edits, so dryRun, backups,
-     * and onConflict apply.
-     */
-    fun rewrite(action: Action<in KiteSplashRewrite>) {
-        rewriteArmed.set(true)
-        action.execute(rewriteSpec)
-    }
-
-    /** Options for the armed iOS splash delivery. Empty today, kept for growth. */
-    @KiteDsl
-    abstract class KiteSplashRewrite
-
-    internal val rewriteSpec: KiteSplashRewrite = objects.newInstance(KiteSplashRewrite::class.java)
 }
 
 /**

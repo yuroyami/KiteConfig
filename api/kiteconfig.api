@@ -264,6 +264,7 @@ public abstract class io/github/yuroyami/kiteconfig/KiteConfigExtension : io/git
 	public fun getAndroidApplicationId ()Lorg/gradle/api/provider/Provider;
 	public abstract fun getAppId ()Lorg/gradle/api/provider/Property;
 	public abstract fun getAppName ()Lorg/gradle/api/provider/Property;
+	public abstract fun getAutoApply ()Lorg/gradle/api/provider/Property;
 	public abstract fun getBackups ()Lorg/gradle/api/provider/Property;
 	public final fun getBuildConfig ()Lio/github/yuroyami/kiteconfig/KiteConfigBuildConfigExtension;
 	public fun getCanonicalLocales ()Lorg/gradle/api/provider/Provider;
@@ -284,6 +285,7 @@ public abstract class io/github/yuroyami/kiteconfig/KiteConfigExtension : io/git
 	public final fun getModules ()Lio/github/yuroyami/kiteconfig/KiteConfigModulesExtension;
 	public fun getNdk ()Lorg/gradle/api/provider/Provider;
 	public final fun getOptIns ()Lio/github/yuroyami/kiteconfig/KiteConfigNativeOptInsExtension;
+	protected abstract fun getProviders ()Lorg/gradle/api/provider/ProviderFactory;
 	public fun getResolvedSharedProjectPath ()Lorg/gradle/api/provider/Provider;
 	public fun getTargetSdk ()Lorg/gradle/api/provider/Provider;
 	public abstract fun getVersion ()Lorg/gradle/api/provider/Property;
@@ -314,27 +316,15 @@ public abstract class io/github/yuroyami/kiteconfig/KiteConfigIosExtension : io/
 	public abstract fun getAppDirectory ()Lorg/gradle/api/file/DirectoryProperty;
 	public abstract fun getAppIconDirectory ()Lorg/gradle/api/file/DirectoryProperty;
 	public abstract fun getDeploymentTarget ()Lorg/gradle/api/provider/Property;
-	public abstract fun getInfoPlist ()Lorg/gradle/api/file/RegularFileProperty;
 	public abstract fun getPbxproj ()Lorg/gradle/api/file/RegularFileProperty;
 	public final fun getPlatform ()Lio/github/yuroyami/kiteconfig/KitePlatform;
 	public abstract fun getPodfile ()Lorg/gradle/api/file/RegularFileProperty;
-	public final fun getRewrite ()Lio/github/yuroyami/kiteconfig/KiteConfigIosSyncExtension;
+	public final fun infoPlist (Lorg/gradle/api/Action;)V
 	public final fun locales (Lorg/gradle/api/Action;)V
 	public final fun logo (Lorg/gradle/api/Action;)V
-	public final fun rewrite (Lorg/gradle/api/Action;)V
-	public final fun splash (Lorg/gradle/api/Action;)V
-}
-
-public abstract class io/github/yuroyami/kiteconfig/KiteConfigIosSyncExtension {
-	public fun <init> ()V
-	public abstract fun getAuto ()Lorg/gradle/api/provider/Property;
-	public abstract fun getCleanPlist ()Lorg/gradle/api/provider/Property;
-	public abstract fun getNonExemptEncryption ()Lorg/gradle/api/provider/Property;
-	public abstract fun getOnConflict ()Lorg/gradle/api/provider/Property;
-	public abstract fun getProMotion ()Lorg/gradle/api/provider/Property;
-	public abstract fun getTargets ()Lorg/gradle/api/provider/ListProperty;
 	public final fun renameSharedModule (Ljava/lang/String;Ljava/lang/String;)V
-	public final fun targets ([Ljava/lang/String;)V
+	public final fun splash (Lorg/gradle/api/Action;)V
+	public final fun xcodeTargets ([Ljava/lang/String;)V
 }
 
 public abstract class io/github/yuroyami/kiteconfig/KiteConfigModulesExtension {
@@ -448,7 +438,7 @@ public abstract class io/github/yuroyami/kiteconfig/KiteConfigWebExtension {
 }
 
 public abstract class io/github/yuroyami/kiteconfig/KiteDesktopLogoScope : io/github/yuroyami/kiteconfig/KiteLogoScope {
-	public fun <init> (Lorg/gradle/api/model/ObjectFactory;)V
+	public fun <init> ()V
 	public abstract fun getRoundMac ()Lorg/gradle/api/provider/Property;
 }
 
@@ -459,6 +449,13 @@ public abstract class io/github/yuroyami/kiteconfig/KiteFlowScope {
 	public fun <init> ()V
 	public final fun only ([Lio/github/yuroyami/kiteconfig/KitePlatformRef;)V
 	public final fun skip ([Lio/github/yuroyami/kiteconfig/KitePlatformRef;)V
+}
+
+public abstract class io/github/yuroyami/kiteconfig/KiteInfoPlistScope {
+	public fun <init> ()V
+	public abstract fun getNonExemptEncryption ()Lorg/gradle/api/provider/Property;
+	public abstract fun getPath ()Lorg/gradle/api/file/RegularFileProperty;
+	public abstract fun getProMotion ()Lorg/gradle/api/provider/Property;
 }
 
 public abstract class io/github/yuroyami/kiteconfig/KiteJvmScope {
@@ -473,14 +470,8 @@ public abstract class io/github/yuroyami/kiteconfig/KiteLocalesScope {
 	public abstract fun getTags ()Lorg/gradle/api/provider/ListProperty;
 }
 
-public abstract class io/github/yuroyami/kiteconfig/KiteLogoRewrite {
-	public fun <init> ()V
-	public abstract fun getAuto ()Lorg/gradle/api/provider/Property;
-	public abstract fun getReplaceOld ()Lorg/gradle/api/provider/Property;
-}
-
 public abstract class io/github/yuroyami/kiteconfig/KiteLogoScope {
-	public fun <init> (Lorg/gradle/api/model/ObjectFactory;)V
+	public fun <init> ()V
 	public final fun color (Ljava/lang/String;)Lio/github/yuroyami/kiteconfig/LogoBackground;
 	public abstract fun getBackground ()Lorg/gradle/api/provider/Property;
 	public abstract fun getEnabled ()Lorg/gradle/api/provider/Property;
@@ -488,7 +479,6 @@ public abstract class io/github/yuroyami/kiteconfig/KiteLogoScope {
 	public abstract fun getForegroundScale ()Lorg/gradle/api/provider/Property;
 	public final fun image (Ljava/io/File;)Lio/github/yuroyami/kiteconfig/LogoBackground;
 	public final fun image (Lorg/gradle/api/file/RegularFile;)Lio/github/yuroyami/kiteconfig/LogoBackground;
-	public final fun rewrite (Lorg/gradle/api/Action;)V
 }
 
 public final class io/github/yuroyami/kiteconfig/KitePlatform : java/lang/Enum, io/github/yuroyami/kiteconfig/KitePlatformRef {
@@ -507,6 +497,7 @@ public abstract class io/github/yuroyami/kiteconfig/KitePlatformExtension : io/g
 	public final fun appName (Lorg/gradle/api/Action;)V
 	public abstract fun getAppId ()Lorg/gradle/api/provider/Property;
 	public abstract fun getAppName ()Lorg/gradle/api/provider/Property;
+	public abstract fun getAutoApply ()Lorg/gradle/api/provider/Property;
 	public abstract fun getVersion ()Lorg/gradle/api/provider/Property;
 	public final fun version (Lorg/gradle/api/Action;)V
 }
@@ -529,7 +520,6 @@ public abstract class io/github/yuroyami/kiteconfig/KiteSplashScope {
 	public final fun getDark ()Lio/github/yuroyami/kiteconfig/KiteSplashScope$DarkVariant;
 	public abstract fun getEnabled ()Lorg/gradle/api/provider/Property;
 	public abstract fun getImage ()Lorg/gradle/api/file/RegularFileProperty;
-	public final fun rewrite (Lorg/gradle/api/Action;)V
 }
 
 public abstract class io/github/yuroyami/kiteconfig/KiteSplashScope$DarkVariant {
@@ -537,10 +527,6 @@ public abstract class io/github/yuroyami/kiteconfig/KiteSplashScope$DarkVariant 
 	public abstract fun getBackgroundColor ()Lorg/gradle/api/provider/Property;
 	public abstract fun getEnabled ()Lorg/gradle/api/provider/Property;
 	public abstract fun getImage ()Lorg/gradle/api/file/RegularFileProperty;
-}
-
-public abstract class io/github/yuroyami/kiteconfig/KiteSplashScope$KiteSplashRewrite {
-	public fun <init> ()V
 }
 
 public abstract class io/github/yuroyami/kiteconfig/KiteVersionScope {
@@ -628,12 +614,14 @@ public abstract class io/github/yuroyami/kiteconfig/SyncIosConfigTask : org/grad
 	public abstract fun getBuildNumber ()Lorg/gradle/api/provider/Property;
 	public abstract fun getBundleId ()Lorg/gradle/api/provider/Property;
 	public abstract fun getDryRun ()Lorg/gradle/api/provider/Property;
+	public abstract fun getInfoPlistExplicit ()Lorg/gradle/api/provider/Property;
 	public abstract fun getInfoPlistFile ()Lorg/gradle/api/file/RegularFileProperty;
 	public abstract fun getIosAppDir ()Lorg/gradle/api/file/DirectoryProperty;
 	public abstract fun getIosPreviousSharedModuleName ()Lorg/gradle/api/provider/Property;
 	public abstract fun getIosSharedModuleName ()Lorg/gradle/api/provider/Property;
 	public abstract fun getLocales ()Lorg/gradle/api/provider/ListProperty;
 	public abstract fun getMarketingVersion ()Lorg/gradle/api/provider/Property;
+	public abstract fun getPbxprojExplicit ()Lorg/gradle/api/provider/Property;
 	public abstract fun getPbxprojFile ()Lorg/gradle/api/file/RegularFileProperty;
 	public abstract fun getPlistConflictPolicy ()Lorg/gradle/api/provider/Property;
 	public abstract fun getPodfile ()Lorg/gradle/api/file/RegularFileProperty;

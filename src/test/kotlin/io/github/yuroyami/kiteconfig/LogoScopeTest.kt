@@ -24,17 +24,9 @@ class LogoScopeTest {
     }
 
     @Test
-    fun `declaring art alone arms no source rewrite`() {
-        assertFalse(ext().withArt().effectiveLogoRewriteArmed.get())
-    }
-
-    @Test
-    fun `rewrite block arms the source tasks and replaceOld rides on it`() {
-        val e = ext().withArt()
-        e.logo { rewrite { replaceOld.set(true) } }
-
-        assertTrue(e.effectiveLogoRewriteArmed.get())
-        assertTrue(e.effectiveTakeOverLegacyIcons.get())
+    fun `art alone is what makes the installers have work to do`() {
+        assertFalse(ext().effectiveLogoRewriteArmed.get())
+        assertTrue(ext().withArt().effectiveLogoRewriteArmed.get())
     }
 
     /** The topic turns itself on once there is art to install. */

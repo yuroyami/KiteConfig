@@ -186,6 +186,8 @@ abstract class SyncIosConfigTask : DefaultTask() {
         targetNames.convention(emptyList())
         projectRootDir.convention(project.layout.projectDirectory)
         splashEnabled.convention(false)
+        infoPlistExplicit.convention(false)
+        pbxprojExplicit.convention(false)
         backupDir.convention(project.layout.projectDirectory.dir(".kiteconfig/recovery/ios-splash"))
     }
 
@@ -222,8 +224,14 @@ abstract class SyncIosConfigTask : DefaultTask() {
     @get:Input abstract val dryRun: Property<Boolean>
     @get:Input abstract val backup: Property<Boolean>
 
-    /** Off by default, so a project without `splash { rewrite { } }` stays byte-identical. */
+    /** Off by default, so a project without `splash { enabled }` stays byte-identical. */
     @get:Input abstract val splashEnabled: Property<Boolean>
+
+    /** Whether the plist path came from the build script rather than the default. */
+    @get:Input abstract val infoPlistExplicit: Property<Boolean>
+
+    /** Whether the Xcode project path came from the build script rather than the default. */
+    @get:Input abstract val pbxprojExplicit: Property<Boolean>
 
     @get:Input @get:Optional abstract val splashColor: Property<String>
     @get:Input @get:Optional abstract val splashDarkColor: Property<String>
@@ -287,15 +295,19 @@ abstract class SyncIosConfigTask : DefaultTask() {
             throw GradleException("Unsafe Info.plist path: ${failure.message}", failure)
         }
         if (!file.exists()) {
-            val disableHint = if (splashEnabled.get()) {
-                "disable ios { rewrite { cleanPlist } } and splash { rewrite { } }"
-            } else {
-                "disable ios { rewrite { cleanPlist } }"
+            // No source plist means a generated one, which KiteConfig does not
+            // maintain. Only say something when the path was chosen by hand.
+            if (infoPlistExplicit.getOrElse(false)) {
+                throw GradleException(
+                    "kiteConfig { ios { infoPlist { path } } } points at a file that does not exist: " +
+                        "${file.path}. Fix the path, or remove it if the project generates its plist.",
+                )
             }
-            throw GradleException(
-                "Configured source Info.plist does not exist: ${file.path}. " +
-                    "For a generated plist, $disableHint and configure Xcode build settings instead.",
+            logger.info(
+                "[kiteConfig] No source Info.plist at ${file.path}; the project generates one, so " +
+                    "KiteConfig left plist keys alone.",
             )
+            return
         }
         val sanitize = sanitizeSourcePlist.get()
         val splash = splashEnabled.get()
@@ -368,7 +380,16 @@ abstract class SyncIosConfigTask : DefaultTask() {
     ) {
         val configured = pbxprojFile.asFile.get()
         if (!configured.exists()) {
-            throw GradleException("Configured pbxproj does not exist: ${configured.path}")
+            // A project with no Xcode tree has no build settings to migrate. Say
+            // something only when the path was chosen by hand.
+            if (pbxprojExplicit.getOrElse(false)) {
+                throw GradleException(
+                    "kiteConfig { ios { pbxproj } } points at a file that does not exist: " +
+                        "${configured.path}. Fix the path, or exclude iOS with skip(ios).",
+                )
+            }
+            logger.info("[kiteConfig] No Xcode project at ${configured.path}; iOS project settings were left alone.")
+            return
         }
         val file = try {
             requireContainedPath(root, configured)
@@ -377,8 +398,8 @@ abstract class SyncIosConfigTask : DefaultTask() {
         }
         val requestedTargets = targetNames.get().also { names ->
             val invalid = names.filter { it.isBlank() || it.any { char -> char.isISOControl() } }
-            if (invalid.isNotEmpty()) throw GradleException("ios.targetNames contains invalid name(s): ${invalid.joinToString()}")
-            if (names.size != names.distinct().size) throw GradleException("ios.targetNames contains duplicates")
+            if (invalid.isNotEmpty()) throw GradleException("ios { xcodeTargets } contains invalid name(s): ${invalid.joinToString()}")
+            if (names.size != names.distinct().size) throw GradleException("ios { xcodeTargets } contains duplicates")
         }.toSet()
         val snapshot = readUtf8SnapshotStrict(file)
         budget.recordSnapshot(snapshot, "iOS pbxproj")
@@ -556,7 +577,7 @@ abstract class SyncIosConfigTask : DefaultTask() {
         if (!file.exists()) {
             throw GradleException(
                 "[kiteConfig] $label points to a missing file: ${displayProjectPath(root, file)}. " +
-                    "Fix the path or drop splash { rewrite { } }.",
+                    "Fix the path or drop splash { enabled }.",
             )
         }
         OwnedOutputSafety.requireInputOutsideOutput(file, assets, label)
