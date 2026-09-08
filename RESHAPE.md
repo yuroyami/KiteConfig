@@ -1,11 +1,14 @@
 # KiteConfig 2.0 reshape
 
-Status: design, approved for implementation. Nothing in this document is built
-yet. The Kotlin examples describe the 2.0 API and do not compile against 1.0.0.
+Status: **phases 0, 1, 2, 5 and 6 are implemented and green. Phases 3 and 4 are
+partly done.** Section 14 records exactly where each one stands. Every Kotlin
+example in this document, in the README and in the KDoc is compiled by the test
+suite, so the surface below is the surface that exists.
 
 Baseline: commit `784d9f8` on `main`. KiteConfig 1.0.0 is published on the
 Gradle Plugin Portal, so this reshape ships as **2.0.0**, a breaking release
-with a migration table (section 12) and no compatibility shims.
+with a migration table (section 12) and no compatibility shims. The tag has not
+been cut.
 
 This is the only design document for the reshape. Section 18 lists the older
 documents it replaces and what to do with them.
@@ -822,9 +825,13 @@ leaving `autoApply` off and running `kiteApply`.
 
 ## 13. Known defects this reshape closes
 
-Each of these was reproduced against 1.0.0 and none of them has a fix.
-Renaming the DSL does not close any of them. Section 19 carries the evidence
-for each one, and every one has an owner phase in section 14.
+Each of these was reproduced against 1.0.0. **Fourteen are now fixed, each with
+a test that fails without the fix.** The fifteenth, the locale list arriving
+after Android needs it, is softened rather than solved: the message now names
+the two ways to answer, which is what section 5.3 allows when discovery
+genuinely cannot answer in time.
+
+Section 19 carries the evidence for each one.
 
 | Defect | Closed by |
 |---|---|
@@ -848,8 +855,22 @@ for each one, and every one has an owner phase in section 14.
 
 Six phases, in order. Each phase ends green: tests, ABI check, the
 configuration-cache run, and the AGP compatibility matrix. A phase is done when
-its evidence exists, not when its checkbox is ticked. The detailed
-task-by-task plan is written when a phase starts, from this document.
+its evidence exists, not when its checkbox is ticked.
+
+### Where it stands
+
+| Phase | State |
+|---|---|
+| 0. Fix what is broken today | Done. All five items, each with a test that fails without the fix. |
+| 1. The model | Done. Typed platform blocks, lazy inheritance, content-based activation, the DSL marker, one validation layer, the renamed read-back. |
+| 2. Deliveries | Done, with one item softened. Identity, version, locales, JVM, logo and splash all deliver on the new model. Android resource filtering still cannot resolve a detected shared module before AGP asks; the failure now names the two ways to answer instead of pretending the list was empty. Renderer geometry is not yet measured from known input bounds. |
+| 3. The apply engine | Partly done. `kiteApply`, `kiteApplyAndroid` and `kiteApplyIos` exist, an Android build cannot apply iOS changes, ownership covers every installer, and nothing is committed before everything is rendered. Not done: one planner producing an operation graph, reconciliation of a feature that was turned off, fault injection at each write, and the manifest-overlay spike. |
+| 4. iOS | Not started. The xcconfig and pre-action spike, reading the deployment target from the project, and the `CFBundleLocalizations` decision are all open. Section 8 still describes the behaviour as it is, not as it will be. |
+| 5. Generated code and diagnostics | Done, minus two. Activation reads content, the vocabulary is current, and every message names a DSL path that exists. Not done: the browser-capability check for worker targets, and lazy values for every generated field type. |
+| 6. Documentation and release | Done, minus two. README, the site page, FEATURES, the changelog and the release notes are current, and the example test compiles the README's fences as well as the KDoc's. Not done: explicit API mode, and the tag. |
+
+The detailed task-by-task plan is written when a phase starts, from this
+document.
 
 ### Phase 0: fix what is broken today
 
