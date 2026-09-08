@@ -1535,10 +1535,11 @@ class KiteConfigPlugin : Plugin<Project> {
                 // Each store's rule belongs to the platform that has it. Checking both
                 // whenever an identifier reached anywhere meant an iOS-only identifier
                 // still had to satisfy Android, which rejects a hyphen that Apple allows.
-                if (ext.effectiveAndroidVersionCode.isPresent &&
-                    (ext.versionFlowsTo(KitePlatform.ANDROID).get() || buildConfigIdentity)
-                ) {
-                    validateVersionCode(ext.effectiveAndroidVersionCode.get())
+                // The gate comes first: asking whether the code is present evaluates
+                // the scheme, and a version nobody asked to encode must never be run
+                // through it.
+                if (ext.versionFlowsTo(KitePlatform.ANDROID).get() || buildConfigIdentity) {
+                    ext.effectiveAndroidVersionCode.orNull?.let(::validateVersionCode)
                 }
                 if (ext.appId.isPresent) {
                     if (ext.appIdFlowsTo(KitePlatform.ANDROID).get() || buildConfigIdentity) {
