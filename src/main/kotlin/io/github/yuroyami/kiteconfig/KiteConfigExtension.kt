@@ -163,8 +163,9 @@ abstract class KiteConfigExtension : KiteFlowScope(), KiteConfigValues {
     /**
      * The display name users see on their home screen.
      *
-     * Android receives it as the `appName` manifest placeholder. The explicit
-     * Apple sync tasks use it for `PRODUCT_NAME`, `CFBundleName`, and
+     * Android receives it as `android:label` through a generated manifest that
+     * AGP merges over your own, so your `AndroidManifest.xml` needs no edit. The
+     * explicit Apple sync tasks use it for `PRODUCT_NAME`, `CFBundleName`, and
      * `CFBundleDisplayName`.
      */
     abstract override val appName: Property<String>

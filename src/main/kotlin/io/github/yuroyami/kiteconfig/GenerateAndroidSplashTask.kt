@@ -24,7 +24,7 @@ private const val SPLASH_CANVAS_DP = 288
 /** Visible circle when the icon has no icon background. The art is padded to fit inside it. */
 private const val SPLASH_SAFE_CIRCLE_DP = 192
 
-/** The generated style. The manifest placeholder `kiteSplashTheme` points at it. */
+/** The generated style. The manifest overlay points `android:theme` at it. */
 internal const val ANDROID_SPLASH_STYLE = "KiteSplash"
 
 private const val SPLASH_COLOR_NAME = "kite_splash_bg"

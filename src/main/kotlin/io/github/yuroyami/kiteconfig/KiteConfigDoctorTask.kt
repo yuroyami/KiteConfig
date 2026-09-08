@@ -104,7 +104,7 @@ abstract class KiteConfigDiagnosticTaskBase : DefaultTask() {
     @get:Internal abstract val splashIosArmed: Property<Boolean>
     @get:Internal abstract val splashIos: Property<Boolean>
     @get:Internal abstract val splashThemeSet: Property<Boolean>
-    @get:Internal abstract val splashManifestPlaceholderPresent: Property<Boolean>
+    @get:Internal abstract val androidManifestTheme: Property<String>
     @get:Internal abstract val versionGuardsIgnored: Property<Boolean>
     @get:Internal abstract val autoRewrites: Property<Boolean>
 
@@ -218,8 +218,8 @@ abstract class KiteConfigDiagnosticTaskBase : DefaultTask() {
             splashIosArmed = resolve("KTCNFG962", "splash { rewrite }", false) { splashIosArmed.getOrElse(false) },
             splashIos = resolve("KTCNFG963", "splash { rewrite }", false) { splashIos.getOrElse(false) },
             splashThemeSet = resolve("KTCNFG964", "splash { android { theme } }", false) { splashThemeSet.getOrElse(false) },
-            splashManifestPlaceholderPresent = resolve<Boolean?>("KTCNFG965", "splash manifest placeholder", null) {
-                splashManifestPlaceholderPresent.orNull
+            androidManifestTheme = resolve<String?>("KTCNFG965", "the manifest application theme", null) {
+                androidManifestTheme.orNull
             },
             versionGuardsIgnored = resolve("KTCNFG966", "ignoreVersionGuards", false) {
                 versionGuardsIgnored.getOrElse(false)

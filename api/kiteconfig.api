@@ -39,6 +39,14 @@ public final class io/github/yuroyami/kiteconfig/ConfigVersion {
 public abstract interface annotation class io/github/yuroyami/kiteconfig/DiscouragedKiteApi : java/lang/annotation/Annotation {
 }
 
+public abstract class io/github/yuroyami/kiteconfig/GenerateAndroidManifestOverlayTask : org/gradle/api/DefaultTask {
+	public fun <init> ()V
+	public final fun generate ()V
+	public abstract fun getLabel ()Lorg/gradle/api/provider/Property;
+	public abstract fun getOutputFile ()Lorg/gradle/api/file/RegularFileProperty;
+	public abstract fun getTheme ()Lorg/gradle/api/provider/Property;
+}
+
 public abstract class io/github/yuroyami/kiteconfig/GenerateAndroidSplashTask : org/gradle/api/DefaultTask {
 	public fun <init> ()V
 	public final fun generate ()V
@@ -195,6 +203,7 @@ public abstract class io/github/yuroyami/kiteconfig/KiteConfigDiagnosticTaskBase
 	public abstract fun getAndroidEmitMonochrome ()Lorg/gradle/api/provider/Property;
 	public abstract fun getAndroidLogoInputFingerprint ()Lorg/gradle/api/provider/Property;
 	public abstract fun getAndroidManifestPaths ()Lorg/gradle/api/provider/ListProperty;
+	public abstract fun getAndroidManifestTheme ()Lorg/gradle/api/provider/Property;
 	public abstract fun getAndroidResDir ()Lorg/gradle/api/file/DirectoryProperty;
 	public abstract fun getAndroidResPaths ()Lorg/gradle/api/provider/ListProperty;
 	public abstract fun getAppId ()Lorg/gradle/api/provider/Property;
@@ -242,7 +251,6 @@ public abstract class io/github/yuroyami/kiteconfig/KiteConfigDiagnosticTaskBase
 	public abstract fun getSplashDesktop ()Lorg/gradle/api/provider/Property;
 	public abstract fun getSplashIos ()Lorg/gradle/api/provider/Property;
 	public abstract fun getSplashIosArmed ()Lorg/gradle/api/provider/Property;
-	public abstract fun getSplashManifestPlaceholderPresent ()Lorg/gradle/api/provider/Property;
 	public abstract fun getSplashThemeSet ()Lorg/gradle/api/provider/Property;
 	public abstract fun getSyncIos ()Lorg/gradle/api/provider/Property;
 	public abstract fun getUsesNonExemptEncryption ()Lorg/gradle/api/provider/Property;

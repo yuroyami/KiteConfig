@@ -450,13 +450,19 @@ silently.
 | `ios { rewrite { renameSharedModule(a, b) } }` | `ios { renameSharedModule(a, b) }` |
 | `./gradlew kiteRewriteLogo`, `kiteRewriteXcode` | `./gradlew kiteApply` |
 | `kiteConfig.id` | `kiteConfig.appId` |
+| `android:label="${appName}"` in your manifest | nothing: delete the line |
+| `android:theme="${kiteSplashTheme}"` in your manifest | nothing: delete the line |
 
-Three things change meaning, not just spelling:
+Four things change meaning, not just spelling:
 
 - A project with `logo { }` and no `rewrite { }` used to get desktop icons only.
   With `autoApply = true` it now also installs the Android and iOS icons.
   Without it, nothing changes until you run `kiteApply`.
 - An empty `splash { }` used to turn the launch screen on. It no longer does.
+- Android gets the app label and the splash theme from a manifest KiteConfig
+  generates and AGP merges over yours. Both hand-written lines can go. If you
+  keep them, they still work, and `kiteDoctor` tells you which of your own
+  manifest values is being replaced.
 - `VersionCodeScheme.compute` returns `String` instead of `Int`. A scheme that
   returns an integer needs `.toString()`. The default scheme produces exactly
   the same digits as before, so a published app keeps its numbering.

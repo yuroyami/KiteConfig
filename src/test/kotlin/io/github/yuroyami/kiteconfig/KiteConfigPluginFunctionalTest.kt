@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.awt.image.BufferedImage
 import java.io.File
+import java.security.MessageDigest
 import javax.imageio.ImageIO
 
 /**
@@ -145,6 +146,114 @@ class KiteConfigPluginFunctionalTest {
         "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
             "<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n" +
             "<plist version=\"1.0\">\n<dict>\n$body\n</dict>\n</plist>"
+
+    /** Every file under [root], as path to content hash and last-modified time. */
+    private fun snapshot(root: File): Map<String, Pair<String, Long>> = root.walkTopDown()
+        .filter { it.isFile }
+        .associate { file ->
+            val digest = MessageDigest.getInstance("SHA-256").digest(file.readBytes())
+            file.relativeTo(projectDir).path to (digest.joinToString("") { "%02x".format(it) } to file.lastModified())
+        }
+
+    private fun writeBothPlatformFixture(build: String) {
+        write("settings.gradle.kts", "rootProject.name = \"fixture\"")
+        write("build.gradle.kts", build)
+        writePng("art/fg.png", 512)
+        write(
+            "androidApp/src/main/AndroidManifest.xml",
+            "<manifest xmlns:android=\"http://schemas.android.com/apk/res/android\"><application/></manifest>",
+        )
+        // The shared helper omits the app-icon setting, which the iOS icon install
+        // requires. Adding it here keeps the icons in this fixture's plan.
+        write(
+            "iosApp/iosApp.xcodeproj/project.pbxproj",
+            pbxProject("Phone").replace(
+                "CURRENT_PROJECT_VERSION = 1;",
+                "ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;\n                        CURRENT_PROJECT_VERSION = 1;",
+            ),
+        )
+        write("iosApp/iosApp/Info.plist", plist())
+        write("iosApp/iosApp/Assets.xcassets/AppIcon.appiconset/Contents.json", "{\"images\":[]}")
+    }
+
+    private val bothPlatforms = """
+        plugins { id("io.github.yuroyami.kiteconfig") }
+        kiteConfig {
+            appName = "Demo App"
+            appId = "com.demo.app"
+            version = "1.2.3"
+            modules { androidAppDirectory = file("androidApp") }
+            logo {
+                foreground = file("art/fg.png")
+                background = color("#FF5500")
+            }
+        }
+    """.trimIndent()
+
+    /**
+     * A second apply must be a true no-op.
+     *
+     * Byte equality alone would pass while every file was rewritten with the same
+     * content, which churns timestamps and makes downstream tasks rerun. The
+     * modification times have to match too.
+     */
+    @Test
+    fun `applying twice changes no byte and no timestamp`() {
+        writeBothPlatformFixture(bothPlatforms)
+
+        run("kiteApply")
+        val first = snapshot(File(projectDir, "androidApp")) + snapshot(File(projectDir, "iosApp"))
+        assertTrue(first.keys.any { it.contains("mipmap") }, "no Android icon was installed: ${first.keys}")
+
+        run("kiteApply")
+        val second = snapshot(File(projectDir, "androidApp")) + snapshot(File(projectDir, "iosApp"))
+
+        val changed = second.filter { (path, state) -> first[path] != state }
+        assertTrue(changed.isEmpty(), "a second apply rewrote: ${changed.keys}")
+        assertEquals(first.keys, second.keys, "a second apply added or removed files")
+    }
+
+    /** One platform's apply is not allowed to reach into another's files. */
+    @Test
+    fun `an Android apply leaves every iOS byte untouched`() {
+        writeBothPlatformFixture(bothPlatforms)
+        val beforeIos = snapshot(File(projectDir, "iosApp"))
+
+        run("kiteApplyAndroid")
+
+        val afterIos = snapshot(File(projectDir, "iosApp"))
+        assertEquals(beforeIos, afterIos, "kiteApplyAndroid touched iOS files")
+        assertTrue(
+            snapshot(File(projectDir, "androidApp")).keys.any { it.contains("mipmap") },
+            "kiteApplyAndroid installed nothing, so the comparison proves nothing",
+        )
+    }
+
+    /** Turning a platform off and back on has to land where it started. */
+    @Test
+    fun `disable, clean and re-enable returns the same bytes`() {
+        writeBothPlatformFixture(bothPlatforms)
+        run("kiteApply")
+        val installed = snapshot(File(projectDir, "androidApp"))
+
+        write(
+            "build.gradle.kts",
+            bothPlatforms.replace("logo {", "skip(android)\n            logo {"),
+        )
+        run("kiteApply")
+
+        write("build.gradle.kts", bothPlatforms)
+        // What `clean` does, without asking the fixture to apply the base plugin.
+        File(projectDir, "build").deleteRecursively()
+        run("kiteApply")
+
+        val reinstalled = snapshot(File(projectDir, "androidApp"))
+        assertEquals(
+            installed.mapValues { it.value.first },
+            reinstalled.mapValues { it.value.first },
+            "the same configuration produced different bytes after a round trip",
+        )
+    }
 
     @Test
     fun `applying iOS changes touches one selected application target`() {
@@ -893,7 +1002,8 @@ class KiteConfigPluginFunctionalTest {
         )
         val diagnostic = run("kiteDoctor")
         assertTrue(diagnostic.output.contains("[PASS] KTCNFG002"), diagnostic.output)
-        assertTrue(diagnostic.output.contains("[FAIL] KTCNFG002"), diagnostic.output)
+        assertTrue(diagnostic.output.contains("[WARN] KTCNFG002"), diagnostic.output)
+        assertTrue(diagnostic.output.contains("Tablet literal"), diagnostic.output)
     }
 
     @Test

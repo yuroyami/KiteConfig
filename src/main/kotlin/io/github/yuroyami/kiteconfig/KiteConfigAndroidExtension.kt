@@ -23,8 +23,8 @@ import org.gradle.api.provider.Property
  * build-number dials live in `version("x") { android { } }`.
  *
  * The resolved application id is readable as `kiteConfig.androidApplicationId`:
- * the root `id` joined with that android suffix. Read it to wire other build
- * logic, for example into a manifest placeholder. You cannot set it here.
+ * the root `appId` joined with that android suffix. Read it to wire other build
+ * logic of your own. You cannot set it here.
  *
  * ## Which module types receive each SDK setting
  *

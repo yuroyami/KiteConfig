@@ -863,8 +863,8 @@ its evidence exists, not when its checkbox is ticked.
 |---|---|
 | 0. Fix what is broken today | Done. All five items, each with a test that fails without the fix. |
 | 1. The model | Done. Typed platform blocks, lazy inheritance, content-based activation, the DSL marker, one validation layer, the renamed read-back. |
-| 2. Deliveries | Done, with one item softened. Identity, version, locales, JVM, logo and splash all deliver on the new model. Android resource filtering still cannot resolve a detected shared module before AGP asks; the failure now names the two ways to answer instead of pretending the list was empty. Renderer geometry is not yet measured from known input bounds. |
-| 3. The apply engine | Partly done. `kiteApply`, `kiteApplyAndroid` and `kiteApplyIos` exist, an Android build cannot apply iOS changes, ownership covers every installer, and nothing is committed before everything is rendered. Not done: one planner producing an operation graph, reconciliation of a feature that was turned off, fault injection at each write, and the manifest-overlay spike. |
+| 2. Deliveries | Done, with one item softened. Identity, version, locales, JVM, logo and splash all deliver on the new model, and the splash fixture now runs the real resource compiler against a live Android SDK. Android resource filtering still cannot resolve a detected shared module before AGP asks; the failure now names the two ways to answer instead of pretending the list was empty. Renderer geometry is not yet measured from known input bounds. |
+| 3. The apply engine | Done, minus one. One planner now feeds both the preview and the tasks, a feature turned off has its installed output taken back out, fault injection covers every write step, and the manifest-overlay spike ran and landed. The one open item, two app targets sharing one project file, is iOS work and belongs to phase 4. |
 | 4. iOS | Not started. The xcconfig and pre-action spike, reading the deployment target from the project, and the `CFBundleLocalizations` decision are all open. Section 8 still describes the behaviour as it is, not as it will be. |
 | 5. Generated code and diagnostics | Done, minus two. Activation reads content, the vocabulary is current, and every message names a DSL path that exists. Not done: the browser-capability check for worker targets, and lazy values for every generated field type. |
 | 6. Documentation and release | Done, minus two. README, the site page, FEATURES, the changelog and the release notes are current, and the example test compiles the README's fences as well as the KDoc's. Not done: explicit API mode, and the tag. |
@@ -950,10 +950,39 @@ the last `-splash:` argument", recorded in the desktop wiring.
   the merge priority allows it, the placeholder lines and their doctor checks
   go away. If not, they stay and the doctor keeps checking them.
 
+**Spike result: the merge priority allows it, so the lines are gone.** Measured
+against a real Android SDK on AGP 8.5.2 with Gradle 8.9 and AGP 9.3.1 with
+Gradle 9.5.1. `variant.sources.manifests.addGeneratedManifestFile` has the same
+descriptor on both, so this needs no floor adapter.
+
+| Module manifest declares | Overlay carries `tools:replace` | Result |
+|---|---|---|
+| label and theme | no | merge fails, and the error points at a file in `build/` that nobody wrote |
+| neither | no | the overlay supplies both, cleanly |
+| label only | no | merge fails on the label; the theme would have merged |
+| anything, including the 1.0.0 `${appName}` line | yes | the overlay wins |
+
+So the overlay carries `tools:replace` and names only the attributes it writes.
+The `appName` and `kiteSplashTheme` placeholders are still defined, because a
+manifest written against 1.0.0 still contains them and an undefined placeholder
+fails the merge. Both doctor checks flipped direction: they used to say "add
+this line", and now they say which of your own manifest values the merge
+replaces.
+
+The same spike turned up a real defect. The Android splash added its generated
+resources through `sourceSets.main.res.srcDir(provider)`, which AGP 9 refuses
+outright for generated output, so every AGP 9 project with the splash on failed
+to configure. It now uses `variant.sources.res.addGeneratedSourceDirectory`,
+which has the same descriptor on both AGP ends, and the fixture makes aapt2
+resolve the generated style so a silent drop cannot pass.
+
 Evidence: fault injection at every write and delete; an external edit survives
 rollback; repeat apply is byte-for-byte and timestamp-for-timestamp idle; two
 app targets sharing one project file; disable, `clean`, re-enable; an Android
 build leaves every iOS byte untouched.
+
+All of these are covered except two app targets sharing one project file, which
+moves to phase 4 with the rest of the iOS work.
 
 ### Phase 4: iOS
 

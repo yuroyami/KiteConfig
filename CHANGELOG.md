@@ -101,8 +101,25 @@ A root `false` is an inheritable default rather than a ban: a platform can still
 ask for one the root left off. Root exclusion is the one thing a platform cannot
 argue with.
 
+### Your manifest needs no KiteConfig lines
+
+Android used to need two hand-written lines before the app name or the launch
+screen could reach the built app:
+
+```xml
+<application android:label="${appName}" android:theme="${kiteSplashTheme}">
+```
+
+Both are gone. KiteConfig writes its own small manifest and lets AGP merge it
+over yours, so a fresh Android project needs no edit at all. Keeping the old
+lines is harmless; they still resolve. `kiteDoctor` now points out a manifest
+value of your own that the merge replaces, instead of asking you to add a line.
+
 ### Fixed
 
+- **The Android splash resources reach an AGP 9 build.** They were added through
+  the old source-set API, which AGP 9 refuses for generated output, so any
+  project with the splash on failed to configure.
 - **A quoted brace or semicolon in the Xcode project is a value, not syntax.**
   A build setting whose whole value was one reserved character closed a
   dictionary that was never opened, so an app named `}` wrote a file the next

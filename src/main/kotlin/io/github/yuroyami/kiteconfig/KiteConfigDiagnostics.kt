@@ -102,7 +102,7 @@ internal data class KiteConfigDiagnosticContext(
     val splashIosArmed: Boolean = false,
     val splashIos: Boolean = false,
     val splashThemeSet: Boolean = false,
-    val splashManifestPlaceholderPresent: Boolean? = null,
+    val androidManifestTheme: String? = null,
     val versionGuardsIgnored: Boolean = false,
     val autoRewrites: Boolean = false,
 )
@@ -195,15 +195,32 @@ internal object KiteConfigDiagnosticEngine {
                 ),
             )
         }
-        if (context.splashAndroid && context.splashManifestPlaceholderPresent == false) {
+        if (context.splashAndroid) {
+            val declared = context.androidManifestTheme
+            val overridden = !declared.isNullOrBlank() &&
+                declared != "\${kiteSplashTheme}" &&
+                declared != "@style/$ANDROID_SPLASH_STYLE"
             add(
-                diagnostic(
-                    "KTCNFG092",
-                    KiteConfigDiagnosticSeverity.ERROR,
-                    "Splash manifest placeholder",
-                    "The Android manifest does not reference the generated splash theme.",
-                    "Add android:theme=\"\${kiteSplashTheme}\" to the application or launcher activity element once.",
-                ),
+                if (overridden) {
+                    diagnostic(
+                        "KTCNFG092",
+                        KiteConfigDiagnosticSeverity.WARNING,
+                        "Splash theme",
+                        "The manifest sets android:theme=\"$declared\" on <application>, and the " +
+                            "generated splash theme replaces it in the built app.",
+                        "Remove the android:theme line, or turn the splash off for Android with " +
+                            "android { splash { enabled = false } }.",
+                        expected = "@style/$ANDROID_SPLASH_STYLE",
+                        actual = declared,
+                    )
+                } else {
+                    diagnostic(
+                        "KTCNFG092",
+                        KiteConfigDiagnosticSeverity.PASS,
+                        "Splash theme",
+                        "The generated splash theme reaches <application> through the manifest overlay.",
+                    )
+                },
             )
         }
         if (context.autoRewrites) {
@@ -834,7 +851,7 @@ internal object KiteConfigDiagnosticEngine {
                     "KTCNFG001",
                     KiteConfigDiagnosticSeverity.WARNING,
                     "Android manifest",
-                    "Manifest not found at ${context.shortPath(manifest)}; the appName placeholder cannot be verified.",
+                    "Manifest not found at ${context.shortPath(manifest)}, so the app label cannot be checked.",
                     "Point the Android application selection at a project with src/main/AndroidManifest.xml.",
                 ),
             )
@@ -845,19 +862,28 @@ internal object KiteConfigDiagnosticEngine {
             add(ioFailure("KTCNFG002", "Android manifest", manifest, failure))
             return
         }
-        if (label == "\${appName}") {
-            add(diagnostic("KTCNFG002", KiteConfigDiagnosticSeverity.PASS, "Android manifest", "android:label can resolve the \${appName} manifest placeholder."))
+        if (label.isEmpty() || label == "\${appName}") {
+            add(
+                diagnostic(
+                    "KTCNFG002",
+                    KiteConfigDiagnosticSeverity.PASS,
+                    "Android manifest",
+                    "appName reaches <application> through the manifest overlay.",
+                ),
+            )
         } else {
             add(
                 diagnostic(
                     "KTCNFG002",
-                    KiteConfigDiagnosticSeverity.ERROR,
+                    KiteConfigDiagnosticSeverity.WARNING,
                     "Android manifest",
-                    "The <application> label is '${label.ifEmpty { "<unset>" }}', not the \${appName} placeholder.",
-                    "Set the application label to android:label=\"\${appName}\" or disable app-name propagation.",
+                    "The manifest sets android:label=\"$label\" on <application>, and appName " +
+                        "replaces it in the built app.",
+                    "Remove the android:label line, or stop appName from reaching Android with " +
+                        "android { appName { enabled = false } }.",
                     location = manifest.path,
-                    expected = "\${appName}",
-                    actual = label.ifEmpty { null },
+                    expected = context.appName,
+                    actual = label,
                 ),
             )
         }
@@ -1709,7 +1735,16 @@ private data class AndroidApplicationAttributes(
     val label: String,
     val icon: String,
     val roundIcon: String,
+    val theme: String,
 )
+
+/**
+ * The `android:theme` the module's own manifest declares, or null when it declares
+ * none or the file cannot be parsed. A broken manifest is the manifest diagnostic's
+ * business, not this reader's.
+ */
+internal fun androidManifestApplicationTheme(text: String): String? =
+    runCatching { androidApplicationAttributes(text).theme }.getOrNull()?.takeIf(String::isNotBlank)
 
 private fun androidApplicationAttributes(text: String): AndroidApplicationAttributes {
     val document = parseXmlSecurely(text, "Android manifest")
@@ -1722,6 +1757,7 @@ private fun androidApplicationAttributes(text: String): AndroidApplicationAttrib
         label = attribute("label"),
         icon = attribute("icon"),
         roundIcon = attribute("roundIcon"),
+        theme = attribute("theme"),
     )
 }
 

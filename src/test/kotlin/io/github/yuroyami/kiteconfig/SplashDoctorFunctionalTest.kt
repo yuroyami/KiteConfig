@@ -25,7 +25,7 @@ class SplashDoctorFunctionalTest {
         .build()
 
     @Test
-    fun `doctor flags a missing theme corner, then a missing manifest placeholder`() {
+    fun `doctor flags a missing theme corner, then a manifest theme the overlay replaces`() {
         write("settings.gradle.kts", "rootProject.name = \"fixture\"")
         write(
             "androidApp/src/main/AndroidManifest.xml",
@@ -59,8 +59,19 @@ class SplashDoctorFunctionalTest {
             """.trimIndent(),
         )
 
-        val missingPlaceholder = run("kiteDoctor")
-        assertTrue(missingPlaceholder.output.contains("[FAIL] KTCNFG092"), missingPlaceholder.output)
+        // Nothing left for the reader to add: the overlay carries the theme.
+        val bareManifest = run("kiteDoctor")
+        assertTrue(bareManifest.output.contains("[PASS] KTCNFG092"), bareManifest.output)
+
+        write(
+            "androidApp/src/main/AndroidManifest.xml",
+            "<manifest xmlns:android=\"http://schemas.android.com/apk/res/android\">" +
+                "<application android:theme=\"@style/Theme.HandWritten\"/></manifest>",
+        )
+
+        val overridden = run("kiteDoctor")
+        assertTrue(overridden.output.contains("[WARN] KTCNFG092"), overridden.output)
+        assertTrue(overridden.output.contains("@style/Theme.HandWritten"), overridden.output)
 
         write(
             "androidApp/src/main/AndroidManifest.xml",
@@ -70,6 +81,7 @@ class SplashDoctorFunctionalTest {
 
         val healthy = run("kiteDoctor")
         assertTrue(healthy.output.contains("[PASS] KTCNFG090"), healthy.output)
+        assertTrue(healthy.output.contains("[PASS] KTCNFG092"), healthy.output)
     }
 
     @Test

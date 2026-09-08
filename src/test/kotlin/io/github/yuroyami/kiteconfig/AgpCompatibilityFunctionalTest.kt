@@ -3,10 +3,14 @@ package io.github.yuroyami.kiteconfig
 import org.gradle.testkit.runner.BuildResult
 import org.gradle.testkit.runner.GradleRunner
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
+import java.awt.Color
+import java.awt.image.BufferedImage
 import java.io.File
+import javax.imageio.ImageIO
 
 /**
  * End-to-end coverage against the real Android Gradle plugin at both ends of
@@ -266,6 +270,225 @@ class AgpCompatibilityFunctionalTest {
         )
         assertTrue(second.output.contains("KMP_NATIVE_ANDROID_OK AGP 9.3.1 KGP 2.4.0"), second.output)
         assertTrue(second.output.contains("Reusing configuration cache."), second.output)
+    }
+
+    /**
+     * The two lines a 1.0.0 project had to hand-write are gone.
+     *
+     * This runs the real manifest merger, because that is the only thing that
+     * can say whether a generated manifest actually outranks the module's own.
+     * A manifest with no label and no theme is what a fresh Android project
+     * ships with; both values still have to reach the merged output.
+     */
+    @Test
+    fun `the generated overlay carries the label and splash theme with no manifest edit`() {
+        val sdk = androidSdkDirectory()
+        assumeTrue(sdk != null, "no Android SDK on this host")
+
+        publishPluginFixture()
+        write("local.properties", "sdk.dir=${sdk!!.path.replace("\\", "\\\\")}")
+        write(
+            "settings.gradle",
+            """
+            pluginManagement {
+                repositories {
+                    maven { url = uri(file('plugin-repository')) }
+                    google()
+                    mavenCentral()
+                    gradlePluginPortal()
+                }
+            }
+            dependencyResolutionManagement {
+                repositories {
+                    google()
+                    mavenCentral()
+                }
+            }
+            rootProject.name = 'overlay-fixture'
+            include ':app'
+            """.trimIndent(),
+        )
+        write(
+            "build.gradle",
+            """
+            plugins {
+                id 'com.android.application' version '9.3.1' apply false
+                id 'io.github.yuroyami.kiteconfig' version 'test-fixture'
+            }
+
+            kiteConfig {
+                appName = 'Overlay App'
+                appId = 'dev.matrix.overlay'
+                version = '1.0.0'
+                logo {
+                    foreground = file('art/logo.png')
+                    background = color('#102A43')
+                }
+                splash { enabled = true }
+                modules { androidApps(':app') }
+                android {
+                    compileSdk = 35
+                    minSdk = 24
+                    targetSdk = 35
+                    splash { theme = 'android:Theme.Material.Light.NoActionBar' }
+                }
+                skip(ios)
+            }
+            """.trimIndent(),
+        )
+        write(
+            "app/build.gradle",
+            """
+            plugins { id 'com.android.application' }
+            android { namespace = 'dev.matrix.overlay' }
+
+            tasks.register('printMergedManifest') {
+                dependsOn 'processDebugMainManifest'
+                // aapt2 has to resolve @style/KiteSplash out of the generated
+                // resources, so this fails if the splash res dir never arrives.
+                dependsOn 'processDebugResources'
+                def merged = layout.buildDirectory
+                    .file('intermediates/merged_manifest/debug/processDebugMainManifest/AndroidManifest.xml')
+                doLast {
+                    println 'MERGED_START'
+                    println merged.get().asFile.text
+                    println 'MERGED_END'
+                }
+            }
+            """.trimIndent(),
+        )
+        writeSquarePng("art/logo.png")
+        // A fresh Android project: no label, no theme, nothing to edit.
+        write(
+            "app/src/main/AndroidManifest.xml",
+            "<manifest xmlns:android=\"http://schemas.android.com/apk/res/android\"><application/></manifest>",
+        )
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withGradleVersion("9.5.1")
+            .withArguments("--stacktrace", ":app:printMergedManifest")
+            .build()
+
+        val merged = result.output.substringAfter("MERGED_START").substringBefore("MERGED_END")
+        assertTrue(merged.contains("android:label=\"Overlay App\""), result.output)
+        assertTrue(merged.contains("android:theme=\"@style/KiteSplash\""), result.output)
+    }
+
+    /** The same overlay on the AGP floor, where the source API could still differ. */
+    @Test
+    fun `the overlay reaches the merged manifest on the AGP floor too`() {
+        val sdk = androidSdkDirectory()
+        assumeTrue(sdk != null, "no Android SDK on this host")
+
+        publishPluginFixture()
+        write("local.properties", "sdk.dir=${sdk!!.path.replace("\\", "\\\\")}")
+        write(
+            "settings.gradle",
+            """
+            pluginManagement {
+                repositories {
+                    maven { url = uri(file('plugin-repository')) }
+                    google()
+                    mavenCentral()
+                    gradlePluginPortal()
+                }
+            }
+            dependencyResolutionManagement {
+                repositories {
+                    google()
+                    mavenCentral()
+                }
+            }
+            rootProject.name = 'overlay-floor-fixture'
+            include ':app'
+            """.trimIndent(),
+        )
+        write(
+            "build.gradle",
+            """
+            plugins {
+                id 'com.android.application' version '8.5.2' apply false
+                id 'io.github.yuroyami.kiteconfig' version 'test-fixture'
+            }
+
+            kiteConfig {
+                appName = 'Floor Overlay App'
+                appId = 'dev.matrix.overlayfloor'
+                version = '1.0.0'
+                modules { androidApps(':app') }
+                android {
+                    compileSdk = 35
+                    minSdk = 24
+                    targetSdk = 35
+                }
+                skip(ios)
+            }
+            """.trimIndent(),
+        )
+        write(
+            "app/build.gradle",
+            """
+            plugins { id 'com.android.application' }
+            android { namespace = 'dev.matrix.overlayfloor' }
+
+            tasks.register('printMergedManifest') {
+                dependsOn 'processDebugMainManifest'
+                def merged = layout.buildDirectory
+                    .file('intermediates/merged_manifest/debug/processDebugMainManifest/AndroidManifest.xml')
+                doLast {
+                    println 'MERGED_START'
+                    println merged.get().asFile.text
+                    println 'MERGED_END'
+                }
+            }
+            """.trimIndent(),
+        )
+        // A hand-written label the overlay has to take over, not trip over.
+        write(
+            "app/src/main/AndroidManifest.xml",
+            "<manifest xmlns:android=\"http://schemas.android.com/apk/res/android\">" +
+                "<application android:label=\"Hand Written\"/></manifest>",
+        )
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withGradleVersion("8.9")
+            .withArguments("--stacktrace", ":app:printMergedManifest")
+            .build()
+
+        val merged = result.output.substringAfter("MERGED_START").substringBefore("MERGED_END")
+        assertTrue(merged.contains("android:label=\"Floor Overlay App\""), result.output)
+        assertTrue(!merged.contains("Hand Written"), result.output)
+    }
+
+    private fun writeSquarePng(path: String, side: Int = 64) {
+        val file = File(projectDir, path).also { it.parentFile.mkdirs() }
+        val image = BufferedImage(side, side, BufferedImage.TYPE_INT_ARGB)
+        image.createGraphics().apply {
+            color = Color(0x10, 0x2A, 0x43)
+            fillRect(0, 0, side, side)
+            dispose()
+        }
+        ImageIO.write(image, "PNG", file)
+    }
+
+    /** Finds an SDK the same way a consumer build would, without guessing. */
+    private fun androidSdkDirectory(): File? {
+        sequenceOf("ANDROID_HOME", "ANDROID_SDK_ROOT")
+            .mapNotNull { System.getenv(it)?.takeIf(String::isNotBlank) }
+            .map(::File)
+            .firstOrNull { it.resolve("platforms").isDirectory }
+            ?.let { return it }
+        val local = File(System.getProperty("user.dir")).resolve("local.properties")
+        if (!local.isFile) return null
+        return local.readLines()
+            .firstOrNull { it.trimStart().startsWith("sdk.dir=") }
+            ?.substringAfter("sdk.dir=")
+            ?.replace("\\\\", "\\")
+            ?.trim()
+            ?.let(::File)
+            ?.takeIf { it.resolve("platforms").isDirectory }
     }
 
     private fun runMatrixFixture(

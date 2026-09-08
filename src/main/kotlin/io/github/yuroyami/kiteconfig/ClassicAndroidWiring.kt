@@ -189,33 +189,38 @@ internal object ClassicAndroidWiring {
 internal fun wireAndroidSplash(project: Project, ext: KiteConfigExtension, resilient: Boolean = false) {
     val components = project.extensions
         .findByType(ApplicationAndroidComponentsExtension::class.java) ?: return
-    components.finalizeDsl { android ->
-        // Fails closed: when the gate cannot resolve on a diagnostic run, nothing
-        // is registered and no resource directory is added. The app selection is
-        // part of the gate because the placeholder is an app-scoped value, exactly
-        // like appName.
-        var splashFlows = false
+
+    // Registered, not realized. Gradle only configures a task something asks for,
+    // so a failing provider behind a splash that is off never runs.
+    val splashTask = project.tasks.register<GenerateAndroidSplashTask>("kiteInternalAndroidSplash") {
+        image.set(ext.effectiveSplashImage)
+        darkImage.set(ext.effectiveSplashDarkImage)
+        backgroundColor.set(ext.effectiveSplashColor)
+        darkBackgroundColor.set(ext.effectiveSplashDarkColor)
+        theme.set(ext.effectiveSplashAndroidTheme)
+        outputDir.set(project.layout.buildDirectory.dir("generated/kiteconfig/splash-res"))
+    }
+
+    // Fails closed: when the gate cannot resolve on a diagnostic run, nothing is
+    // wired. The app selection is part of it because the splash is an app-scoped
+    // value, exactly like appName.
+    fun splashFlowsHere(): Boolean {
+        var flows = false
         project.wireValueGroup(resilient, "the Android splash selection") {
             val selectedApplications = ext.effectiveAndroidApps.get()
             val selectedHere = selectedApplications.isEmpty() || project.path in selectedApplications
-            splashFlows = selectedHere && ext.effectiveAndroidSplash.get()
+            flows = selectedHere && ext.effectiveAndroidSplash.get()
         }
-        if (!splashFlows) return@finalizeDsl
+        return flows
+    }
 
-        val splashTask = project.tasks.register<GenerateAndroidSplashTask>("kiteInternalAndroidSplash") {
-            image.set(ext.effectiveSplashImage)
-            darkImage.set(ext.effectiveSplashDarkImage)
-            backgroundColor.set(ext.effectiveSplashColor)
-            darkBackgroundColor.set(ext.effectiveSplashDarkColor)
-            theme.set(ext.effectiveSplashAndroidTheme)
-            outputDir.set(project.layout.buildDirectory.dir("generated/kiteconfig/splash-res"))
-        }
-        project.wireValueGroup(resilient, "the generated splash resources") {
-            // A provider carrying task provenance, never a resolved File: this is what
-            // makes the ordinary resource merge depend on kiteInternalAndroidSplash.
-            android.sourceSets.getByName("main").res.srcDir(splashTask.flatMap { it.outputDir })
-        }
+    components.finalizeDsl { android ->
+        if (!splashFlowsHere()) return@finalizeDsl
         project.wireValueGroup(resilient, "the kiteSplashTheme placeholder") {
+            // Kept for manifests written against 1.0.0, which still carry
+            // android:theme="${'$'}{kiteSplashTheme}". New projects need no such line:
+            // the generated manifest overlay supplies android:theme itself.
+            //
             // The lambda form on purpose: AGP 9 narrowed the `defaultConfig` GETTER
             // descriptor, so reading the property would break on the AGP 8 floor the
             // way the value wiring does. Passing a lambda keeps one binary call for
@@ -223,6 +228,16 @@ internal fun wireAndroidSplash(project: Project, ext: KiteConfigExtension, resil
             android.defaultConfig {
                 manifestPlaceholders["kiteSplashTheme"] = "@style/$ANDROID_SPLASH_STYLE"
             }
+        }
+    }
+
+    components.onVariants { variant ->
+        if (!splashFlowsHere()) return@onVariants
+        project.wireValueGroup(resilient, "the generated splash resources") {
+            // The variant Sources API, not sourceSets.res.srcDir(provider): AGP 9
+            // rejects a Provider on the legacy source-set API outright, because it
+            // cannot tell generated output from files a person edits.
+            variant.sources.res?.addGeneratedSourceDirectory(splashTask) { it.outputDir }
         }
     }
 }

@@ -151,7 +151,7 @@ selected.
 
 | Property | Type | Purpose and rules |
 |---|---|---|
-| `appName` | `Property<String>` | Android receives the `appName` manifest placeholder. Explicit Apple sync can use it for product and display names. |
+| `appName` | `Property<String>` | Android receives it as `android:label` through a generated manifest overlay, so your manifest needs no edit. Explicit Apple sync can use it for product and display names. |
 | `version` | `Property<String>` | Android display version and the default source for the Apple marketing version. When consumed, it must be non-blank, contain no control characters, and contain at most 255 characters. |
 | `android { version { buildNumber } }` | `Property<String>` | Android store build number, read as one whole number in `1..2_100_000_000`. It follows the scheme unless you assign a value. |
 | `android { version { rebuild } }` | `Property<Int>` | Feeds the scheme as `v.rebuild`. Bump it when Play has already taken the current code. |
@@ -214,7 +214,7 @@ Selectors tell KiteConfig exactly where a value or generated file belongs.
 
 | Selector | Selection rule |
 |---|---|
-| `modules.androidApps(...)` | Exact absolute Gradle project paths for app identity, app versions, app-name placeholders, locale filtering, and Android icon selection. Without a call, KiteConfig selects a single detected app. Multiple detected apps require an explicit selector when an app-scoped operation is active. The single Android icon destination accepts at most one effective app. When no Android application plugin is applied, it can use `modules.androidAppDirectory`. SDK and JVM policy are not restricted by this selector. |
+| `modules.androidApps(...)` | Exact absolute Gradle project paths for app identity, app versions, the app label, locale filtering, and Android icon selection. Without a call, KiteConfig selects a single detected app. Multiple detected apps require an explicit selector when an app-scoped operation is active. The single Android icon destination accepts at most one effective app. When no Android application plugin is applied, it can use `modules.androidAppDirectory`. SDK and JVM policy are not restricted by this selector. |
 | `modules.desktopApps(...)` | Exact absolute Gradle project paths for desktop app identity, build numbers, packaging names, and installer icons. Without a call, KiteConfig selects a single detected Compose Desktop application. Multiple detected applications fail configuration and name every candidate. |
 | `modules.shared` | Exact KMP project that owns generated `commonMain` source and provides the default KMP scope. Without a value, KiteConfig detects a sole KMP project. |
 | `optIns.projects(...)` | Exact KMP projects that may receive Kotlin/Native opt-ins. Without a call, the scope can fall back to `modules.shared`. |
@@ -305,7 +305,7 @@ entries.
 
 | Value | Android application | Classic Android library | KMP-native Android library |
 |---|:---:|:---:|:---:|
-| `appName` manifest placeholder | Yes | No | No |
+| `appName` as `android:label` | Yes | No | No |
 | Application ID | Yes | No | No |
 | Version name and code | Yes | No | No |
 | Locale filter | Opt in | No | No |
@@ -725,7 +725,7 @@ Stable diagnostic families are:
 
 | IDs | Area |
 |---|---|
-| `KTCNFG001` to `KTCNFG003` | Android app-name placeholder and launcher-icon references |
+| `KTCNFG001` to `KTCNFG003` | Android app label and launcher-icon references |
 | `KTCNFG010` to `KTCNFG012` | Source Info.plist references and Apple bundle-name compatibility |
 | `KTCNFG020` to `KTCNFG024` | Xcode target selection, AppIcon state, catalog selection, and deployment compatibility |
 | `KTCNFG030` to `KTCNFG031` | Android resource and icon state |

@@ -66,8 +66,8 @@ class KiteConfigDiagnosticsTest {
             writeText(
                 """
                 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-                    <!-- android:label="${'$'}{appName}" in a comment must not pass -->
-                    <application android:label="Demo" />
+                    <!-- android:label in a comment must not be read as the real one -->
+                    <application android:label="Hand Written" />
                 </manifest>
                 """.trimIndent(),
             )
@@ -77,10 +77,53 @@ class KiteConfigDiagnosticsTest {
             quietContext(propagateAppName = true, appName = "Demo", manifestFile = manifest),
         ).single { it.id == "KTCNFG002" }
 
-        assertEquals(KiteConfigDiagnosticSeverity.ERROR, finding.severity)
-        assertEquals("\${appName}", finding.expected)
-        assertEquals("Demo", finding.actual)
+        assertEquals(KiteConfigDiagnosticSeverity.WARNING, finding.severity)
+        assertEquals("Demo", finding.expected)
+        assertEquals("Hand Written", finding.actual)
         assertEquals(manifest.path, finding.location)
+    }
+
+    /**
+     * A manifest with no label used to be an error telling the reader to add a
+     * placeholder. The overlay supplies the label now, so there is nothing to add.
+     */
+    @Test
+    fun `a manifest with no label is correct, not a finding`() {
+        val manifest = tempDir.resolve("AndroidManifest.xml").apply {
+            writeText(
+                """
+                <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+                    <application />
+                </manifest>
+                """.trimIndent(),
+            )
+        }
+
+        val finding = KiteConfigDiagnosticEngine.evaluate(
+            quietContext(propagateAppName = true, appName = "Demo", manifestFile = manifest),
+        ).single { it.id == "KTCNFG002" }
+
+        assertEquals(KiteConfigDiagnosticSeverity.PASS, finding.severity)
+    }
+
+    /** The 1.0.0 placeholder line still resolves, so it is not worth a warning. */
+    @Test
+    fun `the old appName placeholder still passes`() {
+        val manifest = tempDir.resolve("AndroidManifest.xml").apply {
+            writeText(
+                """
+                <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+                    <application android:label="${'$'}{appName}" />
+                </manifest>
+                """.trimIndent(),
+            )
+        }
+
+        val finding = KiteConfigDiagnosticEngine.evaluate(
+            quietContext(propagateAppName = true, appName = "Demo", manifestFile = manifest),
+        ).single { it.id == "KTCNFG002" }
+
+        assertEquals(KiteConfigDiagnosticSeverity.PASS, finding.severity)
     }
 
     @Test

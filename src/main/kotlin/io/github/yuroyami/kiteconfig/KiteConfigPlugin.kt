@@ -280,6 +280,7 @@ class KiteConfigPlugin : Plugin<Project> {
                         ClassicAndroidWiring.wireApplication(consumerProject, ext, resilient)
                     }
                     wireAndroidSplash(consumerProject, ext, resilient)
+                    wireAndroidManifestOverlay(consumerProject, ext, resilient)
                 } else if (!AGP_ON_CLASSPATH) {
                     androidProjectsWithoutSharedClassloader += consumerProject.path
                 }
@@ -1298,13 +1299,13 @@ class KiteConfigPlugin : Plugin<Project> {
         autoRewrites.set(
             ext.effectiveAutoRewriteLogo.zip(ext.effectiveAutoRewriteXcode) { a, b -> a || b },
         )
-        splashManifestPlaceholderPresent.set(root.resilientValue {
+        androidManifestTheme.set(root.resilientValue {
             val appDir = resolvedAndroidAppDirectory.orNull ?: ext.effectiveAndroidAppDirectory.orNull
             if (!ext.effectiveAndroidSplash.get() || appDir == null) {
                 null
             } else {
                 val manifest = appDir.file("src/main/AndroidManifest.xml").asFile
-                manifest.isFile && manifest.readText().contains("\${kiteSplashTheme}")
+                if (manifest.isFile) androidManifestApplicationTheme(manifest.readText()) else null
             }
         })
         composeOnClasspath.set(COMPOSE_ON_CLASSPATH)
