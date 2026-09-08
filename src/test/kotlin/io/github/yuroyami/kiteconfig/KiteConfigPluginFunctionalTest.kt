@@ -2200,4 +2200,52 @@ class KiteConfigPluginFunctionalTest {
             "an excluded platform's resource was rewritten",
         )
     }
+
+    /**
+     * The strict check used to skip the model validation an ordinary build runs,
+     * so a configuration could pass CI and fail every developer's build. One
+     * layer answers both now.
+     */
+    @Test
+    fun `the strict check refuses what an ordinary build refuses`() {
+        write("settings.gradle.kts", "rootProject.name = \"fixture\"")
+        write(
+            "build.gradle.kts",
+            """
+            plugins { id("io.github.yuroyami.kiteconfig") }
+            kiteConfig {
+                appName = "Demo"
+                jvm { target = 7 }
+            }
+            tasks.register("ordinaryBuild") { }
+            """.trimIndent(),
+        )
+
+        val build = runAndFail("ordinaryBuild")
+        assertTrue(build.output.contains("jvm { target }"), build.output)
+
+        val check = runAndFail("kiteCheck")
+        assertTrue(check.output.contains("KTCNFG100"), check.output)
+        assertTrue(check.output.contains("jvm { target }"), check.output)
+    }
+
+    @Test
+    fun `a healthy model reports a passing validation`() {
+        write("settings.gradle.kts", "rootProject.name = \"fixture\"")
+        write(
+            "build.gradle.kts",
+            """
+            plugins { id("io.github.yuroyami.kiteconfig") }
+            kiteConfig {
+                appName = "Demo"
+                version = "1.2.3"
+                appId = "com.demo.app"
+            }
+            """.trimIndent(),
+        )
+
+        val result = run("kiteDoctor")
+
+        assertTrue(result.output.contains("[PASS] KTCNFG100"), result.output)
+    }
 }

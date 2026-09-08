@@ -38,6 +38,13 @@ internal data class KiteConfigDiagnostic(
 
 /** Immutable input to the read-only diagnostic engine. */
 internal data class KiteConfigDiagnosticContext(
+    /**
+     * Everything the model validator refused.
+     *
+     * The same layer an ordinary build runs, so the strict check can no longer
+     * pass a configuration the build rejects.
+     */
+    val modelFindings: List<String> = emptyList(),
     val propagateAppName: Boolean = true,
     val appName: String? = null,
     val propagateBundleId: Boolean = true,
@@ -104,6 +111,7 @@ internal data class KiteConfigDiagnosticContext(
 internal object KiteConfigDiagnosticEngine {
 
     fun evaluate(context: KiteConfigDiagnosticContext): List<KiteConfigDiagnostic> = buildList {
+        diagnoseModel(context)
         diagnoseAndroidApplicationSelection(context)
         diagnoseIosTargetSelection(context)
         diagnoseIosAppName(context)
@@ -118,6 +126,37 @@ internal object KiteConfigDiagnosticEngine {
         diagnosePluginCompatibility(context)
         diagnoseDesktop(context)
         diagnoseSplash(context)
+    }
+
+    /**
+     * KTCNFG100: whatever the model validator refused.
+     *
+     * An ordinary build stops on the first of these. Reporting them here is what
+     * makes kiteCheck agree with the build instead of having its own opinion.
+     */
+    private fun MutableList<KiteConfigDiagnostic>.diagnoseModel(context: KiteConfigDiagnosticContext) {
+        if (context.modelFindings.isEmpty()) {
+            add(
+                diagnostic(
+                    "KTCNFG100",
+                    KiteConfigDiagnosticSeverity.PASS,
+                    "Model validation",
+                    "The configuration satisfies every rule an ordinary build checks.",
+                ),
+            )
+            return
+        }
+        context.modelFindings.forEach { finding ->
+            add(
+                diagnostic(
+                    "KTCNFG100",
+                    KiteConfigDiagnosticSeverity.ERROR,
+                    "Model validation",
+                    finding,
+                    "An ordinary build stops here too.",
+                ),
+            )
+        }
     }
 
     /** KTCNFG090-092: splash delivery status and its two Android prerequisites. */

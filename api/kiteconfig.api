@@ -224,6 +224,7 @@ public abstract class io/github/yuroyami/kiteconfig/KiteConfigDiagnosticTaskBase
 	public abstract fun getKgpRequired ()Lorg/gradle/api/provider/Property;
 	public abstract fun getLocales ()Lorg/gradle/api/provider/ListProperty;
 	public abstract fun getManifestFile ()Lorg/gradle/api/file/RegularFileProperty;
+	public abstract fun getModelFindings ()Lorg/gradle/api/provider/ListProperty;
 	public abstract fun getPbxprojFile ()Lorg/gradle/api/file/RegularFileProperty;
 	public abstract fun getPlistConflictPolicy ()Lorg/gradle/api/provider/Property;
 	public abstract fun getProMotion120Hz ()Lorg/gradle/api/provider/Property;

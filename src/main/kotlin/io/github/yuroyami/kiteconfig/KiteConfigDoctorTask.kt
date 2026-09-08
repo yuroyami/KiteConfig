@@ -108,6 +108,9 @@ abstract class KiteConfigDiagnosticTaskBase : DefaultTask() {
     @get:Internal abstract val versionGuardsIgnored: Property<Boolean>
     @get:Internal abstract val autoRewrites: Property<Boolean>
 
+    /** Whatever the shared model validator refused, or empty when it is happy. */
+    @get:Internal abstract val modelFindings: org.gradle.api.provider.ListProperty<String>
+
     internal fun diagnosticFindings(): List<KiteConfigDiagnostic> {
         val resolutionFindings = mutableListOf<KiteConfigDiagnostic>()
 
@@ -220,6 +223,9 @@ abstract class KiteConfigDiagnosticTaskBase : DefaultTask() {
             },
             versionGuardsIgnored = resolve("KTCNFG966", "ignoreVersionGuards", false) {
                 versionGuardsIgnored.getOrElse(false)
+            },
+            modelFindings = resolve("KTCNFG968", "model validation", emptyList()) {
+                modelFindings.getOrElse(emptyList())
             },
             autoRewrites = resolve("KTCNFG967", "autoApply", false) {
                 autoRewrites.getOrElse(false)

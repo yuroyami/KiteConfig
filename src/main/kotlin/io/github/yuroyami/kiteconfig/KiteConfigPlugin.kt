@@ -230,143 +230,9 @@ class KiteConfigPlugin : Plugin<Project> {
                 disallowModelChanges(ext)
                 return@afterEvaluate
             }
-            // Validate the resolved model once, before any explicit mutation task runs.
-            val buildConfigIdentity = ext.effectiveBuildConfigEnabled.get() && ext.buildConfig.includeIdentity.get()
-            val usesAppName = ext.appNameFlowsAnywhere().get() || buildConfigIdentity
-            val usesBundleId = ext.appIdFlowsAnywhere().get() || buildConfigIdentity
-            val usesVersion = ext.effectivePropagateVersion.get() || buildConfigIdentity
-            val usesLocaleModel = ext.localesFlowsAnywhere().get() || ext.effectiveFilterAndroidResources.get() || buildConfigIdentity
-            val usesSharedSelection = ext.effectiveBuildConfigEnabled.get() || ext.effectiveNativeOptInsEnabled.get() ||
-                ext.effectiveIoWorkerEnabled.get() || usesLocaleModel
-            val usesAndroidApplicationSelection =
-                (ext.appNameFlowsAnywhere().get() && ext.effectiveAppName.isPresent) ||
-                    (ext.appIdFlowsAnywhere().get() && ext.appId.isPresent) ||
-                    (ext.effectivePropagateVersion.get() &&
-                        (ext.effectiveVersion.isPresent || ext.effectiveAndroidVersionCode.isPresent)) ||
-                    ext.effectiveFilterAndroidResources.get() || ext.effectiveAndroidLogoInstall.get()
-            if (usesAppName) ext.effectiveAppName.orNull?.let(::validateAppName)
-            if (usesVersion) ext.effectiveVersion.orNull?.let(::validateVersionName)
-            if ((ext.effectivePropagateVersion.get() || buildConfigIdentity) &&
-                ext.effectiveVersion.isPresent && !ext.effectiveAndroidVersionCode.isPresent
-            ) {
-                ext.effectiveAndroidVersionCode.get()
-            }
-            if (usesVersion) ext.effectiveAndroidVersionCode.orNull?.let(::validateVersionCode)
-            if (usesBundleId && ext.appId.isPresent) {
-                validateAndroidApplicationId(ext.androidApplicationId.get())
-                validateAppleBundleId(ext.iosBundleId.get())
-            }
-            if (ext.effectiveSyncIos.get() && ext.effectivePropagateVersion.get()) {
-                ext.effectiveIosMarketingVersion.orNull?.let(::validateAppleMarketingVersion)
-                ext.effectiveIosBuildNumber.orNull?.let(::validateAppleBuildNumber)
-            }
-            if (usesSharedSelection) {
-                ext.effectiveSharedProjectPath.orNull?.let {
-                    validateGradleProjectPath(it, "modules { shared }")
-                }
-            }
-            if (usesAndroidApplicationSelection) {
-                val selectedApplications = ext.effectiveAndroidApps.get()
-                selectedApplications.forEach { validateGradleProjectPath(it, "modules { androidApps }") }
-                if (selectedApplications.distinct().size != selectedApplications.size) {
-                    throw GradleException("kiteConfig { modules { androidApps } } contains duplicate project paths.")
-                }
-            }
-            if (ext.effectiveSyncIos.get()) {
-                val iosTargetNames = ext.effectiveIosTargets.get()
-                if (iosTargetNames.distinct().size != iosTargetNames.size ||
-                    iosTargetNames.any { it.isBlank() || it.any(Char::isISOControl) }
-                ) {
-                    throw GradleException("kiteConfig { ios { xcodeTargets } } must contain unique, non-blank names without controls.")
-                }
-                if (iosTargetNames.size > 1 && ext.appIdFlowsAnywhere().get() && ext.appId.isPresent) {
-                    throw GradleException(
-                        "kiteConfig refuses to assign one Apple bundle identifier to multiple application targets " +
-                            "(${iosTargetNames.joinToString()}). Select one target, or stop the id flowing to iOS " +
-                            "with ios { appId { enabled = false } }."
-                    )
-                }
-            }
-            ext.effectiveJvmTarget.orNull?.let(::validateJavaVersion)
-            if (ext.effectiveNativeOptInsEnabled.get()) {
-                val interopProjects = ext.effectiveNativeOptInProjects.get()
-                ext.effectiveNativeOptInMarkers.get().forEach(::validateOptInMarker)
-                interopProjects.forEach { validateGradleProjectPath(it, "optIns { projects }") }
-                if (interopProjects.distinct().size != interopProjects.size) {
-                    throw GradleException("kiteConfig { optIns { projects } } contains duplicate project paths.")
-                }
-            }
-            // The locale and shared-project checks moved to projectsEvaluated: both can
-            // be satisfied by sole-KMP detection, whose census completes only there.
-            if (ext.effectiveBuildConfigEnabled.get() && ext.buildConfig.includeIdentity.get()) {
-                val missing = buildList {
-                    if (!ext.effectiveAppName.isPresent) add("appName")
-                    if (!ext.effectiveVersion.isPresent) add("version")
-                    if (!ext.effectiveAndroidVersionCode.isPresent) add("version or ${buildNumberProperty("android")}")
-                    if (!ext.appId.isPresent) add("appId")
-                }
-                if (missing.isNotEmpty()) {
-                    throw GradleException(
-                        "kiteConfig buildConfig.includeIdentity requires a complete identity; missing " +
-                            missing.joinToString() + ". Set includeIdentity=false for fields-only generation."
-                    )
-                }
-            }
-            if (ext.effectiveSyncIos.get() && ext.effectivePropagateSharedModule.get()) {
-                if (!ext.effectiveIosSharedModuleName.isPresent || !ext.effectiveIosPreviousSharedModuleName.isPresent) {
-                    throw GradleException(
-                        "kiteConfig shared-module migration needs both names. Call " +
-                            "ios { renameSharedModule(from = \"old\", to = \"new\") }. " +
-                            "Automatic Pod/Swift rename inference is disabled."
-                    )
-                }
-                runCatching {
-                    requireSwiftModuleIdentifier(ext.effectiveIosSharedModuleName.get(), "renameSharedModule(to)")
-                    requireSwiftModuleIdentifier(ext.effectiveIosPreviousSharedModuleName.get(), "renameSharedModule(from)")
-                }.getOrElse { failure ->
-                    throw GradleException(failure.message ?: "Invalid iOS shared-module migration identifier", failure)
-                }
-            }
-            // Safe-zone ratio sanity.
-            if (ext.effectiveAndroidLogoInstall.get() && ext.effectiveLogoSafeZone.isPresent) {
-                validateLogoSafeZoneRatio(ext.effectiveLogoSafeZone.get())
-            }
-            // Logo: FG must be paired with exactly one BG source (PNG or color).
-            // Only validate when logo propagation is on, otherwise a stray FG with
-            // propagateLogo = false shouldn't fail the build.
-            if (ext.effectivePropagateLogo.get()) {
-                // The background is one choice now, so "both set" cannot happen.
-                val fgSet = ext.effectiveLogoForeground.isPresent
-                val backgroundSet = ext.logo.background.isPresent
-                if (!fgSet && !backgroundSet) {
-                    throw GradleException(
-                        "kiteConfig { logo { } } requires foreground plus a background: " +
-                            "background = color(\"#RRGGBB\") or background = image(file(\"...\")).",
-                    )
-                }
-                if (fgSet && !backgroundSet) {
-                    throw GradleException(
-                        "kiteConfig { logo { foreground } } is set but no background. Add " +
-                            "background = color(\"#RRGGBB\") or background = image(file(\"...\")).",
-                    )
-                }
-                if (!fgSet) {
-                    throw GradleException(
-                        "kiteConfig { logo } has a background but no foreground. Set " +
-                            "logo { foreground }, or remove the background.",
-                    )
-                }
-                ext.effectiveLogoBackgroundColor.orNull?.let(::validateLogoBackgroundColorHex)
-                // Checked when declared. The single-size universal catalog needs
-                // iOS 12 and Xcode 14, but that is a fact about the project, not
-                // something the build has to be told before it may own an icon.
-                ext.ios.deploymentTarget.orNull?.let(::validateUniversalAppIconDeploymentTarget)
-            }
-
-            // Legacy takeover is validated as part of the Android installer's
-            // transaction. The standalone cleanup task remains available for an
-            // explicitly requested one-shot recovery workflow.
-
+            // Rethrown as it stands: the cause chain carries which provider failed,
+            // and a build that loses it says only that a property could not be read.
+            collectModelFailures(ext).firstOrNull()?.let { throw it }
             finalizeModel(ext)
         }
 
@@ -1552,6 +1418,9 @@ class KiteConfigPlugin : Plugin<Project> {
         splashIos.set(ext.effectiveIosSplash)
         splashThemeSet.set(ext.effectiveSplashAndroidTheme.map { true }.orElse(false))
         versionGuardsIgnored.set(ext.effectiveIgnoreVersionGuards)
+        // The same layer an ordinary build runs, wrapped so a broken model is
+        // reported rather than thrown while the report is being configured.
+        modelFindings.set(root.provider { runCatching { collectModelFindings(ext) }.getOrDefault(emptyList()) })
         autoRewrites.set(
             ext.effectiveAutoRewriteLogo.zip(ext.effectiveAutoRewriteXcode) { a, b -> a || b },
         )
@@ -1629,6 +1498,164 @@ class KiteConfigPlugin : Plugin<Project> {
      * detection could speak. Mutation is still blocked; projectsEvaluated
      * finalizes the value once it is knowable.
      */
+    /**
+     * Every rule the model has to satisfy, collected rather than thrown.
+     *
+     * One layer, two renderings: an ordinary build fails on the first finding,
+     * and the diagnostics report all of them. They used to be separate code, so
+     * kiteCheck could pass a configuration that a build refused.
+     */
+    internal fun collectModelFailures(ext: KiteConfigExtension): List<Throwable> {
+        val findings = mutableListOf<Throwable>()
+        fun check(rule: () -> Unit) {
+            runCatching(rule).exceptionOrNull()?.let(findings::add)
+        }
+        check {
+                // Validate the resolved model once, before any explicit mutation task runs.
+                val buildConfigIdentity = ext.effectiveBuildConfigEnabled.get() && ext.buildConfig.includeIdentity.get()
+                val usesAppName = ext.appNameFlowsAnywhere().get() || buildConfigIdentity
+                val usesBundleId = ext.appIdFlowsAnywhere().get() || buildConfigIdentity
+                val usesVersion = ext.effectivePropagateVersion.get() || buildConfigIdentity
+                val usesLocaleModel = ext.localesFlowsAnywhere().get() || ext.effectiveFilterAndroidResources.get() || buildConfigIdentity
+                val usesSharedSelection = ext.effectiveBuildConfigEnabled.get() || ext.effectiveNativeOptInsEnabled.get() ||
+                    ext.effectiveIoWorkerEnabled.get() || usesLocaleModel
+                val usesAndroidApplicationSelection =
+                    (ext.appNameFlowsAnywhere().get() && ext.effectiveAppName.isPresent) ||
+                        (ext.appIdFlowsAnywhere().get() && ext.appId.isPresent) ||
+                        (ext.effectivePropagateVersion.get() &&
+                            (ext.effectiveVersion.isPresent || ext.effectiveAndroidVersionCode.isPresent)) ||
+                        ext.effectiveFilterAndroidResources.get() || ext.effectiveAndroidLogoInstall.get()
+                if (usesAppName) ext.effectiveAppName.orNull?.let(::validateAppName)
+                if (usesVersion) ext.effectiveVersion.orNull?.let(::validateVersionName)
+                if ((ext.effectivePropagateVersion.get() || buildConfigIdentity) &&
+                    ext.effectiveVersion.isPresent && !ext.effectiveAndroidVersionCode.isPresent
+                ) {
+                    ext.effectiveAndroidVersionCode.get()
+                }
+                if (usesVersion) ext.effectiveAndroidVersionCode.orNull?.let(::validateVersionCode)
+                if (usesBundleId && ext.appId.isPresent) {
+                    validateAndroidApplicationId(ext.androidApplicationId.get())
+                    validateAppleBundleId(ext.iosBundleId.get())
+                }
+                if (ext.effectiveSyncIos.get() && ext.effectivePropagateVersion.get()) {
+                    ext.effectiveIosMarketingVersion.orNull?.let(::validateAppleMarketingVersion)
+                    ext.effectiveIosBuildNumber.orNull?.let(::validateAppleBuildNumber)
+                }
+                if (usesSharedSelection) {
+                    ext.effectiveSharedProjectPath.orNull?.let {
+                        validateGradleProjectPath(it, "modules { shared }")
+                    }
+                }
+                if (usesAndroidApplicationSelection) {
+                    val selectedApplications = ext.effectiveAndroidApps.get()
+                    selectedApplications.forEach { validateGradleProjectPath(it, "modules { androidApps }") }
+                    if (selectedApplications.distinct().size != selectedApplications.size) {
+                        throw GradleException("kiteConfig { modules { androidApps } } contains duplicate project paths.")
+                    }
+                }
+                if (ext.effectiveSyncIos.get()) {
+                    val iosTargetNames = ext.effectiveIosTargets.get()
+                    if (iosTargetNames.distinct().size != iosTargetNames.size ||
+                        iosTargetNames.any { it.isBlank() || it.any(Char::isISOControl) }
+                    ) {
+                        throw GradleException("kiteConfig { ios { xcodeTargets } } must contain unique, non-blank names without controls.")
+                    }
+                    if (iosTargetNames.size > 1 && ext.appIdFlowsAnywhere().get() && ext.appId.isPresent) {
+                        throw GradleException(
+                            "kiteConfig refuses to assign one Apple bundle identifier to multiple application targets " +
+                                "(${iosTargetNames.joinToString()}). Select one target, or stop the id flowing to iOS " +
+                                "with ios { appId { enabled = false } }."
+                        )
+                    }
+                }
+                ext.effectiveJvmTarget.orNull?.let(::validateJavaVersion)
+                if (ext.effectiveNativeOptInsEnabled.get()) {
+                    val interopProjects = ext.effectiveNativeOptInProjects.get()
+                    ext.effectiveNativeOptInMarkers.get().forEach(::validateOptInMarker)
+                    interopProjects.forEach { validateGradleProjectPath(it, "optIns { projects }") }
+                    if (interopProjects.distinct().size != interopProjects.size) {
+                        throw GradleException("kiteConfig { optIns { projects } } contains duplicate project paths.")
+                    }
+                }
+                // The locale and shared-project checks moved to projectsEvaluated: both can
+                // be satisfied by sole-KMP detection, whose census completes only there.
+                if (ext.effectiveBuildConfigEnabled.get() && ext.buildConfig.includeIdentity.get()) {
+                    val missing = buildList {
+                        if (!ext.effectiveAppName.isPresent) add("appName")
+                        if (!ext.effectiveVersion.isPresent) add("version")
+                        if (!ext.effectiveAndroidVersionCode.isPresent) add("version or ${buildNumberProperty("android")}")
+                        if (!ext.appId.isPresent) add("appId")
+                    }
+                    if (missing.isNotEmpty()) {
+                        throw GradleException(
+                            "kiteConfig buildConfig.includeIdentity requires a complete identity; missing " +
+                                missing.joinToString() + ". Set includeIdentity=false for fields-only generation."
+                        )
+                    }
+                }
+                if (ext.effectiveSyncIos.get() && ext.effectivePropagateSharedModule.get()) {
+                    if (!ext.effectiveIosSharedModuleName.isPresent || !ext.effectiveIosPreviousSharedModuleName.isPresent) {
+                        throw GradleException(
+                            "kiteConfig shared-module migration needs both names. Call " +
+                                "ios { renameSharedModule(from = \"old\", to = \"new\") }. " +
+                                "Automatic Pod/Swift rename inference is disabled."
+                        )
+                    }
+                    runCatching {
+                        requireSwiftModuleIdentifier(ext.effectiveIosSharedModuleName.get(), "renameSharedModule(to)")
+                        requireSwiftModuleIdentifier(ext.effectiveIosPreviousSharedModuleName.get(), "renameSharedModule(from)")
+                    }.getOrElse { failure ->
+                        throw GradleException(failure.message ?: "Invalid iOS shared-module migration identifier", failure)
+                    }
+                }
+                // Safe-zone ratio sanity.
+                if (ext.effectiveAndroidLogoInstall.get() && ext.effectiveLogoSafeZone.isPresent) {
+                    validateLogoSafeZoneRatio(ext.effectiveLogoSafeZone.get())
+                }
+                // Logo: FG must be paired with exactly one BG source (PNG or color).
+                // Only validate when logo propagation is on, otherwise a stray FG with
+                // propagateLogo = false shouldn't fail the build.
+                if (ext.effectivePropagateLogo.get()) {
+                    // The background is one choice now, so "both set" cannot happen.
+                    val fgSet = ext.effectiveLogoForeground.isPresent
+                    val backgroundSet = ext.logo.background.isPresent
+                    if (!fgSet && !backgroundSet) {
+                        throw GradleException(
+                            "kiteConfig { logo { } } requires foreground plus a background: " +
+                                "background = color(\"#RRGGBB\") or background = image(file(\"...\")).",
+                        )
+                    }
+                    if (fgSet && !backgroundSet) {
+                        throw GradleException(
+                            "kiteConfig { logo { foreground } } is set but no background. Add " +
+                                "background = color(\"#RRGGBB\") or background = image(file(\"...\")).",
+                        )
+                    }
+                    if (!fgSet) {
+                        throw GradleException(
+                            "kiteConfig { logo } has a background but no foreground. Set " +
+                                "logo { foreground }, or remove the background.",
+                        )
+                    }
+                    ext.effectiveLogoBackgroundColor.orNull?.let(::validateLogoBackgroundColorHex)
+                    // Checked when declared. The single-size universal catalog needs
+                    // iOS 12 and Xcode 14, but that is a fact about the project, not
+                    // something the build has to be told before it may own an icon.
+                    ext.ios.deploymentTarget.orNull?.let(::validateUniversalAppIconDeploymentTarget)
+                }
+
+                // Legacy takeover is validated as part of the Android installer's
+                // transaction. The standalone cleanup task remains available for an
+                // explicitly requested one-shot recovery workflow.
+
+        }
+        return findings
+    }
+
+    /** The same failures, rendered for a report rather than thrown. */
+    internal fun collectModelFindings(ext: KiteConfigExtension): List<String> =
+        collectModelFailures(ext).map(::diagnosticExceptionSummary)
+
     private fun finalizeModel(ext: KiteConfigExtension) {
         modelValues(ext).forEach { value ->
             if (value === ext.localesScope.tags) {
