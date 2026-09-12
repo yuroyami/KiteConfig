@@ -1208,8 +1208,9 @@ public class KiteConfigPlugin : Plugin<Project> {
      * Hooks automatic application onto each platform's ordinary build.
      *
      * Android app `preBuild` pulls the Android plan; the iOS framework link and
-     * embed tasks pull the iOS plan. The two are separate on purpose: an Android
-     * build must never edit an iOS source file on its way past.
+     * embed tasks pull the iOS plan. Kotlin IDE import also pulls the iOS plan,
+     * before Xcode loads its project. Android builds stay platform-scoped and do
+     * not edit iOS source files.
      *
      * Gates stay lazy, so a project that never sets `autoApply` adds no
      * dependency at all.
@@ -1220,7 +1221,8 @@ public class KiteConfigPlugin : Plugin<Project> {
                 if (ext.effectiveAutoRewriteLogo.get()) dependsOn(root.tasks.named("kiteApplyAndroid"))
             })
             tasks.matching {
-                it.name == "embedAndSignAppleFrameworkForXcode" ||
+                it.name == "prepareKotlinIdeaImport" ||
+                    it.name == "embedAndSignAppleFrameworkForXcode" ||
                     (it.name.startsWith("link") && it.name.contains("Framework") && it.name.contains("Ios"))
             }.configureEach(Action {
                 if (ext.effectiveAutoRewriteXcode.get()) dependsOn(root.tasks.named("kiteApplyIos"))

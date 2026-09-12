@@ -24,7 +24,7 @@ Apply the plugin to the **root** project only:
 
 ```kotlin
 plugins {
-    id("io.github.yuroyami.kiteconfig") version "2.0.0"
+    id("io.github.yuroyami.kiteconfig") version "2.0.1"
 }
 ```
 
@@ -43,6 +43,12 @@ kiteConfig {
 `autoApply = true` is the one switch. With it on, an ordinary build applies
 everything KiteConfig needs to change, including the files you commit. Leave it
 off and nothing touches your own files until you run `./gradlew kiteApply`.
+
+With iOS automatic application enabled, Android Studio and IntelliJ Gradle sync
+also applies the iOS plan through Kotlin's IDE import task. Sync after changing
+KiteConfig so Xcode reads the new version, build number and assets before its
+next build. Opening Xcode alone does not run Gradle. For changes made outside
+the Gradle IDE, run `./gradlew kiteApplyIos` before archiving.
 
 ## Four rules
 

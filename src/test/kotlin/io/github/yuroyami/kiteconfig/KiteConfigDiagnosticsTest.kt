@@ -1,6 +1,7 @@
 package io.github.yuroyami.kiteconfig
 
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
@@ -317,6 +318,42 @@ class KiteConfigDiagnosticsTest {
 
         val aligned = KiteConfigDiagnosticEngine.evaluate(context).single { it.id == "KTCNFG021" }
         assertEquals(KiteConfigDiagnosticSeverity.PASS, aligned.severity)
+    }
+
+    /** Xcode leaves a safe name like Jetzy unquoted and KiteConfig quotes it. Both spell the same value. */
+    @Test
+    fun `pbx diagnostic passes a project that differs only in quotes`() {
+        val finding = KiteConfigDiagnosticEngine.evaluate(alignedAppContext()).single { it.id == "KTCNFG021" }
+
+        assertEquals(KiteConfigDiagnosticSeverity.PASS, finding.severity, finding.toString())
+        // The note names the one setting kiteApplyIos would still rewrite, and no other.
+        assertTrue(finding.detail.contains("PRODUCT_NAME"), finding.detail)
+        listOf("MARKETING_VERSION", "CURRENT_PROJECT_VERSION", "PRODUCT_BUNDLE_IDENTIFIER").forEach {
+            assertFalse(finding.detail.contains(it), finding.detail)
+        }
+    }
+
+    @Test
+    fun `pbx diagnostic names only the settings whose value differs`() {
+        val finding = KiteConfigDiagnosticEngine.evaluate(alignedAppContext().copy(iosMarketingVersion = "1.5.0"))
+            .single { it.id == "KTCNFG021" }
+
+        assertEquals(KiteConfigDiagnosticSeverity.ERROR, finding.severity, finding.toString())
+        assertTrue(finding.detail.contains("MARKETING_VERSION"), finding.detail)
+        listOf("CURRENT_PROJECT_VERSION", "PRODUCT_BUNDLE_IDENTIFIER", "PRODUCT_NAME").forEach {
+            assertFalse(finding.detail.contains(it), finding.detail)
+        }
+    }
+
+    @Test
+    fun `pbx diagnostic passes knownRegions that differ only in order`() {
+        // The fixture lists en before Base, as Xcode does. KiteConfig writes Base first.
+        val finding = KiteConfigDiagnosticEngine.evaluate(
+            alignedAppContext().copy(propagateLocaleList = true, locales = listOf("en")),
+        ).single { it.id == "KTCNFG021" }
+
+        assertEquals(KiteConfigDiagnosticSeverity.PASS, finding.severity, finding.toString())
+        assertTrue(finding.detail.contains("knownRegions"), finding.detail)
     }
 
     @Test
@@ -855,6 +892,21 @@ class KiteConfigDiagnosticsTest {
         kgpRequired = false,
     )
 
+    /** The model the AlignedApp fixture already matches. The fixture writes PRODUCT_NAME without quotes. */
+    private fun alignedAppContext(): KiteConfigDiagnosticContext {
+        val fixture = checkNotNull(
+            javaClass.getResourceAsStream("/fixtures/AlignedApp.xcodeproj/project.pbxproj"),
+        ) { "aligned Xcode fixture is missing" }.bufferedReader().use { it.readText() }
+        val pbxproj = tempDir.resolve("project.pbxproj").apply { writeText(fixture) }
+        return quietContext(propagateAppName = true, appName = "Jetzy", syncIos = true, pbxprojFile = pbxproj).copy(
+            propagateVersion = true,
+            iosMarketingVersion = "1.4.0",
+            iosBuildNumber = "1001004000",
+            propagateBundleId = true,
+            iosBundleId = "com.example.jetzy",
+        )
+    }
+
     private fun plist(body: String) = """
         |<?xml version="1.0" encoding="UTF-8"?>
         |<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -877,6 +929,7 @@ class KiteConfigDiagnosticsTest {
         assertEquals(KiteConfigDiagnosticSeverity.WARNING, automatic.severity)
         assertTrue(automatic.detail.contains("next Xcode build"), automatic.detail)
         assertTrue(automatic.remediation!!.contains("kiteApplyIos"), automatic.remediation)
+        assertTrue(automatic.remediation!!.contains("sync Gradle"), automatic.remediation)
 
         val manual = KiteConfigDiagnosticEngine.evaluate(
             quietContext(syncIos = true),

@@ -477,7 +477,8 @@ private fun projectBuildConfigSpansFromGraph(graph: ObjectGraph): List<IntRange>
 internal fun applicationBuildConfigSpans(text: String): List<IntRange> =
     resolveApplicationBuildConfigSpans(text).spans
 
-internal data class PbxSettingLocation(val key: String, val assignmentRange: IntRange)
+/** [valueRange] covers only the value, when it is one word or quoted string. It is null for a list or dictionary. */
+internal data class PbxSettingLocation(val key: String, val assignmentRange: IntRange, val valueRange: IntRange?)
 
 internal data class PbxSettingsResult(
     val byConfig: Map<IntRange, Map<String, List<PbxSettingLocation>>>,
@@ -517,7 +518,7 @@ private fun locateBuildSettingsFromGraph(
         val settings = parsed.assignments
             .filter { it.name in keys }
             .groupBy { it.name }
-            .mapValues { (key, values) -> values.map { PbxSettingLocation(key, it.range) } }
+            .mapValues { (key, values) -> values.map { PbxSettingLocation(key, it.range, it.tokens.singleOrNull()?.range) } }
         result[config.span] = settings
     }
     return PbxSettingsResult(result, errors)

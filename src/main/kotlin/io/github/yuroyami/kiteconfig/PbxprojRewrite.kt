@@ -1,15 +1,21 @@
 package io.github.yuroyami.kiteconfig
 
-/** Result of an in-memory pbxproj rewrite. Errors mean [text] is the original byte-for-byte. */
+/**
+ * Result of an in-memory pbxproj rewrite. Errors mean [text] is the original byte-for-byte.
+ *
+ * [changedSettings] are the keys whose value changes. [reformattedSettings] keep their value
+ * and change only in how they are written, such as quotes or list order.
+ */
 internal data class PbxprojResult(
     val text: String,
     val warnings: List<String>,
     val errors: List<String> = emptyList(),
     val selectedTargets: List<String> = emptyList(),
     val changedSettings: Set<String> = emptySet(),
+    val reformattedSettings: Set<String> = emptySet(),
 )
 
-private data class SettingRewrite(val key: String, val literal: String, val required: Boolean = true)
+private data class SettingRewrite(val key: String, val value: String, val literal: String, val required: Boolean = true)
 private data class TextReplacement(val range: IntRange, val text: String)
 
 private fun pbxQuoted(value: String): String {
@@ -25,6 +31,31 @@ private fun pbxQuoted(value: String): String {
         }
         append('"')
     }
+}
+
+/** The characters Xcode's own parser accepts in a value written without quotes. */
+private val PBX_UNQUOTED = Regex("[A-Za-z0-9_$/:.-]+")
+
+/**
+ * The value [literal] stands for, with its quotes and escapes removed.
+ * Null when Xcode could read it differently: an escape other than `\\` or `\"`, or an
+ * unquoted character outside [PBX_UNQUOTED].
+ */
+private fun pbxScalarValue(literal: String): String? {
+    if (!literal.startsWith('"')) return literal.takeIf(PBX_UNQUOTED::matches)
+    if (literal.length < 2 || !literal.endsWith('"')) return null
+    val body = literal.substring(1, literal.length - 1)
+    val out = StringBuilder(body.length)
+    var i = 0
+    while (i < body.length) {
+        val c = body[i++]
+        when {
+            c != '\\' -> out.append(c)
+            i < body.length && (body[i] == '\\' || body[i] == '"') -> out.append(body[i++])
+            else -> return null
+        }
+    }
+    return out.toString()
 }
 
 private val PBX_SAFE_BARE_NAME = Regex("^[A-Za-z_][A-Za-z0-9_.-]*$")
@@ -100,6 +131,7 @@ internal fun rewritePbxproj(
     val warnings = mutableListOf<String>()
     val errors = validatePbxInputs(marketingVersion, buildNumber, appName, bundleId, appIconName).toMutableList()
     val changedKeys = linkedSetOf<String>()
+    val reformattedKeys = linkedSetOf<String>()
     val replacements = mutableListOf<TextReplacement>()
     val analysis by lazy(LazyThreadSafetyMode.NONE) { analysisFactory(original) }
     if (!allowUnscopedFragment && errors.isEmpty()) {
@@ -113,27 +145,42 @@ internal fun rewritePbxproj(
     // validation. Besides avoiding duplicate diagnostics, this keeps malformed
     // or oversized input out of quoting/serialization paths entirely.
     val rewrites = if (errors.isNotEmpty()) emptyList() else buildList {
-        if (marketingVersion != null) add(SettingRewrite("MARKETING_VERSION", "MARKETING_VERSION = $marketingVersion;"))
-        if (buildNumber != null) add(SettingRewrite("CURRENT_PROJECT_VERSION", "CURRENT_PROJECT_VERSION = $buildNumber;"))
+        if (marketingVersion != null) add(SettingRewrite("MARKETING_VERSION", marketingVersion, "MARKETING_VERSION = $marketingVersion;"))
+        if (buildNumber != null) add(SettingRewrite("CURRENT_PROJECT_VERSION", buildNumber, "CURRENT_PROJECT_VERSION = $buildNumber;"))
         if (appName != null) {
             val quoted = runCatching { pbxQuoted(appName) }.getOrElse {
                 errors += "iOS appName cannot be encoded safely: ${it.message}"
                 "\"INVALID\""
             }
-            add(SettingRewrite("PRODUCT_NAME", "PRODUCT_NAME = $quoted;"))
+            add(SettingRewrite("PRODUCT_NAME", appName, "PRODUCT_NAME = $quoted;"))
             // These keys are absent in projects that use a source Info.plist. They
             // are updated when present but their absence is not structural failure.
-            add(SettingRewrite("INFOPLIST_KEY_CFBundleDisplayName", "INFOPLIST_KEY_CFBundleDisplayName = $quoted;", required = false))
-            add(SettingRewrite("INFOPLIST_KEY_CFBundleName", "INFOPLIST_KEY_CFBundleName = $quoted;", required = false))
+            add(SettingRewrite("INFOPLIST_KEY_CFBundleDisplayName", appName, "INFOPLIST_KEY_CFBundleDisplayName = $quoted;", required = false))
+            add(SettingRewrite("INFOPLIST_KEY_CFBundleName", appName, "INFOPLIST_KEY_CFBundleName = $quoted;", required = false))
         }
-        if (bundleId != null) add(SettingRewrite("PRODUCT_BUNDLE_IDENTIFIER", "PRODUCT_BUNDLE_IDENTIFIER = $bundleId;"))
+        if (bundleId != null) add(SettingRewrite("PRODUCT_BUNDLE_IDENTIFIER", bundleId, "PRODUCT_BUNDLE_IDENTIFIER = $bundleId;"))
         if (appIconName != null) {
             add(
                 SettingRewrite(
                     "ASSETCATALOG_COMPILER_APPICON_NAME",
+                    appIconName,
                     "ASSETCATALOG_COMPILER_APPICON_NAME = ${pbxNameLiteral(appIconName)};",
                 ),
             )
+        }
+    }
+
+    // A key counts as changed only when its value moves. The same value spelled another way is reformatting.
+    fun planSetting(rewrite: SettingRewrite, range: IntRange, valueRange: IntRange?) {
+        replacements += TextReplacement(range, rewrite.literal)
+        // An escape in the key could spell a different key, so only a plain key can keep its value.
+        val sameValue = valueRange != null &&
+            '\\' !in original.substring(range.first, valueRange.first) &&
+            pbxScalarValue(original.substring(valueRange).trim()) == rewrite.value
+        when {
+            original.substring(range) == rewrite.literal -> {}
+            sameValue -> reformattedKeys += rewrite.key
+            else -> changedKeys += rewrite.key
         }
     }
 
@@ -143,10 +190,7 @@ internal fun rewritePbxproj(
             rewrites.forEach { rewrite ->
                 val matches = unscopedSettingRegex(rewrite.key).findAll(original).toList()
                 when {
-                    matches.size == 1 -> {
-                        replacements += TextReplacement(matches.single().range, rewrite.literal)
-                        changedKeys += rewrite.key
-                    }
+                    matches.size == 1 -> planSetting(rewrite, matches.single().range, matches.single().groups[1]?.range)
                     matches.isEmpty() && rewrite.required -> errors += "settings fragment is missing required ${rewrite.key} assignment"
                     matches.isEmpty() -> warnings += "settings fragment has no ${rewrite.key} assignment; it was not inserted"
                     else -> errors += "settings fragment has ${matches.size} ${rewrite.key} assignments; refusing an ambiguous rewrite"
@@ -165,8 +209,8 @@ internal fun rewritePbxproj(
                             val matches = keys[rewrite.key].orEmpty()
                             when {
                                 matches.size == 1 -> {
-                                    replacements += TextReplacement(matches.single().assignmentRange, rewrite.literal)
-                                    changedKeys += rewrite.key
+                                    val match = matches.single()
+                                    planSetting(rewrite, match.assignmentRange, match.valueRange)
                                 }
                                 matches.isEmpty() && rewrite.required -> errors +=
                                     "selected XCBuildConfiguration at ${configSpan.first} is missing required ${rewrite.key}; no changes were made"
@@ -208,7 +252,14 @@ internal fun rewritePbxproj(
                         postfix = ",\n$baseIndent);",
                     ) { region -> if (Regex("[A-Za-z0-9_.-]+").matches(region)) region else pbxQuoted(region) }
                     replacements += TextReplacement(location.assignmentRange, replacement)
-                    changedKeys += "knownRegions"
+                    val current = original.substring(location.assignmentRange)
+                    when {
+                        current == replacement -> {}
+                        // Regions form a set, so order alone is reformatting. An escape or odd spelling may hide another region.
+                        '\\' in current || location.values.any { !PBX_UNQUOTED.matches(it) } ||
+                            merged.toSet() != location.values.toSet() -> changedKeys += "knownRegions"
+                        else -> reformattedKeys += "knownRegions"
+                    }
                 }
                 else -> errors += "pbxproj has ${lists.size} knownRegions lists; refusing an ambiguous project-level rewrite"
             }
@@ -227,9 +278,9 @@ internal fun rewritePbxproj(
     replacements.sortedByDescending { it.range.first }.forEach { replacement ->
         updated = updated.replaceRange(replacement.range, replacement.text)
     }
-    return PbxprojResult(updated, warnings.distinct(), emptyList(), selectedTargets, changedKeys)
+    return PbxprojResult(updated, warnings.distinct(), emptyList(), selectedTargets, changedKeys, reformattedKeys - changedKeys)
 }
 
-/** Strict helper for the explicitly opted-in synthetic fragment mode only. */
+/** Strict helper for the explicitly opted-in synthetic fragment mode only. Group 1 is the value. */
 private fun unscopedSettingRegex(key: String): Regex =
-    Regex("(?m)^[ \\t]*${Regex.escape(key)}[ \\t]*=[ \\t]*(?:\"(?:[^\"\\\\]|\\\\.)*\"|[^;\"\\r\\n]+);")
+    Regex("(?m)^[ \\t]*${Regex.escape(key)}[ \\t]*=[ \\t]*(\"(?:[^\"\\\\]|\\\\.)*\"|[^;\"\\r\\n]+);")

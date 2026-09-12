@@ -50,6 +50,9 @@ class RealXcodeProjectCompatibilityTest {
         )
         assertTrue(second.errors.isEmpty(), second.errors.joinToString())
         assertEquals(first.text, second.text, "second rewrite changed an already-canonical project")
+        // Nothing is left to change or reformat, so the doctor has nothing to report.
+        assertEquals(emptySet<String>(), second.changedSettings)
+        assertEquals(emptySet<String>(), second.reformattedSettings)
 
         validateWithInstalledXcode(first.text)
     }

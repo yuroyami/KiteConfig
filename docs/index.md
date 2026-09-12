@@ -33,7 +33,7 @@ In the **root** `build.gradle.kts`:
 plugins {
     kotlin("multiplatform") version "2.4.10" apply false
     id("com.android.application") version "9.3.1" apply false
-    id("io.github.yuroyami.kiteconfig") version "2.0.0"
+    id("io.github.yuroyami.kiteconfig") version "2.0.1"
 }
 
 kiteConfig {
@@ -81,6 +81,12 @@ value set in `kiteConfig { }` replaces the same value set in the module.
 yours. With `autoApply = true`, an ordinary build applies the ones your
 configuration needs. With it off, nothing touches them until you run
 `./gradlew kiteApply`.
+
+With iOS automatic application enabled, Android Studio and IntelliJ Gradle sync
+also applies the iOS plan through Kotlin's IDE import task. Sync after changing
+KiteConfig so Xcode reads the new version, build number and assets before its
+next build. Opening Xcode alone does not run Gradle. For changes made outside
+the Gradle IDE, run `./gradlew kiteApplyIos` before archiving.
 
 There is nothing else to authorize. A feature is on when you gave it what it
 needs: set `logo { foreground }` and the icons are installed, on every platform

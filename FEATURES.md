@@ -500,8 +500,15 @@ limit the shared JVM alignment from `jvm { target }`.
 
 ## Explicit Apple project changes
 
-Apple source changes never run as part of normal compilation, linking, or
-archiving. Either `autoApply = true` applies them, or you run `kiteApply` yourself.
+With iOS automatic application enabled, Kotlin IDE import and iOS framework
+builds apply the configured Apple source changes. Android Studio / IntelliJ
+Gradle sync therefore updates the Xcode project before Xcode loads it. Android
+builds remain platform-scoped. Shared and iOS-specific `autoApply` switches and
+iOS platform selection govern the import hook, just as they govern iOS builds.
+
+Opening Xcode alone does not run Gradle. After editing outside the Gradle IDE,
+run `./gradlew kiteApplyIos` before archiving. With automatic application off,
+only an explicit `kiteApply` or `kiteApplyIos` changes Apple source files.
 
 ### Xcode project file
 
@@ -747,6 +754,11 @@ Stable diagnostic families are:
 `KTCNFG011` reports a managed plist key that does not yet carry the declared value. It is a
 warning that describes intentionally preserved drift. `REPLACE` remains an
 error until the explicit migration applies the replacement.
+
+`KTCNFG021` checks the values in the Xcode project. `PRODUCT_NAME = Jetzy;` and
+`PRODUCT_NAME = "Jetzy";` hold the same value, so a project that differs only in
+quotes, or in the order of `knownRegions`, passes with a note. It fails only when
+a value differs.
 
 ## Source-change safety rules
 

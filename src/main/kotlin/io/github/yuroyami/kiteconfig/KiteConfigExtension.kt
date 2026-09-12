@@ -128,7 +128,8 @@ import org.gradle.api.provider.Provider
  * always safe. `kiteApply` applies the configured source changes for every
  * selected platform; `kiteApplyAndroid` and `kiteApplyIos` apply one. With
  * `autoApply = true` an ordinary build runs the plan for the platform it is
- * building. CLI overrides: `-Pkiteconfig.dryRun=true`,
+ * building. Kotlin IDE import also applies the iOS plan so Xcode sees changes
+ * before its next build. CLI overrides: `-Pkiteconfig.dryRun=true`,
  * `-Pkiteconfig.backups=false`.
  *
  * ## Read-back

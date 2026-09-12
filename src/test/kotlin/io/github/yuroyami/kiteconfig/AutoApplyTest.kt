@@ -84,4 +84,44 @@ class AutoApplyTest {
         assertTrue(ext().withArt().effectiveTakeOverLegacyIcons.get())
         assertFalse(ext().effectiveTakeOverLegacyIcons.get())
     }
+
+    @Test
+    fun `IDE import respects shared and iOS automatic application gates`() {
+        fun case(expected: Boolean, configure: KiteConfigExtension.() -> Unit) = configure to expected
+        val cases = listOf(
+            case(false) {},
+            case(true) { autoApply.set(true) },
+            case(false) { autoApply.set(true); ios.autoApply.set(false) },
+            case(true) { autoApply.set(false); ios.autoApply.set(true) },
+            case(false) { autoApply.set(true); skip(ios) },
+            case(false) { autoApply.set(true); only(android) },
+        )
+        cases.forEachIndexed { index, (configure, expected) ->
+            val root = ProjectBuilder.builder().build()
+            val child = ProjectBuilder.builder().withName("shared").withParent(root).build()
+            root.plugins.apply(KiteConfigPlugin::class.java)
+            root.extensions.getByType(KiteConfigExtension::class.java).configure()
+            // KGP registers this task after the root plugin has been applied.
+            val task = child.tasks.register("prepareKotlinIdeaImport").get()
+            val dependencies = task.taskDependencies.getDependencies(task).map { it.path }
+            org.junit.jupiter.api.Assertions.assertEquals(
+                expected, ":kiteApplyIos" in dependencies, "case $index: $dependencies",
+            )
+        }
+    }
+
+    @Test
+    fun `ordinary Android builds remain scoped while iOS builds still apply automatically`() {
+        val root = ProjectBuilder.builder().build()
+        val child = ProjectBuilder.builder().withName("shared").withParent(root).build()
+        root.plugins.apply(KiteConfigPlugin::class.java)
+        root.extensions.getByType(KiteConfigExtension::class.java).autoApply.set(true)
+        val android = child.tasks.register("preBuild").get()
+        assertFalse(android.taskDependencies.getDependencies(android).any { it.path == ":kiteApplyIos" })
+        listOf("embedAndSignAppleFrameworkForXcode", "linkReleaseFrameworkIosArm64").forEach { name ->
+            val ios = child.tasks.register(name).get()
+            assertTrue(ios.taskDependencies.getDependencies(ios).any { it.path == ":kiteApplyIos" })
+        }
+    }
+
 }

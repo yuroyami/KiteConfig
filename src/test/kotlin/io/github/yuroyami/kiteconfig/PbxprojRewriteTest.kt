@@ -328,4 +328,105 @@ class PbxprojRewriteTest {
         assertTrue(r.errors.size >= 3, r.errors.toString())
         assertTrue(r.errors.any { it.contains("first component that is not zero") }, r.errors.toString())
     }
+
+    /** One application target with one build configuration holding [settings]. */
+    private fun appProject(settings: String, knownRegions: String = "( Base, en, )") = """
+        {
+            objects = {
+                AA00000000000000000000AA = {
+                    isa = PBXNativeTarget;
+                    name = App;
+                    buildConfigurationList = AA00000000000000000000A1;
+                    productType = "com.apple.product-type.application";
+                };
+                AA00000000000000000000A1 = {
+                    isa = XCConfigurationList;
+                    buildConfigurations = ( AA00000000000000000000A2, );
+                };
+                AA00000000000000000000A2 = {
+                    isa = XCBuildConfiguration;
+                    buildSettings = { $settings };
+                };
+                EE00000000000000000000EE = {
+                    isa = PBXProject;
+                    knownRegions = $knownRegions;
+                };
+            };
+            rootObject = EE00000000000000000000EE;
+        }
+    """.trimIndent()
+
+    @Test
+    fun `settings that already hold the configured value are not reported`() {
+        val r = rewritePbxproj(multiTarget, "0.0.1", "1", "Probe", "com.demo.app", null)
+
+        assertTrue(r.errors.isEmpty(), r.errors.toString())
+        // Only PRODUCT_NAME moves, from $(TARGET_NAME) to Probe. The rest is already right.
+        assertEquals(setOf("PRODUCT_NAME"), r.changedSettings)
+        assertEquals(emptySet<String>(), r.reformattedSettings)
+    }
+
+    @Test
+    fun `a difference in quotes only is reformatting`() {
+        // Same values, other spelling: the name without quotes, the version with them.
+        val original = appProject("MARKETING_VERSION = \"1.4.0\"; PRODUCT_NAME = Jetzy;")
+
+        val r = rewritePbxproj(original, "1.4.0", null, "Jetzy", null, null)
+
+        assertTrue(r.errors.isEmpty(), r.errors.toString())
+        assertEquals(emptySet<String>(), r.changedSettings)
+        assertEquals(setOf("MARKETING_VERSION", "PRODUCT_NAME"), r.reformattedSettings)
+    }
+
+    @Test
+    fun `knownRegions in a different order is reformatting`() {
+        // Xcode lists en before Base; KiteConfig writes Base first.
+        val original = appProject("PRODUCT_NAME = App;", knownRegions = "( en, Base, )")
+
+        val r = rewritePbxproj(original, null, null, null, null, listOf("en"))
+
+        assertTrue(r.errors.isEmpty(), r.errors.toString())
+        assertEquals(emptySet<String>(), r.changedSettings)
+        assertEquals(setOf("knownRegions"), r.reformattedSettings)
+    }
+
+    @Test
+    fun `a setting Xcode could read differently still counts as a change`() {
+        // \b is a control character, a bare é is invalid, and an escape in the key can spell another key.
+        listOf(
+            "PRODUCT_NAME = \"Pro\\be\";" to "Probe",
+            "PRODUCT_NAME = Café;" to "Café",
+            "\"PROD\\UCT_NAME\" = Probe;" to "Probe",
+        ).forEach { (setting, name) ->
+            val r = rewritePbxproj(appProject(setting), null, null, name, null, null)
+            assertEquals(setOf("PRODUCT_NAME"), r.changedSettings, setting)
+        }
+    }
+
+    @Test
+    fun `knownRegions Xcode could read differently still count as a change`() {
+        // "e\n" ends in a newline, and Xcode reads 'fr' as fr while this reader keeps the quotes.
+        listOf("( \"e\\n\", Base, )", "( 'fr', en, Base, )").forEach { regions ->
+            val r = rewritePbxproj(
+                appProject("PRODUCT_NAME = App;", knownRegions = regions),
+                null, null, null, null, listOf("en"),
+            )
+            assertEquals(setOf("knownRegions"), r.changedSettings, regions)
+        }
+    }
+
+    @Test
+    fun `a key that changes in one configuration is not also listed as reformatted`() {
+        // One configuration only lacks the quotes; the other still holds an old name.
+        val aligned = checkNotNull(javaClass.getResourceAsStream("/fixtures/AlignedApp.xcodeproj/project.pbxproj"))
+            .bufferedReader().use { it.readText() }
+        val lastAssignment = aligned.lastIndexOf("PRODUCT_NAME = Jetzy;")
+        val mixed = aligned.replaceRange(lastAssignment, lastAssignment + "PRODUCT_NAME = Jetzy;".length, "PRODUCT_NAME = Old;")
+
+        val r = rewritePbxproj(mixed, "1.4.0", "1001004000", "Jetzy", "com.example.jetzy", null)
+
+        assertTrue(r.errors.isEmpty(), r.errors.toString())
+        assertEquals(setOf("PRODUCT_NAME"), r.changedSettings)
+        assertEquals(emptySet<String>(), r.reformattedSettings)
+    }
 }

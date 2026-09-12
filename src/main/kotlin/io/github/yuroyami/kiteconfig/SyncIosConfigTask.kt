@@ -470,7 +470,9 @@ internal abstract class SyncIosConfigTask : DefaultTask() {
         budget.recordOutput(result.text, "iOS pbxproj")
         planTextChange(root, file, result.text, "iOS pbxproj", snapshot)?.let {
             plan += it
-            summary += "pbxproj targets=${result.selectedTargets.joinToString().ifEmpty { "project metadata only" }} keys=${result.changedSettings.joinToString()}"
+            val reformatted = if (result.reformattedSettings.isEmpty()) "" else " reformatted=${result.reformattedSettings.joinToString()}"
+            summary += "pbxproj targets=${result.selectedTargets.joinToString().ifEmpty { "project metadata only" }} " +
+                "changed=${result.changedSettings.joinToString().ifEmpty { "none" }}$reformatted"
         }
     }
 

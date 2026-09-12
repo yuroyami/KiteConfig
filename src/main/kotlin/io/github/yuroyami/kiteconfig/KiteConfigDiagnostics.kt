@@ -250,8 +250,9 @@ internal object KiteConfigDiagnosticEngine {
                     } else {
                         "autoApply is off, so a build you start from Xcode changes no iOS file at all."
                     },
-                    "Run ./gradlew kiteApplyIos before building from Xcode, or start the build from " +
-                        "Gradle, and the values are in place before Xcode reads them.",
+                    "With iOS autoApply enabled, sync Gradle in Android Studio or IntelliJ before building " +
+                        "from Xcode. Otherwise run ./gradlew kiteApplyIos first. Opening Xcode alone " +
+                        "does not run Gradle.",
                 ),
             )
         }
@@ -1199,7 +1200,8 @@ internal object KiteConfigDiagnosticEngine {
                                 location = pbxproj.path,
                             ),
                         )
-                        result.text != text -> add(
+                        // The same value spelled another way, like "Jetzy" and Jetzy, is not drift.
+                        result.changedSettings.isNotEmpty() -> add(
                             diagnostic(
                                 "KTCNFG021",
                                 KiteConfigDiagnosticSeverity.ERROR,
@@ -1209,19 +1211,30 @@ internal object KiteConfigDiagnosticEngine {
                                 location = pbxproj.path,
                             ),
                         )
-                        else -> add(
-                            diagnostic(
-                                "KTCNFG021",
-                                KiteConfigDiagnosticSeverity.PASS,
-                                "iOS pbxproj target scope and values",
-                                if (result.selectedTargets.isEmpty()) {
-                                    "No target-scoped setting is configured; project-level metadata is aligned."
-                                } else {
-                                    "Selected application target(s) are structurally valid and aligned: " +
-                                        result.selectedTargets.joinToString() + "."
-                                },
-                            ),
-                        )
+                        else -> {
+                            val aligned = if (result.selectedTargets.isEmpty()) {
+                                "No target-scoped setting is configured; project-level metadata is aligned."
+                            } else {
+                                "Selected application target(s) are structurally valid and aligned: " +
+                                    result.selectedTargets.joinToString() + "."
+                            }
+                            val reformatted = result.reformattedSettings.sorted()
+                            val formattingNote = when (reformatted.size) {
+                                0 -> ""
+                                1 -> " ${reformatted.single()} already has the right value. " +
+                                    "kiteApplyIos would only change how it is written."
+                                else -> " ${reformatted.joinToString()} already have the right values. " +
+                                    "kiteApplyIos would only change how they are written."
+                            }
+                            add(
+                                diagnostic(
+                                    "KTCNFG021",
+                                    KiteConfigDiagnosticSeverity.PASS,
+                                    "iOS pbxproj target scope and values",
+                                    aligned + formattingNote,
+                                ),
+                            )
+                        }
                     }
                 }
             }

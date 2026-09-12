@@ -4,6 +4,25 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions track the
 Gradle Plugin Portal releases.
 
+## 2.0.1
+
+### Fixed
+
+- With iOS automatic application enabled, Android Studio / IntelliJ Gradle sync
+  now applies the iOS plan before Xcode opens its project. Version, build-number
+  and asset changes no longer wait until an iOS build has already started. The
+  hook respects platform exclusions and iOS `autoApply` overrides; ordinary
+  Android builds still apply only Android changes.
+
+- `kiteDoctor` reported iOS project drift (`KTCNFG021`) for settings that already
+  held the right value. It listed every setting it would write, and it treated
+  `PRODUCT_NAME = Jetzy;` and `PRODUCT_NAME = "Jetzy";` as different. It now
+  compares values: a project that differs only in quotes, or in the order of
+  `knownRegions`, passes with a note, and the error names only the settings whose
+  value differs. `kiteCheck` no longer fails a CI run over this.
+- After writing the Xcode project, `kiteApplyIos` now prints `changed=` and
+  `reformatted=` settings separately instead of one `keys=` list.
+
 ## 2.0.0
 
 The DSL reshape. Every value still gets written once, but where you write it,
