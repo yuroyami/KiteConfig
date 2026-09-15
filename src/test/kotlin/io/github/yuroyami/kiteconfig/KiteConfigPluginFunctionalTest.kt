@@ -155,6 +155,53 @@ class KiteConfigPluginFunctionalTest {
         """.trimIndent()
     }
 
+    /** One application target with a Debug and a Release configuration, each carrying every managed setting. */
+    private fun pbxProjectWithReleaseConfiguration(name: String): String {
+        fun configuration(id: String, configurationName: String) = """
+                $id = {
+                    isa = XCBuildConfiguration;
+                    buildSettings = {
+                        ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+                        CURRENT_PROJECT_VERSION = 1;
+                        MARKETING_VERSION = 0.0.1;
+                        PRODUCT_BUNDLE_IDENTIFIER = com.example.app1;
+                        PRODUCT_NAME = $name;
+                    };
+                    name = $configurationName;
+                };
+        """.trimIndent()
+        return """
+            // !${'$'}*UTF8*${'$'}!
+            {
+                objects = {
+                    AA00000000000000000000AA = {
+                        isa = PBXNativeTarget;
+                        name = "$name";
+                        buildConfigurationList = AA00000000000000000000A1;
+                        productType = "com.apple.product-type.application";
+                    };
+                    ${configuration("AA00000000000000000000A2", "Debug")}
+                    ${configuration("AA00000000000000000000A3", "Release")}
+                    AA00000000000000000000A1 = {
+                        isa = XCConfigurationList;
+                        buildConfigurations = (
+                            AA00000000000000000000A2,
+                            AA00000000000000000000A3,
+                        );
+                    };
+                    EE00000000000000000000EE = {
+                        isa = PBXProject;
+                        knownRegions = (
+                            Base,
+                            en,
+                        );
+                    };
+                };
+                rootObject = EE00000000000000000000EE;
+            }
+        """.trimIndent()
+    }
+
     private fun plist(body: String = "\t<key>CFBundleExecutable</key>\n\t<string>App</string>") =
         "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
             "<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n" +
@@ -2579,5 +2626,76 @@ class KiteConfigPluginFunctionalTest {
         assertTrue(Regex("""androidApplicationId\s+= com\.demo\.app\.debug""").containsMatchIn(result.output), result.output)
         assertTrue(Regex("""iosBundleId\s+= com\.demo\.app\.debug""").containsMatchIn(result.output), result.output)
         assertTrue(Regex("""appName \(ios\)\s+= Demo Dev""").containsMatchIn(result.output), result.output)
+    }
+
+    /**
+     * The whole iOS half in one run: the Debug configuration gets the debug
+     * identity and its own catalog, Release keeps the release values, the plan
+     * says so, and turning the icon off takes the catalog back out.
+     */
+    @Test
+    fun `the Debug configuration gets the debug identity and its own icon catalog`() {
+        write("settings.gradle.kts", "rootProject.name = \"fixture\"")
+        val withDebugIcon = """
+            plugins { id("io.github.yuroyami.kiteconfig") }
+            kiteConfig {
+                appName = "Demo App"
+                appId = "com.demo.app"
+                version = "1.2.3"
+                skip(android)
+                logo {
+                    foreground = file("art/fg.png")
+                    background = color("#102A43")
+                }
+                debug {
+                    appId { suffix = ".debug" }
+                    appName = "Demo Dev"
+                    logo { background = color("#B00020") }
+                }
+            }
+        """.trimIndent()
+        write("build.gradle.kts", withDebugIcon)
+        writePng("art/fg.png", 64)
+        write("iosApp/iosApp.xcodeproj/project.pbxproj", pbxProjectWithReleaseConfiguration("Phone"))
+        write("iosApp/iosApp/Info.plist", plist())
+
+        val plan = run("kitePlan")
+        assertTrue(plan.output.contains("install the Apple debug AppIcon assets"), plan.output)
+        assertTrue(plan.output.contains("debug { logo } reaches iOS"), plan.output)
+        assertTrue(plan.output.contains("AppIcon-Debug.appiconset"), plan.output)
+        assertTrue(Regex("""ios\.debugConfigurations\s+= Debug""").containsMatchIn(plan.output), plan.output)
+
+        run("kiteApplyIos")
+
+        val pbxproj = File(projectDir, "iosApp/iosApp.xcodeproj/project.pbxproj")
+        val pbx = pbxproj.readText()
+        val debug = pbx.substringBefore("name = Debug;")
+        val release = pbx.substringAfter("name = Debug;")
+        assertTrue(debug.contains("PRODUCT_BUNDLE_IDENTIFIER = com.demo.app.debug;"), pbx)
+        assertTrue(debug.contains("PRODUCT_NAME = \"Demo Dev\";"), pbx)
+        assertTrue(debug.contains("ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon-Debug;"), pbx)
+        assertTrue(release.contains("PRODUCT_BUNDLE_IDENTIFIER = com.demo.app;"), pbx)
+        assertTrue(release.contains("PRODUCT_NAME = \"Demo App\";"), pbx)
+        assertTrue(release.contains("ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;"), pbx)
+        val debugIcon = File(projectDir, "iosApp/iosApp/Assets.xcassets/AppIcon-Debug.appiconset/AppIcon-1024.png")
+        assertTrue(debugIcon.isFile, "debug catalog was not installed")
+        assertEquals(0xB00020, ImageIO.read(debugIcon).getRGB(2, 2) and 0xFFFFFF)
+
+        // A second apply is a no-op down to the timestamps.
+        val installed = snapshot(File(projectDir, "iosApp"))
+        run("kiteApplyIos")
+        assertEquals(installed, snapshot(File(projectDir, "iosApp")))
+
+        // Turning the debug icon off takes the catalog back out, and the Debug
+        // configuration returns to the release catalog.
+        write("build.gradle.kts", withDebugIcon.replace("logo { background = color(\"#B00020\") }", ""))
+        val removal = run("kitePlan")
+        assertTrue(removal.output.contains("remove the Apple debug AppIcon this plugin installed earlier"), removal.output)
+        run("kiteApplyIos")
+        assertFalse(debugIcon.exists(), "debug catalog outlived its configuration")
+        assertFalse(debugIcon.parentFile.exists(), "empty debug catalog directory left behind")
+        val after = pbxproj.readText()
+        assertEquals(2, Regex("ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;").findAll(after).count(), after)
+        assertTrue(after.substringBefore("name = Debug;").contains("PRODUCT_BUNDLE_IDENTIFIER = com.demo.app.debug;"), after)
     }
 }

@@ -45,6 +45,9 @@ import java.security.MessageDigest
  *
  * Both `-P` switches accept exactly `true` or `false`; anything else fails the
  * build rather than being read as `false`.
+ *
+ * The same class installs the debug catalog, `AppIcon-Debug.appiconset`, with
+ * [debugVariant] on, and takes it back out when [install] is off.
  */
 @DisableCachingByDefault(because = "Installs and validates files in a user-owned Xcode asset catalog.")
 internal abstract class SyncIosLogoTask : DefaultTask() {
@@ -55,6 +58,8 @@ internal abstract class SyncIosLogoTask : DefaultTask() {
         outputs.upToDateWhen { false }
         backupDir.convention(project.layout.projectDirectory.dir(".kiteconfig/recovery/ios-appicon"))
         projectRootDir.convention(project.layout.projectDirectory)
+        install.convention(true)
+        debugVariant.convention(false)
     }
 
     /** Validated explicitly so configured-but-missing files receive actionable plugin diagnostics. */
@@ -71,6 +76,12 @@ internal abstract class SyncIosLogoTask : DefaultTask() {
 
     /** How much of the canvas the mark fills. Unset keeps the whole canvas. */
     @get:[Input Optional] abstract val foregroundScale: Property<Double>
+
+    /** False takes back a catalog this task installed earlier. The release installer never sets it. */
+    @get:Input abstract val install: Property<Boolean>
+
+    /** True when this task installs the debug catalog, so messages name `debug { logo { ... } }`. */
+    @get:Input abstract val debugVariant: Property<Boolean>
     @get:Internal abstract val dryRun: Property<Boolean>
     @get:Internal abstract val backup: Property<Boolean>
 
@@ -84,14 +95,18 @@ internal abstract class SyncIosLogoTask : DefaultTask() {
     @TaskAction
     fun sync() {
         val dry = dryRun.get()
+        if (!install.getOrElse(true)) {
+            removeInstalledCatalog(dry)
+            return
+        }
         val fgFile = foregroundPng.asFile.orNull
         if (fgFile == null) {
-            logger.lifecycle("[kiteConfig] iOS logo sync skipped: logo { foreground } is not configured.")
+            logger.lifecycle("[kiteConfig] iOS logo sync skipped: ${member("foreground")} is not configured.")
             return
         }
         if (!fgFile.exists()) {
             throw GradleException(
-                "[kiteConfig] logo { foreground } points to a missing file: " +
+                "[kiteConfig] ${member("foreground")} points to a missing file: " +
                     "${displayProjectPath(projectRootDir.asFile.get(), fgFile)}. " +
                     "Fix the path or disable logo propagation.",
             )
@@ -102,18 +117,18 @@ internal abstract class SyncIosLogoTask : DefaultTask() {
             projectRootDir.asFile.get(),
             "iOS AppIcon output",
         )
-        OwnedOutputSafety.requireInputOutsideOutput(fgFile, outDir, "logo { foreground }")
-        val fgSnapshot = decodeLogo(fgFile, "logo { foreground }")
+        OwnedOutputSafety.requireInputOutsideOutput(fgFile, outDir, member("foreground"))
+        val fgSnapshot = decodeLogo(fgFile, member("foreground"))
         val overlaySnapshot = overlayPng.asFile.orNull?.let { overlayFile ->
             if (!overlayFile.exists()) {
                 throw GradleException(
-                    "[kiteConfig] logo { overlay } points to a missing file: " +
+                    "[kiteConfig] ${member("overlay")} points to a missing file: " +
                         "${displayProjectPath(projectRootDir.asFile.get(), overlayFile)}. " +
                         "Fix the path or remove the overlay.",
                 )
             }
-            OwnedOutputSafety.requireInputOutsideOutput(overlayFile, outDir, "logo { overlay }")
-            decodeLogo(overlayFile, "logo { overlay }")
+            OwnedOutputSafety.requireInputOutsideOutput(overlayFile, outDir, member("overlay"))
+            decodeLogo(overlayFile, member("overlay"))
         }
         val fg = overlaySnapshot?.let { applyLogoOverlay(fgSnapshot.image, it.image) } ?: fgSnapshot.image
 
@@ -125,7 +140,7 @@ internal abstract class SyncIosLogoTask : DefaultTask() {
             var color = parseLogoBackgroundColor(hex)
             if (color.alpha < 255) {
                 logger.warn(
-                    "[kiteConfig] logo { backgroundColor } $hex is semi-transparent. " +
+                    "[kiteConfig] ${member("backgroundColor")} $hex is semi-transparent. " +
                         "flattening over white because App Store icons must be opaque.",
                 )
                 color = flattenOverWhite(color)
@@ -135,19 +150,19 @@ internal abstract class SyncIosLogoTask : DefaultTask() {
             val bgFile = backgroundPng.asFile.orNull
             if (bgFile == null) {
                 throw GradleException(
-                    "[kiteConfig] iOS logo requires logo { background } or logo { backgroundColor }.",
+                    "[kiteConfig] iOS logo requires ${member("background")} or ${member("backgroundColor")}.",
                 )
             }
             if (!bgFile.exists()) {
                 throw GradleException(
-                    "[kiteConfig] logo { background } points to a missing file: " +
+                    "[kiteConfig] ${member("background")} points to a missing file: " +
                         "${displayProjectPath(projectRootDir.asFile.get(), bgFile)}. " +
-                        "Fix the path or configure logo { backgroundColor }.",
+                        "Fix the path or configure ${member("backgroundColor")}.",
                 )
             }
-            OwnedOutputSafety.requireInputOutsideOutput(bgFile, outDir, "logo { background }")
+            OwnedOutputSafety.requireInputOutsideOutput(bgFile, outDir, member("background"))
             bgDescription = bgFile.name
-            decodeLogo(bgFile, "logo { background }").also { bgSnapshot = it }.image
+            decodeLogo(bgFile, member("background")).also { bgSnapshot = it }.image
         }
 
         // INT_RGB so any residual alpha is composed against opaque white.
@@ -204,7 +219,8 @@ internal abstract class SyncIosLogoTask : DefaultTask() {
             )
         }
 
-        logger.lifecycle("[kiteConfig] iOS AppIcon synced from ${fgFile.name} + $bgDescription (1024×1024 opaque).")
+        val catalogLabel = if (debugVariant.getOrElse(false)) "iOS debug AppIcon" else "iOS AppIcon"
+        logger.lifecycle("[kiteConfig] $catalogLabel synced from ${fgFile.name} + $bgDescription (1024×1024 opaque).")
     }
 
     private fun decodeLogo(file: File, label: String): LogoPngSnapshot = try {
@@ -212,6 +228,10 @@ internal abstract class SyncIosLogoTask : DefaultTask() {
     } catch (e: IllegalArgumentException) {
         throw GradleException("[kiteConfig] ${e.message}", e)
     }
+
+    /** The DSL member a message should name, for the release or the debug icon. */
+    private fun member(name: String): String =
+        if (debugVariant.getOrElse(false)) "debug { logo { $name } }" else "logo { $name }"
 
     /**
      * Warn about `.png` files left in the appiconset that the new single-universal
@@ -256,6 +276,38 @@ internal abstract class SyncIosLogoTask : DefaultTask() {
                     (if (omitted > 0) "\n    … and $omitted more" else "") +
                     "\n  Delete them to silence Xcode's \"unassigned children\" warning."
         )
+    }
+
+    /**
+     * Takes back a catalog this task installed and nobody wants now.
+     *
+     * Only files the receipt still vouches for are removed; the folder goes too
+     * once it is empty. Without a receipt there is nothing of ours to remove.
+     */
+    private fun removeInstalledCatalog(dry: Boolean) {
+        val outDir = appiconsetDir.asFile.get()
+        val root = projectRootDir.asFile.get()
+        val catalogIdentity = runCatching { catalogIdentity(root, outDir) }.getOrNull() ?: return
+        val manifest = (outDir.parentFile?.parentFile ?: outDir.parentFile ?: outDir)
+            .resolve(".kiteconfig/$catalogIdentity/owned-files-v1")
+        if (!manifest.isFile) return
+        if (dry) {
+            logger.lifecycle("[kiteConfig][dry-run] would remove the iOS debug AppIcon owned by $catalogIdentity.")
+            return
+        }
+        val removed = OwnedOutputSafety.removeInstalledFiles(
+            installationRoot = outDir,
+            manifestFile = manifest,
+            projectRoot = root,
+            owner = catalogIdentity,
+        )
+        if (outDir.isDirectory && outDir.list().isNullOrEmpty()) outDir.delete()
+        if (removed.isNotEmpty()) {
+            logger.lifecycle(
+                "[kiteConfig] The iOS debug icon is off, so ${removed.size} file(s) it installed were removed from " +
+                    displayProjectPath(root, outDir) + ".",
+            )
+        }
     }
 
     companion object {

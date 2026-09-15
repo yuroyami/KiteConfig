@@ -218,6 +218,7 @@ public class KiteConfigPlugin : Plugin<Project> {
         registerSanitizeIosTask(target, ext)
         registerSyncIosTask(target, ext)
         registerSyncIosLogoTask(target, ext)
+        registerSyncIosDebugLogoTask(target, ext)
         registerSyncAndroidLogoTask(target, ext, resolvedAndroidAppDirectory, androidOutputApproved)
         registerCleanupLegacyLogoTask(target, ext, resolvedAndroidAppDirectory, androidOutputApproved)
         // One verb. kiteApply applies every selected platform's plan; the
@@ -231,7 +232,7 @@ public class KiteConfigPlugin : Plugin<Project> {
         target.tasks.register("kiteApplyIos") {
             group = "kiteconfig"
             description = "Applies the iOS source changes: Xcode settings, plist, catalog, launch screen."
-            dependsOn("kiteInternalIosConfig", "kiteInternalPlistClean", "kiteInternalIosLogo")
+            dependsOn("kiteInternalIosConfig", "kiteInternalPlistClean", "kiteInternalIosLogo", "kiteInternalIosDebugLogo")
         }
         target.tasks.register("kiteApply") {
             group = "kiteconfig"
@@ -1037,6 +1038,18 @@ public class KiteConfigPlugin : Plugin<Project> {
             targetNames.set(ext.effectiveIosTargets)
             iosSharedModuleName.set(ext.effectiveIosSharedModuleName)
             iosPreviousSharedModuleName.set(ext.effectiveIosPreviousSharedModuleName)
+            debugConfigurationNames.set(ext.effectiveIosDebugConfigurations)
+            debugBundleId.set(
+                ext.effectiveDebugAppIdFor(KitePlatform.IOS).map { id -> id.takeIf { ext.debugAppIdFlowsTo(KitePlatform.IOS).get() } },
+            )
+            debugAppName.set(
+                ext.effectiveDebugAppNameFor(KitePlatform.IOS).map { name -> name.takeIf { ext.debugAppNameFlowsTo(KitePlatform.IOS).get() } },
+            )
+            debugAppIconName.set(
+                ext.iosDebugAppIconDirectory.map { dir ->
+                    if (ext.debugLogoFlowsTo(KitePlatform.IOS).get()) iosAppIconCatalogName(dir.asFile.name) else null
+                },
+            )
             propagateVersion.set(ext.versionFlowsTo(KitePlatform.IOS))
             propagateAppName.set(ext.effectiveAppNameFor(KitePlatform.IOS).map { ext.appNameFlowsTo(KitePlatform.IOS).get() }.orElse(false))
             propagateBundleId.set(ext.appId.map { ext.appIdFlowsTo(KitePlatform.IOS).get() }.orElse(false))
@@ -1073,6 +1086,33 @@ public class KiteConfigPlugin : Plugin<Project> {
             overlayPng.set(ext.effectiveLogoOverlayFor(KitePlatform.IOS))
             appiconsetDir.set(ext.effectiveIosAppIconDirectory)
             outputFiles.from(ext.effectiveIosAppIconDirectory.map { dir -> SyncIosLogoTask.OUTPUT_FILE_NAMES.map { dir.file(it) } })
+            dryRun.set(ext.effectiveDryRun)
+            backup.set(ext.effectiveBackups)
+        }
+
+    /**
+     * The debug catalog installer: the release task class pointed at the sibling
+     * catalog, with an install switch that takes the catalog back out when off.
+     */
+    private fun registerSyncIosDebugLogoTask(
+        root: Project,
+        ext: KiteConfigExtension,
+    ): TaskProvider<SyncIosLogoTask> =
+        root.tasks.register<SyncIosLogoTask>("kiteInternalIosDebugLogo") {
+            val installCondition = KiteOperationPlanner.enabled(ext, KiteOperation.IOS_DEBUG_APP_ICON)
+            val removalCondition = KiteOperationPlanner.enabled(ext, KiteOperation.IOS_DEBUG_APP_ICON_REMOVAL)
+            onlyIf { installCondition.get() || removalCondition.get() }
+            description = "Composite the debug icon into the iOS AppIcon-Debug.appiconset, or remove it when off."
+            debugVariant.set(true)
+            install.set(installCondition)
+            foregroundPng.set(ext.effectiveDebugLogoForegroundFor(KitePlatform.IOS))
+            projectRootDir.set(root.layout.projectDirectory)
+            backgroundPng.fileProvider(ext.effectiveDebugLogoBackgroundImageFor(KitePlatform.IOS))
+            backgroundColorHex.set(ext.effectiveDebugLogoBackgroundColorFor(KitePlatform.IOS))
+            foregroundScale.set(ext.effectiveDebugLogoScaleFor(KitePlatform.IOS))
+            overlayPng.set(ext.effectiveDebugLogoOverlayFor(KitePlatform.IOS))
+            appiconsetDir.set(ext.iosDebugAppIconDirectory)
+            outputFiles.from(ext.iosDebugAppIconDirectory.map { dir -> SyncIosLogoTask.OUTPUT_FILE_NAMES.map { dir.file(it) } })
             dryRun.set(ext.effectiveDryRun)
             backup.set(ext.effectiveBackups)
         }

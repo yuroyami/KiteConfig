@@ -18,6 +18,8 @@ internal enum class KiteOperation(val description: String, val platform: KitePla
     IOS_APP_ICON("install the Apple AppIcon assets", KitePlatform.IOS),
     IOS_SPLASH("install the iOS launch screen and its assets", KitePlatform.IOS),
     IOS_SPLASH_REMOVAL("remove the iOS launch screen this plugin installed earlier", KitePlatform.IOS),
+    IOS_DEBUG_APP_ICON("install the Apple debug AppIcon assets", KitePlatform.IOS),
+    IOS_DEBUG_APP_ICON_REMOVAL("remove the Apple debug AppIcon this plugin installed earlier", KitePlatform.IOS),
     ANDROID_LAUNCHER_ICON("install the Android launcher icons", KitePlatform.ANDROID),
     ANDROID_LEGACY_ICONS("take over the launcher icons already at those paths", KitePlatform.ANDROID),
 }
@@ -66,6 +68,12 @@ internal object KiteOperationPlanner {
         KiteOperation.IOS_SPLASH_REMOVAL -> ext.effectiveSyncIos
             .zip(ext.effectiveIosSplash) { ios, splash -> ios && !splash }
 
+        KiteOperation.IOS_DEBUG_APP_ICON -> ext.debugLogoFlowsTo(KitePlatform.IOS)
+
+        // Same reconciliation for the debug catalog: off, but iOS still selected.
+        KiteOperation.IOS_DEBUG_APP_ICON_REMOVAL -> ext.effectiveSyncIos
+            .zip(ext.debugLogoFlowsTo(KitePlatform.IOS)) { ios, on -> ios && !on }
+
         KiteOperation.ANDROID_LAUNCHER_ICON -> ext.effectiveAndroidLogoInstall
         KiteOperation.ANDROID_LEGACY_ICONS -> ext.effectiveTakeOverLegacyIcons
     }
@@ -78,6 +86,8 @@ internal object KiteOperationPlanner {
         KiteOperation.IOS_APP_ICON -> "logo { foreground } reaches iOS"
         KiteOperation.IOS_SPLASH -> "splash { enabled } is true for iOS"
         KiteOperation.IOS_SPLASH_REMOVAL -> "splash is off for iOS, so anything installed earlier is removed"
+        KiteOperation.IOS_DEBUG_APP_ICON -> "debug { logo } reaches iOS"
+        KiteOperation.IOS_DEBUG_APP_ICON_REMOVAL -> "the debug icon is off for iOS, so anything installed earlier is removed"
         KiteOperation.ANDROID_LAUNCHER_ICON -> "logo { foreground } reaches Android"
         KiteOperation.ANDROID_LEGACY_ICONS -> "installing the launcher icon claims the paths it occupies"
     }
@@ -94,6 +104,7 @@ internal object KiteOperationPlanner {
             // A removal with nothing installed is noise, so it is listed only when
             // a receipt says something is there to take back out.
             .filter { it != KiteOperation.IOS_SPLASH_REMOVAL || installedSplashReceipt(root, ext) != null }
+            .filter { it != KiteOperation.IOS_DEBUG_APP_ICON_REMOVAL || installedDebugIconReceipt(root, ext) != null }
         return KiteOperationPlan(
             operations = operations,
             reasons = operations.associateWith(::reason),
@@ -112,6 +123,7 @@ internal object KiteOperationPlanner {
                 } else {
                     "explicit targets"
                 },
+                "ios.debugConfigurations" to ext.effectiveIosDebugConfigurations.get().joinToString(),
                 "desktop.identity" to if (ext.effectiveDesktopEnabled.get()) "enabled" else "disabled",
             ),
         )
@@ -124,6 +136,15 @@ internal object KiteOperationPlanner {
         val identity = runCatching { iosSplashCatalogIdentity(root.projectDir, assets) }.getOrNull()
             ?: return null
         return iosSplashManifestFile(assets, identity).takeIf(File::isFile)
+    }
+
+    /** The receipt for a debug catalog this plugin installed earlier, when one exists. */
+    private fun installedDebugIconReceipt(root: Project, ext: KiteConfigExtension): File? {
+        val icons = runCatching { ext.iosDebugAppIconDirectory.get().asFile }.getOrNull() ?: return null
+        val identity = runCatching { SyncIosLogoTask.catalogIdentity(root.projectDir, icons) }.getOrNull() ?: return null
+        return (icons.parentFile?.parentFile ?: icons.parentFile ?: icons)
+            .resolve(".kiteconfig/$identity/owned-files-v1")
+            .takeIf(File::isFile)
     }
 
     /** Every path the plan may touch, including receipts, locks, and recovery copies. */
@@ -156,8 +177,7 @@ internal object KiteOperationPlanner {
             addTextTarget(ext.effectiveIosPodfile.get().asFile)
             add(ext.effectiveIosAppDirectory.get().asFile.path)
         }
-        if (KiteOperation.IOS_APP_ICON in operations) {
-            val icons = ext.effectiveIosAppIconDirectory.get().asFile
+        fun addAppIconPaths(icons: File) {
             add(icons.path)
             val identity = SyncIosLogoTask.catalogIdentity(root.projectDir, icons)
             val metadata = (icons.parentFile?.parentFile ?: icons.parentFile ?: icons)
@@ -166,6 +186,12 @@ internal object KiteOperationPlanner {
             add(manifest.path)
             add(manifest.path + ".lock")
             if (backups) add(root.projectDir.resolve(".kiteconfig/recovery/ios-appicon/$identity").path)
+        }
+        if (KiteOperation.IOS_APP_ICON in operations) {
+            addAppIconPaths(ext.effectiveIosAppIconDirectory.get().asFile)
+        }
+        if (KiteOperation.IOS_DEBUG_APP_ICON in operations || KiteOperation.IOS_DEBUG_APP_ICON_REMOVAL in operations) {
+            addAppIconPaths(ext.iosDebugAppIconDirectory.get().asFile)
         }
         if (KiteOperation.ANDROID_LAUNCHER_ICON in operations) {
             androidResourceDirectories.forEach { res ->

@@ -159,6 +159,9 @@ internal fun discoverIosSwiftFiles(
  * [iosPreviousSharedModuleName] and [iosSharedModuleName]; it never guesses from
  * a Podfile.
  *
+ * The build configurations named in [debugConfigurationNames] get the debug
+ * bundle id, name and icon set instead of the release ones, when those are set.
+ *
  * When [splashEnabled] is on, the same plist transaction also writes the
  * `UILaunchScreen` dictionary, and the splash color/image sets are installed in
  * the asset catalog that holds the configured [appiconsetDir].
@@ -188,6 +191,7 @@ internal abstract class SyncIosConfigTask : DefaultTask() {
         splashEnabled.convention(false)
         infoPlistExplicit.convention(false)
         pbxprojExplicit.convention(false)
+        debugConfigurationNames.convention(listOf("Debug"))
         backupDir.convention(project.layout.projectDirectory.dir(".kiteconfig/recovery/ios-splash"))
     }
 
@@ -209,6 +213,12 @@ internal abstract class SyncIosConfigTask : DefaultTask() {
     @get:Input abstract val targetNames: ListProperty<String>
     @get:Input @get:Optional abstract val iosSharedModuleName: Property<String>
     @get:Input @get:Optional abstract val iosPreviousSharedModuleName: Property<String>
+
+    /** The build configurations that receive the debug values. */
+    @get:Input abstract val debugConfigurationNames: ListProperty<String>
+    @get:Input @get:Optional abstract val debugBundleId: Property<String>
+    @get:Input @get:Optional abstract val debugAppName: Property<String>
+    @get:Input @get:Optional abstract val debugAppIconName: Property<String>
 
     @get:Input abstract val propagateVersion: Property<Boolean>
     @get:Input abstract val propagateAppName: Property<Boolean>
@@ -453,6 +463,17 @@ internal abstract class SyncIosConfigTask : DefaultTask() {
         } else {
             null
         }
+        // Each debug value is gated like its release value, the same way the doctor reads it.
+        val override = PbxConfigurationOverride(
+            appName = debugAppName.orNull.takeIf { propagateAppName.get() },
+            bundleId = debugBundleId.orNull.takeIf { propagateBundleId.get() },
+            appIconName = debugAppIconName.orNull.takeIf { propagateLogo.get() },
+        )
+        val overrides = if (override == PbxConfigurationOverride()) {
+            emptyMap()
+        } else {
+            debugConfigurationNames.get().associateWith { override }
+        }
         val result = rewritePbxproj(
             original = snapshot.text,
             marketingVersion = marketingVersion.orNull.takeIf { propagateVersion.get() },
@@ -462,6 +483,7 @@ internal abstract class SyncIosConfigTask : DefaultTask() {
             locales = locales.get().takeIf { propagateLocaleList.get() },
             targetNames = requestedTargets,
             appIconName = appIconName,
+            configurationOverrides = overrides,
         )
         result.warnings.forEach { logger.warn("[kiteConfig] $it") }
         if (result.errors.isNotEmpty()) {
@@ -472,7 +494,8 @@ internal abstract class SyncIosConfigTask : DefaultTask() {
             plan += it
             val reformatted = if (result.reformattedSettings.isEmpty()) "" else " reformatted=${result.reformattedSettings.joinToString()}"
             summary += "pbxproj targets=${result.selectedTargets.joinToString().ifEmpty { "project metadata only" }} " +
-                "changed=${result.changedSettings.joinToString().ifEmpty { "none" }}$reformatted"
+                "changed=${result.changedSettings.joinToString().ifEmpty { "none" }}$reformatted" +
+                (if (overrides.isEmpty()) "" else " debug=${overrides.keys.joinToString()}")
         }
     }
 
