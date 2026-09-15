@@ -138,4 +138,49 @@ class DslScopeTest {
             "the documented surface",
         )
     }
+
+    @Test
+    fun `desktop has no debug corner`() {
+        refuses(
+            """desktop { debug { appName = "Jetzy Dev" } }""",
+            because = "desktop has no debug build",
+        )
+    }
+
+    @Test
+    fun `the debug leaves stay on the platform that has them`() {
+        refuses("""android { debug { configurations("Debug") } }""", because = "configurations is an iOS leaf")
+        refuses("""ios { debug { buildTypes("debug") } }""", because = "buildTypes is an Android leaf")
+    }
+
+    @Test
+    fun `the documented debug overrides all compile`() {
+        accepts(
+            """
+            appName = "Jetzy"
+            appId = "com.example.jetzy"
+            debug {
+                appId { suffix = ".debug" }
+                appName = "Jetzy Dev"
+                logo { overlay = file("art/ribbon.png") }
+            }
+            android {
+                debug {
+                    appId { suffix = ".dev" }
+                    buildTypes("debug", "staging")
+                }
+            }
+            ios {
+                debug {
+                    appName = "Jetzy (Xcode)"
+                    configurations("Debug")
+                    appName { enabled = true }
+                    appId { enabled = true }
+                    logo { enabled = false }
+                }
+            }
+            """.trimIndent(),
+            because = "every documented debug override is part of the surface",
+        )
+    }
 }

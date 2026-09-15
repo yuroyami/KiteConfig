@@ -435,6 +435,148 @@ public abstract class KiteConfigExtension : KiteFlowScope(), KiteConfigValues {
     internal val logoDeclared: Provider<Boolean>
         get() = logo.foreground.map { true }.orElse(false)
 
+    // ------------------------------------------------------------------- Debug
+
+    /** The debug topic: what the debug build changes. Off until a value is set. */
+    public fun debug(action: Action<in KiteDebugScope>): Unit = action.execute(debug)
+
+    internal val debug: KiteDebugScope
+        get() = nested()
+
+    /** The platform's own debug corner. Desktop has no debug build. */
+    internal fun debugCornerFor(p: KitePlatform): KiteDebugScope? = when (p) {
+        KitePlatform.ANDROID -> android.androidDebug
+        KitePlatform.IOS -> ios.iosDebug
+        KitePlatform.DESKTOP -> null
+    }
+
+    private fun <T : Any> absent(): Provider<T> {
+        @Suppress("UNCHECKED_CAST")
+        return providers.provider { null } as Provider<T>
+    }
+
+    private fun no(): Provider<Boolean> = providers.provider { false }
+
+    /** The debug name for [p], absent when none was declared. */
+    internal fun debugAppNameOverrideFor(p: KitePlatform): Provider<String> {
+        val corner = debugCornerFor(p) ?: return absent()
+        return corner.appName.orElse(debug.appName)
+    }
+
+    /** The name the debug build of [p] shows: its own, else the release name. */
+    internal fun effectiveDebugAppNameFor(p: KitePlatform): Provider<String> =
+        debugAppNameOverrideFor(p).orElse(effectiveAppNameFor(p))
+
+    internal fun debugAppNameFlowsTo(p: KitePlatform): Provider<Boolean> {
+        val corner = debugCornerFor(p) ?: return no()
+        return appNameFlowsTo(p).flatMap { on ->
+            if (!on) {
+                no()
+            } else {
+                corner.appNameDetails.enabled.orElse(debug.appNameDetails.enabled).orElse(true)
+                    .zip(debugAppNameOverrideFor(p).map { true }.orElse(false)) { enabled, declared -> enabled && declared }
+            }
+        }
+    }
+
+    /** The debug suffix for [p], absent when none was declared. */
+    internal fun debugAppIdSuffixFor(p: KitePlatform): Provider<String> {
+        val corner = debugCornerFor(p) ?: return absent()
+        return corner.appIdDetails.suffix.orElse(debug.appIdDetails.suffix)
+    }
+
+    /** True when the debug identifier was given exactly rather than as a suffix. */
+    internal fun debugAppIdIsExactFor(p: KitePlatform): Provider<Boolean> {
+        val corner = debugCornerFor(p) ?: return no()
+        return corner.appId.orElse(debug.appId).map { true }.orElse(false)
+    }
+
+    /** The debug identifier for [p], absent when none was declared or a suffix has no base. */
+    internal fun debugAppIdOverrideFor(p: KitePlatform): Provider<String> {
+        val corner = debugCornerFor(p) ?: return absent()
+        return corner.appId.orElse(debug.appId).orElse(
+            effectiveAppIdFor(p).zip(debugAppIdSuffixFor(p)) { base, suffix -> base + suffix },
+        )
+    }
+
+    /** The identifier the debug build of [p] gets: its own, else the release identifier. */
+    internal fun effectiveDebugAppIdFor(p: KitePlatform): Provider<String> =
+        debugAppIdOverrideFor(p).orElse(effectiveAppIdFor(p))
+
+    /** A debug identifier was asked for on [p], exact or as a suffix, with delivery on. */
+    internal fun debugAppIdRequestedFor(p: KitePlatform): Provider<Boolean> {
+        val corner = debugCornerFor(p) ?: return no()
+        return appIdFlowsTo(p).flatMap { on ->
+            if (!on) {
+                no()
+            } else {
+                val declared = debugAppIdIsExactFor(p)
+                    .zip(debugAppIdSuffixFor(p).map { true }.orElse(false)) { exact, suffix -> exact || suffix }
+                corner.appIdDetails.enabled.orElse(debug.appIdDetails.enabled).orElse(true)
+                    .zip(declared) { enabled, asked -> enabled && asked }
+            }
+        }
+    }
+
+    internal fun debugAppIdFlowsTo(p: KitePlatform): Provider<Boolean> =
+        debugAppIdRequestedFor(p).flatMap { asked ->
+            if (!asked) no() else debugAppIdOverrideFor(p).map { true }.orElse(false)
+        }
+
+    /** One debug logo leaf: the platform corner, then the root debug block, then the release value. */
+    private fun <T : Any> debugLogoLeafFor(
+        p: KitePlatform,
+        release: Provider<T>,
+        leaf: (KiteLogoScope) -> Provider<T>,
+    ): Provider<T> {
+        val corner = debugCornerFor(p) ?: return release
+        return leaf(corner.logoDetails).orElse(leaf(debug.logoDetails)).orElse(release)
+    }
+
+    internal fun effectiveDebugLogoForegroundFor(p: KitePlatform): Provider<org.gradle.api.file.RegularFile> =
+        debugLogoLeafFor(p, effectiveLogoForegroundFor(p)) { it.foreground }
+
+    internal fun effectiveDebugLogoBackgroundFor(p: KitePlatform): Provider<LogoBackground> =
+        debugLogoLeafFor(p, effectiveLogoBackgroundFor(p)) { it.background }
+
+    internal fun effectiveDebugLogoBackgroundImageFor(p: KitePlatform): Provider<java.io.File> =
+        effectiveDebugLogoBackgroundFor(p).map { (it as? LogoBackground.Image)?.file }
+
+    internal fun effectiveDebugLogoBackgroundColorFor(p: KitePlatform): Provider<String> =
+        effectiveDebugLogoBackgroundFor(p).map { (it as? LogoBackground.Color)?.hex }
+
+    internal fun effectiveDebugLogoScaleFor(p: KitePlatform): Provider<Double> =
+        debugLogoLeafFor(p, effectiveLogoScaleFor(p)) { it.foregroundScale }
+
+    internal fun effectiveDebugLogoOverlayFor(p: KitePlatform): Provider<org.gradle.api.file.RegularFile> =
+        debugLogoLeafFor(p, effectiveLogoOverlayFor(p)) { it.overlay }
+
+    /** A debug icon exists for [p] once any debug logo leaf is set, in its corner or at the root. */
+    internal fun debugLogoDeclaredFor(p: KitePlatform): Provider<Boolean> {
+        val corner = debugCornerFor(p) ?: return no()
+        fun declared(scope: KiteLogoScope): Provider<Boolean> =
+            scope.foreground.map { true }
+                .orElse(scope.background.map { true })
+                .orElse(scope.foregroundScale.map { true })
+                .orElse(scope.overlay.map { true })
+                .orElse(false)
+        return declared(corner.logoDetails).zip(declared(debug.logoDetails)) { a, b -> a || b }
+    }
+
+    /** The debug icon reaches [p] when the release icon does and a debug leaf exists, unless switched off. */
+    internal fun debugLogoFlowsTo(p: KitePlatform): Provider<Boolean> {
+        val corner = debugCornerFor(p) ?: return no()
+        return logoFlowsTo(p).flatMap { on ->
+            if (!on) no() else corner.logoDetails.enabled.orElse(debug.logoDetails.enabled).orElse(debugLogoDeclaredFor(p))
+        }
+    }
+
+    internal val effectiveAndroidDebugBuildTypes: Provider<List<String>>
+        get() = android.androidDebug.buildTypes
+
+    internal val effectiveIosDebugConfigurations: Provider<List<String>>
+        get() = ios.iosDebug.configurations
+
     /**
      * Kotlin/Native interop opt-in markers. Configure with
      * `kiteConfig { optIns { } }`.
@@ -543,6 +685,14 @@ public abstract class KiteConfigExtension : KiteFlowScope(), KiteConfigValues {
     /** The app name as [platform] receives it, corner overrides applied. */
     override fun appNameFor(platform: KitePlatform): Provider<String> =
         effectiveAppNameFor(platform)
+
+    /** The identifier the debug build of [platform] gets. See [KiteConfigValues.debugAppIdFor]. */
+    override fun debugAppIdFor(platform: KitePlatform): Provider<String> =
+        effectiveDebugAppIdFor(platform)
+
+    /** The name the debug build of [platform] shows. See [KiteConfigValues.debugAppNameFor]. */
+    override fun debugAppNameFor(platform: KitePlatform): Provider<String> =
+        effectiveDebugAppNameFor(platform)
 
     /** Lowest Android API level the app runs on. */
     override val minSdk: Provider<Int>
@@ -732,6 +882,9 @@ public abstract class KiteConfigExtension : KiteFlowScope(), KiteConfigValues {
         get() = ios.pbxproj.map { true }.orElse(false)
 
     internal abstract val defaultIosPbxproj: org.gradle.api.file.RegularFileProperty
+
+    /** The catalog that holds the debug icon, `AppIcon-Debug.appiconset` beside the release catalog. */
+    internal abstract val iosDebugAppIconDirectory: DirectoryProperty
 
     internal val effectiveIosPodfile: Provider<org.gradle.api.file.RegularFile>
         get() = ios.podfile

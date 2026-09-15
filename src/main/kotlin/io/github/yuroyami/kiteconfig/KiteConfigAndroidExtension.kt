@@ -8,7 +8,7 @@ import org.gradle.api.provider.Property
  * ```kotlin
  * kiteConfig {
  *     appId = "com.example.jetzy"
- *     android { appId { suffix = ".debug" } }
+ *     android { appId { suffix = ".android" } }
  *     version = "1.4.0"
  *     android { version { rebuild = 1 } }
  *
@@ -87,6 +87,14 @@ public abstract class KiteConfigAndroidExtension : KitePlatformExtension() {
     internal val androidLocales: KiteAndroidLocalesScope
         get() = (this as org.gradle.api.plugins.ExtensionAware)
             .extensions.getByType(KiteAndroidLocalesScope::class.java)
+
+
+    /** What the debug build changes on Android: identifier, name, icon, and which build types count. */
+    public fun debug(action: org.gradle.api.Action<in KiteAndroidDebugScope>): Unit = action.execute(androidDebug)
+
+    internal val androidDebug: KiteAndroidDebugScope
+        get() = (this as org.gradle.api.plugins.ExtensionAware)
+            .extensions.getByType(KiteAndroidDebugScope::class.java)
 
 
     final override val platform: KitePlatform = KitePlatform.ANDROID

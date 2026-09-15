@@ -82,6 +82,13 @@ public abstract class KiteConfigIosExtension : KitePlatformExtension() {
     public fun locales(action: org.gradle.api.Action<in KiteLocalesScope>): Unit = action.execute(localesDetails)
 
 
+    /** What the debug build changes on iOS: identifier, name, icon, and which configurations count. */
+    public fun debug(action: Action<in KiteIosDebugScope>): Unit = action.execute(iosDebug)
+
+    internal val iosDebug: KiteIosDebugScope
+        get() = (this as ExtensionAware).extensions.getByType(KiteIosDebugScope::class.java)
+
+
     final override val platform: KitePlatform = KitePlatform.IOS
 
     // --- Identity -------------------------------------------------------------

@@ -10,6 +10,12 @@ public final class io/github/yuroyami/kiteconfig/ConfigVersion {
 public abstract interface annotation class io/github/yuroyami/kiteconfig/DiscouragedKiteApi : java/lang/annotation/Annotation {
 }
 
+public abstract class io/github/yuroyami/kiteconfig/KiteAndroidDebugScope : io/github/yuroyami/kiteconfig/KiteDebugScope {
+	public fun <init> ()V
+	public final fun buildTypes ([Ljava/lang/String;)V
+	public abstract fun getBuildTypes ()Lorg/gradle/api/provider/ListProperty;
+}
+
 public abstract class io/github/yuroyami/kiteconfig/KiteAndroidLocalesScope : io/github/yuroyami/kiteconfig/KiteLocalesScope {
 	public fun <init> ()V
 	public abstract fun getFilterResources ()Lorg/gradle/api/provider/Property;
@@ -33,6 +39,7 @@ public abstract class io/github/yuroyami/kiteconfig/KiteAppNameScope {
 
 public abstract class io/github/yuroyami/kiteconfig/KiteConfigAndroidExtension : io/github/yuroyami/kiteconfig/KitePlatformExtension {
 	public fun <init> ()V
+	public final fun debug (Lorg/gradle/api/Action;)V
 	public abstract fun getCompileSdk ()Lorg/gradle/api/provider/Property;
 	public abstract fun getMinSdk ()Lorg/gradle/api/provider/Property;
 	public abstract fun getNdk ()Lorg/gradle/api/provider/Property;
@@ -84,6 +91,9 @@ public abstract class io/github/yuroyami/kiteconfig/KiteConfigExtension : io/git
 	public fun appIdFor (Lio/github/yuroyami/kiteconfig/KitePlatform;)Lorg/gradle/api/provider/Provider;
 	public fun appNameFor (Lio/github/yuroyami/kiteconfig/KitePlatform;)Lorg/gradle/api/provider/Provider;
 	public final fun buildConfig (Lorg/gradle/api/Action;)V
+	public final fun debug (Lorg/gradle/api/Action;)V
+	public fun debugAppIdFor (Lio/github/yuroyami/kiteconfig/KitePlatform;)Lorg/gradle/api/provider/Provider;
+	public fun debugAppNameFor (Lio/github/yuroyami/kiteconfig/KitePlatform;)Lorg/gradle/api/provider/Provider;
 	public final fun desktop (Lorg/gradle/api/Action;)V
 	public final fun getAndroid ()Lio/github/yuroyami/kiteconfig/KiteConfigAndroidExtension;
 	public fun getAndroidApplicationId ()Lorg/gradle/api/provider/Provider;
@@ -139,6 +149,7 @@ public abstract class io/github/yuroyami/kiteconfig/KiteConfigIoWorkerExtension 
 
 public abstract class io/github/yuroyami/kiteconfig/KiteConfigIosExtension : io/github/yuroyami/kiteconfig/KitePlatformExtension {
 	public fun <init> ()V
+	public final fun debug (Lorg/gradle/api/Action;)V
 	public abstract fun getAppDirectory ()Lorg/gradle/api/file/DirectoryProperty;
 	public abstract fun getAppIconDirectory ()Lorg/gradle/api/file/DirectoryProperty;
 	public abstract fun getPbxproj ()Lorg/gradle/api/file/RegularFileProperty;
@@ -186,6 +197,8 @@ public final class io/github/yuroyami/kiteconfig/KiteConfigPlugin$Companion {
 public abstract interface class io/github/yuroyami/kiteconfig/KiteConfigValues {
 	public abstract fun appIdFor (Lio/github/yuroyami/kiteconfig/KitePlatform;)Lorg/gradle/api/provider/Provider;
 	public abstract fun appNameFor (Lio/github/yuroyami/kiteconfig/KitePlatform;)Lorg/gradle/api/provider/Provider;
+	public abstract fun debugAppIdFor (Lio/github/yuroyami/kiteconfig/KitePlatform;)Lorg/gradle/api/provider/Provider;
+	public abstract fun debugAppNameFor (Lio/github/yuroyami/kiteconfig/KitePlatform;)Lorg/gradle/api/provider/Provider;
 	public abstract fun getAndroidApplicationId ()Lorg/gradle/api/provider/Provider;
 	public abstract fun getAppId ()Lorg/gradle/api/provider/Provider;
 	public abstract fun getAppName ()Lorg/gradle/api/provider/Provider;
@@ -216,6 +229,15 @@ public abstract class io/github/yuroyami/kiteconfig/KiteConfigWebExtension {
 	public final fun ioWorker (Lorg/gradle/api/Action;)V
 }
 
+public abstract class io/github/yuroyami/kiteconfig/KiteDebugScope {
+	public fun <init> ()V
+	public final fun appId (Lorg/gradle/api/Action;)V
+	public final fun appName (Lorg/gradle/api/Action;)V
+	public abstract fun getAppId ()Lorg/gradle/api/provider/Property;
+	public abstract fun getAppName ()Lorg/gradle/api/provider/Property;
+	public final fun logo (Lorg/gradle/api/Action;)V
+}
+
 public abstract class io/github/yuroyami/kiteconfig/KiteDesktopLogoScope : io/github/yuroyami/kiteconfig/KiteLogoScope {
 	public fun <init> ()V
 	public abstract fun getRoundMac ()Lorg/gradle/api/provider/Property;
@@ -235,6 +257,12 @@ public abstract class io/github/yuroyami/kiteconfig/KiteInfoPlistScope {
 	public abstract fun getNonExemptEncryption ()Lorg/gradle/api/provider/Property;
 	public abstract fun getPath ()Lorg/gradle/api/file/RegularFileProperty;
 	public abstract fun getProMotion ()Lorg/gradle/api/provider/Property;
+}
+
+public abstract class io/github/yuroyami/kiteconfig/KiteIosDebugScope : io/github/yuroyami/kiteconfig/KiteDebugScope {
+	public fun <init> ()V
+	public final fun configurations ([Ljava/lang/String;)V
+	public abstract fun getConfigurations ()Lorg/gradle/api/provider/ListProperty;
 }
 
 public abstract class io/github/yuroyami/kiteconfig/KiteJvmScope {

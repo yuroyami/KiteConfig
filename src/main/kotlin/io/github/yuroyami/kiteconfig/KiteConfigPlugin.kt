@@ -144,6 +144,27 @@ public class KiteConfigPlugin : Plugin<Project> {
             }
         }
 
+        // The debug topic: one root block, plus a corner on each platform that has a debug build.
+        val rootDebug = extAware.extensions.create<KiteDebugScope>("debug")
+        val androidDebug = (androidExtension as ExtensionAware).extensions.create<KiteAndroidDebugScope>("debugDetails")
+        androidDebug.buildTypes.convention(listOf("debug"))
+        val iosDebug = (iosExtension as ExtensionAware).extensions.create<KiteIosDebugScope>("debugDetails")
+        iosDebug.configurations.convention(listOf("Debug"))
+        listOf(rootDebug, androidDebug, iosDebug).forEach { scope ->
+            (scope as ExtensionAware).extensions.create<KiteAppNameScope>("appNameDetails")
+            scope.extensions.create<KiteAppIdScope>("appIdDetails")
+            scope.extensions.create<KiteLogoScope>("logoDetails")
+        }
+        // The debug catalog is the release catalog's sibling, named after it.
+        ext.iosDebugAppIconDirectory.set(
+            target.layout.dir(
+                ext.effectiveIosAppIconDirectory.map { catalog ->
+                    val release = catalog.asFile
+                    release.parentFile.resolve(release.name.removeSuffix(".appiconset") + "-Debug.appiconset")
+                },
+            ),
+        )
+
         // Resolve console colour once. Tasks receive only the Boolean, which keeps
         // them configuration-cache safe and stops every task action re-detecting.
         val colorSupported = target.provider {
@@ -1152,6 +1173,12 @@ public class KiteConfigPlugin : Plugin<Project> {
                 }
             })
             desktopIcons.set(ext.effectiveDesktopIcons)
+            debugAndroidAppName.set(ext.debugAppNameOverrideFor(KitePlatform.ANDROID))
+            debugIosAppName.set(ext.debugAppNameOverrideFor(KitePlatform.IOS))
+            debugAndroidApplicationId.set(root.resilientValue { ext.debugAppIdOverrideFor(KitePlatform.ANDROID).orNull })
+            debugIosBundleId.set(root.resilientValue { ext.debugAppIdOverrideFor(KitePlatform.IOS).orNull })
+            debugAndroidIcon.set(root.resilientValue { ext.debugLogoFlowsTo(KitePlatform.ANDROID).orNull })
+            debugIosIcon.set(root.resilientValue { ext.debugLogoFlowsTo(KitePlatform.IOS).orNull })
         }
 
     private fun registerDoctorTask(
@@ -1531,6 +1558,69 @@ public class KiteConfigPlugin : Plugin<Project> {
                         throw GradleException(failure.message ?: "Invalid iOS shared-module migration identifier", failure)
                     }
                 }
+                // Debug builds. An identifier equal to the release one could not
+                // install beside it, which is the whole point of the topic.
+                for (platform in listOf(KitePlatform.ANDROID, KitePlatform.IOS)) {
+                    val label = platform.name.lowercase()
+                    if (ext.debugAppIdRequestedFor(platform).get() && !ext.effectiveAppIdFor(platform).isPresent) {
+                        throw GradleException(
+                            "kiteConfig { debug { appId } } on $label needs the shared appId, because a debug " +
+                                "identifier is a variation of the release one.",
+                        )
+                    }
+                    if (ext.debugAppIdFlowsTo(platform).get()) {
+                        val debugId = ext.effectiveDebugAppIdFor(platform).get()
+                        if (platform == KitePlatform.ANDROID) validateAndroidApplicationId(debugId) else validateAppleBundleId(debugId)
+                        if (debugId == ext.effectiveAppIdFor(platform).get()) {
+                            throw GradleException(
+                                "kiteConfig { debug { appId } } resolves to the release identifier on $label " +
+                                    "($debugId), so the two builds could not be installed side by side. " +
+                                    "Give the debug build a suffix, for example appId { suffix = \".debug\" }.",
+                            )
+                        }
+                    }
+                    if (ext.debugAppNameFlowsTo(platform).get()) {
+                        val debugName = ext.effectiveDebugAppNameFor(platform).get()
+                        if (debugName.isBlank() || debugName.length > 255 || debugName.any(Char::isISOControl)) {
+                            throw GradleException(
+                                "kiteConfig { debug { appName } } must be non-blank, at most 255 characters, " +
+                                    "and contain no controls.",
+                            )
+                        }
+                    }
+                    if (ext.debugLogoFlowsTo(platform).get()) {
+                        if (!ext.effectiveDebugLogoForegroundFor(platform).isPresent) {
+                            throw GradleException(
+                                "kiteConfig { debug { logo } } has no foreground on $label. Set logo { foreground } " +
+                                    "at the root, or debug { logo { foreground } }.",
+                            )
+                        }
+                        if (!ext.effectiveDebugLogoBackgroundFor(platform).isPresent) {
+                            throw GradleException(
+                                "kiteConfig { debug { logo } } has no background on $label. Set " +
+                                    "background = color(\"#RRGGBB\") or background = image(file(\"...\")).",
+                            )
+                        }
+                        ext.effectiveDebugLogoBackgroundColorFor(platform).orNull?.let(::validateLogoBackgroundColorHex)
+                        ext.effectiveDebugLogoScaleFor(platform).orNull?.let(::validateLogoSafeZoneRatio)
+                    }
+                }
+                val debugBuildTypes = ext.effectiveAndroidDebugBuildTypes.get()
+                if (debugBuildTypes.isEmpty() || debugBuildTypes.distinct().size != debugBuildTypes.size ||
+                    debugBuildTypes.any { it.isBlank() || it.any(Char::isISOControl) }
+                ) {
+                    throw GradleException(
+                        "kiteConfig { android { debug { buildTypes } } } must contain unique, non-blank names without controls.",
+                    )
+                }
+                val debugConfigurations = ext.effectiveIosDebugConfigurations.get()
+                if (debugConfigurations.isEmpty() || debugConfigurations.distinct().size != debugConfigurations.size ||
+                    debugConfigurations.any { it.isBlank() || it.any(Char::isISOControl) }
+                ) {
+                    throw GradleException(
+                        "kiteConfig { ios { debug { configurations } } } must contain unique, non-blank names without controls.",
+                    )
+                }
                 // Safe-zone ratio sanity.
                 if (ext.effectiveAndroidLogoInstall.get() && ext.effectiveLogoSafeZone.isPresent) {
                     validateLogoSafeZoneRatio(ext.effectiveLogoSafeZone.get())
@@ -1671,7 +1761,17 @@ public class KiteConfigPlugin : Plugin<Project> {
         ) + listOf(
             ext.desktop.configured, ext.desktop.linuxPackageName,
             ext.desktop.deriveUpgradeUuid, ext.modules.desktopApps,
-        )
+        ) + debugModelValues(ext.debug) +
+            debugModelValues(ext.android.androidDebug) + listOf(ext.android.androidDebug.buildTypes) +
+            debugModelValues(ext.ios.iosDebug) + listOf(ext.ios.iosDebug.configurations)
+
+    private fun debugModelValues(scope: KiteDebugScope): List<HasConfigurableValue> = listOf(
+        scope.appName, scope.appId,
+        scope.appNameDetails.enabled,
+        scope.appIdDetails.suffix, scope.appIdDetails.enabled,
+        scope.logoDetails.foreground, scope.logoDetails.background,
+        scope.logoDetails.foregroundScale, scope.logoDetails.overlay, scope.logoDetails.enabled,
+    )
 
     public companion object {
         private const val MIN_GRADLE = "8.5"

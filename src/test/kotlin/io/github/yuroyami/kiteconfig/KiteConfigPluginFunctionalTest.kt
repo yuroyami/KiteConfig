@@ -2555,4 +2555,29 @@ class KiteConfigPluginFunctionalTest {
         assertEquals(0xB00020, icon.getRGB(512, 512) and 0xFFFFFF)
     }
 
+    @Test
+    fun `kiteVerify prints the debug identity`() {
+        write("settings.gradle.kts", "rootProject.name = \"fixture\"")
+        write(
+            "build.gradle.kts",
+            """
+            plugins { id("io.github.yuroyami.kiteconfig") }
+            kiteConfig {
+                appName = "Demo App"
+                appId = "com.demo.app"
+                debug {
+                    appId { suffix = ".debug" }
+                    appName = "Demo Dev"
+                }
+            }
+            """.trimIndent(),
+        )
+
+        val result = run("kiteVerify")
+
+        assertTrue(result.output.contains("Debug builds"), result.output)
+        assertTrue(Regex("""androidApplicationId\s+= com\.demo\.app\.debug""").containsMatchIn(result.output), result.output)
+        assertTrue(Regex("""iosBundleId\s+= com\.demo\.app\.debug""").containsMatchIn(result.output), result.output)
+        assertTrue(Regex("""appName \(ios\)\s+= Demo Dev""").containsMatchIn(result.output), result.output)
+    }
 }

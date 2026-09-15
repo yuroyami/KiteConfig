@@ -70,6 +70,12 @@ internal abstract class KiteConfigVerifyTask : DefaultTask() {
     @get:Internal abstract val desktopUpgradeCode: Property<String>
     @get:Internal abstract val desktopLinuxPackageName: Property<String>
     @get:Internal abstract val desktopIcons: Property<Boolean>
+    @get:Internal abstract val debugAndroidAppName: Property<String>
+    @get:Internal abstract val debugIosAppName: Property<String>
+    @get:Internal abstract val debugAndroidApplicationId: Property<String>
+    @get:Internal abstract val debugIosBundleId: Property<String>
+    @get:Internal abstract val debugAndroidIcon: Property<Boolean>
+    @get:Internal abstract val debugIosIcon: Property<Boolean>
     @get:Internal abstract val projectRootDir: DirectoryProperty
 
     @TaskAction
@@ -141,6 +147,15 @@ internal abstract class KiteConfigVerifyTask : DefaultTask() {
                     "upgradeCode" to show(desktopUpgradeCode),
                     "linuxPackageName" to show(desktopLinuxPackageName),
                     "icons" to show(desktopIcons),
+                ).forEach(::appendLine)
+                appendLine(section("Debug builds"))
+                rows(
+                    "appName (android)" to show(debugAndroidAppName),
+                    "appName (ios)" to show(debugIosAppName),
+                    "androidApplicationId" to show(debugAndroidApplicationId),
+                    "iosBundleId" to show(debugIosBundleId),
+                    "icon (android)" to show(debugAndroidIcon),
+                    "icon (ios)" to show(debugIosIcon),
                 ).forEach(::appendLine)
                 appendLine(section("iOS target files"))
                 rows(
