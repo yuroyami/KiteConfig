@@ -2,6 +2,7 @@ package io.github.yuroyami.kiteconfig
 
 import org.gradle.api.GradleException
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Assumptions.assumeTrue
@@ -140,5 +141,34 @@ class ImageOpsTest {
         // radius of 25 the corner circle is centred at (25,25), so (5,5) lies
         // 28.3 away and is cut. A half-size radius would leave (5,5) opaque.
         assertEquals(0, rounded.getRGB(5, 5) ushr 24)
+    }
+
+    @Test
+    fun `an overlay is drawn in the foreground's frame and leaves the rest untouched`() {
+        val fg = BufferedImage(64, 64, BufferedImage.TYPE_INT_ARGB).also { image ->
+            image.createGraphics().apply { color = Color.BLUE; fillRect(0, 0, 64, 64); dispose() }
+        }
+        val overlay = BufferedImage(64, 64, BufferedImage.TYPE_INT_ARGB).also { image ->
+            image.createGraphics().apply { color = Color.RED; fillRect(56, 56, 8, 8); dispose() }
+        }
+
+        val merged = applyLogoOverlay(fg, overlay)
+
+        assertEquals(64, merged.width)
+        assertEquals(64, merged.height)
+        assertEquals(Color.RED.rgb, merged.getRGB(60, 60))
+        assertEquals(Color.BLUE.rgb, merged.getRGB(4, 4))
+    }
+
+    @Test
+    fun `an overlay changes the input fingerprint and its absence keeps the old one`() {
+        val fg = directory.resolve("fg.png").also { ImageIO.write(BufferedImage(8, 8, BufferedImage.TYPE_INT_ARGB), "PNG", it) }
+        val overlay = directory.resolve("overlay.png").also { ImageIO.write(BufferedImage(8, 8, BufferedImage.TYPE_INT_ARGB), "PNG", it) }
+
+        val plain = logoInputFingerprintForFiles("renderer-v1", fg, null, "#102A43")
+        val badged = logoInputFingerprintForFiles("renderer-v1", fg, null, "#102A43", overlay = overlay)
+
+        assertNotEquals(plain, badged)
+        assertEquals(plain, logoInputFingerprintForFiles("renderer-v1", fg, null, "#102A43", overlay = null))
     }
 }

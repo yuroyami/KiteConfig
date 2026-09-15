@@ -1048,6 +1048,7 @@ public class KiteConfigPlugin : Plugin<Project> {
             backgroundPng.fileProvider(ext.effectiveLogoBackgroundImageFor(KitePlatform.IOS))
             backgroundColorHex.set(ext.effectiveLogoBackgroundColorFor(KitePlatform.IOS))
             foregroundScale.set(ext.effectiveLogoScaleFor(KitePlatform.IOS))
+            overlayPng.set(ext.effectiveLogoOverlayFor(KitePlatform.IOS))
             appiconsetDir.set(ext.effectiveIosAppIconDirectory)
             outputFiles.from(ext.effectiveIosAppIconDirectory.map { dir -> SyncIosLogoTask.OUTPUT_FILE_NAMES.map { dir.file(it) } })
             dryRun.set(ext.effectiveDryRun)
@@ -1068,6 +1069,7 @@ public class KiteConfigPlugin : Plugin<Project> {
             backgroundPng.fileProvider(ext.effectiveLogoBackgroundImageFor(KitePlatform.ANDROID))
             backgroundColorHex.set(ext.effectiveLogoBackgroundColorFor(KitePlatform.ANDROID))
             safeZoneRatio.set(ext.effectiveLogoSafeZone)
+            overlayPng.set(ext.effectiveLogoOverlayFor(KitePlatform.ANDROID))
             emitMonochrome.set(ext.android.compileSdk.map { it >= 33 }.orElse(false))
             cleanupLegacyArtifacts.set(ext.effectiveTakeOverLegacyIcons)
             outputSinkApproved.set(androidOutputApproved)
@@ -1292,6 +1294,7 @@ public class KiteConfigPlugin : Plugin<Project> {
                         "emitMonochrome" to (ext.android.compileSdk.orNull?.let { it >= 33 } == true).toString(),
                         "safeZoneRatio" to ext.effectiveLogoSafeZone.get().toString(),
                     ),
+                    overlay = ext.effectiveLogoOverlayFor(KitePlatform.ANDROID).orNull?.asFile,
                 )
             }
         })
@@ -1304,6 +1307,7 @@ public class KiteConfigPlugin : Plugin<Project> {
                     foreground = ext.effectiveLogoForeground.get().asFile,
                     background = ext.effectiveLogoBackground.orNull,
                     backgroundColor = ext.effectiveLogoBackgroundColor.orNull,
+                    overlay = ext.effectiveLogoOverlayFor(KitePlatform.IOS).orNull?.asFile,
                 )
             }
         })
@@ -1617,7 +1621,7 @@ public class KiteConfigPlugin : Plugin<Project> {
             ext.skipped, ext.allowed,
         ) + listOf(
             ext.localesScope.tags,
-            ext.logo.foreground, ext.logo.background, ext.logo.foregroundScale,
+            ext.logo.foreground, ext.logo.background, ext.logo.foregroundScale, ext.logo.overlay,
             ext.logo.enabled,
             ext.splash.enabled,
             ext.splash.image, ext.splash.backgroundColor,
@@ -1642,7 +1646,7 @@ public class KiteConfigPlugin : Plugin<Project> {
                 block.versionDetails.enabled,
                 block.localesDetails.tags, block.localesDetails.enabled,
                 block.logoDetails.foreground, block.logoDetails.background,
-                block.logoDetails.foregroundScale, block.logoDetails.enabled,
+                block.logoDetails.foregroundScale, block.logoDetails.overlay, block.logoDetails.enabled,
                 block.splashDetails.enabled, block.splashDetails.image,
                 block.splashDetails.backgroundColor,
                 block.splashDetails.dark.image, block.splashDetails.dark.backgroundColor,

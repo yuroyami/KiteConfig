@@ -419,6 +419,10 @@ public abstract class KiteConfigExtension : KiteFlowScope(), KiteConfigValues {
     internal fun effectiveLogoScaleFor(p: KitePlatform): Provider<Double> =
         platformExtension(p).logoDetails.foregroundScale.orElse(logo.foregroundScale)
 
+    /** The overlay [p] draws over its mark, its own if it set one. */
+    internal fun effectiveLogoOverlayFor(p: KitePlatform): Provider<org.gradle.api.file.RegularFile> =
+        platformExtension(p).logoDetails.overlay.orElse(logo.overlay)
+
     /** The topic is on for [p] once art exists, unless that platform turned it off. */
     internal fun logoFlowsTo(p: KitePlatform): Provider<Boolean> =
         gated(p) { platformExtension(p).logoDetails.enabled.orElse(logoDeclared) }

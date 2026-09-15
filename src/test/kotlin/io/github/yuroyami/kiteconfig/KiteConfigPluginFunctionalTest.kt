@@ -38,6 +38,19 @@ class KiteConfigPluginFunctionalTest {
         ImageIO.write(image, "PNG", file)
     }
 
+    /** An opaque PNG in one color, for art whose pixels a test wants to find again. */
+    private fun writeSolidPng(path: String, size: Int, rgb: Int) {
+        val file = File(projectDir, path)
+        file.parentFile.mkdirs()
+        val image = BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB)
+        image.createGraphics().apply {
+            color = java.awt.Color(rgb)
+            fillRect(0, 0, size, size)
+            dispose()
+        }
+        ImageIO.write(image, "PNG", file)
+    }
+
     private fun run(vararg args: String) = GradleRunner.create()
         .withProjectDir(projectDir)
         .withPluginClasspath()
@@ -2515,4 +2528,31 @@ class KiteConfigPluginFunctionalTest {
         val failure = runAndFail("ordinaryBuild")
         assertTrue(failure.output.contains("applicationId"), failure.output)
     }
+
+    /** The overlay is part of the mark, so it reaches the installed catalog through the same installer. */
+    @Test
+    fun `an overlay lands on the installed Apple icon`() {
+        write("settings.gradle.kts", "rootProject.name = \"fixture\"")
+        write(
+            "build.gradle.kts",
+            """
+            plugins { id("io.github.yuroyami.kiteconfig") }
+            kiteConfig {
+                logo {
+                    foreground = file("art/fg.png")
+                    background = color("#102A43")
+                    overlay = file("art/ribbon.png")
+                }
+            }
+            """.trimIndent(),
+        )
+        writePng("art/fg.png", 64)
+        writeSolidPng("art/ribbon.png", 64, 0xB00020)
+
+        run("kiteInternalIosLogo")
+
+        val icon = ImageIO.read(File(projectDir, "iosApp/iosApp/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png"))
+        assertEquals(0xB00020, icon.getRGB(512, 512) and 0xFFFFFF)
+    }
+
 }

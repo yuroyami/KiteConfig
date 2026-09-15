@@ -39,6 +39,7 @@ public sealed interface LogoBackground : Serializable {
  * | `foreground` | the mark that sits on top | none, and the topic stays off |
  * | `background` | `color("#...")` or `image(file(...))` | none |
  * | `foregroundScale` | how much of the canvas the mark fills | each renderer's own ratio |
+ * | `overlay` | a PNG drawn over the mark, in the mark's own frame | none |
  * | `enabled` | deliver the icon to this platform | on once `foreground` is set |
  *
  * | Platform | Output |
@@ -84,6 +85,16 @@ public abstract class KiteLogoScope {
      * @throws org.gradle.api.GradleException at task time when not in `0.0 < s <= 1.0`.
      */
     public abstract val foregroundScale: Property<Double>
+
+    /**
+     * PNG drawn on top of [foreground], in the foreground's frame: same scale,
+     * same position, same mask. Draw it on the same canvas as the foreground,
+     * transparent everywhere except what you add, such as a ribbon in one corner.
+     *
+     * Most useful as `debug { logo { overlay } }`. Also valid on its own for a
+     * badge every build should carry.
+     */
+    public abstract val overlay: RegularFileProperty
 
     /** Deliver the icon to this platform. Default: on once [foreground] is set. */
     public abstract val enabled: Property<Boolean>

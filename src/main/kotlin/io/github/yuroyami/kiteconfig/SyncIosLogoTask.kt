@@ -64,6 +64,9 @@ internal abstract class SyncIosLogoTask : DefaultTask() {
     @get:Internal
     abstract val backgroundPng: RegularFileProperty
 
+    @get:Internal
+    abstract val overlayPng: RegularFileProperty
+
     @get:[Input Optional] abstract val backgroundColorHex: Property<String>
 
     /** How much of the canvas the mark fills. Unset keeps the whole canvas. */
@@ -101,7 +104,18 @@ internal abstract class SyncIosLogoTask : DefaultTask() {
         )
         OwnedOutputSafety.requireInputOutsideOutput(fgFile, outDir, "logo { foreground }")
         val fgSnapshot = decodeLogo(fgFile, "logo { foreground }")
-        val fg = fgSnapshot.image
+        val overlaySnapshot = overlayPng.asFile.orNull?.let { overlayFile ->
+            if (!overlayFile.exists()) {
+                throw GradleException(
+                    "[kiteConfig] logo { overlay } points to a missing file: " +
+                        "${displayProjectPath(projectRootDir.asFile.get(), overlayFile)}. " +
+                        "Fix the path or remove the overlay.",
+                )
+            }
+            OwnedOutputSafety.requireInputOutsideOutput(overlayFile, outDir, "logo { overlay }")
+            decodeLogo(overlayFile, "logo { overlay }")
+        }
+        val fg = overlaySnapshot?.let { applyLogoOverlay(fgSnapshot.image, it.image) } ?: fgSnapshot.image
 
         val bgDescription: String
         var bgSnapshot: LogoPngSnapshot? = null
@@ -156,6 +170,7 @@ internal abstract class SyncIosLogoTask : DefaultTask() {
             foregroundSha256 = fgSnapshot.sha256,
             backgroundSha256 = bgSnapshot?.sha256,
             backgroundColor = configuredColor,
+            parameters = overlayFingerprintParameter(overlaySnapshot?.sha256),
         )
         warnOnOrphanIcons(outDir)
 

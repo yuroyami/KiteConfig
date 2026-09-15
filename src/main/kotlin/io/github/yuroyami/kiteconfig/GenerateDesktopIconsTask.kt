@@ -52,6 +52,11 @@ internal abstract class GenerateDesktopIconsTask : DefaultTask() {
     @get:[Input Optional]
     abstract val backgroundColor: Property<String>
 
+    @get:InputFile
+    @get:Optional
+    @get:PathSensitive(PathSensitivity.NONE)
+    abstract val overlay: RegularFileProperty
+
     /** How much of the canvas the mark fills. Unset keeps the whole canvas. */
     @get:Input @get:Optional abstract val foregroundScale: Property<Double>
 
@@ -75,7 +80,10 @@ internal abstract class GenerateDesktopIconsTask : DefaultTask() {
         if (dryRun.getOrElse(false)) {
             logger.info("[kiteConfig] dryRun does not suppress build-owned desktop icon generation.")
         }
-        val fg = decodeLogo(foreground.asFile.get(), "logo { foreground }").image
+        val mark = decodeLogo(foreground.asFile.get(), "logo { foreground }").image
+        val fg = overlay.asFile.orNull
+            ?.let { applyLogoOverlay(mark, decodeLogo(it, "logo { overlay }").image) }
+            ?: mark
         val bg = if (backgroundColor.isPresent) {
             solidColorImage(BASE_SIZE, parseLogoBackgroundColor(backgroundColor.get()))
         } else {

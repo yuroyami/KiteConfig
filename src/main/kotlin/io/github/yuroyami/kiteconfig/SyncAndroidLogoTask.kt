@@ -67,6 +67,9 @@ internal abstract class SyncAndroidLogoTask : DefaultTask() {
     @get:Internal
     abstract val backgroundPng: RegularFileProperty
 
+    @get:Internal
+    abstract val overlayPng: RegularFileProperty
+
     @get:[Input Optional] abstract val backgroundColorHex: Property<String>
     @get:Input abstract val safeZoneRatio: Property<Double>
     @get:Input abstract val emitMonochrome: Property<Boolean>
@@ -114,7 +117,18 @@ internal abstract class SyncAndroidLogoTask : DefaultTask() {
         )
         OwnedOutputSafety.requireInputOutsideOutput(fgFile, resDir, "logo { foreground }")
         val fgSnapshot = decodeLogo(fgFile, "logo { foreground }")
-        val fg = fgSnapshot.image
+        val overlaySnapshot = overlayPng.asFile.orNull?.let { overlayFile ->
+            if (!overlayFile.exists()) {
+                throw GradleException(
+                    "[kiteConfig] logo { overlay } points to a missing file: " +
+                        "${displayProjectPath(projectRootDir.asFile.get(), overlayFile)}. " +
+                        "Fix the path or remove the overlay.",
+                )
+            }
+            OwnedOutputSafety.requireInputOutsideOutput(overlayFile, resDir, "logo { overlay }")
+            decodeLogo(overlayFile, "logo { overlay }")
+        }
+        val fg = overlaySnapshot?.let { applyLogoOverlay(fgSnapshot.image, it.image) } ?: fgSnapshot.image
 
         val bgDescription: String
         var bgSnapshot: LogoPngSnapshot? = null
@@ -201,7 +215,7 @@ internal abstract class SyncAndroidLogoTask : DefaultTask() {
             parameters = mapOf(
                 "emitMonochrome" to emitMonochrome.getOrElse(false).toString(),
                 "safeZoneRatio" to ratio.toString(),
-            ),
+            ) + overlayFingerprintParameter(overlaySnapshot?.sha256),
         )
 
         // Built before the dry-run branch and reused by the transaction below, so the

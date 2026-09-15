@@ -96,4 +96,15 @@ class LogoScopeTest {
         scaled.logo { foregroundScale.set(0.5) }
         assertEquals(0.5, scaled.effectiveLogoSafeZone.get())
     }
+
+    @Test
+    fun `the overlay follows the platform then the shared logo`() {
+        val e = ext().withArt()
+        e.logo { overlay.set(File("art/ribbon.png")) }
+        e.ios.logo { overlay.set(File("art/ios-ribbon.png")) }
+
+        assertEquals("ribbon.png", e.effectiveLogoOverlayFor(KitePlatform.ANDROID).get().asFile.name)
+        assertEquals("ios-ribbon.png", e.effectiveLogoOverlayFor(KitePlatform.IOS).get().asFile.name)
+        assertNull(ext().withArt().effectiveLogoOverlayFor(KitePlatform.ANDROID).orNull)
+    }
 }

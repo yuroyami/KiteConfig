@@ -81,13 +81,31 @@ internal fun logoInputFingerprintForFiles(
     background: File?,
     backgroundColor: String?,
     parameters: Map<String, String> = emptyMap(),
+    overlay: File? = null,
 ): String = logoInputFingerprint(
     rendererVersion = rendererVersion,
     foregroundSha256 = boundedLogoFileSha256(foreground, "logo { foreground }"),
     backgroundSha256 = background?.let { boundedLogoFileSha256(it, "logo { background }") },
     backgroundColor = backgroundColor,
-    parameters = parameters,
+    parameters = parameters + overlayFingerprintParameter(
+        overlay?.let { boundedLogoFileSha256(it, "logo { overlay }") },
+    ),
 )
+
+/** The fingerprint part an overlay adds. No overlay adds nothing, so receipts written before 2.1.0 stay valid. */
+internal fun overlayFingerprintParameter(overlaySha256: String?): Map<String, String> =
+    if (overlaySha256 == null) emptyMap() else mapOf("overlaySha256" to overlaySha256)
+
+/**
+ * [overlay] drawn over [foreground] in the foreground's own frame.
+ *
+ * Every renderer then scales and masks the pair as one image.
+ */
+internal fun applyLogoOverlay(foreground: BufferedImage, overlay: BufferedImage): BufferedImage =
+    BufferedImage(foreground.width, foreground.height, BufferedImage.TYPE_INT_ARGB).withGraphics {
+        drawImage(foreground, 0, 0, null)
+        drawContain(overlay, 0, 0, foreground.width, foreground.height)
+    }
 
 private fun canonicalLogoBackgroundColor(value: String): String =
     (parseLogoBackgroundColor(value).rgb.toLong() and 0xffff_ffffL)

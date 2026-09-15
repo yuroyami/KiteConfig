@@ -256,6 +256,7 @@ public abstract class io/github/yuroyami/kiteconfig/KiteLogoScope {
 	public abstract fun getEnabled ()Lorg/gradle/api/provider/Property;
 	public abstract fun getForeground ()Lorg/gradle/api/file/RegularFileProperty;
 	public abstract fun getForegroundScale ()Lorg/gradle/api/provider/Property;
+	public abstract fun getOverlay ()Lorg/gradle/api/file/RegularFileProperty;
 	public final fun image (Ljava/io/File;)Lio/github/yuroyami/kiteconfig/LogoBackground;
 	public final fun image (Lorg/gradle/api/file/RegularFile;)Lio/github/yuroyami/kiteconfig/LogoBackground;
 }
