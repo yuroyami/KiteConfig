@@ -2681,6 +2681,11 @@ class KiteConfigPluginFunctionalTest {
         assertTrue(debugIcon.isFile, "debug catalog was not installed")
         assertEquals(0xB00020, ImageIO.read(debugIcon).getRGB(2, 2) and 0xFFFFFF)
 
+        // The doctor knows the Debug configuration is meant to differ.
+        val doctor = run("kiteDoctor")
+        assertTrue(doctor.output.contains("[PASS] KTCNFG021"), doctor.output)
+        assertTrue(doctor.output.contains("[PASS] KTCNFG025"), doctor.output)
+
         // A second apply is a no-op down to the timestamps.
         val installed = snapshot(File(projectDir, "iosApp"))
         run("kiteApplyIos")
@@ -2697,5 +2702,9 @@ class KiteConfigPluginFunctionalTest {
         val after = pbxproj.readText()
         assertEquals(2, Regex("ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;").findAll(after).count(), after)
         assertTrue(after.substringBefore("name = Debug;").contains("PRODUCT_BUNDLE_IDENTIFIER = com.demo.app.debug;"), after)
+
+        val afterRemoval = run("kiteDoctor")
+        assertTrue(afterRemoval.output.contains("[PASS] KTCNFG021"), afterRemoval.output)
+        assertTrue(afterRemoval.output.contains("[SKIP] KTCNFG025"), afterRemoval.output)
     }
 }

@@ -40,6 +40,8 @@ internal abstract class KiteConfigDiagnosticTaskBase : DefaultTask() {
         desktopApplicationProjects.convention(emptyList())
         detectedDesktopApplicationProjects.convention(emptyList())
         desktopDeriveUpgradeUuid.convention(false)
+        iosDebugConfigurations.convention(emptyList())
+        propagateIosDebugLogo.convention(false)
     }
 
     @get:Internal abstract val propagateAppName: Property<Boolean>
@@ -107,6 +109,13 @@ internal abstract class KiteConfigDiagnosticTaskBase : DefaultTask() {
     @get:Internal abstract val androidManifestTheme: Property<String>
     @get:Internal abstract val versionGuardsIgnored: Property<Boolean>
     @get:Internal abstract val autoRewrites: Property<Boolean>
+    @get:Internal abstract val iosDebugConfigurations: ListProperty<String>
+    @get:Internal abstract val iosDebugBundleId: Property<String>
+    @get:Internal abstract val iosDebugAppName: Property<String>
+    @get:Internal abstract val iosDebugAppIconName: Property<String>
+    @get:Internal abstract val propagateIosDebugLogo: Property<Boolean>
+    @get:Internal abstract val iosDebugAppiconsetDir: DirectoryProperty
+    @get:Internal abstract val iosDebugLogoInputFingerprint: Property<String>
 
     /** Whatever the shared model validator refused, or empty when it is happy. */
     @get:Internal abstract val modelFindings: org.gradle.api.provider.ListProperty<String>
@@ -229,6 +238,19 @@ internal abstract class KiteConfigDiagnosticTaskBase : DefaultTask() {
             },
             autoRewrites = resolve("KTCNFG967", "autoApply", false) {
                 autoRewrites.getOrElse(false)
+            },
+            iosDebugConfigurations = resolve("KTCNFG969", "ios { debug { configurations } }", emptyList()) {
+                iosDebugConfigurations.getOrElse(emptyList())
+            },
+            iosDebugBundleId = resolve<String?>("KTCNFG970", "the debug bundle id", null) { iosDebugBundleId.orNull },
+            iosDebugAppName = resolve<String?>("KTCNFG971", "debug { appName }", null) { iosDebugAppName.orNull },
+            iosDebugAppIconName = resolve<String?>("KTCNFG972", "the debug AppIcon name", null) { iosDebugAppIconName.orNull },
+            propagateIosDebugLogo = resolve("KTCNFG973", "debug { logo }", false) { propagateIosDebugLogo.getOrElse(false) },
+            iosDebugAppiconsetDir = resolve<java.io.File?>("KTCNFG974", "the debug appiconset", null) {
+                iosDebugAppiconsetDir.asFile.orNull
+            },
+            iosDebugLogoInputFingerprint = resolve<String?>("KTCNFG975", "the debug logo fingerprint", null) {
+                iosDebugLogoInputFingerprint.orNull
             },
         )
 

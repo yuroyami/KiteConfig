@@ -1400,6 +1400,35 @@ public class KiteConfigPlugin : Plugin<Project> {
         // The same layer an ordinary build runs, wrapped so a broken model is
         // reported rather than thrown while the report is being configured.
         modelFindings.set(root.provider { runCatching { collectModelFindings(ext) }.getOrDefault(emptyList()) })
+        // The debug values the Xcode rewrite and the debug catalog installer use,
+        // so the doctor expects exactly what kiteApplyIos writes.
+        iosDebugConfigurations.set(ext.effectiveIosDebugConfigurations)
+        iosDebugBundleId.set(
+            ext.effectiveDebugAppIdFor(KitePlatform.IOS).map { id -> id.takeIf { ext.debugAppIdFlowsTo(KitePlatform.IOS).get() } },
+        )
+        iosDebugAppName.set(
+            ext.effectiveDebugAppNameFor(KitePlatform.IOS).map { name -> name.takeIf { ext.debugAppNameFlowsTo(KitePlatform.IOS).get() } },
+        )
+        iosDebugAppIconName.set(
+            ext.iosDebugAppIconDirectory.map { dir ->
+                if (ext.debugLogoFlowsTo(KitePlatform.IOS).get()) iosAppIconCatalogName(dir.asFile.name) else null
+            },
+        )
+        propagateIosDebugLogo.set(ext.debugLogoFlowsTo(KitePlatform.IOS))
+        iosDebugAppiconsetDir.set(ext.iosDebugAppIconDirectory)
+        iosDebugLogoInputFingerprint.set(root.provider {
+            if (!ext.effectiveSyncIos.get() || !ext.debugLogoFlowsTo(KitePlatform.IOS).get()) {
+                "disabled"
+            } else {
+                logoInputFingerprintForFiles(
+                    rendererVersion = SyncIosLogoTask.RENDERER_FINGERPRINT_VERSION,
+                    foreground = ext.effectiveDebugLogoForegroundFor(KitePlatform.IOS).get().asFile,
+                    background = ext.effectiveDebugLogoBackgroundImageFor(KitePlatform.IOS).orNull,
+                    backgroundColor = ext.effectiveDebugLogoBackgroundColorFor(KitePlatform.IOS).orNull,
+                    overlay = ext.effectiveDebugLogoOverlayFor(KitePlatform.IOS).orNull?.asFile,
+                )
+            }
+        })
         autoRewrites.set(
             ext.effectiveAutoRewriteLogo.zip(ext.effectiveAutoRewriteXcode) { a, b -> a || b },
         )

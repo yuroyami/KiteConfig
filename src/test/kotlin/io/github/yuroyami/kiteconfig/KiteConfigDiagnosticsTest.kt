@@ -941,4 +941,64 @@ class KiteConfigDiagnosticsTest {
             KiteConfigDiagnosticEngine.evaluate(quietContext()).none { it.id == "KTCNFG095" },
         )
     }
+
+    /** A Debug configuration with the debug identity is aligned only when the doctor knows it is meant to differ. */
+    @Test
+    fun `a Debug configuration carrying the debug identity is aligned only when the doctor knows about it`() {
+        val fixture = checkNotNull(
+            javaClass.getResourceAsStream("/fixtures/AlignedApp.xcodeproj/project.pbxproj"),
+        ) { "aligned Xcode fixture is missing" }.bufferedReader().use { it.readText() }
+        val rewritten = rewritePbxproj(
+            original = fixture,
+            marketingVersion = null,
+            buildNumber = null,
+            appName = null,
+            bundleId = "com.example.jetzy",
+            locales = null,
+            configurationOverrides = mapOf("Debug" to PbxConfigurationOverride(bundleId = "com.example.jetzy.debug")),
+        )
+        assertTrue(rewritten.errors.isEmpty(), rewritten.errors.toString())
+        val pbxproj = tempDir.resolve("project.pbxproj").apply { writeText(rewritten.text) }
+        val base = quietContext(syncIos = true, pbxprojFile = pbxproj)
+            .copy(propagateBundleId = true, iosBundleId = "com.example.jetzy")
+
+        val unaware = KiteConfigDiagnosticEngine.evaluate(base).single { it.id == "KTCNFG021" }
+        assertEquals(KiteConfigDiagnosticSeverity.ERROR, unaware.severity)
+        assertTrue(unaware.detail.contains("PRODUCT_BUNDLE_IDENTIFIER"), unaware.detail)
+
+        val aware = KiteConfigDiagnosticEngine.evaluate(
+            base.copy(iosDebugConfigurations = listOf("Debug"), iosDebugBundleId = "com.example.jetzy.debug"),
+        ).single { it.id == "KTCNFG021" }
+        assertEquals(KiteConfigDiagnosticSeverity.PASS, aware.severity)
+    }
+
+    @Test
+    fun `the debug catalog is checked like the release one`() {
+        val project = tempDir.resolve("project").apply { mkdirs() }
+        val icons = project.resolve("iosApp/iosApp/Assets.xcassets/AppIcon-Debug.appiconset").apply { mkdirs() }
+        val identity = SyncIosLogoTask.catalogIdentity(project, icons)
+        OwnedOutputSafety.replaceInstalledFiles(
+            installationRoot = icons,
+            manifestFile = project.resolve("iosApp/iosApp/.kiteconfig/$identity/owned-files-v1"),
+            projectRoot = project,
+            owner = identity,
+            files = SyncIosLogoTask.OUTPUT_FILE_NAMES.associateWith { it.toByteArray() },
+        )
+        val context = quietContext(syncIos = true, propagateLogo = true, projectRootDir = project)
+
+        val off = KiteConfigDiagnosticEngine.evaluate(context).single { it.id == "KTCNFG025" }
+        assertEquals(KiteConfigDiagnosticSeverity.SKIPPED, off.severity)
+
+        val on = KiteConfigDiagnosticEngine.evaluate(
+            context.copy(propagateIosDebugLogo = true, iosDebugAppiconsetDir = icons),
+        ).single { it.id == "KTCNFG025" }
+        assertEquals(KiteConfigDiagnosticSeverity.PASS, on.severity)
+
+        icons.resolve("Contents.json").delete()
+        val broken = KiteConfigDiagnosticEngine.evaluate(
+            context.copy(propagateIosDebugLogo = true, iosDebugAppiconsetDir = icons),
+        ).single { it.id == "KTCNFG025" }
+        assertEquals(KiteConfigDiagnosticSeverity.ERROR, broken.severity)
+        assertTrue(broken.remediation.orEmpty().contains("kiteApplyIos"), broken.remediation)
+    }
 }

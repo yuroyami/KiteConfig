@@ -105,6 +105,13 @@ internal data class KiteConfigDiagnosticContext(
     val androidManifestTheme: String? = null,
     val versionGuardsIgnored: Boolean = false,
     val autoRewrites: Boolean = false,
+    val iosDebugConfigurations: List<String> = emptyList(),
+    val iosDebugBundleId: String? = null,
+    val iosDebugAppName: String? = null,
+    val iosDebugAppIconName: String? = null,
+    val propagateIosDebugLogo: Boolean = false,
+    val iosDebugAppiconsetDir: File? = null,
+    val iosDebugLogoInputFingerprint: String? = null,
 )
 
 /** Pure orchestration around guarded filesystem reads and fail-closed parsers. */
@@ -1182,6 +1189,7 @@ internal object KiteConfigDiagnosticEngine {
                             locales = context.locales.takeIf { context.propagateLocaleList && it.isNotEmpty() },
                             targetNames = context.iosTargetNames.toSet(),
                             appIconName = appIconName,
+                            configurationOverrides = debugConfigurationOverrides(context),
                         )
                     }.getOrElse { failure ->
                         add(ioFailure("KTCNFG021", "iOS pbxproj", pbxproj, failure))
@@ -1242,6 +1250,7 @@ internal object KiteConfigDiagnosticEngine {
 
         if (!context.propagateLogo) {
             add(diagnostic("KTCNFG022", KiteConfigDiagnosticSeverity.SKIPPED, "iOS app icon set", "Logo propagation is disabled."))
+            add(diagnostic("KTCNFG025", KiteConfigDiagnosticSeverity.SKIPPED, "iOS debug app icon set", "No debug icon reaches iOS."))
             return
         }
         val deploymentTarget = context.iosDeploymentTarget
@@ -1274,55 +1283,87 @@ internal object KiteConfigDiagnosticEngine {
                 )
             },
         )
-        val icons = context.appiconsetDir
-        if (icons == null) {
-            add(diagnostic("KTCNFG022", KiteConfigDiagnosticSeverity.WARNING, "iOS app icon set", "The appiconset path is unset."))
+        diagnoseAppIconCatalog(context, "KTCNFG022", "iOS app icon set", context.appiconsetDir, context.iosLogoInputFingerprint)
+        if (!context.propagateIosDebugLogo) {
+            add(diagnostic("KTCNFG025", KiteConfigDiagnosticSeverity.SKIPPED, "iOS debug app icon set", "No debug icon reaches iOS."))
         } else {
-            val iconsExist = safeExists(context, icons, "KTCNFG022", "iOS app icon set") ?: return
-            if (iconsExist && Files.isDirectory(icons.toPath(), java.nio.file.LinkOption.NOFOLLOW_LINKS)) {
-                val projectRoot = context.projectRootDir
-                if (projectRoot == null) {
-                    add(diagnostic("KTCNFG022", KiteConfigDiagnosticSeverity.ERROR, "iOS app icon set", "Project root is unavailable; ownership cannot be verified."))
-                    return
-                }
-                val problems = runCatching {
-                    val identity = SyncIosLogoTask.catalogIdentity(projectRoot, icons)
-                    val metadataBase = (icons.parentFile?.parentFile ?: icons.parentFile ?: icons)
-                        .resolve(".kiteconfig/$identity")
-                    OwnedOutputSafety.inspectInstalledFiles(
-                        installationRoot = icons,
-                        manifestFile = metadataBase.resolve("owned-files-v1"),
-                        projectRoot = projectRoot,
-                        owner = identity,
-                        expectedRelativePaths = SyncIosLogoTask.OUTPUT_FILE_NAMES,
-                        expectedInputFingerprint = context.iosLogoInputFingerprint,
-                    )
-                }.getOrElse { listOf(diagnosticExceptionSummary(it)) }
-                if (problems.isEmpty()) {
-                    add(diagnostic("KTCNFG022", KiteConfigDiagnosticSeverity.PASS, "iOS app icon set", "Every expected AppIcon output is present and checksum-owned."))
-                } else {
-                    add(
-                        diagnostic(
-                            "KTCNFG022",
-                            KiteConfigDiagnosticSeverity.ERROR,
-                            "iOS app icon set",
-                            problems.joinToString("; "),
-                            "Review and explicitly rerun kiteApplyAndroid; unowned files are never repaired automatically.",
-                            location = icons.path,
-                        ),
-                    )
-                }
+            diagnoseAppIconCatalog(
+                context,
+                "KTCNFG025",
+                "iOS debug app icon set",
+                context.iosDebugAppiconsetDir,
+                context.iosDebugLogoInputFingerprint,
+            )
+        }
+    }
+
+    /** The same overrides the installer applies, so the doctor and the apply agree on each configuration. */
+    private fun debugConfigurationOverrides(context: KiteConfigDiagnosticContext): Map<String, PbxConfigurationOverride> {
+        val override = PbxConfigurationOverride(
+            appName = context.iosDebugAppName.takeIf { context.propagateAppName },
+            bundleId = context.iosDebugBundleId.takeIf { context.propagateBundleId },
+            appIconName = context.iosDebugAppIconName.takeIf { context.propagateLogo && context.propagateIosDebugLogo },
+        )
+        if (override == PbxConfigurationOverride()) return emptyMap()
+        return context.iosDebugConfigurations.associateWith { override }
+    }
+
+    /** Receipt inspection shared by the release and the debug AppIcon catalogs. */
+    private fun MutableList<KiteConfigDiagnostic>.diagnoseAppIconCatalog(
+        context: KiteConfigDiagnosticContext,
+        id: String,
+        title: String,
+        icons: File?,
+        expectedFingerprint: String?,
+    ) {
+        if (icons == null) {
+            add(diagnostic(id, KiteConfigDiagnosticSeverity.WARNING, title, "The appiconset path is unset."))
+            return
+        }
+        val iconsExist = safeExists(context, icons, id, title) ?: return
+        if (iconsExist && Files.isDirectory(icons.toPath(), java.nio.file.LinkOption.NOFOLLOW_LINKS)) {
+            val projectRoot = context.projectRootDir
+            if (projectRoot == null) {
+                add(diagnostic(id, KiteConfigDiagnosticSeverity.ERROR, title, "Project root is unavailable; ownership cannot be verified."))
+                return
+            }
+            val problems = runCatching {
+                val identity = SyncIosLogoTask.catalogIdentity(projectRoot, icons)
+                val metadataBase = (icons.parentFile?.parentFile ?: icons.parentFile ?: icons)
+                    .resolve(".kiteconfig/$identity")
+                OwnedOutputSafety.inspectInstalledFiles(
+                    installationRoot = icons,
+                    manifestFile = metadataBase.resolve("owned-files-v1"),
+                    projectRoot = projectRoot,
+                    owner = identity,
+                    expectedRelativePaths = SyncIosLogoTask.OUTPUT_FILE_NAMES,
+                    expectedInputFingerprint = expectedFingerprint,
+                )
+            }.getOrElse { listOf(diagnosticExceptionSummary(it)) }
+            if (problems.isEmpty()) {
+                add(diagnostic(id, KiteConfigDiagnosticSeverity.PASS, title, "Every expected AppIcon output is present and checksum-owned."))
             } else {
                 add(
+                    diagnostic(
+                        id,
+                        KiteConfigDiagnosticSeverity.ERROR,
+                        title,
+                        problems.joinToString("; "),
+                        "Review and explicitly rerun kiteApplyIos; unowned files are never repaired automatically.",
+                        location = icons.path,
+                    ),
+                )
+            }
+        } else {
+            add(
                 diagnostic(
-                    "KTCNFG022",
+                    id,
                     KiteConfigDiagnosticSeverity.ERROR,
-                    "iOS app icon set",
+                    title,
                     "No directory exists at ${context.shortPath(icons)}.",
                     "Configure ios { appIconDirectory } or run the explicitly requested logo installer.",
                 ),
-                )
-            }
+            )
         }
     }
 
