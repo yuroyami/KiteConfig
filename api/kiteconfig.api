@@ -197,8 +197,8 @@ public final class io/github/yuroyami/kiteconfig/KiteConfigPlugin$Companion {
 public abstract interface class io/github/yuroyami/kiteconfig/KiteConfigValues {
 	public abstract fun appIdFor (Lio/github/yuroyami/kiteconfig/KitePlatform;)Lorg/gradle/api/provider/Provider;
 	public abstract fun appNameFor (Lio/github/yuroyami/kiteconfig/KitePlatform;)Lorg/gradle/api/provider/Provider;
-	public abstract fun debugAppIdFor (Lio/github/yuroyami/kiteconfig/KitePlatform;)Lorg/gradle/api/provider/Provider;
-	public abstract fun debugAppNameFor (Lio/github/yuroyami/kiteconfig/KitePlatform;)Lorg/gradle/api/provider/Provider;
+	public fun debugAppIdFor (Lio/github/yuroyami/kiteconfig/KitePlatform;)Lorg/gradle/api/provider/Provider;
+	public fun debugAppNameFor (Lio/github/yuroyami/kiteconfig/KitePlatform;)Lorg/gradle/api/provider/Provider;
 	public abstract fun getAndroidApplicationId ()Lorg/gradle/api/provider/Provider;
 	public abstract fun getAppId ()Lorg/gradle/api/provider/Provider;
 	public abstract fun getAppName ()Lorg/gradle/api/provider/Provider;

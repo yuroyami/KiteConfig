@@ -70,9 +70,11 @@ internal object KiteOperationPlanner {
 
         KiteOperation.IOS_DEBUG_APP_ICON -> ext.debugLogoFlowsTo(KitePlatform.IOS)
 
-        // Same reconciliation for the debug catalog: off, but iOS still selected.
+        // The debug catalog is taken back out only while the release icon is still
+        // managed. With no logo at all, Xcode's Debug setting still points at it.
         KiteOperation.IOS_DEBUG_APP_ICON_REMOVAL -> ext.effectiveSyncIos
-            .zip(ext.debugLogoFlowsTo(KitePlatform.IOS)) { ios, on -> ios && !on }
+            .zip(ext.effectiveIosLogoInstall) { ios, releaseIcon -> ios && releaseIcon }
+            .zip(ext.debugLogoFlowsTo(KitePlatform.IOS)) { managed, on -> managed && !on }
 
         KiteOperation.ANDROID_LAUNCHER_ICON -> ext.effectiveAndroidLogoInstall
         KiteOperation.ANDROID_LEGACY_ICONS -> ext.effectiveTakeOverLegacyIcons

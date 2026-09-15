@@ -88,7 +88,10 @@ internal object ClassicAndroidWiring {
                 project.wireValueGroup(resilient, "the debug build types") {
                     val debugIdFlows = ext.debugAppIdFlowsTo(KitePlatform.ANDROID).get()
                     val debugNameFlows = ext.debugAppNameFlowsTo(KitePlatform.ANDROID).get()
-                    if (debugIdFlows || debugNameFlows) {
+                    // Every debug value names build types, so a wrong name fails here even
+                    // when only the icon reaches Android.
+                    val debugIconFlows = ext.debugLogoFlowsTo(KitePlatform.ANDROID).get()
+                    if (debugIdFlows || debugNameFlows || debugIconFlows) {
                         val suffix = if (debugIdFlows && !ext.debugAppIdIsExactFor(KitePlatform.ANDROID).get()) {
                             ext.debugAppIdSuffixFor(KitePlatform.ANDROID).get()
                         } else {

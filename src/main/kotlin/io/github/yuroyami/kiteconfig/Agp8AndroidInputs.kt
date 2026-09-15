@@ -53,6 +53,8 @@ internal class Agp8AndroidInputs internal constructor(
     @JvmField val debugApplicationId: String?,
     /** Display name for the debug build types, or null. */
     @JvmField val debugAppName: String?,
+    /** Whether any debug value reaches Android, so every name in [debugBuildTypes] must exist. */
+    @JvmField val checkDebugBuildTypes: Boolean,
 )
 
 /**
@@ -111,6 +113,8 @@ internal fun KiteConfigExtension.resolveAgp8Inputs(project: org.gradle.api.Proje
         (resolve("the debug applicationId") { debugAppIdIsExactFor(KitePlatform.ANDROID).get() } ?: false)
     val debugNameFlows = appScoped &&
         (resolve("the debug appName placeholder") { debugAppNameFlowsTo(KitePlatform.ANDROID).get() } ?: false)
+    val debugIconFlows = appScoped &&
+        (resolve("the debug icon") { debugLogoFlowsTo(KitePlatform.ANDROID).get() } ?: false)
     val applySdkLevels = resolve("the SDK levels") { effectiveApplySdkLevels.get() } ?: false
     return Agp8AndroidInputs(
         selectedApplications = selected.orEmpty(),
@@ -146,5 +150,6 @@ internal fun KiteConfigExtension.resolveAgp8Inputs(project: org.gradle.api.Proje
         } else {
             null
         },
+        checkDebugBuildTypes = debugIdFlows || debugNameFlows || debugIconFlows,
     )
 }

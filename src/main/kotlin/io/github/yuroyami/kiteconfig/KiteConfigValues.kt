@@ -90,13 +90,13 @@ public interface KiteConfigValues {
      * otherwise the release identifier from [appIdFor]. Desktop has no debug
      * build, so it always answers with the release identifier.
      */
-    public fun debugAppIdFor(platform: KitePlatform): Provider<String>
+    public fun debugAppIdFor(platform: KitePlatform): Provider<String> = appIdFor(platform)
 
     /**
      * The name the debug build of [platform] shows: its `debug { }` value,
      * otherwise the release name from [appNameFor].
      */
-    public fun debugAppNameFor(platform: KitePlatform): Provider<String>
+    public fun debugAppNameFor(platform: KitePlatform): Provider<String> = appNameFor(platform)
 
     // -------------------------------------------------------------------- build
 

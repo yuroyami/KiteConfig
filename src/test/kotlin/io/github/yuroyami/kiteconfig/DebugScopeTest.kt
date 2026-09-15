@@ -193,6 +193,21 @@ class DebugScopeTest {
         assertTrue(failure.message.orEmpty().contains("needs the shared appId"), failure.message)
     }
 
+    /** With no logo at all, Xcode's Debug setting still names the debug catalog, so it must stay. */
+    @Test
+    fun `the debug catalog is taken back out only while the release icon is managed`() {
+        val removal = { e: KiteConfigExtension ->
+            KiteOperationPlanner.enabled(e, KiteOperation.IOS_DEBUG_APP_ICON_REMOVAL).get()
+        }
+
+        assertTrue(removal(ext().withIdentity().withArt()))
+        assertFalse(removal(ext().withIdentity()))
+
+        val debugIconOn = ext().withIdentity().withArt()
+        debugIconOn.debug { logo { background.set(color("#B00020")) } }
+        assertFalse(removal(debugIconOn))
+    }
+
     @Test
     fun `a healthy debug topic passes validation`() {
         val e = ext().withIdentity().withArt()

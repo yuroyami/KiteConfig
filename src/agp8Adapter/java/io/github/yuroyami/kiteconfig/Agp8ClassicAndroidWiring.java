@@ -51,7 +51,9 @@ final class Agp8ClassicAndroidWiring {
             if (in.applyAppName && in.appName != null) {
                 dc.getManifestPlaceholders().put("appName", in.appName);
             }
-            if (in.debugApplicationIdSuffix != null || in.debugAppName != null) {
+            // Every debug value names build types, so a wrong name fails here even
+            // when only the exact id or the icon reaches Android.
+            if (in.checkDebugBuildTypes) {
                 for (String name : in.debugBuildTypes) {
                     ApplicationBuildType buildType = android.getBuildTypes().findByName(name);
                     if (buildType == null) {

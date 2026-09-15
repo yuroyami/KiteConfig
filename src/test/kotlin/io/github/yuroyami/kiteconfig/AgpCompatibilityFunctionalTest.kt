@@ -1085,7 +1085,43 @@ class AgpCompatibilityFunctionalTest {
         assertTrue(release.contains("android:label=\"Overlay App\""), result.output)
     }
 
-    private fun writeDebugIdentityFixture(agpVersion: String, sdk: File) {
+    /** A debug build type the module does not declare has to stop the build, not vanish. */
+    @Test
+    fun `a debug build type the module does not declare stops the build`() {
+        val sdk = androidSdkDirectory()
+        assumeTrue(sdk != null, "no Android SDK on this host")
+        writeDebugIdentityFixture(agpVersion = "9.3.1", sdk = sdk!!, debugSection = MISNAMED_DEBUG_BUILD_TYPE)
+
+        val failure = GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withGradleVersion("9.5.1")
+            .withArguments("--stacktrace", ":app:help")
+            .buildAndFail()
+
+        assertTrue(failure.output.contains("declares no such build type"), failure.output)
+    }
+
+    /** The same refusal on the AGP floor, where an exact debug id used to skip the check. */
+    @Test
+    fun `a debug build type the module does not declare stops the build on the AGP floor too`() {
+        val sdk = androidSdkDirectory()
+        assumeTrue(sdk != null, "no Android SDK on this host")
+        writeDebugIdentityFixture(agpVersion = "8.5.2", sdk = sdk!!, debugSection = MISNAMED_DEBUG_BUILD_TYPE)
+
+        val failure = GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withGradleVersion("8.9")
+            .withArguments("--stacktrace", ":app:help")
+            .buildAndFail()
+
+        assertTrue(failure.output.contains("declares no such build type"), failure.output)
+    }
+
+    private fun writeDebugIdentityFixture(
+        agpVersion: String,
+        sdk: File,
+        debugSection: String = "debug { appId { suffix = '.debug' }; appName = 'Overlay Dev' }",
+    ) {
         publishPluginFixture()
         write("local.properties", "sdk.dir=${sdk.path.replace("\\", "\\\\")}")
         write(
@@ -1127,10 +1163,7 @@ class AgpCompatibilityFunctionalTest {
                     minSdk = 24
                     targetSdk = 35
                 }
-                debug {
-                    appId { suffix = '.debug' }
-                    appName = 'Overlay Dev'
-                }
+                $debugSection
                 skip(ios)
             }
             """.trimIndent(),
@@ -1299,3 +1332,7 @@ class AgpCompatibilityFunctionalTest {
         ImageIO.write(image, "PNG", file)
     }
 }
+
+/** An exact debug id aimed at a build type the fixture module never declares. */
+private const val MISNAMED_DEBUG_BUILD_TYPE =
+    "debug { appId = 'dev.matrix.other' }\nandroid { debug { buildTypes('dev') } }"
