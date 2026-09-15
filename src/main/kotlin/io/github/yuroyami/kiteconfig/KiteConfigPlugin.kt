@@ -303,6 +303,7 @@ public class KiteConfigPlugin : Plugin<Project> {
                     }
                     wireAndroidSplash(consumerProject, ext, resilient)
                     wireAndroidManifestOverlay(consumerProject, ext, resilient)
+                    wireAndroidDebugIcons(consumerProject, ext, resilient)
                 } else if (!AGP_ON_CLASSPATH) {
                     androidProjectsWithoutSharedClassloader += consumerProject.path
                 }

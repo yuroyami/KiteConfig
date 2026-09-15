@@ -280,3 +280,48 @@ internal fun wireAndroidSplash(project: Project, ext: KiteConfigExtension, resil
         }
     }
 }
+
+// --------------------------------------------------------------- Debug icons
+
+/**
+ * Wires the Android debug launcher icons onto one `com.android.application`
+ * module: the generator task, and its output as a generated res dir on the
+ * debug build types only. Gated on `debug { logo { } }` reaching Android.
+ *
+ * Lives beside [wireAndroidSplash] for the same reason: the AGP types stay out
+ * of [KiteConfigPlugin].
+ */
+internal fun wireAndroidDebugIcons(project: Project, ext: KiteConfigExtension, resilient: Boolean = false) {
+    val components = project.extensions
+        .findByType(ApplicationAndroidComponentsExtension::class.java) ?: return
+
+    // Registered, not realized: only a variant that takes it configures it.
+    val iconsTask = project.tasks.register<GenerateAndroidDebugIconsTask>("kiteInternalAndroidDebugIcons") {
+        foreground.set(ext.effectiveDebugLogoForegroundFor(KitePlatform.ANDROID))
+        background.fileProvider(ext.effectiveDebugLogoBackgroundImageFor(KitePlatform.ANDROID))
+        backgroundColor.set(ext.effectiveDebugLogoBackgroundColorFor(KitePlatform.ANDROID))
+        overlay.set(ext.effectiveDebugLogoOverlayFor(KitePlatform.ANDROID))
+        safeZoneRatio.set(
+            ext.effectiveDebugLogoScaleFor(KitePlatform.ANDROID).orElse(KiteConfigExtension.DEFAULT_ANDROID_SAFE_ZONE),
+        )
+        emitMonochrome.set(ext.android.compileSdk.map { it >= 33 }.orElse(false))
+        outputDir.set(project.layout.buildDirectory.dir("generated/kiteconfig/debug-icons-res"))
+    }
+
+    components.onVariants { variant ->
+        // Fails closed: when the gate cannot resolve on a diagnostic run, nothing
+        // is attached and the variant keeps the installed release icons.
+        var flows = false
+        project.wireValueGroup(resilient, "the Android debug icon selection") {
+            val selectedApplications = ext.effectiveAndroidApps.get()
+            val selectedHere = selectedApplications.isEmpty() || project.path in selectedApplications
+            flows = selectedHere && ext.debugLogoFlowsTo(KitePlatform.ANDROID).get() &&
+                variant.buildType?.let { it in ext.effectiveAndroidDebugBuildTypes.get() } == true
+        }
+        if (flows) {
+            project.wireValueGroup(resilient, "the generated debug icons") {
+                variant.sources.res?.addGeneratedSourceDirectory(iconsTask) { it.outputDir }
+            }
+        }
+    }
+}

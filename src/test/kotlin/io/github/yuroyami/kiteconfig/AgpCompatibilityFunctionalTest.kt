@@ -2,6 +2,7 @@ package io.github.yuroyami.kiteconfig
 
 import org.gradle.testkit.runner.BuildResult
 import org.gradle.testkit.runner.GradleRunner
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.Tag
@@ -10,6 +11,7 @@ import org.junit.jupiter.api.io.TempDir
 import java.awt.Color
 import java.awt.image.BufferedImage
 import java.io.File
+import java.util.zip.ZipFile
 import javax.imageio.ImageIO
 
 /**
@@ -1160,5 +1162,140 @@ class AgpCompatibilityFunctionalTest {
             "app/src/main/AndroidManifest.xml",
             "<manifest xmlns:android=\"http://schemas.android.com/apk/res/android\"><application/></manifest>",
         )
+    }
+
+    /**
+     * Only the APK proves that the generated debug icons win over the installed
+     * release icons. Both variants are built and each launcher icon is read back.
+     */
+    @Test
+    fun `the debug build type gets its own launcher icon and release keeps its own`() {
+        val sdk = androidSdkDirectory()
+        assumeTrue(sdk != null, "no Android SDK on this host")
+
+        publishPluginFixture()
+        write("local.properties", "sdk.dir=${sdk!!.path.replace("\\", "\\\\")}")
+        write(
+            "settings.gradle",
+            """
+            pluginManagement {
+                repositories {
+                    maven { url = uri(file('plugin-repository')) }
+                    google()
+                    mavenCentral()
+                    gradlePluginPortal()
+                }
+            }
+            dependencyResolutionManagement {
+                repositories {
+                    google()
+                    mavenCentral()
+                }
+            }
+            rootProject.name = 'debug-icon-fixture'
+            include ':app'
+            """.trimIndent(),
+        )
+        write(
+            "build.gradle",
+            """
+            plugins {
+                id 'com.android.application' version '9.3.1' apply false
+                id 'io.github.yuroyami.kiteconfig' version 'test-fixture'
+            }
+
+            kiteConfig {
+                appName = 'Icon App'
+                appId = 'dev.matrix.icon'
+                version = '1.0.0'
+                autoApply = true
+                modules { androidApps(':app') }
+                android {
+                    compileSdk = 35
+                    minSdk = 24
+                    targetSdk = 35
+                }
+                logo {
+                    foreground = file('art/logo.png')
+                    background = color('#102A43')
+                }
+                debug {
+                    appId { suffix = '.debug' }
+                    logo { background = color('#B00020') }
+                }
+                skip(ios)
+            }
+            """.trimIndent(),
+        )
+        write(
+            "app/build.gradle",
+            """
+            plugins { id 'com.android.application' }
+            android {
+                namespace = 'dev.matrix.icon'
+                lint { checkReleaseBuilds = false }
+            }
+            """.trimIndent(),
+        )
+        writeCenteredMarkPng("art/logo.png")
+        write(
+            "app/src/main/AndroidManifest.xml",
+            "<manifest xmlns:android=\"http://schemas.android.com/apk/res/android\">" +
+                "<application android:icon=\"@mipmap/ic_launcher\" android:roundIcon=\"@mipmap/ic_launcher_round\"/>" +
+                "</manifest>",
+        )
+
+        GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withGradleVersion("9.5.1")
+            .withArguments("--stacktrace", ":app:assembleDebug", ":app:assembleRelease")
+            .build()
+
+        assertEquals(0xB00020, launcherPlate(File(projectDir, "app/build/outputs/apk/debug/app-debug.apk"), sdk))
+        assertEquals(0x102A43, launcherPlate(File(projectDir, "app/build/outputs/apk/release/app-release-unsigned.apk"), sdk))
+    }
+
+    /**
+     * The corner colour of the xxxhdpi legacy launcher icon inside [apk].
+     *
+     * Release builds shorten resource paths, so the file is found the way Android
+     * finds it: through the resource table, as `aapt2 dump resources` prints it.
+     */
+    private fun launcherPlate(apk: File, sdk: File): Int {
+        assertTrue(apk.isFile, "APK missing: $apk")
+        val aapt2 = sdk.resolve("build-tools").listFiles().orEmpty()
+            .map { it.resolve("aapt2") }
+            .filter(File::isFile)
+            .maxByOrNull { it.parentFile.name }
+        assumeTrue(aapt2 != null, "no aapt2 in the Android SDK build-tools")
+        val process = ProcessBuilder(aapt2!!.path, "dump", "resources", apk.path).redirectErrorStream(true).start()
+        val dump = process.inputStream.bufferedReader().use { it.readText() }
+        assertEquals(0, process.waitFor(), dump)
+        val lines = dump.lines()
+        val start = lines.indexOfFirst { it.trim().endsWith(" mipmap/ic_launcher") }
+        assertTrue(start >= 0, "no mipmap/ic_launcher in $apk:\n$dump")
+        val path = lines.drop(start + 1)
+            .takeWhile { !it.trim().startsWith("resource ") && !it.trim().startsWith("type ") }
+            .firstOrNull { "xxxhdpi" in it && "(file)" in it && it.trim().endsWith("type=PNG") }
+            ?.substringAfter("(file) ")
+            ?.substringBefore(" type=")
+        assertTrue(path != null, "no xxxhdpi PNG for mipmap/ic_launcher in $apk:\n$dump")
+        ZipFile(apk).use { zip ->
+            val icon = zip.getInputStream(zip.getEntry(path!!)).use(ImageIO::read)
+            return icon.getRGB(2, 2) and 0xFFFFFF
+        }
+    }
+
+    /** A mark with transparent corners, so the plate colour is what a corner pixel shows. */
+    private fun writeCenteredMarkPng(path: String, side: Int = 512) {
+        val file = File(projectDir, path)
+        file.parentFile.mkdirs()
+        val image = BufferedImage(side, side, BufferedImage.TYPE_INT_ARGB)
+        image.createGraphics().apply {
+            color = Color.WHITE
+            fillRect(side / 4, side / 4, side / 2, side / 2)
+            dispose()
+        }
+        ImageIO.write(image, "PNG", file)
     }
 }
