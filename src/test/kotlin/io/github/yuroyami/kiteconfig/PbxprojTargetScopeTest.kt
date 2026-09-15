@@ -320,4 +320,43 @@ class PbxprojTargetScopeTest {
             assertEquals(first.text, second.text, "rewriting to \"$name\" is not stable")
         }
     }
+
+    @Test
+    fun `each selected configuration reports its name`() {
+        val text = """
+            {
+                objects = {
+                    AA00000000000000000000AA = {
+                        isa = PBXNativeTarget;
+                        name = App;
+                        buildConfigurationList = AA00000000000000000000A1;
+                        productType = "com.apple.product-type.application";
+                    };
+                    AA00000000000000000000A1 = {
+                        isa = XCConfigurationList;
+                        buildConfigurations = ( AA00000000000000000000A2, AA00000000000000000000A3, );
+                    };
+                    AA00000000000000000000A2 = {
+                        isa = XCBuildConfiguration;
+                        buildSettings = { PRODUCT_NAME = App; };
+                        name = Debug;
+                    };
+                    AA00000000000000000000A3 = {
+                        isa = XCBuildConfiguration;
+                        buildSettings = { PRODUCT_NAME = App; };
+                        name = "Release Candidate";
+                    };
+                    EE00000000000000000000EE = {
+                        isa = PBXProject;
+                    };
+                };
+                rootObject = EE00000000000000000000EE;
+            }
+        """.trimIndent()
+
+        val scope = resolveApplicationBuildConfigSpans(text)
+
+        assertTrue(scope.errors.isEmpty(), scope.errors.toString())
+        assertEquals(listOf("Debug", "Release Candidate"), scope.spans.map { scope.configurationNames.getValue(it) })
+    }
 }

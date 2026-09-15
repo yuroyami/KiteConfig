@@ -15,6 +15,13 @@ internal data class PbxprojResult(
     val reformattedSettings: Set<String> = emptySet(),
 )
 
+/** Values one named build configuration gets instead of the target-wide ones. Null keeps the target-wide value. */
+internal data class PbxConfigurationOverride(
+    val appName: String? = null,
+    val bundleId: String? = null,
+    val appIconName: String? = null,
+)
+
 private data class SettingRewrite(val key: String, val value: String, val literal: String, val required: Boolean = true)
 private data class TextReplacement(val range: IntRange, val text: String)
 
@@ -87,6 +94,7 @@ private fun validatePbxInputs(
     appName: String?,
     bundleId: String?,
     appIconName: String?,
+    configurationOverrides: Map<String, PbxConfigurationOverride>,
 ): List<String> = buildList {
     fun validate(value: String?, check: (String) -> String) {
         if (value == null) return
@@ -100,6 +108,14 @@ private fun validatePbxInputs(
     validate(appName, ::validateAppName)
     validate(bundleId, ::validateAppleBundleId)
     validate(appIconName, ::validateIosAppIconName)
+    configurationOverrides.forEach { (configuration, override) ->
+        if (configuration.isBlank() || configuration.any(Char::isISOControl)) {
+            add("build configuration names must be non-blank and free of control characters")
+        }
+        validate(override.appName, ::validateAppName)
+        validate(override.bundleId, ::validateAppleBundleId)
+        validate(override.appIconName, ::validateIosAppIconName)
+    }
 }
 
 /**
@@ -112,6 +128,9 @@ private fun validatePbxInputs(
  * `ASSETCATALOG_COMPILER_APPICON_NAME` assignment is required in every selected
  * configuration and aligned with the installed catalog. There is no production
  * global fallback and no speculative setting insertion.
+ *
+ * [configurationOverrides] give the configurations they name their own values,
+ * such as `Debug`. Naming a configuration the target does not have is an error.
  *
  * [allowUnscopedFragment] exists only for focused tests of serialization. Callers
  * handling a real project file must leave it false.
@@ -126,10 +145,12 @@ internal fun rewritePbxproj(
     targetNames: Set<String> = emptySet(),
     allowUnscopedFragment: Boolean = false,
     appIconName: String? = null,
+    configurationOverrides: Map<String, PbxConfigurationOverride> = emptyMap(),
     analysisFactory: (String) -> PbxprojAnalysis = ::analyzePbxproj,
 ): PbxprojResult {
     val warnings = mutableListOf<String>()
-    val errors = validatePbxInputs(marketingVersion, buildNumber, appName, bundleId, appIconName).toMutableList()
+    val errors = validatePbxInputs(marketingVersion, buildNumber, appName, bundleId, appIconName, configurationOverrides)
+        .toMutableList()
     val changedKeys = linkedSetOf<String>()
     val reformattedKeys = linkedSetOf<String>()
     val replacements = mutableListOf<TextReplacement>()
@@ -144,7 +165,9 @@ internal fun rewritePbxproj(
     // Do not derive literals from values that already failed centralized
     // validation. Besides avoiding duplicate diagnostics, this keeps malformed
     // or oversized input out of quoting/serialization paths entirely.
-    val rewrites = if (errors.isNotEmpty()) emptyList() else buildList {
+    // One builder serves the target-wide values and each override, so an override
+    // cannot spell a setting differently from the rest of the target.
+    fun settingRewrites(appName: String?, bundleId: String?, appIconName: String?): List<SettingRewrite> = buildList {
         if (marketingVersion != null) add(SettingRewrite("MARKETING_VERSION", marketingVersion, "MARKETING_VERSION = $marketingVersion;"))
         if (buildNumber != null) add(SettingRewrite("CURRENT_PROJECT_VERSION", buildNumber, "CURRENT_PROJECT_VERSION = $buildNumber;"))
         if (appName != null) {
@@ -169,6 +192,17 @@ internal fun rewritePbxproj(
             )
         }
     }
+    val rewrites = if (errors.isNotEmpty()) emptyList() else settingRewrites(appName, bundleId, appIconName)
+    fun rewritesFor(override: PbxConfigurationOverride?): List<SettingRewrite> =
+        if (override == null) {
+            rewrites
+        } else {
+            settingRewrites(
+                appName = override.appName ?: appName,
+                bundleId = override.bundleId ?: bundleId,
+                appIconName = override.appIconName ?: appIconName,
+            )
+        }
 
     // A key counts as changed only when its value moves. The same value spelled another way is reformatting.
     fun planSetting(rewrite: SettingRewrite, range: IntRange, valueRange: IntRange?) {
@@ -185,8 +219,9 @@ internal fun rewritePbxproj(
     }
 
     var selectedTargets = emptyList<String>()
-    if (rewrites.isNotEmpty() && errors.isEmpty()) {
+    if ((rewrites.isNotEmpty() || configurationOverrides.isNotEmpty()) && errors.isEmpty()) {
         if (allowUnscopedFragment) {
+            if (configurationOverrides.isNotEmpty()) errors += "configuration overrides need a whole project file, not a settings fragment"
             rewrites.forEach { rewrite ->
                 val matches = unscopedSettingRegex(rewrite.key).findAll(original).toList()
                 when {
@@ -200,13 +235,24 @@ internal fun rewritePbxproj(
             val scope = analysis.resolveApplicationBuildConfigSpans(targetNames)
             errors += scope.errors
             selectedTargets = scope.targetNames
+            if (errors.isEmpty() && configurationOverrides.isNotEmpty()) {
+                val present = scope.configurationNames.values.toSet()
+                val missing = configurationOverrides.keys.filterNot { it in present }
+                if (missing.isNotEmpty()) {
+                    errors += "selected application target(s) have no build configuration named " +
+                        missing.joinToString { "'$it'" } +
+                        "; ios { debug { configurations(...) } } must name configurations that exist"
+                }
+            }
             if (errors.isEmpty()) {
-                val located = analysis.locateBuildSettings(scope.spans, rewrites.mapTo(linkedSetOf()) { it.key })
+                val keys = (rewrites + configurationOverrides.values.flatMap(::rewritesFor)).mapTo(linkedSetOf()) { it.key }
+                val located = analysis.locateBuildSettings(scope.spans, keys)
                 errors += located.errors
                 if (errors.isEmpty()) {
-                    for ((configSpan, keys) in located.byConfig) {
-                        for (rewrite in rewrites) {
-                            val matches = keys[rewrite.key].orEmpty()
+                    for ((configSpan, keysInConfig) in located.byConfig) {
+                        val override = scope.configurationNames[configSpan]?.let(configurationOverrides::get)
+                        for (rewrite in rewritesFor(override)) {
+                            val matches = keysInConfig[rewrite.key].orEmpty()
                             when {
                                 matches.size == 1 -> {
                                     val match = matches.single()

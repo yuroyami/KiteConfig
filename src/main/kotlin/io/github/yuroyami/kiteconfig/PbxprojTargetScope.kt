@@ -349,6 +349,8 @@ internal data class PbxTargetScopeResult(
     val spans: List<IntRange>,
     val targetNames: List<String>,
     val errors: List<String>,
+    /** Each selected configuration's `name`, by span. A configuration without one is absent. */
+    val configurationNames: Map<IntRange, String> = emptyMap(),
 )
 
 /**
@@ -405,6 +407,7 @@ private fun resolveApplicationBuildConfigSpansFromGraph(
     if (errors.isNotEmpty()) return PbxTargetScopeResult(emptyList(), emptyList(), errors)
 
     val configSpans = mutableListOf<IntRange>()
+    val configurationNames = linkedMapOf<IntRange, String>()
     for ((target, targetName) in selected) {
         val listRefs = target.assignments.filter { it.name == "buildConfigurationList" }
         val listId = listRefs.singleOrNull()?.scalar()
@@ -439,11 +442,17 @@ private fun resolveApplicationBuildConfigSpansFromGraph(
                 errors += "application target '$targetName' references missing/invalid XCBuildConfiguration $id"
             } else {
                 configSpans += config.span
+                config.assignments.singleOrNull { it.name == "name" }?.scalar()?.let { configurationNames[config.span] = it }
             }
         }
     }
     if (errors.isNotEmpty()) return PbxTargetScopeResult(emptyList(), emptyList(), errors)
-    return PbxTargetScopeResult(configSpans.distinct().sortedBy { it.first }, selected.map { it.second }, emptyList())
+    return PbxTargetScopeResult(
+        configSpans.distinct().sortedBy { it.first },
+        selected.map { it.second },
+        emptyList(),
+        configurationNames,
+    )
 }
 
 /**

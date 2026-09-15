@@ -429,4 +429,147 @@ class PbxprojRewriteTest {
         assertEquals(setOf("PRODUCT_NAME"), r.changedSettings)
         assertEquals(emptySet<String>(), r.reformattedSettings)
     }
+
+    /** Two configurations on one application target, so a per-configuration value has somewhere to differ. */
+    private fun twoConfigurationProject(debugSettings: String, releaseSettings: String) = """
+        {
+            objects = {
+                AA00000000000000000000AA = {
+                    isa = PBXNativeTarget;
+                    name = App;
+                    buildConfigurationList = AA00000000000000000000A1;
+                    productType = "com.apple.product-type.application";
+                };
+                AA00000000000000000000A1 = {
+                    isa = XCConfigurationList;
+                    buildConfigurations = ( AA00000000000000000000A2, AA00000000000000000000A3, );
+                };
+                AA00000000000000000000A2 = {
+                    isa = XCBuildConfiguration;
+                    buildSettings = { $debugSettings };
+                    name = Debug;
+                };
+                AA00000000000000000000A3 = {
+                    isa = XCBuildConfiguration;
+                    buildSettings = { $releaseSettings };
+                    name = Release;
+                };
+                EE00000000000000000000EE = {
+                    isa = PBXProject;
+                    knownRegions = ( Base, en, );
+                };
+            };
+            rootObject = EE00000000000000000000EE;
+        }
+    """.trimIndent()
+
+    private val sharedSettings =
+        "PRODUCT_BUNDLE_IDENTIFIER = com.old.id; PRODUCT_NAME = Old; ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;"
+
+    @Test
+    fun `a named configuration gets its own values and the others keep the target-wide ones`() {
+        val original = twoConfigurationProject(sharedSettings, sharedSettings)
+
+        val r = rewritePbxproj(
+            original = original,
+            marketingVersion = null,
+            buildNumber = null,
+            appName = "Jetzy",
+            bundleId = "com.example.jetzy",
+            locales = null,
+            appIconName = "AppIcon",
+            configurationOverrides = mapOf(
+                "Debug" to PbxConfigurationOverride(
+                    appName = "Jetzy Dev",
+                    bundleId = "com.example.jetzy.debug",
+                    appIconName = "AppIcon-Debug",
+                ),
+            ),
+        )
+
+        assertTrue(r.errors.isEmpty(), r.errors.toString())
+        val debug = r.text.substringBefore("name = Debug;")
+        val release = r.text.substringAfter("name = Debug;").substringBefore("name = Release;")
+        assertTrue(debug.contains("PRODUCT_BUNDLE_IDENTIFIER = com.example.jetzy.debug;"), r.text)
+        assertTrue(debug.contains("PRODUCT_NAME = \"Jetzy Dev\";"), r.text)
+        assertTrue(debug.contains("ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon-Debug;"), r.text)
+        assertTrue(release.contains("PRODUCT_BUNDLE_IDENTIFIER = com.example.jetzy;"), r.text)
+        assertTrue(release.contains("PRODUCT_NAME = \"Jetzy\";"), r.text)
+        assertTrue(release.contains("ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;"), r.text)
+        assertEquals(
+            setOf("PRODUCT_BUNDLE_IDENTIFIER", "PRODUCT_NAME", "ASSETCATALOG_COMPILER_APPICON_NAME"),
+            r.changedSettings,
+        )
+    }
+
+    @Test
+    fun `an override only refines the keys it names`() {
+        val original = twoConfigurationProject(sharedSettings, sharedSettings)
+
+        val r = rewritePbxproj(
+            original, null, null, "Jetzy", "com.example.jetzy", null,
+            appIconName = "AppIcon",
+            configurationOverrides = mapOf("Debug" to PbxConfigurationOverride(bundleId = "com.example.jetzy.debug")),
+        )
+
+        assertTrue(r.errors.isEmpty(), r.errors.toString())
+        val debug = r.text.substringBefore("name = Debug;")
+        assertTrue(debug.contains("PRODUCT_BUNDLE_IDENTIFIER = com.example.jetzy.debug;"), r.text)
+        assertTrue(debug.contains("PRODUCT_NAME = \"Jetzy\";"), r.text)
+        assertTrue(debug.contains("ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;"), r.text)
+    }
+
+    @Test
+    fun `an override alone rewrites only its own configuration`() {
+        val original = twoConfigurationProject(sharedSettings, sharedSettings)
+
+        val r = rewritePbxproj(
+            original, null, null, null, null, null,
+            configurationOverrides = mapOf("Debug" to PbxConfigurationOverride(bundleId = "com.example.jetzy.debug")),
+        )
+
+        assertTrue(r.errors.isEmpty(), r.errors.toString())
+        assertTrue(r.text.substringBefore("name = Debug;").contains("PRODUCT_BUNDLE_IDENTIFIER = com.example.jetzy.debug;"), r.text)
+        assertTrue(r.text.substringAfter("name = Debug;").contains("PRODUCT_BUNDLE_IDENTIFIER = com.old.id;"), r.text)
+    }
+
+    @Test
+    fun `an override for a configuration the target does not have fails closed`() {
+        val original = twoConfigurationProject(sharedSettings, sharedSettings)
+
+        val r = rewritePbxproj(
+            original, null, null, null, "com.example.jetzy", null,
+            configurationOverrides = mapOf("Staging" to PbxConfigurationOverride(bundleId = "com.example.jetzy.staging")),
+        )
+
+        assertEquals(original, r.text)
+        assertTrue(r.errors.any { it.contains("no build configuration named 'Staging'") }, r.errors.toString())
+    }
+
+    @Test
+    fun `an invalid override value is refused like a target-wide one`() {
+        val original = twoConfigurationProject(sharedSettings, sharedSettings)
+
+        val r = rewritePbxproj(
+            original, null, null, null, "com.example.jetzy", null,
+            configurationOverrides = mapOf("Debug" to PbxConfigurationOverride(bundleId = "bad id")),
+        )
+
+        assertEquals(original, r.text)
+        assertTrue(r.errors.any { it.contains("bundle identifier") }, r.errors.toString())
+    }
+
+    @Test
+    fun `applying an override twice changes nothing the second time`() {
+        val original = twoConfigurationProject(sharedSettings, sharedSettings)
+        val overrides = mapOf("Debug" to PbxConfigurationOverride(bundleId = "com.example.jetzy.debug", appName = "Jetzy Dev"))
+
+        val first = rewritePbxproj(original, null, null, "Jetzy", "com.example.jetzy", null, configurationOverrides = overrides)
+        val second = rewritePbxproj(first.text, null, null, "Jetzy", "com.example.jetzy", null, configurationOverrides = overrides)
+
+        assertTrue(second.errors.isEmpty(), second.errors.toString())
+        assertEquals(first.text, second.text)
+        assertEquals(emptySet<String>(), second.changedSettings)
+        assertEquals(emptySet<String>(), second.reformattedSettings)
+    }
 }
