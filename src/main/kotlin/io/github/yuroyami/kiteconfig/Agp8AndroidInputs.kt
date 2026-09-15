@@ -45,6 +45,14 @@ internal class Agp8AndroidInputs internal constructor(
     @JvmField val targetSdk: Int?,
     /** Validated Java level for `compileOptions`, or null. */
     @JvmField val javaVersion: Int?,
+    /** Build types that receive the debug values. */
+    @JvmField val debugBuildTypes: List<String>,
+    /** Suffix added to the debug build types' applicationId, or null. */
+    @JvmField val debugApplicationIdSuffix: String?,
+    /** Exact applicationId for the debug build types, or null. */
+    @JvmField val debugApplicationId: String?,
+    /** Display name for the debug build types, or null. */
+    @JvmField val debugAppName: String?,
 )
 
 /**
@@ -97,6 +105,12 @@ internal fun KiteConfigExtension.resolveAgp8Inputs(project: org.gradle.api.Proje
     } else {
         null
     }
+    val debugIdFlows = appScoped &&
+        (resolve("the debug applicationId") { debugAppIdFlowsTo(KitePlatform.ANDROID).get() } ?: false)
+    val debugIdExact = debugIdFlows &&
+        (resolve("the debug applicationId") { debugAppIdIsExactFor(KitePlatform.ANDROID).get() } ?: false)
+    val debugNameFlows = appScoped &&
+        (resolve("the debug appName placeholder") { debugAppNameFlowsTo(KitePlatform.ANDROID).get() } ?: false)
     val applySdkLevels = resolve("the SDK levels") { effectiveApplySdkLevels.get() } ?: false
     return Agp8AndroidInputs(
         selectedApplications = selected.orEmpty(),
@@ -116,5 +130,21 @@ internal fun KiteConfigExtension.resolveAgp8Inputs(project: org.gradle.api.Proje
         minSdk = if (applySdkLevels) resolve("the SDK levels") { android.minSdk.orNull } else null,
         targetSdk = if (applySdkLevels) resolve("the SDK levels") { android.targetSdk.orNull } else null,
         javaVersion = resolve("the Java compatibility level") { effectiveJvmTarget.orNull?.let(::validateJavaVersion) },
+        debugBuildTypes = resolve("the debug build types") { effectiveAndroidDebugBuildTypes.get() }.orEmpty(),
+        debugApplicationIdSuffix = if (debugIdFlows && !debugIdExact) {
+            resolve("the debug applicationId") { debugAppIdSuffixFor(KitePlatform.ANDROID).orNull }
+        } else {
+            null
+        },
+        debugApplicationId = if (debugIdExact) {
+            resolve("the debug applicationId") { effectiveDebugAppIdFor(KitePlatform.ANDROID).orNull }
+        } else {
+            null
+        },
+        debugAppName = if (debugNameFlows) {
+            resolve("the debug appName placeholder") { effectiveDebugAppNameFor(KitePlatform.ANDROID).orNull }
+        } else {
+            null
+        },
     )
 }

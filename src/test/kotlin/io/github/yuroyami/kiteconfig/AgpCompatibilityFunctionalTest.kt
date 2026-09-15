@@ -1038,4 +1038,127 @@ class AgpCompatibilityFunctionalTest {
             result.output,
         )
     }
+
+    /**
+     * The debug build type gets its own identifier and label through the real
+     * manifest merger, and the release build type keeps the release values.
+     */
+    @Test
+    fun `the debug build type gets its own identifier and label`() {
+        val sdk = androidSdkDirectory()
+        assumeTrue(sdk != null, "no Android SDK on this host")
+        writeDebugIdentityFixture(agpVersion = "9.3.1", sdk = sdk!!)
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withGradleVersion("9.5.1")
+            .withArguments("--stacktrace", ":app:printMergedManifests")
+            .build()
+
+        assertDebugIdentity(result)
+    }
+
+    /** The same split on the AGP floor, through the Java adapter. */
+    @Test
+    fun `the debug build type gets its own identifier and label on the AGP floor too`() {
+        val sdk = androidSdkDirectory()
+        assumeTrue(sdk != null, "no Android SDK on this host")
+        writeDebugIdentityFixture(agpVersion = "8.5.2", sdk = sdk!!)
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withGradleVersion("8.9")
+            .withArguments("--stacktrace", ":app:printMergedManifests")
+            .build()
+
+        assertDebugIdentity(result)
+    }
+
+    private fun assertDebugIdentity(result: BuildResult) {
+        val debug = result.output.substringAfter("DEBUG_START").substringBefore("DEBUG_END")
+        val release = result.output.substringAfter("RELEASE_START").substringBefore("RELEASE_END")
+        assertTrue(debug.contains("package=\"dev.matrix.overlay.debug\""), result.output)
+        assertTrue(debug.contains("android:label=\"Overlay Dev\""), result.output)
+        assertTrue(release.contains("package=\"dev.matrix.overlay\""), result.output)
+        assertTrue(release.contains("android:label=\"Overlay App\""), result.output)
+    }
+
+    private fun writeDebugIdentityFixture(agpVersion: String, sdk: File) {
+        publishPluginFixture()
+        write("local.properties", "sdk.dir=${sdk.path.replace("\\", "\\\\")}")
+        write(
+            "settings.gradle",
+            """
+            pluginManagement {
+                repositories {
+                    maven { url = uri(file('plugin-repository')) }
+                    google()
+                    mavenCentral()
+                    gradlePluginPortal()
+                }
+            }
+            dependencyResolutionManagement {
+                repositories {
+                    google()
+                    mavenCentral()
+                }
+            }
+            rootProject.name = 'debug-identity-fixture'
+            include ':app'
+            """.trimIndent(),
+        )
+        write(
+            "build.gradle",
+            """
+            plugins {
+                id 'com.android.application' version '$agpVersion' apply false
+                id 'io.github.yuroyami.kiteconfig' version 'test-fixture'
+            }
+
+            kiteConfig {
+                appName = 'Overlay App'
+                appId = 'dev.matrix.overlay'
+                version = '1.0.0'
+                modules { androidApps(':app') }
+                android {
+                    compileSdk = 35
+                    minSdk = 24
+                    targetSdk = 35
+                }
+                debug {
+                    appId { suffix = '.debug' }
+                    appName = 'Overlay Dev'
+                }
+                skip(ios)
+            }
+            """.trimIndent(),
+        )
+        write(
+            "app/build.gradle",
+            """
+            plugins { id 'com.android.application' }
+            android { namespace = 'dev.matrix.overlay' }
+
+            tasks.register('printMergedManifests') {
+                dependsOn 'processDebugMainManifest', 'processReleaseMainManifest'
+                def debug = layout.buildDirectory
+                    .file('intermediates/merged_manifest/debug/processDebugMainManifest/AndroidManifest.xml')
+                def release = layout.buildDirectory
+                    .file('intermediates/merged_manifest/release/processReleaseMainManifest/AndroidManifest.xml')
+                doLast {
+                    println 'DEBUG_START'
+                    println debug.get().asFile.text
+                    println 'DEBUG_END'
+                    println 'RELEASE_START'
+                    println release.get().asFile.text
+                    println 'RELEASE_END'
+                }
+            }
+            """.trimIndent(),
+        )
+        write(
+            "app/src/main/AndroidManifest.xml",
+            "<manifest xmlns:android=\"http://schemas.android.com/apk/res/android\"><application/></manifest>",
+        )
+    }
 }

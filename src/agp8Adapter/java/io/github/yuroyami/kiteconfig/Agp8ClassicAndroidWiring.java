@@ -1,5 +1,6 @@
 package io.github.yuroyami.kiteconfig;
 
+import com.android.build.api.dsl.ApplicationBuildType;
 import com.android.build.api.dsl.ApplicationDefaultConfig;
 import com.android.build.api.dsl.LibraryDefaultConfig;
 import com.android.build.api.variant.ApplicationAndroidComponentsExtension;
@@ -50,6 +51,29 @@ final class Agp8ClassicAndroidWiring {
             if (in.applyAppName && in.appName != null) {
                 dc.getManifestPlaceholders().put("appName", in.appName);
             }
+            if (in.debugApplicationIdSuffix != null || in.debugAppName != null) {
+                for (String name : in.debugBuildTypes) {
+                    ApplicationBuildType buildType = android.getBuildTypes().findByName(name);
+                    if (buildType == null) {
+                        throw new IllegalArgumentException(
+                            "[kiteConfig] android { debug { buildTypes } } names '" + name + "', but "
+                                + project.getPath() + " declares no such build type."
+                        );
+                    }
+                    if (in.debugApplicationIdSuffix != null) {
+                        observeDrift(
+                            replaced,
+                            "buildTypes." + name + ".applicationIdSuffix",
+                            buildType.getApplicationIdSuffix(),
+                            in.debugApplicationIdSuffix
+                        );
+                        buildType.setApplicationIdSuffix(in.debugApplicationIdSuffix);
+                    }
+                    if (in.debugAppName != null) {
+                        buildType.getManifestPlaceholders().put("appName", in.debugAppName);
+                    }
+                }
+            }
             if (in.filterResources) {
                 if (in.localeFilters.isEmpty()) {
                     throw new IllegalArgumentException(
@@ -86,6 +110,14 @@ final class Agp8ClassicAndroidWiring {
             }
             applyJavaVersion(android.getCompileOptions(), in.javaVersion);
             reportDrift(project, replaced);
+        });
+
+        // An exact debug identifier is a variant property: the DSL only knows suffixes.
+        components.onVariants(components.selector().all(), variant -> {
+            Agp8AndroidInputs in = inputs.get();
+            if (in.debugApplicationId != null && in.debugBuildTypes.contains(variant.getBuildType())) {
+                variant.getApplicationId().set(in.debugApplicationId);
+            }
         });
     }
 

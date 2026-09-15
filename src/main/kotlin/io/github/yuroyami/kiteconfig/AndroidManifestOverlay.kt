@@ -108,6 +108,8 @@ private fun escapeXmlAttribute(value: String): String = value
  * actually takes it, so a failing provider behind a feature that is off never
  * runs. Pass `resilient = true` on the diagnostic invocations, as the rest of
  * the Android wiring does.
+ *
+ * The debug build types get a second overlay instead when a debug name exists.
  */
 internal fun wireAndroidManifestOverlay(
     project: Project,
@@ -127,19 +129,34 @@ internal fun wireAndroidManifestOverlay(
         outputFile.set(project.layout.buildDirectory.file("generated/kiteconfig/manifest/AndroidManifest.xml"))
     }
 
+    // Same attributes, with the debug name as the label.
+    val debugOverlay = project.tasks.register<GenerateAndroidManifestOverlayTask>("kiteInternalAndroidManifestOverlayDebug") {
+        if (ext.debugAppNameFlowsTo(KitePlatform.ANDROID).get()) {
+            label.set(ext.effectiveDebugAppNameFor(KitePlatform.ANDROID))
+        }
+        if (ext.effectiveAndroidSplash.get()) {
+            theme.set("@style/$ANDROID_SPLASH_STYLE")
+        }
+        outputFile.set(project.layout.buildDirectory.file("generated/kiteconfig/manifest-debug/AndroidManifest.xml"))
+    }
+
     components.onVariants { variant ->
-        // Fails closed: when the gate cannot resolve on a diagnostic run, the
-        // overlay is not attached and the module's own manifest is untouched.
+        // Fails closed: when the gate cannot resolve on a diagnostic run, no
+        // overlay is attached and the module's own manifest is untouched.
         var overlayFlows = false
+        var debugLabelFlows = false
         project.wireValueGroup(resilient, "the Android manifest overlay") {
             val selectedApplications = ext.effectiveAndroidApps.get()
             val selectedHere = selectedApplications.isEmpty() || project.path in selectedApplications
             val carriesLabel = ext.appNameFlowsTo(KitePlatform.ANDROID).get() &&
                 ext.effectiveAppNameFor(KitePlatform.ANDROID).isPresent
             overlayFlows = selectedHere && (carriesLabel || ext.effectiveAndroidSplash.get())
+            debugLabelFlows = selectedHere && ext.debugAppNameFlowsTo(KitePlatform.ANDROID).get() &&
+                variant.buildType?.let { it in ext.effectiveAndroidDebugBuildTypes.get() } == true
         }
-        if (overlayFlows) {
-            variant.sources.manifests.addGeneratedManifestFile(overlay) { it.outputFile }
+        when {
+            debugLabelFlows -> variant.sources.manifests.addGeneratedManifestFile(debugOverlay) { it.outputFile }
+            overlayFlows -> variant.sources.manifests.addGeneratedManifestFile(overlay) { it.outputFile }
         }
     }
 }

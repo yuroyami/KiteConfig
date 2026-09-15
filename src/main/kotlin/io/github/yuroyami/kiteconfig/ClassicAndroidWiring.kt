@@ -4,6 +4,7 @@ import com.android.build.api.dsl.ApplicationExtension
 import com.android.build.api.dsl.LibraryExtension
 import com.android.build.api.variant.ApplicationAndroidComponentsExtension
 import com.android.build.api.variant.LibraryAndroidComponentsExtension
+import org.gradle.api.GradleException
 import org.gradle.api.JavaVersion
 import org.gradle.api.Project
 import org.gradle.kotlin.dsl.register
@@ -84,6 +85,29 @@ internal object ClassicAndroidWiring {
                         dc.manifestPlaceholders["appName"] = ext.effectiveAppNameFor(KitePlatform.ANDROID).get()
                     }
                 }
+                project.wireValueGroup(resilient, "the debug build types") {
+                    val debugIdFlows = ext.debugAppIdFlowsTo(KitePlatform.ANDROID).get()
+                    val debugNameFlows = ext.debugAppNameFlowsTo(KitePlatform.ANDROID).get()
+                    if (debugIdFlows || debugNameFlows) {
+                        val suffix = if (debugIdFlows && !ext.debugAppIdIsExactFor(KitePlatform.ANDROID).get()) {
+                            ext.debugAppIdSuffixFor(KitePlatform.ANDROID).get()
+                        } else {
+                            null
+                        }
+                        val debugName = if (debugNameFlows) ext.effectiveDebugAppNameFor(KitePlatform.ANDROID).get() else null
+                        ext.effectiveAndroidDebugBuildTypes.get().forEach { name ->
+                            val buildType = android.buildTypes.findByName(name) ?: throw GradleException(
+                                "[kiteConfig] android { debug { buildTypes } } names '$name', but ${project.path} " +
+                                    "declares no such build type.",
+                            )
+                            suffix?.let {
+                                drift.observe("buildTypes.$name.applicationIdSuffix", buildType.applicationIdSuffix, it)
+                                buildType.applicationIdSuffix = it
+                            }
+                            debugName?.let { buildType.manifestPlaceholders["appName"] = it }
+                        }
+                    }
+                }
                 project.wireValueGroup(resilient, "the locale filters") {
                     if (ext.effectiveFilterAndroidResources.get()) {
                         // AGP settles its resource configuration here, which is before
@@ -134,6 +158,21 @@ internal object ClassicAndroidWiring {
                 }
             }
             drift.report()
+        }
+
+        // An exact debug identifier is a variant property: the DSL only knows suffixes.
+        components.onVariants { variant ->
+            project.wireValueGroup(resilient, "the debug applicationId") {
+                val selectedApplications = ext.effectiveAndroidApps.get()
+                val selectedHere = selectedApplications.isEmpty() || project.path in selectedApplications
+                val debugVariant = variant.buildType?.let { it in ext.effectiveAndroidDebugBuildTypes.get() } == true
+                if (selectedHere && debugVariant &&
+                    ext.debugAppIdFlowsTo(KitePlatform.ANDROID).get() &&
+                    ext.debugAppIdIsExactFor(KitePlatform.ANDROID).get()
+                ) {
+                    variant.applicationId.set(ext.effectiveDebugAppIdFor(KitePlatform.ANDROID))
+                }
+            }
         }
     }
 
