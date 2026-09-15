@@ -24,7 +24,7 @@ Apply the plugin to the **root** project only:
 
 ```kotlin
 plugins {
-    id("io.github.yuroyami.kiteconfig") version "2.0.1"
+    id("io.github.yuroyami.kiteconfig") version "2.1.0"
 }
 ```
 
@@ -94,6 +94,7 @@ kiteConfig {
         foreground = file("art/logo.png")
         background = color("#102A43")   // or image(file("art/logo-bg.png"))
         foregroundScale = 0.75          // default: each renderer's native ratio
+        overlay = file("art/badge.png") // drawn over the mark, same size and position; optional
     }
 
     splash {                            // off until enabled = true
@@ -104,6 +105,12 @@ kiteConfig {
             image = file("art/splash-dark.png") // default: the light image
             backgroundColor = "#000000"
         }
+    }
+
+    debug {                             // each value is off until you set it
+        appId { suffix = ".debug" }     // release id + suffix, on Android and iOS
+        appName = "Jetzy Dev"
+        logo { overlay = file("art/debug-ribbon.png") }   // unset leaves follow the release icon
     }
 
     jvm {
@@ -139,6 +146,10 @@ kiteConfig {
         locales { filterResources = true }    // drop res folders outside the list
         logo { foregroundScale = 0.61 }
         splash { theme = "AppTheme" }         // your app theme
+        debug {
+            appId { suffix = ".dev" }   // this platform's debug id differs
+            buildTypes("debug")         // default: the build types that count as debug
+        }
         sdk(min = 26, target = 36, compile = 36)   // any subset
         ndk = "27.1.12297006"
         jvm { target = 17 }
@@ -155,6 +166,10 @@ kiteConfig {
         }
         locales { tags = listOf("en", "fr") }  // replaces the shared list here
         splash { enabled = false }              // light only: splash { dark { enabled = false } }
+        debug {
+            appName = "Jetzy (Xcode)"
+            configurations("Debug")     // default: the configurations that count as debug
+        }
         infoPlist {
             path = file("iosApp/iosApp/Info.plist")   // default
             proMotion = true                          // default: key left alone
@@ -230,6 +245,65 @@ ios { appName { enabled = false } }   // iOS keeps whatever name it has
 
 The value stays readable. Only the write stops. To remove a platform
 altogether, use `skip()` at the root, which nothing can argue with.
+
+## Debug builds
+
+The debug build is the one Android Studio and Xcode install while you work.
+With the same id as the release build, it collides with the store app. On iOS
+it replaces the store app. On Android it refuses to install until you
+uninstall the store app, because the signing keys differ. Give the debug build
+its own id and both stay installed. Give it its own name and icon and you can
+tell them apart:
+
+```kotlin
+kiteConfig {
+    appName = "Jetzy"
+    appId   = "com.example.jetzy"
+    logo {
+        foreground = file("art/logo.png")
+        background = color("#102A43")
+    }
+    debug {
+        appId { suffix = ".debug" }               // com.example.jetzy.debug
+        appName = "Jetzy Dev"
+        logo { background = color("#B00020") }   // same mark, red plate
+    }
+}
+```
+
+`debug { }` follows the same rules as everything else. Each value is looked up
+on its own: the platform's `debug { }` first, then the root `debug { }`, then
+that platform's release value. Each value is on once you set it, and only on
+platforms where the matching release value is applied. An empty block does
+nothing. Desktop has no
+debug build, so `desktop { }` has no `debug { }`.
+
+| You write | Android gets | iOS gets |
+| --- | --- | --- |
+| `appId { suffix }` or `appId` | `applicationIdSuffix` on the `debug` build type, or an exact id on those variants | `PRODUCT_BUNDLE_IDENTIFIER` in the `Debug` configuration |
+| `appName` | the label of the `debug` variants | `PRODUCT_NAME` in the `Debug` configuration |
+| `logo { }` | launcher icons generated into `build/`, used by the `debug` variants only | `AppIcon-Debug.appiconset` next to the release catalog, used by the `Debug` configuration |
+
+Three ways to change the debug icon:
+
+- `debug { logo { background = color("#B00020") } }` keeps the mark and swaps the plate.
+- `debug { logo { overlay = file("art/ribbon.png") } }` draws a PNG over the mark. Use the same width and height as your foreground, transparent everywhere except the ribbon. A PNG of a different shape is centered, so a corner ribbon would move.
+- `debug { logo { foreground = file("art/logo-dev.png") } }` swaps the mark.
+
+iOS needs no new scheme and no new target. Xcode's Run action builds `Debug`
+and Archive builds `Release`, and the values differ per configuration inside
+the target you already have. If your project names things differently, say so:
+`ios { debug { configurations("Staging") } }` or
+`android { debug { buildTypes("debug", "staging") } }`.
+
+What a new id does not do for you: register the debug bundle id for push
+notifications or app groups, add the debug package to `google-services.json`,
+or list it in your deep-link files. Automatic signing in Xcode registers the
+new App ID by itself.
+
+On iOS the debug name is written as `PRODUCT_NAME`, which also renames the
+Swift module in `Debug`. If a test target uses `@testable import`, set
+`PRODUCT_MODULE_NAME` in the app target so the module keeps one name.
 
 ## Build numbers
 
@@ -416,6 +490,8 @@ from Xcode.
 - **Why did my desktop app get icons I never asked for?** You set
   `logo { foreground }` and a desktop app exists. Write
   `desktop { logo { enabled = false } }` to stop that.
+- **My debug build replaced the app I installed from the store.** Give it its
+  own id: `debug { appId { suffix = ".debug" } }`. See "Debug builds" above.
 - **My AGP or Kotlin version is unsupported.** The features that need deep
   access turn off and say why. `ignoreVersionGuards = true`, with its `@OptIn`
   line, keeps them on at your own risk.

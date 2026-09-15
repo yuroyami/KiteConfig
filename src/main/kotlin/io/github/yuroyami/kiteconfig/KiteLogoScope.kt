@@ -39,7 +39,7 @@ public sealed interface LogoBackground : Serializable {
  * | `foreground` | the mark that sits on top | none, and the topic stays off |
  * | `background` | `color("#...")` or `image(file(...))` | none |
  * | `foregroundScale` | how much of the canvas the mark fills | each renderer's own ratio |
- * | `overlay` | a PNG drawn over the mark, in the mark's own frame | none |
+ * | `overlay` | a PNG drawn over the mark, at the same size and position | none |
  * | `enabled` | deliver the icon to this platform | on once `foreground` is set |
  *
  * | Platform | Output |
@@ -87,9 +87,10 @@ public abstract class KiteLogoScope {
     public abstract val foregroundScale: Property<Double>
 
     /**
-     * PNG drawn on top of [foreground], in the foreground's frame: same scale,
-     * same position, same mask. Draw it on the same canvas as the foreground,
-     * transparent everywhere except what you add, such as a ribbon in one corner.
+     * PNG drawn on top of [foreground], at the same size and position, with the
+     * same mask. Use the same width and height as the foreground, transparent
+     * everywhere except what you add, such as a ribbon in one corner. A PNG of
+     * a different shape is centered, so a corner ribbon would move.
      *
      * Most useful as `debug { logo { overlay } }`. Also valid on its own for a
      * badge every build should carry.

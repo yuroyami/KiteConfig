@@ -4,6 +4,54 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions track the
 Gradle Plugin Portal releases.
 
+## 2.1.0
+
+### Added
+
+- `debug { }`: a debug build can have its own app id, name and icon, so it
+  installs next to the released app instead of replacing it. Android reads it
+  for the `debug` build type, iOS for the `Debug` configuration. Each value is
+  looked up like everything else: `android { debug { } }` or
+  `ios { debug { } }` first, then the root `debug { }`, then the platform's
+  release value.
+
+  ```kotlin
+  kiteConfig {
+      appId = "com.example.jetzy"
+      debug {
+          appId { suffix = ".debug" }
+          appName = "Jetzy Dev"
+          logo { background = color("#B00020") }
+      }
+  }
+  ```
+
+  Android gets `applicationIdSuffix` (or an exact id through the Variant API),
+  its own label, and launcher icons generated into `build/` and attached to
+  the debug variants only. iOS gets its own `PRODUCT_BUNDLE_IDENTIFIER`,
+  `PRODUCT_NAME` and `ASSETCATALOG_COMPILER_APPICON_NAME` in the `Debug`
+  configuration of the target you already have, plus an
+  `AppIcon-Debug.appiconset` that is installed and removed under the usual
+  receipts. No new scheme and no new target.
+  `android { debug { buildTypes(...) } }` and
+  `ios { debug { configurations(...) } }` name which build types and
+  configurations count as debug.
+- `logo { overlay }`: a PNG drawn over the mark, at the same size and
+  position, on every platform. Use it to add a debug ribbon.
+- `kiteConfig.debugAppIdFor(platform)` and `kiteConfig.debugAppNameFor(platform)`
+  read the debug values back from any build file.
+- `kiteVerify` prints a "Debug builds" section, `kitePlan` lists the debug
+  catalog install and its removal, and `KTCNFG025` checks the debug catalog
+  the way `KTCNFG022` checks the release one.
+
+### Changed
+
+- `kiteApplyIos` also installs, or takes back out, `AppIcon-Debug.appiconset`.
+- `KTCNFG021` knows which configuration carries the debug identity, so a
+  correctly applied project passes `kiteCheck`.
+- The `KTCNFG022` hint now names `kiteApplyIos`, the task that installs the
+  catalog, instead of `kiteApplyAndroid`.
+
 ## 2.0.1
 
 ### Fixed

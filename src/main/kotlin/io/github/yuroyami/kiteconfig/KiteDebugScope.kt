@@ -30,9 +30,10 @@ import org.gradle.api.provider.Property
  * | `appName` | the debug build's display name | the platform's release name |
  * | `appId` | the debug build's exact identifier | the release id plus `appId { suffix }` |
  * | `appId { suffix }` | added to the end of the platform's release identifier | none |
- * | `logo { }` | the debug icon; leaves you leave unset follow the release icon | the release icon |
+ * | `logo { }` | the debug icon; any logo value you leave unset uses the release icon | the release icon |
  *
  * Nothing here is on until you set a value, so an empty block changes nothing.
+ * Each value also needs its release value to reach that platform.
  * Each value is looked up closest first: the platform's own `debug { }`, then
  * this block, then that platform's release value.
  *
@@ -56,10 +57,10 @@ public abstract class KiteDebugScope {
     /** Whether the debug build receives its own name. */
     public fun appName(action: Action<in KiteAppNameScope>): Unit = action.execute(appNameDetails)
 
-    /** The debug identifier's suffix and delivery switch. */
+    /** The debug id's suffix, and a switch to turn the debug id off. */
     public fun appId(action: Action<in KiteAppIdScope>): Unit = action.execute(appIdDetails)
 
-    /** The debug icon. Every leaf you leave unset follows the release icon. */
+    /** The debug icon. Any logo value you leave unset uses the release icon. */
     public fun logo(action: Action<in KiteLogoScope>): Unit = action.execute(logoDetails)
 
     internal val appNameDetails: KiteAppNameScope
@@ -73,7 +74,7 @@ public abstract class KiteDebugScope {
 }
 
 /**
- * Android's debug corner, inside `kiteConfig { android { debug { ... } } }`.
+ * Android-only debug settings, inside `kiteConfig { android { debug { ... } } }`.
  *
  * Everything in [KiteDebugScope] works here too, for Android only, plus the
  * build types that count as debug.
@@ -94,7 +95,7 @@ public abstract class KiteAndroidDebugScope : KiteDebugScope() {
 }
 
 /**
- * iOS's debug corner, inside `kiteConfig { ios { debug { ... } } }`.
+ * iOS-only debug settings, inside `kiteConfig { ios { debug { ... } } }`.
  *
  * Everything in [KiteDebugScope] works here too, for iOS only, plus the Xcode
  * build configurations that count as debug.

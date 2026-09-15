@@ -74,6 +74,10 @@ supported.
 | `logo { foreground }` | Unset | Setting it turns the topic on. Nothing is installed without art. |
 | `logo { background }` | Unset | One choice: `color("#RRGGBB")` or `image(file(...))`. |
 | `logo { foregroundScale }` | Each renderer's own ratio | A shared linear ratio in `(0, 1]`, overridable per platform. Unset, existing icons do not move. |
+| `logo { overlay }` | Unset | A PNG drawn over the mark, at the same size and position. |
+| `debug { }` | Off | Each debug value is off until you set it, and applies only where the matching release value is applied. Android reads it for the `debug` build type, iOS for the `Debug` configuration. |
+| `android { debug { buildTypes } }` | `debug` | The build types that receive the debug values. |
+| `ios { debug { configurations } }` | `Debug` | The build configurations that receive the debug values. |
 | `desktop { logo { roundMac } }` | `true` | The generated macOS icon gets Apple's rounded-square mask. |
 | `splash { enabled }` | `false` | Artwork, colors, a dark variant, and an empty block all leave it off. |
 | `splash { dark }` | On once a dark value is set | A platform can drop it with `dark { enabled = false }`. |
@@ -161,6 +165,10 @@ selected.
 | `appId` | `Property<String>` | Reverse-DNS base for every platform identifier. |
 | `<platform> { appId }` | `Property<String>` | That platform's exact identifier. No suffix is involved once it is set. |
 | `<platform> { appId { suffix } }` | `Property<String>` | Appended to the shared `appId` for that platform. |
+| `debug { appId }` | `Property<String>` | The debug build's exact identifier, on every platform that has a debug build. |
+| `debug { appId { suffix } }` | `Property<String>` | Added to the end of each platform's release identifier, for its debug build. |
+| `debug { appName }` | `Property<String>` | The debug build's display name. |
+| `<platform> { debug { ... } }` | block | The same members, for that platform's debug build only. |
 | `ios { deploymentTarget }` | `Property<String>` | Icon-format compatibility assertion, checked only when you declare it. It does not write `IPHONEOS_DEPLOYMENT_TARGET`. |
 
 ### Build numbers and the scheme
@@ -206,6 +214,79 @@ Coming from an older plugin line, the derived numbers change: a scheme that
 gave `1.4.1` the code `1001004001` now gives `1001004010`. The new numbers are
 higher, so Play still accepts them. Bring your old one in as
 `version { scheme { ... } }` if you need the exact previous numbers.
+
+## Debug builds
+
+`debug { }` gives the debug build its own identifier, name and icon, so it
+installs next to the released app instead of replacing it. Each value is
+looked up on its own: the platform's `debug { }` first, then the root
+`debug { }`, then that platform's release value. Each value is on once you
+set it, and only on platforms where the matching release value is applied.
+Desktop has no debug build.
+
+| Member | Meaning |
+|---|---|
+| `appId { suffix }` | Added to the end of the platform's release identifier. |
+| `appId` | The exact debug identifier. Replaces the suffix. |
+| `appName` | The debug display name. |
+| `logo { }` | The debug icon. Any logo value you leave unset uses the release icon, `overlay` included. |
+| `appId { enabled }`, `appName { enabled }`, `logo { enabled }` | Set `enabled = false` to turn that part off. Works in the root `debug { }` or a platform one. |
+| `android { debug { buildTypes } }` | Build types that count as debug. Default `debug`. |
+| `ios { debug { configurations } }` | Xcode configurations that count as debug. Default `Debug`. |
+
+The debug icon is made only when the release icon is on for that platform.
+
+KiteConfig stops the build when:
+
+- a debug identifier has no release identifier to build on, usually the
+  shared `appId`;
+- the debug identifier is the same as the release identifier on that
+  platform;
+- the debug icon has no foreground or no background, from
+  `debug { logo { } }` or the release logo;
+- build type or configuration names repeat or are blank;
+- a build type in `buildTypes` is not declared by the app module (checked when
+  a debug id or name reaches Android).
+
+Android:
+
+- A suffix is written as `applicationIdSuffix` on each named build type, so it
+  combines with product flavors. A module that already sets its own suffix
+  there is overridden, and the build says so once.
+- An exact identifier is set on each matching variant through the Variant API.
+- The name reaches the `appName` manifest placeholder of those build types, and
+  a second generated manifest overlay attached to those variants.
+- The icon is generated into `build/generated/kiteconfig/debug-icons-res` and
+  attached to those variants as a generated resource directory. It takes
+  priority over the installed icons in `src/main/res` for those variants only.
+  Nothing is written into `src/`.
+
+iOS:
+
+- `PRODUCT_BUNDLE_IDENTIFIER`, `PRODUCT_NAME` (plus the optional
+  `INFOPLIST_KEY_CFBundleDisplayName` and `INFOPLIST_KEY_CFBundleName`) and
+  `ASSETCATALOG_COMPILER_APPICON_NAME` carry the debug values in the named
+  configurations of the selected application target. Every other
+  configuration keeps the release values. No new scheme or target is needed.
+- A named configuration that the target does not have fails the plan before
+  anything is written.
+- The debug name is written as `PRODUCT_NAME`, which also names the app's
+  Swift module in those configurations. A test target that uses
+  `@testable import` then needs `PRODUCT_MODULE_NAME` set in the app target,
+  or `ios { debug { appName { enabled = false } } }`.
+- The debug icon is installed into `AppIcon-Debug.appiconset`, next to the
+  release catalog, with the same receipts, backups and fingerprints. When the
+  debug icon is turned off, the next apply removes the files the receipt owns,
+  deletes the empty folder, and points the `Debug` configuration back at the
+  release icon set.
+- Removing the whole `logo { }` block, or turning the iOS release icon off,
+  stops KiteConfig managing icons. Both catalogs and the `Debug` setting then
+  stay as they are, so the Xcode build keeps working.
+
+Read-back: `kiteConfig.debugAppIdFor(platform)` and
+`kiteConfig.debugAppNameFor(platform)` return the debug value, or the release
+value when no debug value is set. They do not check `enabled` or platform
+selection, and on Android they leave out product flavor suffixes.
 
 ## Project and target selection
 
@@ -602,6 +683,8 @@ Android icon installation requires:
 - `logo.foreground`, a PNG;
 - exactly one of `logo.background`, a PNG, or `logo.backgroundColor`, written as
   `#RRGGBB` or `#AARRGGBB`;
+- optionally `logo.overlay`, a PNG drawn over the foreground at the same size
+  and position;
 - at most one effective Android application.
 
 The installer:
@@ -631,6 +714,8 @@ Apple icon installation requires:
 - a configured `logo { }` block;
 - `logo.foreground`, a PNG;
 - exactly one of `logo.background` or `logo.backgroundColor`;
+- optionally `logo.overlay`, a PNG drawn over the foreground at the same size
+  and position;
 - an `IPHONEOS_DEPLOYMENT_TARGET` of 12.0 or newer in the Xcode project, when
   the project states one;
 - Xcode 14 or newer.
@@ -643,6 +728,10 @@ Input decoding and output paths are bounded and validated. With backups enabled,
 first-contact recovery is stored below `.kiteconfig/recovery`, outside `build/`,
 so `clean` does not erase it. Checksum ownership is always enforced.
 Unreferenced PNG files are reported but not deleted.
+
+With `debug { logo { } }`, a second installer writes `AppIcon-Debug.appiconset`
+next to the release catalog under the same rules, and the `Debug`
+configuration selects it.
 
 ### Ownership state, and whether to commit it
 
@@ -739,7 +828,7 @@ Stable diagnostic families are:
 |---|---|
 | `KTCNFG001` to `KTCNFG003` | Android app label and launcher-icon references |
 | `KTCNFG010` to `KTCNFG012` | Source Info.plist references and Apple bundle-name compatibility |
-| `KTCNFG020` to `KTCNFG024` | Xcode target selection, AppIcon state, catalog selection, and deployment compatibility |
+| `KTCNFG020` to `KTCNFG025` | Xcode target selection, AppIcon state, catalog selection, deployment compatibility, and the debug AppIcon state |
 | `KTCNFG030` to `KTCNFG031` | Android resource and icon state |
 | `KTCNFG040` | Locale canonicalization |
 | `KTCNFG050` | Build-number derivation |
@@ -748,7 +837,7 @@ Stable diagnostic families are:
 | `KTCNFG080` to `KTCNFG087` | Desktop identity, icons, Compose plugin compatibility, application selection, bundle identifier, package version, and Linux or Windows packaging names |
 | `KTCNFG090` to `KTCNFG095` | Splash delivery, automatic application, and Xcode-driven build timing |
 | `KTCNFG901` to `KTCNFG952` | Provider, path, and input-fingerprint resolution |
-| `KTCNFG960` to `KTCNFG967` | Splash, version-guard, and auto-rewrite provider resolution |
+| `KTCNFG960` to `KTCNFG975` | Splash, version-guard, auto-rewrite, model validation, and debug-build provider resolution |
 | `KTCNFG999` | Unexpected diagnostic-engine failure |
 
 `KTCNFG011` reports a managed plist key that does not yet carry the declared value. It is a
@@ -794,7 +883,9 @@ Every migration or installer follows these rules:
 KiteConfig does not currently provide:
 
 - Gradle Isolated Projects support;
-- per-flavor, per-build-type, or per-Xcode-target identity overlays;
+- per-flavor or per-Xcode-target identity overlays, or different values for
+  several debug build types or configurations (all the named ones get the
+  same debug values);
 - xcconfig generation or automatic Xcode include wiring;
 - generated or binary Info.plist conversion;
 - automatic project-directory or `settings.gradle` renames;

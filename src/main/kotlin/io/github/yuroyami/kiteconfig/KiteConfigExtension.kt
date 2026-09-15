@@ -67,6 +67,12 @@ import org.gradle.api.provider.Provider
  *         dark { backgroundColor = "#000000" }
  *     }
  *
+ *     debug {                            // what the debug build changes
+ *         appId { suffix = ".debug" }
+ *         appName = "Jetzy Dev"
+ *         logo { overlay = file("art/debug-ribbon.png") }
+ *     }
+ *
  *     optIns {
  *         add("kotlinx.cinterop.ExperimentalForeignApi")
  *     }
@@ -120,6 +126,7 @@ import org.gradle.api.provider.Provider
  * | `version` / `version { }` | `android`, `ios`, `desktop` | that platform's version and numbering |
  * | `rebuild`, `buildNumber`, `publishedBuildNumber` | `version` in a platform block | counter, exact number, guard floor |
  * | `dark { }` | `splash` | dark-mode variant |
+ * | `debug { }` | root, `android`, `ios` | what the debug build changes: `appId`, `appName`, `logo { }` |
  * | typed `*Field(...)` | `buildConfig` | generated constants |
  *
  * ## Tasks
