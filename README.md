@@ -11,6 +11,9 @@ JVM level. KiteConfig applies them to Android, iOS, and Compose Desktop for you.
 Without it, each platform keeps its own copy of these values, and the copies
 slowly stop matching.
 
+<sub>AI tools wrote much of the code, tests and documentation in this project, under the
+direction and review of its author.</sub>
+
 [![Gradle Plugin Portal](https://img.shields.io/gradle-plugin-portal/v/io.github.yuroyami.kiteconfig?label=plugin%20portal)](https://plugins.gradle.org/plugin/io.github.yuroyami.kiteconfig)
 [![CI](https://img.shields.io/github/actions/workflow/status/yuroyami/KiteConfig/ci.yml?branch=main&label=CI)](https://github.com/yuroyami/KiteConfig/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
