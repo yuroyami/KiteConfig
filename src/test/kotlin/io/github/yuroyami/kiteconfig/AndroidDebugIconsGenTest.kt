@@ -1,5 +1,8 @@
 package io.github.yuroyami.kiteconfig
 
+import io.github.yuroyami.kiteconfig.core.parseLogoBackgroundColor
+import io.github.yuroyami.kiteconfig.core.renderAndroidLauncherIcons
+import io.github.yuroyami.kiteconfig.core.solidColorImage
 import org.gradle.api.GradleException
 import org.gradle.testfixtures.ProjectBuilder
 import org.junit.jupiter.api.Assertions.assertEquals

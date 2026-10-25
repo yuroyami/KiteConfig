@@ -1,7 +1,12 @@
 package io.github.yuroyami.kiteconfig
 
+import io.github.yuroyami.kiteconfig.core.ANDROID_DENSITIES
 import io.github.yuroyami.kiteconfig.core.OwnedOutputSafety
 import io.github.yuroyami.kiteconfig.core.diagnosticSafeText
+import io.github.yuroyami.kiteconfig.core.encodePng
+import io.github.yuroyami.kiteconfig.core.padToSafeZone
+import io.github.yuroyami.kiteconfig.core.readBoundedLogoPng
+import io.github.yuroyami.kiteconfig.core.validateLogoBackgroundColorHex
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
 import org.gradle.api.file.DirectoryProperty
@@ -140,7 +145,7 @@ internal abstract class GenerateAndroidSplashTask : DefaultTask() {
     private fun renderIcons(art: BufferedImage, qualifierPrefix: String, into: MutableMap<String, ByteArray>) {
         val ratio = SPLASH_SAFE_CIRCLE_DP.toDouble() / SPLASH_CANVAS_DP
         // The density table the launcher pipeline already uses.
-        SyncAndroidLogoTask.DENSITIES.forEach { (density, scale) ->
+        ANDROID_DENSITIES.forEach { (density, scale) ->
             val canvas = (SPLASH_CANVAS_DP * scale).toInt()
             into["drawable-$qualifierPrefix$density/$SPLASH_ICON_NAME.png"] =
                 encodePng(padToSafeZone(art, canvas, ratio), "Android splash icon")

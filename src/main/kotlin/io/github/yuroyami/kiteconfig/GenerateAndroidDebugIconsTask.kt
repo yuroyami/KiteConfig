@@ -1,6 +1,13 @@
 package io.github.yuroyami.kiteconfig
 
+import io.github.yuroyami.kiteconfig.core.LogoPngSnapshot
 import io.github.yuroyami.kiteconfig.core.OwnedOutputSafety
+import io.github.yuroyami.kiteconfig.core.applyLogoOverlay
+import io.github.yuroyami.kiteconfig.core.flattenOverWhite
+import io.github.yuroyami.kiteconfig.core.parseLogoBackgroundColor
+import io.github.yuroyami.kiteconfig.core.readBoundedLogoPngSnapshot
+import io.github.yuroyami.kiteconfig.core.renderAndroidLauncherIcons
+import io.github.yuroyami.kiteconfig.core.solidColorImage
 import io.github.yuroyami.kiteconfig.core.validateLogoSafeZoneRatio
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException

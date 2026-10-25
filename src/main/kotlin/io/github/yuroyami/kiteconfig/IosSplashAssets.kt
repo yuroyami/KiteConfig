@@ -2,6 +2,8 @@ package io.github.yuroyami.kiteconfig
 
 import io.github.yuroyami.kiteconfig.core.OwnedOutputSafety
 import io.github.yuroyami.kiteconfig.core.diagnosticSafeText
+import io.github.yuroyami.kiteconfig.core.encodePng
+import io.github.yuroyami.kiteconfig.core.parseLogoBackgroundColor
 import org.gradle.api.logging.Logger
 import org.w3c.dom.Document
 import org.w3c.dom.Element

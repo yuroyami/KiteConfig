@@ -1,4 +1,4 @@
-package io.github.yuroyami.kiteconfig
+package io.github.yuroyami.kiteconfig.core
 
 import java.awt.image.BufferedImage
 import java.io.ByteArrayInputStream

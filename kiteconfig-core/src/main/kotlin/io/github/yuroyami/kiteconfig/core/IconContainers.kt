@@ -1,4 +1,4 @@
-package io.github.yuroyami.kiteconfig
+package io.github.yuroyami.kiteconfig.core
 
 import java.awt.image.BufferedImage
 import java.io.ByteArrayOutputStream
@@ -29,7 +29,8 @@ private fun bigEndian(value: Int): ByteArray = byteArrayOf(
 )
 
 /** Build a macOS `.icns` container from one square source image. */
-internal fun writeIcns(square: BufferedImage): ByteArray {
+@InternalKiteCoreApi
+public fun writeIcns(square: BufferedImage): ByteArray {
     val body = ByteArrayOutputStream()
     for ((type, size) in ICNS_ENTRIES) {
         val payload = encodePng(resize(square, size, size), "macOS icon entry $type")
@@ -59,7 +60,8 @@ private fun littleEndianInt(value: Int): ByteArray = byteArrayOf(
 )
 
 /** Build a Windows `.ico` container from one square source image. */
-internal fun writeIco(square: BufferedImage): ByteArray {
+@InternalKiteCoreApi
+public fun writeIco(square: BufferedImage): ByteArray {
     val payloads = ICO_SIZES.map { size ->
         encodePng(resize(square, size, size), "Windows icon entry ${size}px")
     }

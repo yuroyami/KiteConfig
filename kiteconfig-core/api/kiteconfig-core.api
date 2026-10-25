@@ -1,3 +1,8 @@
+public final class io/github/yuroyami/kiteconfig/core/AndroidLauncherIconsKt {
+	public static final fun getANDROID_DENSITIES ()Ljava/util/List;
+	public static final fun renderAndroidLauncherIcons (Ljava/awt/image/BufferedImage;Ljava/awt/image/BufferedImage;DZ)Ljava/util/LinkedHashMap;
+}
+
 public abstract interface class io/github/yuroyami/kiteconfig/core/BuildConfigField {
 	public abstract fun getName ()Ljava/lang/String;
 	public abstract fun getTypeName ()Ljava/lang/String;
@@ -123,6 +128,30 @@ public final class io/github/yuroyami/kiteconfig/core/DiagnosticTextKt {
 	public static synthetic fun diagnosticSafeText$default (Ljava/lang/String;IILjava/lang/Object;)Ljava/lang/String;
 }
 
+public final class io/github/yuroyami/kiteconfig/core/IconContainersKt {
+	public static final fun writeIcns (Ljava/awt/image/BufferedImage;)[B
+	public static final fun writeIco (Ljava/awt/image/BufferedImage;)[B
+}
+
+public final class io/github/yuroyami/kiteconfig/core/ImageOpsKt {
+	public static final fun applyLogoOverlay (Ljava/awt/image/BufferedImage;Ljava/awt/image/BufferedImage;)Ljava/awt/image/BufferedImage;
+	public static final fun applyRoundedRectMask (Ljava/awt/image/BufferedImage;D)Ljava/awt/image/BufferedImage;
+	public static final fun drawContain (Ljava/awt/Graphics2D;Ljava/awt/image/BufferedImage;IIII)V
+	public static final fun drawContainScaled (Ljava/awt/Graphics2D;Ljava/awt/image/BufferedImage;ID)V
+	public static final fun drawCover (Ljava/awt/Graphics2D;Ljava/awt/image/BufferedImage;IIII)V
+	public static final fun encodePng (Ljava/awt/image/BufferedImage;Ljava/lang/String;)[B
+	public static final fun logoInputFingerprint (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;)Ljava/lang/String;
+	public static synthetic fun logoInputFingerprint$default (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;ILjava/lang/Object;)Ljava/lang/String;
+	public static final fun logoInputFingerprintForFiles (Ljava/lang/String;Ljava/io/File;Ljava/io/File;Ljava/lang/String;Ljava/util/Map;Ljava/io/File;)Ljava/lang/String;
+	public static synthetic fun logoInputFingerprintForFiles$default (Ljava/lang/String;Ljava/io/File;Ljava/io/File;Ljava/lang/String;Ljava/util/Map;Ljava/io/File;ILjava/lang/Object;)Ljava/lang/String;
+	public static final fun overlayFingerprintParameter (Ljava/lang/String;)Ljava/util/Map;
+	public static final fun padToSafeZone (Ljava/awt/image/BufferedImage;ID)Ljava/awt/image/BufferedImage;
+	public static final fun readBoundedLogoPng (Ljava/io/File;Ljava/lang/String;)Ljava/awt/image/BufferedImage;
+	public static final fun readBoundedLogoPngSnapshot (Ljava/io/File;Ljava/lang/String;)Lio/github/yuroyami/kiteconfig/core/LogoPngSnapshot;
+	public static final fun resize (Ljava/awt/image/BufferedImage;II)Ljava/awt/image/BufferedImage;
+	public static final fun withGraphics (Ljava/awt/image/BufferedImage;Lkotlin/jvm/functions/Function1;)Ljava/awt/image/BufferedImage;
+}
+
 public abstract interface annotation class io/github/yuroyami/kiteconfig/core/InternalKiteCoreApi : java/lang/annotation/Annotation {
 }
 
@@ -149,6 +178,26 @@ public final class io/github/yuroyami/kiteconfig/core/LocaleTagsKt {
 	public static final fun bcp47ToAndroidQualifier (Ljava/lang/String;)Ljava/lang/String;
 	public static final fun canonicalizeLocales (Ljava/lang/Iterable;)Ljava/util/List;
 	public static final fun looksLikeUnambiguousLocaleQualifier (Ljava/lang/String;)Z
+}
+
+public final class io/github/yuroyami/kiteconfig/core/LogoBackgroundColorKt {
+	public static final fun flattenOverWhite (Ljava/awt/Color;)Ljava/awt/Color;
+	public static final fun parseLogoBackgroundColor (Ljava/lang/String;)Ljava/awt/Color;
+	public static final fun solidColorImage (ILjava/awt/Color;)Ljava/awt/image/BufferedImage;
+	public static final fun validateLogoBackgroundColorHex (Ljava/lang/String;)V
+}
+
+public final class io/github/yuroyami/kiteconfig/core/LogoPngSnapshot {
+	public fun <init> (Ljava/awt/image/BufferedImage;Ljava/lang/String;)V
+	public final fun component1 ()Ljava/awt/image/BufferedImage;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun copy (Ljava/awt/image/BufferedImage;Ljava/lang/String;)Lio/github/yuroyami/kiteconfig/core/LogoPngSnapshot;
+	public static synthetic fun copy$default (Lio/github/yuroyami/kiteconfig/core/LogoPngSnapshot;Ljava/awt/image/BufferedImage;Ljava/lang/String;ILjava/lang/Object;)Lio/github/yuroyami/kiteconfig/core/LogoPngSnapshot;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getImage ()Ljava/awt/image/BufferedImage;
+	public final fun getSha256 ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
 }
 
 public final class io/github/yuroyami/kiteconfig/core/OwnedOutputSafety {

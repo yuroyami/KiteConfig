@@ -1,7 +1,17 @@
-package io.github.yuroyami.kiteconfig
+package io.github.yuroyami.kiteconfig.core
 
 import java.awt.image.BufferedImage
 import java.nio.charset.StandardCharsets
+
+// Density qualifier → scale factor. Adaptive canvas 108dp; legacy 48dp.
+@InternalKiteCoreApi
+public val ANDROID_DENSITIES: List<Pair<String, Double>> = listOf(
+    "mdpi" to 1.0,
+    "hdpi" to 1.5,
+    "xhdpi" to 2.0,
+    "xxhdpi" to 3.0,
+    "xxxhdpi" to 4.0,
+)
 
 /**
  * Every file of one Android launcher icon set, keyed by path under `res/`.
@@ -9,14 +19,15 @@ import java.nio.charset.StandardCharsets
  * Shared by the release installer, which writes into the app's source tree, and
  * the debug generator, which writes into `build/`, so both render the same way.
  */
-internal fun renderAndroidLauncherIcons(
+@InternalKiteCoreApi
+public fun renderAndroidLauncherIcons(
     foreground: BufferedImage,
     background: BufferedImage,
     safeZoneRatio: Double,
     emitMonochrome: Boolean,
 ): LinkedHashMap<String, ByteArray> {
     val rendered = linkedMapOf<String, ByteArray>()
-    SyncAndroidLogoTask.DENSITIES.forEach { (qualifier, scale) ->
+    ANDROID_DENSITIES.forEach { (qualifier, scale) ->
         val adaptiveSize = (108 * scale).toInt()
         val legacySize = (48 * scale).toInt()
 

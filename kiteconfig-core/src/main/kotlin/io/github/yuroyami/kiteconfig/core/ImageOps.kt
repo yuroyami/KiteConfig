@@ -1,8 +1,5 @@
-package io.github.yuroyami.kiteconfig
+package io.github.yuroyami.kiteconfig.core
 
-import io.github.yuroyami.kiteconfig.core.OwnedOutputSafety
-import io.github.yuroyami.kiteconfig.core.validateLogoSafeZoneRatio
-import org.gradle.api.GradleException
 import java.awt.AlphaComposite
 import java.awt.Graphics2D
 import java.awt.Rectangle
@@ -27,7 +24,8 @@ internal const val MAX_LOGO_PNG_BYTES: Long = 32L * 1024L * 1024L
 internal const val MAX_LOGO_DIMENSION: Int = 4096
 internal const val MAX_LOGO_PIXELS: Long = 16L * 1024L * 1024L
 
-internal data class LogoPngSnapshot(val image: BufferedImage, val sha256: String)
+@InternalKiteCoreApi
+public data class LogoPngSnapshot(val image: BufferedImage, val sha256: String)
 
 private val PNG_SIGNATURE = byteArrayOf(
     0x89.toByte(), 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,
@@ -38,7 +36,8 @@ private val PNG_SIGNATURE = byteArrayOf(
  * an installed asset set. Renderer implementations must bump their version
  * component whenever an algorithm or template changes.
  */
-internal fun logoInputFingerprint(
+@InternalKiteCoreApi
+public fun logoInputFingerprint(
     rendererVersion: String,
     foregroundSha256: String,
     backgroundSha256: String?,
@@ -77,7 +76,8 @@ internal fun logoInputFingerprint(
     return digest.digest().joinToString("") { "%02x".format(it.toInt() and 0xff) }
 }
 
-internal fun logoInputFingerprintForFiles(
+@InternalKiteCoreApi
+public fun logoInputFingerprintForFiles(
     rendererVersion: String,
     foreground: File,
     background: File?,
@@ -95,7 +95,8 @@ internal fun logoInputFingerprintForFiles(
 )
 
 /** The fingerprint part an overlay adds. No overlay adds nothing, so receipts written before 2.1.0 stay valid. */
-internal fun overlayFingerprintParameter(overlaySha256: String?): Map<String, String> =
+@InternalKiteCoreApi
+public fun overlayFingerprintParameter(overlaySha256: String?): Map<String, String> =
     if (overlaySha256 == null) emptyMap() else mapOf("overlaySha256" to overlaySha256)
 
 /**
@@ -103,7 +104,8 @@ internal fun overlayFingerprintParameter(overlaySha256: String?): Map<String, St
  *
  * Every renderer then scales and masks the pair as one image.
  */
-internal fun applyLogoOverlay(foreground: BufferedImage, overlay: BufferedImage): BufferedImage =
+@InternalKiteCoreApi
+public fun applyLogoOverlay(foreground: BufferedImage, overlay: BufferedImage): BufferedImage =
     BufferedImage(foreground.width, foreground.height, BufferedImage.TYPE_INT_ARGB).withGraphics {
         drawImage(foreground, 0, 0, null)
         drawContain(overlay, 0, 0, foreground.width, foreground.height)
@@ -122,10 +124,12 @@ private fun canonicalLogoBackgroundColor(value: String): String =
  * destination raster. This rejects format spoofing and caps both compressed and
  * decoded size so an image bomb cannot exhaust the Gradle daemon.
  */
-internal fun readBoundedLogoPng(file: File, label: String): BufferedImage =
+@InternalKiteCoreApi
+public fun readBoundedLogoPng(file: File, label: String): BufferedImage =
     readBoundedLogoPngSnapshot(file, label).image
 
-internal fun readBoundedLogoPngSnapshot(file: File, label: String): LogoPngSnapshot {
+@InternalKiteCoreApi
+public fun readBoundedLogoPngSnapshot(file: File, label: String): LogoPngSnapshot {
     val bytes = readBoundedLogoBytes(file, label)
     require(bytes.size >= 24) { "$label is a truncated PNG: ${file.path}" }
     val header = bytes.copyOfRange(0, 24)
@@ -223,7 +227,8 @@ private fun sha256Hex(bytes: ByteArray): String = MessageDigest.getInstance("SHA
     .joinToString("") { "%02x".format(it.toInt() and 0xff) }
 
 /** Run [block] on a quality-configured Graphics2D, disposing it afterward; returns the receiver. */
-internal inline fun BufferedImage.withGraphics(block: Graphics2D.() -> Unit): BufferedImage {
+@InternalKiteCoreApi
+public inline fun BufferedImage.withGraphics(block: Graphics2D.() -> Unit): BufferedImage {
     val g = createGraphics()
     try {
         g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC)
@@ -239,13 +244,15 @@ internal inline fun BufferedImage.withGraphics(block: Graphics2D.() -> Unit): Bu
 
 internal fun newArgb(size: Int): BufferedImage = BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB)
 
-internal fun resize(src: BufferedImage, w: Int, h: Int): BufferedImage {
+@InternalKiteCoreApi
+public fun resize(src: BufferedImage, w: Int, h: Int): BufferedImage {
     if (src.width == w && src.height == h) return src
     return BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB).withGraphics { drawImage(src, 0, 0, w, h, null) }
 }
 
 /** Draw [img] scaled to fit *inside* the box, preserving aspect ratio, centered. Never stretches. */
-internal fun Graphics2D.drawContain(img: BufferedImage, x: Int, y: Int, w: Int, h: Int) {
+@InternalKiteCoreApi
+public fun Graphics2D.drawContain(img: BufferedImage, x: Int, y: Int, w: Int, h: Int) {
     val scale = minOf(w.toDouble() / img.width, h.toDouble() / img.height)
     val dw = (img.width * scale).toInt().coerceAtLeast(1)
     val dh = (img.height * scale).toInt().coerceAtLeast(1)
@@ -260,14 +267,16 @@ internal fun Graphics2D.drawContain(img: BufferedImage, x: Int, y: Int, w: Int, 
  * padding inside [img] counts as part of the image, because the renderer cannot
  * tell padding from artwork.
  */
-internal fun Graphics2D.drawContainScaled(img: BufferedImage, canvas: Int, scale: Double) {
+@InternalKiteCoreApi
+public fun Graphics2D.drawContainScaled(img: BufferedImage, canvas: Int, scale: Double) {
     val side = (canvas * validateLogoSafeZoneRatio(scale)).toInt().coerceAtLeast(1)
     val inset = (canvas - side) / 2
     drawContain(img, inset, inset, side, side)
 }
 
 /** Draw [img] scaled to *cover* the box, preserving aspect ratio, centered; overflow is clipped. */
-internal fun Graphics2D.drawCover(img: BufferedImage, x: Int, y: Int, w: Int, h: Int) {
+@InternalKiteCoreApi
+public fun Graphics2D.drawCover(img: BufferedImage, x: Int, y: Int, w: Int, h: Int) {
     val scale = maxOf(w.toDouble() / img.width, h.toDouble() / img.height)
     val dw = (img.width * scale).toInt().coerceAtLeast(1)
     val dh = (img.height * scale).toInt().coerceAtLeast(1)
@@ -284,23 +293,26 @@ internal fun applyCircleMask(src: BufferedImage): BufferedImage =
     }
 
 /** Encode [image] as PNG bytes. [label] names the artifact in the failure message. */
-internal fun encodePng(image: BufferedImage, label: String): ByteArray {
+@InternalKiteCoreApi
+public fun encodePng(image: BufferedImage, label: String): ByteArray {
     val output = ByteArrayOutputStream()
     if (!ImageIO.write(image, "PNG", output)) {
-        throw GradleException("[kiteConfig] This JDK has no PNG encoder; cannot render $label.")
+        throw KiteConfigException("[kiteConfig] This JDK has no PNG encoder; cannot render $label.")
     }
     return output.toByteArray()
 }
 
 /** Centre [fg] inside a square canvas, filling only [ratio] of each side. */
-internal fun padToSafeZone(fg: BufferedImage, canvasSize: Int, ratio: Double): BufferedImage {
+@InternalKiteCoreApi
+public fun padToSafeZone(fg: BufferedImage, canvasSize: Int, ratio: Double): BufferedImage {
     val safe = (canvasSize * ratio).toInt().coerceAtLeast(1)
     val offset = (canvasSize - safe) / 2
     return newArgb(canvasSize).withGraphics { drawContain(fg, offset, offset, safe, safe) }
 }
 
 /** Clip [src] to a rounded square. [cornerRatio] is the corner radius as a fraction of the side. */
-internal fun applyRoundedRectMask(src: BufferedImage, cornerRatio: Double): BufferedImage {
+@InternalKiteCoreApi
+public fun applyRoundedRectMask(src: BufferedImage, cornerRatio: Double): BufferedImage {
     val side = minOf(src.width, src.height).toFloat()
     // RoundRectangle2D takes the arc DIAMETER, so a radius fraction doubles here.
     val arc = (side * cornerRatio * 2).toFloat()

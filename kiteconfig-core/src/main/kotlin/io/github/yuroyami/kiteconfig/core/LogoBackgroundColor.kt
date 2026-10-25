@@ -1,13 +1,13 @@
-package io.github.yuroyami.kiteconfig
+package io.github.yuroyami.kiteconfig.core
 
-import io.github.yuroyami.kiteconfig.core.diagnosticSafeText
 import java.awt.Color
 import java.awt.image.BufferedImage
 
 private val HEX_RE = Regex("""#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{8}""")
 
 /** Throws if [hex] is not `#RRGGBB` or `#AARRGGBB`. */
-internal fun validateLogoBackgroundColorHex(hex: String) {
+@InternalKiteCoreApi
+public fun validateLogoBackgroundColorHex(hex: String) {
     require(HEX_RE.matches(hex)) {
         "logo { backgroundColor } must be #RRGGBB or #AARRGGBB (Android convention, alpha first), got: " +
             diagnosticSafeText(hex, 32)
@@ -15,7 +15,8 @@ internal fun validateLogoBackgroundColorHex(hex: String) {
 }
 
 /** Parse a pre-validated `#RRGGBB` or `#AARRGGBB` hex string into an AWT [Color]. */
-internal fun parseLogoBackgroundColor(hex: String): Color {
+@InternalKiteCoreApi
+public fun parseLogoBackgroundColor(hex: String): Color {
     validateLogoBackgroundColorHex(hex)
     val clean = hex.removePrefix("#")
     return if (clean.length == 6) {
@@ -38,7 +39,8 @@ internal fun parseLogoBackgroundColor(hex: String): Color {
  * on Android (which would otherwise keep the alpha) as on iOS (which flattens
  * against white because the App Store rejects alpha icons).
  */
-internal fun flattenOverWhite(c: Color): Color {
+@InternalKiteCoreApi
+public fun flattenOverWhite(c: Color): Color {
     if (c.alpha == 255) return c
     val a = c.alpha / 255.0
     fun mix(channel: Int) = Math.round(channel * a + 255 * (1 - a)).toInt().coerceIn(0, 255)
@@ -46,7 +48,8 @@ internal fun flattenOverWhite(c: Color): Color {
 }
 
 /** Synthesize an ARGB-typed square image filled with [color]. */
-internal fun solidColorImage(size: Int, color: Color): BufferedImage {
+@InternalKiteCoreApi
+public fun solidColorImage(size: Int, color: Color): BufferedImage {
     val img = BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB)
     val g = img.createGraphics()
     try {

@@ -1,6 +1,19 @@
 package io.github.yuroyami.kiteconfig
 
+import io.github.yuroyami.kiteconfig.core.LogoPngSnapshot
 import io.github.yuroyami.kiteconfig.core.OwnedOutputSafety
+import io.github.yuroyami.kiteconfig.core.applyLogoOverlay
+import io.github.yuroyami.kiteconfig.core.applyRoundedRectMask
+import io.github.yuroyami.kiteconfig.core.drawContainScaled
+import io.github.yuroyami.kiteconfig.core.drawCover
+import io.github.yuroyami.kiteconfig.core.encodePng
+import io.github.yuroyami.kiteconfig.core.parseLogoBackgroundColor
+import io.github.yuroyami.kiteconfig.core.readBoundedLogoPngSnapshot
+import io.github.yuroyami.kiteconfig.core.resize
+import io.github.yuroyami.kiteconfig.core.solidColorImage
+import io.github.yuroyami.kiteconfig.core.withGraphics
+import io.github.yuroyami.kiteconfig.core.writeIcns
+import io.github.yuroyami.kiteconfig.core.writeIco
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
 import org.gradle.api.file.DirectoryProperty

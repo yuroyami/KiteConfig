@@ -5,6 +5,7 @@ import io.github.yuroyami.kiteconfig.core.PlannedTextChange
 import io.github.yuroyami.kiteconfig.core.Utf8FileSnapshot
 import io.github.yuroyami.kiteconfig.core.applyTextRewritePlan
 import io.github.yuroyami.kiteconfig.core.planTextChange
+import io.github.yuroyami.kiteconfig.core.readBoundedLogoPng
 import io.github.yuroyami.kiteconfig.core.readUtf8SnapshotStrict
 import io.github.yuroyami.kiteconfig.core.requireContainedPath
 import org.gradle.api.DefaultTask

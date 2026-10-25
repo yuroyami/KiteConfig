@@ -9,12 +9,14 @@ import io.github.yuroyami.kiteconfig.core.detectComposeResourceLocales
 import io.github.yuroyami.kiteconfig.core.interopOptIns
 import io.github.yuroyami.kiteconfig.core.invalidWorkerPackageReason
 import io.github.yuroyami.kiteconfig.core.isValidKotlinIdentifier
+import io.github.yuroyami.kiteconfig.core.logoInputFingerprintForFiles
 import io.github.yuroyami.kiteconfig.core.validateAndroidApplicationId
 import io.github.yuroyami.kiteconfig.core.validateAppName
 import io.github.yuroyami.kiteconfig.core.validateAppleBuildNumber
 import io.github.yuroyami.kiteconfig.core.validateAppleBundleId
 import io.github.yuroyami.kiteconfig.core.validateAppleMarketingVersion
 import io.github.yuroyami.kiteconfig.core.validateJavaVersion
+import io.github.yuroyami.kiteconfig.core.validateLogoBackgroundColorHex
 import io.github.yuroyami.kiteconfig.core.validateLogoSafeZoneRatio
 import io.github.yuroyami.kiteconfig.core.validateNdkVersion
 import io.github.yuroyami.kiteconfig.core.validateOptInMarker

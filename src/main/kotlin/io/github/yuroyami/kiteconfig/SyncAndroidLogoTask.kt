@@ -1,7 +1,17 @@
 package io.github.yuroyami.kiteconfig
 
+import io.github.yuroyami.kiteconfig.core.ANDROID_DENSITIES
+import io.github.yuroyami.kiteconfig.core.LogoPngSnapshot
 import io.github.yuroyami.kiteconfig.core.OwnedOutputSafety
+import io.github.yuroyami.kiteconfig.core.applyLogoOverlay
 import io.github.yuroyami.kiteconfig.core.diagnosticSafeText
+import io.github.yuroyami.kiteconfig.core.flattenOverWhite
+import io.github.yuroyami.kiteconfig.core.logoInputFingerprint
+import io.github.yuroyami.kiteconfig.core.overlayFingerprintParameter
+import io.github.yuroyami.kiteconfig.core.parseLogoBackgroundColor
+import io.github.yuroyami.kiteconfig.core.readBoundedLogoPngSnapshot
+import io.github.yuroyami.kiteconfig.core.renderAndroidLauncherIcons
+import io.github.yuroyami.kiteconfig.core.solidColorImage
 import io.github.yuroyami.kiteconfig.core.validateLogoSafeZoneRatio
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
@@ -287,15 +297,6 @@ internal abstract class SyncAndroidLogoTask : DefaultTask() {
         private const val MAX_RESOURCE_SCAN_ENTRIES = 10_000
         private const val MAX_DISPLAYED_COLLISIONS = 20
 
-        // Density qualifier → scale factor. Adaptive canvas 108dp; legacy 48dp.
-        internal val DENSITIES = listOf(
-            "mdpi" to 1.0,
-            "hdpi" to 1.5,
-            "xhdpi" to 2.0,
-            "xxhdpi" to 3.0,
-            "xxxhdpi" to 4.0,
-        )
-
         /** Stems of every launcher icon the plugin generates (as PNG). */
         internal val LAUNCHER_STEMS = setOf(
             "ic_launcher", "ic_launcher_round", "ic_launcher_foreground", "ic_launcher_background",
@@ -314,7 +315,7 @@ internal abstract class SyncAndroidLogoTask : DefaultTask() {
             require(maximumEntries > 0) { "maximumEntries must be positive" }
             val collisions = mutableListOf<File>()
             var entryCount = 0
-            DENSITIES.forEach { (q, _) ->
+            ANDROID_DENSITIES.forEach { (q, _) ->
                 val directory = resDir.resolve("mipmap-$q").toPath()
                 if (!Files.exists(directory, NOFOLLOW_LINKS)) return@forEach
                 OwnedOutputSafety.requireSafePath(directory.toFile(), "Android mipmap directory")
@@ -349,7 +350,7 @@ internal abstract class SyncAndroidLogoTask : DefaultTask() {
 
         /** Relative paths (under the Android res dir) of every file this task writes. */
         internal val OUTPUT_RELATIVE_PATHS: List<String> = buildList {
-            DENSITIES.forEach { (q, _) ->
+            ANDROID_DENSITIES.forEach { (q, _) ->
                 add("mipmap-$q/ic_launcher_foreground.png")
                 add("mipmap-$q/ic_launcher_background.png")
                 add("mipmap-$q/ic_launcher.png")
