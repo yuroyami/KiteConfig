@@ -208,6 +208,9 @@ tasks.named<JavaCompile>(agp8AdapterSourceSet.compileJavaTaskName) {
     dependsOn(tasks.named("classes"))
 }
 
+// The Xcode project fixtures live with the core tests; the doctor tests read them too.
+sourceSets.test { resources.srcDir("kiteconfig-core/src/test/resources") }
+
 // KdocExampleCompilationTest and MessageHygieneTest read src/main/kotlin as DATA,
 // not through the compiled classpath. Kotlin compile avoidance treats a
 // comment-only edit as no change, so :test stayed UP-TO-DATE and both guards went

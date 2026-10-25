@@ -20,4 +20,11 @@ class CoreBridgeTest {
 
         assertEquals(listOf("lifecycle: a", "info: b"), recorded, recorded.toString())
     }
+
+    @Test
+    fun `every plist conflict policy maps to the core policy with the same name`() {
+        PlistConflictPolicy.entries.forEach { policy ->
+            assertEquals(policy.name, policy.toCore().name, policy.toString())
+        }
+    }
 }

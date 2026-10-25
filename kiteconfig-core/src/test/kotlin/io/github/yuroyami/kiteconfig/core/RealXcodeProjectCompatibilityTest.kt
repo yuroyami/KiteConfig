@@ -1,4 +1,4 @@
-package io.github.yuroyami.kiteconfig
+package io.github.yuroyami.kiteconfig.core
 
 import java.io.File
 import org.junit.jupiter.api.Assertions.assertEquals

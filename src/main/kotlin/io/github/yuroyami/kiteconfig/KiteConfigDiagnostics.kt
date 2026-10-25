@@ -1,10 +1,17 @@
 package io.github.yuroyami.kiteconfig
 
 import io.github.yuroyami.kiteconfig.core.OwnedOutputSafety
+import io.github.yuroyami.kiteconfig.core.PbxConfigurationOverride
+import io.github.yuroyami.kiteconfig.core.PlistArrayEntry
+import io.github.yuroyami.kiteconfig.core.PlistBoolEntry
+import io.github.yuroyami.kiteconfig.core.PlistStringEntry
 import io.github.yuroyami.kiteconfig.core.canonicalizeLocales
 import io.github.yuroyami.kiteconfig.core.deriveLinuxPackageName
 import io.github.yuroyami.kiteconfig.core.deriveUpgradeUuid
 import io.github.yuroyami.kiteconfig.core.diagnosticSafeText
+import io.github.yuroyami.kiteconfig.core.iosAppIconCatalogName
+import io.github.yuroyami.kiteconfig.core.rewritePbxproj
+import io.github.yuroyami.kiteconfig.core.sanitizeInfoPlist
 import io.github.yuroyami.kiteconfig.core.validateAppleBundleId
 import io.github.yuroyami.kiteconfig.core.validateDesktopPackageVersion
 import io.github.yuroyami.kiteconfig.core.validateUniversalAppIconDeploymentTarget
@@ -1069,7 +1076,7 @@ internal object KiteConfigDiagnosticEngine {
             add(diagnostic("KTCNFG011", KiteConfigDiagnosticSeverity.SKIPPED, "iOS Info.plist", "No source-plist key is configured for verification."))
             return
         }
-        val result = sanitizeInfoPlist(text, stringEntries, boolEntries, arrayEntries, context.plistConflictPolicy)
+        val result = sanitizeInfoPlist(text, stringEntries, boolEntries, arrayEntries, context.plistConflictPolicy.toCore())
         when {
             result.errors.isNotEmpty() -> add(
                 diagnostic(

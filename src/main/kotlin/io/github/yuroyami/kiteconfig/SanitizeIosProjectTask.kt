@@ -1,9 +1,13 @@
 package io.github.yuroyami.kiteconfig
 
+import io.github.yuroyami.kiteconfig.core.PlistArrayEntry
+import io.github.yuroyami.kiteconfig.core.PlistBoolEntry
+import io.github.yuroyami.kiteconfig.core.PlistStringEntry
 import io.github.yuroyami.kiteconfig.core.applyTextRewritePlan
 import io.github.yuroyami.kiteconfig.core.planTextChange
 import io.github.yuroyami.kiteconfig.core.readUtf8SnapshotStrict
 import io.github.yuroyami.kiteconfig.core.requireContainedPath
+import io.github.yuroyami.kiteconfig.core.sanitizeInfoPlist
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
 import org.gradle.api.file.DirectoryProperty
@@ -134,7 +138,7 @@ internal abstract class SanitizeIosProjectTask : DefaultTask() {
         if (stringEntries.isEmpty() && boolEntries.isEmpty() && arrayEntries.isEmpty()) return
 
         val snapshot = readUtf8SnapshotStrict(file)
-        val result = sanitizeInfoPlist(snapshot.text, stringEntries, boolEntries, arrayEntries, conflictPolicy.get())
+        val result = sanitizeInfoPlist(snapshot.text, stringEntries, boolEntries, arrayEntries, conflictPolicy.get().toCore())
         result.warnings.forEach { logger.warn("[kiteConfig] $it") }
         if (result.errors.isNotEmpty()) {
             throw GradleException("Info.plist migration refused:\n- ${result.errors.joinToString("\n- ")}")

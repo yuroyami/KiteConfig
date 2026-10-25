@@ -3,6 +3,7 @@ package io.github.yuroyami.kiteconfig
 import io.github.yuroyami.kiteconfig.core.BACKUP_SUFFIX
 import io.github.yuroyami.kiteconfig.core.deriveLinuxPackageName
 import io.github.yuroyami.kiteconfig.core.deriveUpgradeUuid
+import io.github.yuroyami.kiteconfig.core.iosDeploymentTargetFrom
 import org.gradle.testkit.runner.GradleRunner
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse

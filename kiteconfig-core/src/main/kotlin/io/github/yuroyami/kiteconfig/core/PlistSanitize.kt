@@ -1,4 +1,4 @@
-package io.github.yuroyami.kiteconfig
+package io.github.yuroyami.kiteconfig.core
 
 import org.w3c.dom.Document
 import org.w3c.dom.Element
@@ -13,35 +13,25 @@ import javax.xml.transform.TransformerFactory
 import javax.xml.transform.dom.DOMSource
 import javax.xml.transform.stream.StreamResult
 
-/**
- * Policy for an existing plist key whose value differs from the requested value.
- *
- * | Value | Existing value | Build |
- * |---|---|---|
- * | [FAIL] | untouched | fails, and the whole plist plan is abandoned |
- * | [KEEP] | kept | continues, with a warning naming the key |
- * | [REPLACE] | overwritten | continues |
- *
- * Default: [FAIL], so nothing you did not agree to lose is ever replaced.
- *
- * @see KiteConfigIosSyncExtension.onConflict for where this is selected.
- */
+/** What to do when an existing plist key holds a different value. The public policy of the Gradle plugin maps onto it. */
+@InternalKiteCoreApi
 public enum class PlistConflictPolicy {
-    /** Abort the entire plist plan and leave the file byte-for-byte untouched. */
     FAIL,
-    /** Preserve the existing value and report a warning. */
     KEEP,
-    /** Replace the existing value with the requested value. */
     REPLACE,
 }
 
-internal data class PlistStringEntry(val name: String, val value: String)
-internal data class PlistBoolEntry(val name: String, val value: Boolean)
+@InternalKiteCoreApi
+public data class PlistStringEntry(val name: String, val value: String)
+@InternalKiteCoreApi
+public data class PlistBoolEntry(val name: String, val value: Boolean)
 
 /** A key whose value is an array of strings, such as `CFBundleLocalizations`. */
-internal data class PlistArrayEntry(val name: String, val values: List<String>)
+@InternalKiteCoreApi
+public data class PlistArrayEntry(val name: String, val values: List<String>)
 
-internal data class PlistSanitizeResult(
+@InternalKiteCoreApi
+public data class PlistSanitizeResult(
     /** New plist text, or null when nothing changed or the plan failed. */
     val text: String?,
     val inserted: List<String>,
@@ -63,7 +53,8 @@ private val PLIST_VALUE_TAGS = setOf("array", "data", "date", "dict", "false", "
  * callers should configure generated plist/build settings instead of converting
  * a user-owned file implicitly.
  */
-internal fun sanitizeInfoPlist(
+@InternalKiteCoreApi
+public fun sanitizeInfoPlist(
     xml: String,
     stringEntries: List<PlistStringEntry>,
     boolEntries: List<PlistBoolEntry>,

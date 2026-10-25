@@ -1,6 +1,9 @@
 package io.github.yuroyami.kiteconfig
 
 import io.github.yuroyami.kiteconfig.core.BACKUP_SUFFIX
+import io.github.yuroyami.kiteconfig.core.iosSplashCatalogIdentity
+import io.github.yuroyami.kiteconfig.core.iosSplashManifestFile
+import io.github.yuroyami.kiteconfig.core.iosSplashOwnedPaths
 import org.gradle.api.Project
 import org.gradle.api.provider.Provider
 import java.io.File

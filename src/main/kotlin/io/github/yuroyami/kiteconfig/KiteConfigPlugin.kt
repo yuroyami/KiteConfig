@@ -8,8 +8,11 @@ import io.github.yuroyami.kiteconfig.core.deriveUpgradeUuid
 import io.github.yuroyami.kiteconfig.core.detectComposeResourceLocales
 import io.github.yuroyami.kiteconfig.core.interopOptIns
 import io.github.yuroyami.kiteconfig.core.invalidWorkerPackageReason
+import io.github.yuroyami.kiteconfig.core.iosAppIconCatalogName
+import io.github.yuroyami.kiteconfig.core.iosDeploymentTargetFrom
 import io.github.yuroyami.kiteconfig.core.isValidKotlinIdentifier
 import io.github.yuroyami.kiteconfig.core.logoInputFingerprintForFiles
+import io.github.yuroyami.kiteconfig.core.requireSwiftModuleIdentifier
 import io.github.yuroyami.kiteconfig.core.validateAndroidApplicationId
 import io.github.yuroyami.kiteconfig.core.validateAppName
 import io.github.yuroyami.kiteconfig.core.validateAppleBuildNumber

@@ -1,5 +1,9 @@
 package io.github.yuroyami.kiteconfig
 
+import io.github.yuroyami.kiteconfig.core.IOS_LAUNCH_SCREEN_KEY
+import io.github.yuroyami.kiteconfig.core.IOS_SPLASH_COLORSET
+import io.github.yuroyami.kiteconfig.core.IOS_SPLASH_IMAGESET
+import io.github.yuroyami.kiteconfig.core.IOS_SPLASH_IMAGE_FILE
 import io.github.yuroyami.kiteconfig.core.PlannedTextChange
 import io.github.yuroyami.kiteconfig.core.Utf8FileSnapshot
 import org.gradle.api.GradleException

@@ -1,13 +1,32 @@
 package io.github.yuroyami.kiteconfig
 
+import io.github.yuroyami.kiteconfig.core.IOS_SPLASH_COLORSET
+import io.github.yuroyami.kiteconfig.core.IOS_SPLASH_IMAGESET
 import io.github.yuroyami.kiteconfig.core.OwnedOutputSafety
+import io.github.yuroyami.kiteconfig.core.PbxConfigurationOverride
 import io.github.yuroyami.kiteconfig.core.PlannedTextChange
+import io.github.yuroyami.kiteconfig.core.PlistArrayEntry
+import io.github.yuroyami.kiteconfig.core.PlistBoolEntry
+import io.github.yuroyami.kiteconfig.core.PlistStringEntry
 import io.github.yuroyami.kiteconfig.core.Utf8FileSnapshot
 import io.github.yuroyami.kiteconfig.core.applyTextRewritePlan
+import io.github.yuroyami.kiteconfig.core.iosAppIconCatalogName
+import io.github.yuroyami.kiteconfig.core.iosSplashCatalogIdentity
+import io.github.yuroyami.kiteconfig.core.iosSplashManifestFile
+import io.github.yuroyami.kiteconfig.core.iosSplashOwnedPaths
+import io.github.yuroyami.kiteconfig.core.mergeIosSplashLaunchScreen
+import io.github.yuroyami.kiteconfig.core.parseIosSplashColor
+import io.github.yuroyami.kiteconfig.core.planPodfileRewrite
 import io.github.yuroyami.kiteconfig.core.planTextChange
 import io.github.yuroyami.kiteconfig.core.readBoundedLogoPng
 import io.github.yuroyami.kiteconfig.core.readUtf8SnapshotStrict
+import io.github.yuroyami.kiteconfig.core.renderIosSplashAssets
 import io.github.yuroyami.kiteconfig.core.requireContainedPath
+import io.github.yuroyami.kiteconfig.core.requireSwiftModuleIdentifier
+import io.github.yuroyami.kiteconfig.core.rewritePbxproj
+import io.github.yuroyami.kiteconfig.core.rewriteSwiftImport
+import io.github.yuroyami.kiteconfig.core.sanitizeInfoPlist
+import io.github.yuroyami.kiteconfig.core.writeIosSplashAssets
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
 import org.gradle.api.file.DirectoryProperty
@@ -400,7 +419,7 @@ internal abstract class SyncIosConfigTask : DefaultTask() {
         val overwritten = mutableListOf<String>()
         var text = snapshot.text
 
-        val result = sanitizeInfoPlist(snapshot.text, stringEntries, boolEntries, arrayEntries, policy)
+        val result = sanitizeInfoPlist(snapshot.text, stringEntries, boolEntries, arrayEntries, policy.toCore())
         result.warnings.forEach { logger.warn("[kiteConfig] $it") }
         if (result.errors.isNotEmpty()) {
             throw GradleException("Info.plist migration refused:\n- ${result.errors.joinToString("\n- ")}")
@@ -412,7 +431,7 @@ internal abstract class SyncIosConfigTask : DefaultTask() {
         // Chained on the sanitized text so both edits land in one planned change;
         // Info.plist may appear only once in a rewrite plan.
         if (splash) {
-            val splashResult = mergeIosSplashLaunchScreen(text, conflictPolicy = policy)
+            val splashResult = mergeIosSplashLaunchScreen(text, conflictPolicy = policy.toCore())
             splashResult.warnings.forEach { logger.warn("[kiteConfig] $it") }
             if (splashResult.errors.isNotEmpty()) {
                 throw GradleException(
@@ -641,7 +660,7 @@ internal abstract class SyncIosConfigTask : DefaultTask() {
             projectRoot = root,
             backupRoot = backupDir.asFile.get(),
             backup = backup.get(),
-            logger = logger,
+            logger = logger.asKiteLog(),
         )
         logger.lifecycle(
             "[kiteConfig] iOS splash installed into ${displayProjectPath(root, prepared.assets)}: " +

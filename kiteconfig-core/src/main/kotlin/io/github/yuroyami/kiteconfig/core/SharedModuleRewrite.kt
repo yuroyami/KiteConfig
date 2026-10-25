@@ -1,6 +1,4 @@
-package io.github.yuroyami.kiteconfig
-
-import io.github.yuroyami.kiteconfig.core.diagnosticSafeText
+package io.github.yuroyami.kiteconfig.core
 
 /** Pure helpers for the explicit, one-shot shared-module migration. */
 
@@ -17,7 +15,8 @@ private data class PodDeclaration(
         get() = match.groupValues[2] == match.groupValues[4] && match.groupValues[6] == match.groupValues[9]
 }
 
-internal data class PodfileRewriteResult(val matchingCount: Int, val text: String)
+@InternalKiteCoreApi
+public data class PodfileRewriteResult(val matchingCount: Int, val text: String)
 
 private fun podDeclarations(text: String, executableLineStarts: Set<Int>): List<PodDeclaration> =
     POD_LINE.findAll(text)
@@ -26,7 +25,8 @@ private fun podDeclarations(text: String, executableLineStarts: Set<Int>): List<
         .filter { it.hasBalancedQuotes }
         .toList()
 
-internal fun planPodfileRewrite(text: String, oldName: String, newName: String): PodfileRewriteResult {
+@InternalKiteCoreApi
+public fun planPodfileRewrite(text: String, oldName: String, newName: String): PodfileRewriteResult {
     val executableLineStarts = rubyExecutableLineStarts(text)
     val declarations = podDeclarations(text, executableLineStarts)
     val matching = declarations.filter { it.name == oldName && it.pathTail == oldName }
@@ -259,7 +259,8 @@ private val RUBY_REGEX_PREFIX_KEYWORDS = setOf(
 )
 private val SWIFT_MODULE_IDENTIFIER = Regex("[A-Za-z_][A-Za-z0-9_]*")
 
-internal fun requireSwiftModuleIdentifier(value: String, label: String = "module name") {
+@InternalKiteCoreApi
+public fun requireSwiftModuleIdentifier(value: String, label: String = "module name") {
     require(value.length <= 255 && SWIFT_MODULE_IDENTIFIER.matches(value)) {
         "$label '${diagnosticSafeText(value, 255)}' is not a valid bounded Swift module identifier"
     }
@@ -271,7 +272,8 @@ internal fun requireSwiftModuleIdentifier(value: String, label: String = "module
  * multiline strings, raw strings, and extended regex literals before imports
  * are located. Import-looking text in those regions is therefore never changed.
  */
-internal fun rewriteSwiftImport(text: String, oldName: String, newName: String): String {
+@InternalKiteCoreApi
+public fun rewriteSwiftImport(text: String, oldName: String, newName: String): String {
     requireSwiftModuleIdentifier(oldName, "old shared module name")
     requireSwiftModuleIdentifier(newName, "new shared module name")
     val codeMask = swiftCodeMask(text)

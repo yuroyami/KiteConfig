@@ -1,11 +1,4 @@
-package io.github.yuroyami.kiteconfig
-
-import io.github.yuroyami.kiteconfig.core.canonicalizeLocales
-import io.github.yuroyami.kiteconfig.core.diagnosticSafeText
-import io.github.yuroyami.kiteconfig.core.validateAppName
-import io.github.yuroyami.kiteconfig.core.validateAppleBuildNumber
-import io.github.yuroyami.kiteconfig.core.validateAppleBundleId
-import io.github.yuroyami.kiteconfig.core.validateAppleMarketingVersion
+package io.github.yuroyami.kiteconfig.core
 
 /**
  * Result of an in-memory pbxproj rewrite. Errors mean [text] is the original byte-for-byte.
@@ -13,7 +6,8 @@ import io.github.yuroyami.kiteconfig.core.validateAppleMarketingVersion
  * [changedSettings] are the keys whose value changes. [reformattedSettings] keep their value
  * and change only in how they are written, such as quotes or list order.
  */
-internal data class PbxprojResult(
+@InternalKiteCoreApi
+public data class PbxprojResult(
     val text: String,
     val warnings: List<String>,
     val errors: List<String> = emptyList(),
@@ -23,7 +17,8 @@ internal data class PbxprojResult(
 )
 
 /** Values one named build configuration gets instead of the target-wide ones. Null keeps the target-wide value. */
-internal data class PbxConfigurationOverride(
+@InternalKiteCoreApi
+public data class PbxConfigurationOverride(
     val appName: String? = null,
     val bundleId: String? = null,
     val appIconName: String? = null,
@@ -88,7 +83,8 @@ private fun validateIosAppIconName(value: String): String {
 }
 
 /** Derive the Xcode asset-catalog build-setting value from one directory name. */
-internal fun iosAppIconCatalogName(directoryName: String): String {
+@InternalKiteCoreApi
+public fun iosAppIconCatalogName(directoryName: String): String {
     require(directoryName.endsWith(".appiconset") && directoryName != ".appiconset") {
         "ios { appIconDirectory } must point to a named .appiconset directory"
     }
@@ -142,7 +138,8 @@ private fun validatePbxInputs(
  * [allowUnscopedFragment] exists only for focused tests of serialization. Callers
  * handling a real project file must leave it false.
  */
-internal fun rewritePbxproj(
+@InternalKiteCoreApi
+public fun rewritePbxproj(
     original: String,
     marketingVersion: String?,
     buildNumber: String?,

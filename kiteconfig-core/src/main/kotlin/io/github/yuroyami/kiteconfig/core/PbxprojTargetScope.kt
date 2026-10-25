@@ -1,4 +1,4 @@
-package io.github.yuroyami.kiteconfig
+package io.github.yuroyami.kiteconfig.core
 
 /**
  * Small, fail-closed OpenStep reader for the subset of `project.pbxproj` needed by
@@ -313,7 +313,8 @@ private fun objectGraph(text: String): ObjectGraph {
  * The graph types remain private so callers cannot bypass the fail-closed
  * structural checks.
  */
-internal class PbxprojAnalysis private constructor(private val graph: ObjectGraph) {
+@InternalKiteCoreApi
+public class PbxprojAnalysis private constructor(private val graph: ObjectGraph) {
     /** Structural parse/graph errors discovered while creating this immutable analysis. */
     internal fun structuralErrors(): List<String> = graph.errors
 
@@ -571,7 +572,8 @@ private fun locatePbxListsFromGraph(
  * The lowest one wins: an icon catalog has to work on the oldest OS the app
  * still ships to, so a Debug configuration on a newer floor proves nothing.
  */
-internal fun iosDeploymentTargetFrom(text: String, targets: Set<String> = emptySet()): String? {
+@InternalKiteCoreApi
+public fun iosDeploymentTargetFrom(text: String, targets: Set<String> = emptySet()): String? {
     val analysis = analyzePbxproj(text)
     if (analysis.structuralErrors().isNotEmpty()) return null
 

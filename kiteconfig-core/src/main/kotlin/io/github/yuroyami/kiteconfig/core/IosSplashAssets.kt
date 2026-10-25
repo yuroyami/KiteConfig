@@ -1,10 +1,5 @@
-package io.github.yuroyami.kiteconfig
+package io.github.yuroyami.kiteconfig.core
 
-import io.github.yuroyami.kiteconfig.core.OwnedOutputSafety
-import io.github.yuroyami.kiteconfig.core.diagnosticSafeText
-import io.github.yuroyami.kiteconfig.core.encodePng
-import io.github.yuroyami.kiteconfig.core.parseLogoBackgroundColor
-import org.gradle.api.logging.Logger
 import org.w3c.dom.Document
 import org.w3c.dom.Element
 import org.w3c.dom.Node
@@ -25,16 +20,20 @@ import javax.xml.transform.dom.DOMSource
 import javax.xml.transform.stream.StreamResult
 
 /** Catalog entry that holds the splash plate color; also the `UIColorName` value. */
-internal const val IOS_SPLASH_COLORSET = "KiteSplashBackground"
+@InternalKiteCoreApi
+public const val IOS_SPLASH_COLORSET: String = "KiteSplashBackground"
 
 /** Catalog entry that holds the splash art; also the `UIImageName` value. */
-internal const val IOS_SPLASH_IMAGESET = "KiteSplashImage"
+@InternalKiteCoreApi
+public const val IOS_SPLASH_IMAGESET: String = "KiteSplashImage"
 
-internal const val IOS_SPLASH_IMAGE_FILE = "KiteSplashImage.png"
+@InternalKiteCoreApi
+public const val IOS_SPLASH_IMAGE_FILE: String = "KiteSplashImage.png"
 internal const val IOS_SPLASH_DARK_IMAGE_FILE = "KiteSplashImage-dark.png"
 
 /** The Info.plist key the splash owns, plus the three entries it writes inside it. */
-internal const val IOS_LAUNCH_SCREEN_KEY = "UILaunchScreen"
+@InternalKiteCoreApi
+public const val IOS_LAUNCH_SCREEN_KEY: String = "UILaunchScreen"
 internal const val IOS_LAUNCH_SCREEN_COLOR_KEY = "UIColorName"
 internal const val IOS_LAUNCH_SCREEN_IMAGE_KEY = "UIImageName"
 internal const val IOS_LAUNCH_SCREEN_SAFE_AREA_KEY = "UIImageRespectsSafeAreaInsets"
@@ -48,7 +47,8 @@ private val SPLASH_PLIST_VALUE_TAGS =
 // --- Asset catalog --------------------------------------------------------
 
 /** Parse a splash plate color, naming [label] when the text is not a hex color. */
-internal fun parseIosSplashColor(hex: String, label: String): Color {
+@InternalKiteCoreApi
+public fun parseIosSplashColor(hex: String, label: String): Color {
     require(SPLASH_HEX_RE.matches(hex)) {
         "$label must be #RRGGBB or #AARRGGBB (Android convention, alpha first), got: " +
             diagnosticSafeText(hex, 32)
@@ -57,7 +57,8 @@ internal fun parseIosSplashColor(hex: String, label: String): Color {
 }
 
 /** Every file the iOS splash installer owns under an `Assets.xcassets` directory. */
-internal fun iosSplashOwnedPaths(assetsDir: File, withDarkImage: Boolean): List<File> =
+@InternalKiteCoreApi
+public fun iosSplashOwnedPaths(assetsDir: File, withDarkImage: Boolean): List<File> =
     iosSplashOwnedRelativePaths(withDarkImage).map { assetsDir.resolve(it) }
 
 /** The same owned files as catalog-relative `/` separated paths. */
@@ -87,7 +88,8 @@ internal fun iosSplashImagesetJson(withDarkImage: Boolean): String = catalogJson
 )
 
 /** Render the whole splash catalog, keyed by catalog-relative path in write order. */
-internal fun renderIosSplashAssets(
+@InternalKiteCoreApi
+public fun renderIosSplashAssets(
     color: Color,
     darkColor: Color?,
     image: BufferedImage,
@@ -114,7 +116,8 @@ internal fun renderIosSplashAssets(
  * the project root. Each catalog then owns its own files and cannot claim
  * another's.
  */
-internal fun iosSplashCatalogIdentity(projectRoot: File, assetsDir: File): String {
+@InternalKiteCoreApi
+public fun iosSplashCatalogIdentity(projectRoot: File, assetsDir: File): String {
     val root = projectRoot.toPath().toAbsolutePath().normalize()
     val output = assetsDir.toPath().toAbsolutePath().normalize()
     require(output.startsWith(root)) { "iOS splash asset catalog is outside project root: $output" }
@@ -127,7 +130,8 @@ internal fun iosSplashCatalogIdentity(projectRoot: File, assetsDir: File): Strin
 }
 
 /** Where this catalog's splash ownership receipt lives, beside the catalog rather than inside it. */
-internal fun iosSplashManifestFile(assetsDir: File, identity: String): File =
+@InternalKiteCoreApi
+public fun iosSplashManifestFile(assetsDir: File, identity: String): File =
     (assetsDir.parentFile ?: assetsDir).resolve(".kiteconfig/$identity/owned-files-v1")
 
 /**
@@ -141,13 +145,14 @@ internal fun iosSplashManifestFile(assetsDir: File, identity: String): File =
  *
  * Returns the catalog-relative paths this installer now owns.
  */
-internal fun writeIosSplashAssets(
+@InternalKiteCoreApi
+public fun writeIosSplashAssets(
     assetsDir: File,
     rendered: Map<String, ByteArray>,
     projectRoot: File,
     backupRoot: File,
     backup: Boolean,
-    logger: Logger,
+    logger: KiteLog,
 ): List<String> {
     OwnedOutputSafety.requireSafePath(assetsDir, "iOS splash asset catalog")
     val identity = iosSplashCatalogIdentity(projectRoot, assetsDir)
@@ -235,7 +240,8 @@ private fun catalogJson(arrayName: String, entries: List<List<String>>): String 
  * Missing entries are inserted; an existing entry that differs follows
  * [conflictPolicy] exactly like every other managed plist key.
  */
-internal fun mergeIosSplashLaunchScreen(
+@InternalKiteCoreApi
+public fun mergeIosSplashLaunchScreen(
     xml: String,
     colorName: String = IOS_SPLASH_COLORSET,
     imageName: String = IOS_SPLASH_IMAGESET,

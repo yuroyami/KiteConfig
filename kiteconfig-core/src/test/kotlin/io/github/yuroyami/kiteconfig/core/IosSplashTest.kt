@@ -1,7 +1,5 @@
-package io.github.yuroyami.kiteconfig
+package io.github.yuroyami.kiteconfig.core
 
-import io.github.yuroyami.kiteconfig.core.KiteConfigException
-import io.github.yuroyami.kiteconfig.core.OwnedOutputSafety
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
@@ -10,7 +8,6 @@ import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
-import org.gradle.testfixtures.ProjectBuilder
 import java.awt.Color
 import java.awt.image.BufferedImage
 import java.io.File
@@ -296,7 +293,7 @@ class IosSplashTest {
     @TempDir
     lateinit var projectDir: File
 
-    private fun logger() = ProjectBuilder.builder().withProjectDir(projectDir).build().logger
+    private fun logger() = RecordingLog()
 
     private fun catalog(): File =
         projectDir.resolve("iosApp/iosApp/Assets.xcassets").also { it.mkdirs() }
