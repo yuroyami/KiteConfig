@@ -1,6 +1,5 @@
-package io.github.yuroyami.kiteconfig
+package io.github.yuroyami.kiteconfig.core
 
-import org.gradle.api.GradleException
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertThrows
@@ -17,7 +16,7 @@ class DesktopIdentityTest {
 
     @Test
     fun `a minor above the Windows cap fails and names the limits`() {
-        val failure = assertThrows(GradleException::class.java) {
+        val failure = assertThrows(KiteConfigException::class.java) {
             validateDesktopPackageVersion("1.300.0", setOf("Msi"))
         }
         assertTrue(failure.message!!.contains("1.300.0"), failure.message)
@@ -32,14 +31,14 @@ class DesktopIdentityTest {
 
     @Test
     fun `a build above the Windows cap fails`() {
-        assertThrows(GradleException::class.java) {
+        assertThrows(KiteConfigException::class.java) {
             validateDesktopPackageVersion("1.0.70000", setOf("Exe"))
         }
     }
 
     @Test
     fun `a non-numeric minor fails closed rather than being read as zero`() {
-        val failure = assertThrows(GradleException::class.java) {
+        val failure = assertThrows(KiteConfigException::class.java) {
             validateDesktopPackageVersion("1.abc.0", setOf("Msi"))
         }
         assertTrue(failure.message!!.contains("1.abc.0"), failure.message)
@@ -47,7 +46,7 @@ class DesktopIdentityTest {
 
     @Test
     fun `a component too large for an Int fails closed`() {
-        val failure = assertThrows(GradleException::class.java) {
+        val failure = assertThrows(KiteConfigException::class.java) {
             validateDesktopPackageVersion("1.99999999999.0", setOf("Msi"))
         }
         assertTrue(failure.message!!.contains("99999999999"), failure.message)
@@ -62,13 +61,13 @@ class DesktopIdentityTest {
 
     @Test
     fun `a slug that cannot start with an alphanumeric fails and names the escape hatch`() {
-        val failure = assertThrows(GradleException::class.java) { deriveLinuxPackageName("!!!") }
+        val failure = assertThrows(KiteConfigException::class.java) { deriveLinuxPackageName("!!!") }
         assertTrue(failure.message!!.contains("desktop { linuxPackageName }"), failure.message)
     }
 
     @Test
     fun `a slug under Debian's two-character minimum fails and names the escape hatch`() {
-        val failure = assertThrows(GradleException::class.java) { deriveLinuxPackageName("X") }
+        val failure = assertThrows(KiteConfigException::class.java) { deriveLinuxPackageName("X") }
         assertTrue(failure.message!!.contains("desktop { linuxPackageName }"), failure.message)
     }
 

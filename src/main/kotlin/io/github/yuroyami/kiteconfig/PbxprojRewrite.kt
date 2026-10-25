@@ -1,5 +1,12 @@
 package io.github.yuroyami.kiteconfig
 
+import io.github.yuroyami.kiteconfig.core.canonicalizeLocales
+import io.github.yuroyami.kiteconfig.core.diagnosticSafeText
+import io.github.yuroyami.kiteconfig.core.validateAppName
+import io.github.yuroyami.kiteconfig.core.validateAppleBuildNumber
+import io.github.yuroyami.kiteconfig.core.validateAppleBundleId
+import io.github.yuroyami.kiteconfig.core.validateAppleMarketingVersion
+
 /**
  * Result of an in-memory pbxproj rewrite. Errors mean [text] is the original byte-for-byte.
  *

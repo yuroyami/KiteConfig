@@ -1,6 +1,5 @@
-package io.github.yuroyami.kiteconfig
+package io.github.yuroyami.kiteconfig.core
 
-import org.gradle.api.GradleException
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.LinkOption.NOFOLLOW_LINKS
@@ -19,10 +18,11 @@ private val COMPOSE_BCP47_QUALIFIER = Regex("b\\+[A-Za-z0-9]+(?:\\+[A-Za-z0-9]+)
  *
  * The scan is deliberately shallow and bounded: locale conventions must not turn
  * project configuration into an unbounded source-tree traversal or read outside a
- * linked resource tree. Unsafe entries are ignored because explicit [locales][KiteConfigExtension.locales]
+ * linked resource tree. Unsafe entries are ignored because explicit `KiteConfigExtension.locales`
  * remain the authoritative escape hatch.
  */
-internal fun detectComposeResourceLocales(
+@InternalKiteCoreApi
+public fun detectComposeResourceLocales(
     composeResources: File,
     maximumEntries: Int = MAX_COMPOSE_RESOURCE_ENTRIES,
 ): List<String> {
@@ -38,7 +38,7 @@ internal fun detectComposeResourceLocales(
         for (entry in entries) {
             entryCount += 1
             if (entryCount > maximumEntries) {
-                throw GradleException(
+                throw KiteConfigException(
                     "[kiteConfig] Refusing to inspect more than $maximumEntries Compose resource entries " +
                         "below ${diagnosticSafeText(composeResources.path)}; configure kiteConfig.locales explicitly.",
                 )

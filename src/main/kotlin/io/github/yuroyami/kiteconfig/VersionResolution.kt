@@ -1,12 +1,11 @@
 package io.github.yuroyami.kiteconfig
 
+import io.github.yuroyami.kiteconfig.core.buildNumberProperty
+import io.github.yuroyami.kiteconfig.core.diagnosticSafeText
+import io.github.yuroyami.kiteconfig.core.validateVersionCode
 import org.gradle.api.GradleException
 
 private val VERSION_SEGMENT = Regex("""0|[1-9]\d*""")
-
-/** The DSL path that sets an exact build number, named per platform in error messages. */
-internal fun buildNumberProperty(platform: String): String =
-    "$platform { version { buildNumber = \"...\" } }"
 
 /**
  * Split a `x.y.z` version string into the four numbers a scheme reads.

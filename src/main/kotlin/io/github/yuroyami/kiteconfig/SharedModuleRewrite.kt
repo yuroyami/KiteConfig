@@ -1,5 +1,7 @@
 package io.github.yuroyami.kiteconfig
 
+import io.github.yuroyami.kiteconfig.core.diagnosticSafeText
+
 /** Pure helpers for the explicit, one-shot shared-module migration. */
 
 private val POD_LINE = Regex(

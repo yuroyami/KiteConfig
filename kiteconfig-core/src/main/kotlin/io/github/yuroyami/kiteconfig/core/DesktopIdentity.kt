@@ -1,7 +1,6 @@
-package io.github.yuroyami.kiteconfig
+package io.github.yuroyami.kiteconfig.core
 
 import java.security.MessageDigest
-import org.gradle.api.GradleException
 
 /**
  * The fixed namespace for derived Windows upgrade codes.
@@ -22,7 +21,8 @@ private const val MIN_DEBIAN_PACKAGE_NAME_CHARS = 2
  * Windows is the only real failure mode. `version` is always a strict `x.y.z`,
  * so the Debian, RPM and macOS rules can never fail on it.
  */
-internal fun validateDesktopPackageVersion(version: String, targetFormats: Set<String>): String {
+@InternalKiteCoreApi
+public fun validateDesktopPackageVersion(version: String, targetFormats: Set<String>): String {
     if (targetFormats.none { it in WINDOWS_FORMATS }) return version
     val parts = version.split('.')
     // An absent component is 0, but a present one that will not parse fails
@@ -33,7 +33,7 @@ internal fun validateDesktopPackageVersion(version: String, targetFormats: Set<S
     if (major == null || minor == null || build == null ||
         major > 255 || minor > 255 || build > 65_535
     ) {
-        throw GradleException(
+        throw KiteConfigException(
             "kiteConfig { version } is \"${diagnosticSafeText(version, 64)}\", which Windows installers " +
                 "reject. MSI and EXE accept MAJOR.MINOR.BUILD with limits 255, 255 and 65535. " +
                 "Either lower the component, or drop Msi and Exe from targetFormats.",
@@ -43,10 +43,11 @@ internal fun validateDesktopPackageVersion(version: String, targetFormats: Set<S
 }
 
 /** Turn an app name into a Debian-legal package name. */
-internal fun deriveLinuxPackageName(appName: String): String {
+@InternalKiteCoreApi
+public fun deriveLinuxPackageName(appName: String): String {
     val slug = LINUX_SLUG_INVALID.replace(appName.lowercase(), "-").trim('-')
     if (slug.length < MIN_DEBIAN_PACKAGE_NAME_CHARS || !slug.first().isLetterOrDigit()) {
-        throw GradleException(
+        throw KiteConfigException(
             "kiteConfig cannot derive a Debian package name from appName " +
                 "\"${diagnosticSafeText(appName, 64)}\". Debian names must start with a letter or " +
                 "digit and be at least $MIN_DEBIAN_PACKAGE_NAME_CHARS characters long. Set it " +
@@ -57,7 +58,8 @@ internal fun deriveLinuxPackageName(appName: String): String {
 }
 
 /** Derive a stable UUIDv5 upgrade code from the application identifier. */
-internal fun deriveUpgradeUuid(appId: String): String {
+@InternalKiteCoreApi
+public fun deriveUpgradeUuid(appId: String): String {
     val namespace = KITECONFIG_UPGRADE_UUID_NAMESPACE.replace("-", "")
     val namespaceBytes = ByteArray(16) { index ->
         namespace.substring(index * 2, index * 2 + 2).toInt(16).toByte()

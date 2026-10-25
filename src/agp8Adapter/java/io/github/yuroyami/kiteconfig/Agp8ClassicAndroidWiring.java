@@ -5,6 +5,7 @@ import com.android.build.api.dsl.ApplicationDefaultConfig;
 import com.android.build.api.dsl.LibraryDefaultConfig;
 import com.android.build.api.variant.ApplicationAndroidComponentsExtension;
 import com.android.build.api.variant.LibraryAndroidComponentsExtension;
+import io.github.yuroyami.kiteconfig.core.LocaleTagsKt;
 import org.gradle.api.JavaVersion;
 import org.gradle.api.Project;
 

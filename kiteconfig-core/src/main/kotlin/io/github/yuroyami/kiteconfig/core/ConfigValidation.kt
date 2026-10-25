@@ -1,11 +1,8 @@
-package io.github.yuroyami.kiteconfig
-
-import org.gradle.api.GradleException
+package io.github.yuroyami.kiteconfig.core
 
 private val ANDROID_ID_SEGMENT = Regex("""[A-Za-z][A-Za-z0-9_]*""")
 private val APPLE_ID_SEGMENT = Regex("""[A-Za-z0-9][A-Za-z0-9-]*""")
 private val APPLE_MARKETING_VERSION = Regex("""(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)""")
-private val GRADLE_PROJECT_PATH = Regex(""":(?:[A-Za-z0-9_.-]+(?::[A-Za-z0-9_.-]+)*)?""")
 private val QUALIFIED_KOTLIN_NAME = Regex("""[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)+""")
 private val WINDOWS_ABSOLUTE_PATH = Regex("""^[A-Za-z]:[\\/].*""")
 private val CANONICAL_NONNEGATIVE_INTEGER = Regex("(?:0|[1-9]\\d*)")
@@ -14,23 +11,24 @@ private const val MAX_APPLE_MARKETING_VERSION_CHARS = 64
 private const val MAX_APPLE_BUILD_NUMBER_CHARS = 32
 private const val MAX_APPLE_BUILD_COMPONENT_DIGITS = 10
 private const val MAX_DEPLOYMENT_TARGET_CHARS = 64
-private const val MAX_GRADLE_PROJECT_PATH_CHARS = 1_024
 private const val MAX_RELATIVE_PROJECT_PATH_CHARS = 4_096
 private const val MAX_NDK_VERSION_CHARS = 64
 private const val MAX_OPT_IN_MARKER_CHARS = 512
 private const val MAX_ANDROID_SDK_LEVEL = 10_000
 
-internal fun validateAppName(value: String): String {
+@InternalKiteCoreApi
+public fun validateAppName(value: String): String {
     if (value.isBlank() || value.length > 255 || value.any(Char::isISOControl)) {
-        throw GradleException("kiteConfig { appName } must be non-blank, at most 255 characters, and contain no controls.")
+        throw KiteConfigException("kiteConfig { appName } must be non-blank, at most 255 characters, and contain no controls.")
     }
     return value
 }
 
-internal fun validateAndroidApplicationId(value: String): String {
+@InternalKiteCoreApi
+public fun validateAndroidApplicationId(value: String): String {
     val segments = value.split('.')
     if (value.length > 255 || segments.size < 2 || segments.any { !ANDROID_ID_SEGMENT.matches(it) }) {
-        throw GradleException(
+        throw KiteConfigException(
             "kiteConfig resolved Android applicationId \"${diagnosticSafeText(value, 255)}\" is invalid. Use at least two " +
                 "dot-separated segments, each beginning with a letter."
         )
@@ -38,10 +36,11 @@ internal fun validateAndroidApplicationId(value: String): String {
     return value
 }
 
-internal fun validateAppleBundleId(value: String): String {
+@InternalKiteCoreApi
+public fun validateAppleBundleId(value: String): String {
     val segments = value.split('.')
     if (value.length > 255 || segments.size < 2 || segments.any { !APPLE_ID_SEGMENT.matches(it) }) {
-        throw GradleException(
+        throw KiteConfigException(
             "kiteConfig resolved Apple bundle identifier \"${diagnosticSafeText(value, 255)}\" is invalid. Use reverse-DNS " +
                 "segments containing letters, digits, or hyphens."
         )
@@ -50,9 +49,10 @@ internal fun validateAppleBundleId(value: String): String {
 }
 
 /** Validate the platform-neutral display version before any adapter consumes it. */
-internal fun validateVersionName(value: String): String {
+@InternalKiteCoreApi
+public fun validateVersionName(value: String): String {
     if (value.isBlank() || value.length > MAX_VERSION_NAME_CHARS || value.any(Char::isISOControl)) {
-        throw GradleException(
+        throw KiteConfigException(
             "kiteConfig { version } must be non-blank, at most $MAX_VERSION_NAME_CHARS characters, " +
                 "and contain no controls.",
         )
@@ -60,11 +60,12 @@ internal fun validateVersionName(value: String): String {
     return value
 }
 
-internal fun validateAppleMarketingVersion(value: String): String {
+@InternalKiteCoreApi
+public fun validateAppleMarketingVersion(value: String): String {
     if (value.length > MAX_APPLE_MARKETING_VERSION_CHARS ||
         !APPLE_MARKETING_VERSION.matches(value) || value.split('.').any { it.toLongOrNull() == null }
     ) {
-        throw GradleException(
+        throw KiteConfigException(
             "kiteConfig Apple marketing version \"${diagnosticSafeText(value, 64)}\" is invalid. " +
                 "CFBundleShortVersionString requires three non-negative integer components (x.y.z)."
         )
@@ -72,9 +73,10 @@ internal fun validateAppleMarketingVersion(value: String): String {
     return value
 }
 
-internal fun validateAppleBuildNumber(value: String): String {
+@InternalKiteCoreApi
+public fun validateAppleBuildNumber(value: String): String {
     if (!isValidAppleBuildNumber(value)) {
-        throw GradleException(
+        throw KiteConfigException(
             "kiteConfig { ${buildNumberProperty("ios")} } \"${diagnosticSafeText(value, 32)}\" is invalid. " +
                 "CFBundleVersion requires one to three numeric components, each at most " +
                 "$MAX_APPLE_BUILD_COMPONENT_DIGITS digits, and a first component that is not zero."
@@ -90,9 +92,10 @@ internal fun validateAppleBuildNumber(value: String): String {
  * Nobody types this into `kiteConfig { }`. The messages name Xcode, because
  * that is the only place the value can be changed.
  */
-internal fun validateUniversalAppIconDeploymentTarget(value: String): String {
+@InternalKiteCoreApi
+public fun validateUniversalAppIconDeploymentTarget(value: String): String {
     if (value.length > MAX_DEPLOYMENT_TARGET_CHARS) {
-        throw GradleException(
+        throw KiteConfigException(
             "The Xcode project's IPHONEOS_DEPLOYMENT_TARGET is longer than " +
                 "$MAX_DEPLOYMENT_TARGET_CHARS characters.",
         )
@@ -102,13 +105,13 @@ internal fun validateUniversalAppIconDeploymentTarget(value: String): String {
         CANONICAL_NONNEGATIVE_INTEGER.matches(component) && component.toLongOrNull() != null
     }
     if (!valid) {
-        throw GradleException(
+        throw KiteConfigException(
             "The Xcode project's IPHONEOS_DEPLOYMENT_TARGET \"${diagnosticSafeText(value, 64)}\" is not a " +
                 "numeric Apple deployment target such as 12.0."
         )
     }
     if (components.first().toLong() < 12L) {
-        throw GradleException(
+        throw KiteConfigException(
             "The single-size universal AppIcon needs iOS 12.0 or newer; the Xcode project targets $value."
         )
     }
@@ -129,7 +132,8 @@ internal fun validateUniversalAppIconDeploymentTarget(value: String): String {
  * (Apple treats build 0 as absent, and it would collide with an unsuffixed
  * upload).
  */
-internal fun isValidAppleBuildNumber(value: String): Boolean {
+@InternalKiteCoreApi
+public fun isValidAppleBuildNumber(value: String): Boolean {
     if (value.isEmpty() || value.length > MAX_APPLE_BUILD_NUMBER_CHARS) return false
     val components = value.split('.')
     if (components.size !in 1..3) return false
@@ -165,45 +169,36 @@ internal fun compareAppleBuildNumbers(a: String, b: String): Int {
  * next build number. Shared by iOS and desktop; [platform] picks which DSL
  * block the failure names.
  */
-internal fun validatePublishedBuildNumber(next: String?, published: String, platform: String = "ios"): String {
+@InternalKiteCoreApi
+public fun validatePublishedBuildNumber(next: String?, published: String, platform: String = "ios"): String {
     val baselineProperty = "$platform { version { publishedBuildNumber } }"
     val noun = when (platform) {
         "desktop" -> "macOS package build version"
         else -> "Apple build number"
     }
     if (!isValidAppleBuildNumber(published)) {
-        throw GradleException(
+        throw KiteConfigException(
             "kiteConfig { $baselineProperty } \"${diagnosticSafeText(published, 32)}\" is invalid. " +
                 "CFBundleVersion requires one to three numeric components, each at most " +
                 "$MAX_APPLE_BUILD_COMPONENT_DIGITS digits, and a first component that is not zero.",
         )
     }
-    val candidate = next ?: throw GradleException(
+    val candidate = next ?: throw KiteConfigException(
         "kiteConfig { $baselineProperty } requires a resolvable build number.",
     )
     if (!isValidAppleBuildNumber(candidate)) {
-        throw GradleException(
+        throw KiteConfigException(
             "kiteConfig resolved $noun \"${diagnosticSafeText(candidate, 32)}\" is invalid.",
         )
     }
     if (compareAppleBuildNumbers(candidate, published) <= 0) {
-        throw GradleException(
+        throw KiteConfigException(
             "kiteConfig resolved $noun \"$candidate\" must be greater than the published " +
                 "baseline \"$published\". Bump $platform { version { rebuild } }, or set " +
                 "${buildNumberProperty(platform)}, before release.",
         )
     }
     return candidate
-}
-
-internal fun validateGradleProjectPath(value: String, property: String): String {
-    if (value.length > MAX_GRADLE_PROJECT_PATH_CHARS || !GRADLE_PROJECT_PATH.matches(value)) {
-        throw GradleException(
-            "kiteConfig { $property } \"${diagnosticSafeText(value, 256)}\" is not a valid absolute " +
-                "Gradle project path (for example :shared).",
-        )
-    }
-    return value
 }
 
 /**
@@ -213,7 +208,7 @@ internal fun validateGradleProjectPath(value: String, property: String): String 
  */
 internal fun validateRelativeProjectPath(value: String, property: String): String {
     if (value.length > MAX_RELATIVE_PROJECT_PATH_CHARS) {
-        throw GradleException(
+        throw KiteConfigException(
             "kiteConfig { $property } exceeds the $MAX_RELATIVE_PROJECT_PATH_CHARS-character path limit.",
         )
     }
@@ -222,7 +217,7 @@ internal fun validateRelativeProjectPath(value: String, property: String): Strin
         value.startsWith('/') || value.startsWith('\\') || WINDOWS_ABSOLUTE_PATH.matches(value) ||
         segments.any { it.isEmpty() || it == "." || it == ".." }
     if (invalid) {
-        throw GradleException(
+        throw KiteConfigException(
             "kiteConfig { $property } must be a non-empty path contained by the root project; " +
                 "absolute paths, empty segments, '.' and '..' are not allowed (got " +
                 "\"${diagnosticSafeText(value, 256)}\")."
@@ -231,49 +226,53 @@ internal fun validateRelativeProjectPath(value: String, property: String): Strin
     return value
 }
 
-internal fun validateSdkLevels(compileSdk: Int?, minSdk: Int?, targetSdk: Int?) {
+@InternalKiteCoreApi
+public fun validateSdkLevels(compileSdk: Int?, minSdk: Int?, targetSdk: Int?) {
     listOf("compileSdk" to compileSdk, "minSdk" to minSdk, "targetSdk" to targetSdk).forEach { (name, value) ->
         if (value != null && value !in 1..MAX_ANDROID_SDK_LEVEL) {
-            throw GradleException(
+            throw KiteConfigException(
                 "kiteConfig { android { $name } } must be in 1..$MAX_ANDROID_SDK_LEVEL; got $value.",
             )
         }
     }
     if (compileSdk != null && minSdk != null && minSdk > compileSdk) {
-        throw GradleException("kiteConfig Android SDK levels are inconsistent: minSdk ($minSdk) exceeds compileSdk ($compileSdk).")
+        throw KiteConfigException("kiteConfig Android SDK levels are inconsistent: minSdk ($minSdk) exceeds compileSdk ($compileSdk).")
     }
     if (compileSdk != null && targetSdk != null && targetSdk > compileSdk) {
-        throw GradleException("kiteConfig Android SDK levels are inconsistent: targetSdk ($targetSdk) exceeds compileSdk ($compileSdk).")
+        throw KiteConfigException("kiteConfig Android SDK levels are inconsistent: targetSdk ($targetSdk) exceeds compileSdk ($compileSdk).")
     }
     if (minSdk != null && targetSdk != null && minSdk > targetSdk) {
-        throw GradleException("kiteConfig Android SDK levels are inconsistent: minSdk ($minSdk) exceeds targetSdk ($targetSdk).")
+        throw KiteConfigException("kiteConfig Android SDK levels are inconsistent: minSdk ($minSdk) exceeds targetSdk ($targetSdk).")
     }
 }
 
-internal fun validateJavaVersion(value: Int): Int {
+@InternalKiteCoreApi
+public fun validateJavaVersion(value: Int): Int {
     if (value !in 8..26) {
-        throw GradleException("kiteConfig { jvm { target } } must be a supported Java language level in 8..26; got $value.")
+        throw KiteConfigException("kiteConfig { jvm { target } } must be a supported Java language level in 8..26; got $value.")
     }
     return value
 }
 
 /** Validate an adaptive-icon foreground fraction that remains inside its canvas. */
-internal fun validateLogoSafeZoneRatio(value: Double): Double {
+@InternalKiteCoreApi
+public fun validateLogoSafeZoneRatio(value: Double): Double {
     if (!value.isFinite() || value <= 0.0 || value > 1.0) {
-        throw GradleException(
+        throw KiteConfigException(
             "kiteConfig { logo { android { safeZone } } } must be finite and in (0, 1]; got $value.",
         )
     }
     return value
 }
 
-internal fun validateNdkVersion(value: String): String {
+@InternalKiteCoreApi
+public fun validateNdkVersion(value: String): String {
     val components = if (value.length <= MAX_NDK_VERSION_CHARS) value.split('.') else emptyList()
     val valid = components.size in 3..4 && components.all { component ->
         CANONICAL_NONNEGATIVE_INTEGER.matches(component) && component.toLongOrNull() != null
     }
     if (!valid) {
-        throw GradleException(
+        throw KiteConfigException(
             "kiteConfig { android { ndkVersion } } must contain three or four bounded numeric " +
                 "components; got \"${diagnosticSafeText(value, 64)}\"."
         )
@@ -281,33 +280,15 @@ internal fun validateNdkVersion(value: String): String {
     return value
 }
 
-internal fun validateOptInMarker(value: String): String {
+@InternalKiteCoreApi
+public fun validateOptInMarker(value: String): String {
     if (value.length > MAX_OPT_IN_MARKER_CHARS ||
         !QUALIFIED_KOTLIN_NAME.matches(value) || value.split('.').any { it == "_" }
     ) {
-        throw GradleException(
+        throw KiteConfigException(
             "kiteConfig extra opt-in marker \"${diagnosticSafeText(value, 256)}\" is not a bounded, " +
                 "qualified Kotlin declaration name.",
         )
     }
     return value
 }
-
-/**
- * Parse a `-P` switch that guards destructive work.
- *
- * `String.toBoolean()` answers `false` for everything that is not `"true"`, so
- * `-Pkiteconfig.dryRun=treu` would quietly turn a requested preview into a real
- * source rewrite, and `-Pkiteconfig.backups=treu` would turn backups off. A flag
- * whose whole job is protection has to refuse what it does not understand.
- */
-internal fun strictBooleanProperty(property: String, raw: String): Boolean =
-    when (raw.trim().lowercase()) {
-        "true" -> true
-        "false" -> false
-        else -> throw GradleException(
-            "kiteConfig -P$property must be exactly 'true' or 'false'; got '$raw'. " +
-                "This switch guards source mutation, so an unrecognised value is refused " +
-                "instead of being treated as 'false'.",
-        )
-    }

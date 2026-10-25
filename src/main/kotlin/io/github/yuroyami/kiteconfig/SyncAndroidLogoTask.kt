@@ -1,5 +1,7 @@
 package io.github.yuroyami.kiteconfig
 
+import io.github.yuroyami.kiteconfig.core.diagnosticSafeText
+import io.github.yuroyami.kiteconfig.core.validateLogoSafeZoneRatio
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
 import org.gradle.api.file.ConfigurableFileCollection

@@ -4,6 +4,8 @@ import com.android.build.api.dsl.ApplicationExtension
 import com.android.build.api.dsl.LibraryExtension
 import com.android.build.api.variant.ApplicationAndroidComponentsExtension
 import com.android.build.api.variant.LibraryAndroidComponentsExtension
+import io.github.yuroyami.kiteconfig.core.bcp47ToAndroidQualifier
+import io.github.yuroyami.kiteconfig.core.validateJavaVersion
 import org.gradle.api.GradleException
 import org.gradle.api.JavaVersion
 import org.gradle.api.Project

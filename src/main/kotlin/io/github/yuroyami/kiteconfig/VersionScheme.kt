@@ -2,8 +2,6 @@ package io.github.yuroyami.kiteconfig
 
 import org.gradle.api.GradleException
 
-internal const val PLAY_VERSION_CODE_CEILING = 2_100_000_000
-
 private const val DEFAULT_MAX_MAJOR = 999
 private const val DEFAULT_MAX_MINOR = 999
 private const val DEFAULT_MAX_PATCH = 99

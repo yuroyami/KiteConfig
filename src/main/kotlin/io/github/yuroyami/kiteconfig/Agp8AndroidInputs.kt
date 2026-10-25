@@ -1,5 +1,8 @@
 package io.github.yuroyami.kiteconfig
 
+import io.github.yuroyami.kiteconfig.core.bcp47ToAndroidQualifier
+import io.github.yuroyami.kiteconfig.core.validateJavaVersion
+
 /**
  * A resolved snapshot of everything the AGP 8 adapter writes into the classic
  * Android DSL.

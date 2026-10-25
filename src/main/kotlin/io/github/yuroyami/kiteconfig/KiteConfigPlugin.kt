@@ -2,6 +2,25 @@
 
 package io.github.yuroyami.kiteconfig
 
+import io.github.yuroyami.kiteconfig.core.buildNumberProperty
+import io.github.yuroyami.kiteconfig.core.deriveLinuxPackageName
+import io.github.yuroyami.kiteconfig.core.deriveUpgradeUuid
+import io.github.yuroyami.kiteconfig.core.detectComposeResourceLocales
+import io.github.yuroyami.kiteconfig.core.validateAndroidApplicationId
+import io.github.yuroyami.kiteconfig.core.validateAppName
+import io.github.yuroyami.kiteconfig.core.validateAppleBuildNumber
+import io.github.yuroyami.kiteconfig.core.validateAppleBundleId
+import io.github.yuroyami.kiteconfig.core.validateAppleMarketingVersion
+import io.github.yuroyami.kiteconfig.core.validateJavaVersion
+import io.github.yuroyami.kiteconfig.core.validateLogoSafeZoneRatio
+import io.github.yuroyami.kiteconfig.core.validateNdkVersion
+import io.github.yuroyami.kiteconfig.core.validateOptInMarker
+import io.github.yuroyami.kiteconfig.core.validatePublishedBuildNumber
+import io.github.yuroyami.kiteconfig.core.validatePublishedVersionCode
+import io.github.yuroyami.kiteconfig.core.validateSdkLevels
+import io.github.yuroyami.kiteconfig.core.validateUniversalAppIconDeploymentTarget
+import io.github.yuroyami.kiteconfig.core.validateVersionCode
+import io.github.yuroyami.kiteconfig.core.validateVersionName
 import org.gradle.api.Action
 import org.gradle.api.GradleException
 import org.gradle.api.Plugin

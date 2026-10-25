@@ -1,5 +1,8 @@
 package io.github.yuroyami.kiteconfig
 
+import io.github.yuroyami.kiteconfig.core.deriveLinuxPackageName
+import io.github.yuroyami.kiteconfig.core.deriveUpgradeUuid
+import io.github.yuroyami.kiteconfig.core.validateDesktopPackageVersion
 import org.gradle.api.GradleException
 import org.gradle.api.Project
 import org.gradle.api.plugins.ExtensionAware

@@ -1,8 +1,55 @@
+public final class io/github/yuroyami/kiteconfig/core/ConfigValidationKt {
+	public static final fun isValidAppleBuildNumber (Ljava/lang/String;)Z
+	public static final fun validateAndroidApplicationId (Ljava/lang/String;)Ljava/lang/String;
+	public static final fun validateAppName (Ljava/lang/String;)Ljava/lang/String;
+	public static final fun validateAppleBuildNumber (Ljava/lang/String;)Ljava/lang/String;
+	public static final fun validateAppleBundleId (Ljava/lang/String;)Ljava/lang/String;
+	public static final fun validateAppleMarketingVersion (Ljava/lang/String;)Ljava/lang/String;
+	public static final fun validateJavaVersion (I)I
+	public static final fun validateLogoSafeZoneRatio (D)D
+	public static final fun validateNdkVersion (Ljava/lang/String;)Ljava/lang/String;
+	public static final fun validateOptInMarker (Ljava/lang/String;)Ljava/lang/String;
+	public static final fun validatePublishedBuildNumber (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;
+	public static synthetic fun validatePublishedBuildNumber$default (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Ljava/lang/String;
+	public static final fun validateSdkLevels (Ljava/lang/Integer;Ljava/lang/Integer;Ljava/lang/Integer;)V
+	public static final fun validateUniversalAppIconDeploymentTarget (Ljava/lang/String;)Ljava/lang/String;
+	public static final fun validateVersionName (Ljava/lang/String;)Ljava/lang/String;
+}
+
+public final class io/github/yuroyami/kiteconfig/core/DesktopIdentityKt {
+	public static final fun deriveLinuxPackageName (Ljava/lang/String;)Ljava/lang/String;
+	public static final fun deriveUpgradeUuid (Ljava/lang/String;)Ljava/lang/String;
+	public static final fun validateDesktopPackageVersion (Ljava/lang/String;Ljava/util/Set;)Ljava/lang/String;
+}
+
+public final class io/github/yuroyami/kiteconfig/core/DiagnosticTextKt {
+	public static final fun diagnosticSafeText (Ljava/lang/String;I)Ljava/lang/String;
+	public static synthetic fun diagnosticSafeText$default (Ljava/lang/String;IILjava/lang/Object;)Ljava/lang/String;
+}
+
 public abstract interface annotation class io/github/yuroyami/kiteconfig/core/InternalKiteCoreApi : java/lang/annotation/Annotation {
 }
 
 public final class io/github/yuroyami/kiteconfig/core/KiteConfigException : java/lang/RuntimeException {
 	public fun <init> (Ljava/lang/String;Ljava/lang/Throwable;)V
 	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/Throwable;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+}
+
+public final class io/github/yuroyami/kiteconfig/core/LocaleTagsKt {
+	public static final fun bcp47ToAndroidQualifier (Ljava/lang/String;)Ljava/lang/String;
+	public static final fun canonicalizeLocales (Ljava/lang/Iterable;)Ljava/util/List;
+	public static final fun looksLikeUnambiguousLocaleQualifier (Ljava/lang/String;)Z
+}
+
+public final class io/github/yuroyami/kiteconfig/core/ResourceLocaleDetectionKt {
+	public static final fun detectComposeResourceLocales (Ljava/io/File;I)Ljava/util/List;
+	public static synthetic fun detectComposeResourceLocales$default (Ljava/io/File;IILjava/lang/Object;)Ljava/util/List;
+}
+
+public final class io/github/yuroyami/kiteconfig/core/VersionCodeKt {
+	public static final fun buildNumberProperty (Ljava/lang/String;)Ljava/lang/String;
+	public static final fun validatePublishedVersionCode (Ljava/lang/Integer;Ljava/lang/String;)I
+	public static final fun validateVersionCode (ILjava/lang/String;)I
+	public static synthetic fun validateVersionCode$default (ILjava/lang/String;ILjava/lang/Object;)I
 }
 

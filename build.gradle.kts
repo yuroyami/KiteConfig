@@ -257,6 +257,7 @@ dependencies {
 
     add(agp8AdapterSourceSet.compileOnlyConfigurationName, gradleApi())
     add(agp8AdapterSourceSet.compileOnlyConfigurationName, libs.android.gradle.api.floor)
+    add(agp8AdapterSourceSet.compileOnlyConfigurationName, project(":kiteconfig-core"))
 }
 
 tasks.named<Test>("test") {

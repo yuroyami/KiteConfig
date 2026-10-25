@@ -1,6 +1,5 @@
-package io.github.yuroyami.kiteconfig
+package io.github.yuroyami.kiteconfig.core
 
-import org.gradle.api.GradleException
 import java.util.Locale
 
 /**
@@ -72,14 +71,15 @@ internal fun canonicalLocaleTag(tag: String): String? {
 }
 
 /** Validate, canonicalize, and de-duplicate after conversion. */
-internal fun canonicalizeLocales(tags: Iterable<String>): List<String> {
+@InternalKiteCoreApi
+public fun canonicalizeLocales(tags: Iterable<String>): List<String> {
     val invalid = mutableListOf<String>()
     val canonical = LinkedHashSet<String>()
     var count = 0
     tags.forEach { raw ->
         count += 1
         if (count > MAX_CONFIGURED_LOCALES) {
-            throw GradleException(
+            throw KiteConfigException(
                 "kiteConfig { locales } supports at most $MAX_CONFIGURED_LOCALES entries.",
             )
         }
@@ -89,7 +89,7 @@ internal fun canonicalizeLocales(tags: Iterable<String>): List<String> {
     if (invalid.isNotEmpty()) {
         val displayed = invalid.take(20).joinToString(", ") { diagnosticSafeText(it, 256) }
         val omitted = invalid.size - minOf(invalid.size, 20)
-        throw GradleException(
+        throw KiteConfigException(
             "kiteConfig { locales } contains invalid locale tag(s): $displayed" +
                 (if (omitted > 0) ", … and $omitted more" else "") + ". " +
                 "Use supported resource-locale tags such as en, pt-BR, or sr-Latn; " +
@@ -103,9 +103,10 @@ internal fun canonicalizeLocales(tags: Iterable<String>): List<String> {
 internal fun androidTagToAppleTag(tag: String): String = canonicalLocaleTag(tag) ?: tag
 
 /** Convert a canonical supported resource-locale tag to an Android resource qualifier. */
-internal fun bcp47ToAndroidQualifier(tag: String): String {
+@InternalKiteCoreApi
+public fun bcp47ToAndroidQualifier(tag: String): String {
     val canonical = canonicalLocaleTag(tag)
-        ?: throw GradleException("Invalid BCP-47 locale tag: ${diagnosticSafeText(tag, 256)}")
+        ?: throw KiteConfigException("Invalid BCP-47 locale tag: ${diagnosticSafeText(tag, 256)}")
     val locale = Locale.forLanguageTag(canonical)
     val simpleRegion = locale.script.isEmpty() && locale.variant.isEmpty() &&
         locale.country.length == 2 && locale.country.all(Char::isLetter)
@@ -126,6 +127,7 @@ internal fun looksLikeLocaleQualifier(tag: String): Boolean = canonicalLocaleTag
  * True only when an AGP 8 `resourceConfigurations` entry can be removed as a
  * locale without also deleting a valid non-locale Android qualifier.
  */
-internal fun looksLikeUnambiguousLocaleQualifier(tag: String): Boolean =
+@InternalKiteCoreApi
+public fun looksLikeUnambiguousLocaleQualifier(tag: String): Boolean =
     tag.lowercase(Locale.ROOT) !in ANDROID_AMBIGUOUS_NON_LOCALE_QUALIFIERS &&
         looksLikeLocaleQualifier(tag)

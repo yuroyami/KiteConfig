@@ -1,6 +1,5 @@
-package io.github.yuroyami.kiteconfig
+package io.github.yuroyami.kiteconfig.core
 
-import org.gradle.api.GradleException
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertThrows
@@ -46,28 +45,6 @@ class LocaleTagsTest {
     }
 
     @Test
-    fun `pbxproj knownRegions receives the mapped apple tags`() {
-        val src = """
-            {
-                objects = {
-                    AA00000000000000000000AA = {
-                        isa = PBXProject;
-                        knownRegions = (
-                            Base,
-                            en,
-                        );
-                    };
-                };
-                rootObject = AA00000000000000000000AA;
-            }
-        """.trimIndent()
-        val r = rewritePbxproj(src, null, null, null, null, listOf("en", "pt-rBR"))
-        assertTrue(r.errors.isEmpty(), r.errors.toString())
-        assertTrue(r.text.contains("pt-BR"), r.text)
-        assertFalse(r.text.contains("pt-rBR"), r.text)
-    }
-
-    @Test
     fun `locale auto detection is shallow exact and bounded`(@TempDir resources: File) {
         File(resources, "values-en").mkdir()
         File(resources, "values-pt-rBR").mkdir()
@@ -81,7 +58,7 @@ class LocaleTagsTest {
         File(resources, "values-fr.txt").writeText("not a directory")
 
         assertEquals(listOf("en", "pt-BR", "sr-Latn"), detectComposeResourceLocales(resources))
-        assertThrows(GradleException::class.java) {
+        assertThrows(KiteConfigException::class.java) {
             detectComposeResourceLocales(resources, maximumEntries = 2)
         }
     }
@@ -89,7 +66,7 @@ class LocaleTagsTest {
     @Test
     fun `locale model rejects oversized tags and collections`() {
         assertFalse(looksLikeLocaleQualifier("a".repeat(256)))
-        assertThrows(GradleException::class.java) {
+        assertThrows(KiteConfigException::class.java) {
             canonicalizeLocales(List(1_001) { "en" })
         }
     }

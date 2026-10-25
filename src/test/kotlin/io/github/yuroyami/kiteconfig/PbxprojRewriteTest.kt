@@ -1,6 +1,7 @@
 package io.github.yuroyami.kiteconfig
 
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
@@ -571,5 +572,27 @@ class PbxprojRewriteTest {
         assertEquals(first.text, second.text)
         assertEquals(emptySet<String>(), second.changedSettings)
         assertEquals(emptySet<String>(), second.reformattedSettings)
+    }
+
+    @Test
+    fun `pbxproj knownRegions receives the mapped apple tags`() {
+        val src = """
+            {
+                objects = {
+                    AA00000000000000000000AA = {
+                        isa = PBXProject;
+                        knownRegions = (
+                            Base,
+                            en,
+                        );
+                    };
+                };
+                rootObject = AA00000000000000000000AA;
+            }
+        """.trimIndent()
+        val r = rewritePbxproj(src, null, null, null, null, listOf("en", "pt-rBR"))
+        assertTrue(r.errors.isEmpty(), r.errors.toString())
+        assertTrue(r.text.contains("pt-BR"), r.text)
+        assertFalse(r.text.contains("pt-rBR"), r.text)
     }
 }

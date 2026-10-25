@@ -2,6 +2,8 @@
 
 package io.github.yuroyami.kiteconfig
 
+import io.github.yuroyami.kiteconfig.core.canonicalizeLocales
+import io.github.yuroyami.kiteconfig.core.validateAppleBundleId
 import org.gradle.api.Action
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.RegularFileProperty

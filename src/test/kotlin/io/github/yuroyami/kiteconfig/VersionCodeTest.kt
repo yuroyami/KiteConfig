@@ -1,5 +1,9 @@
 package io.github.yuroyami.kiteconfig
 
+import io.github.yuroyami.kiteconfig.core.KiteConfigException
+import io.github.yuroyami.kiteconfig.core.isValidAppleBuildNumber
+import io.github.yuroyami.kiteconfig.core.validatePublishedVersionCode
+import io.github.yuroyami.kiteconfig.core.validateVersionCode
 import org.gradle.api.GradleException
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -110,11 +114,11 @@ class VersionCodeTest {
     @Test
     fun `an Android number outside the Play range fails with guidance`() {
         val tooBig = VersionCodeScheme { "2100000001" }
-        val failure = assertThrows(GradleException::class.java) {
+        val failure = assertThrows(KiteConfigException::class.java) {
             androidVersionCodeFrom(computeBuildNumber(tooBig, "1.0.0", 0, "android"))
         }
         assertTrue(failure.message.orEmpty().contains("2100000000"))
-        assertThrows(GradleException::class.java) {
+        assertThrows(KiteConfigException::class.java) {
             androidVersionCodeFrom(computeBuildNumber(VersionCodeScheme { "0" }, "1.0.0", 0, "android"))
         }
     }
@@ -144,18 +148,18 @@ class VersionCodeTest {
     fun `validates explicit Play version code range`() {
         assertEquals(1, validateVersionCode(1))
         assertEquals(2_100_000_000, validateVersionCode(2_100_000_000))
-        assertThrows(GradleException::class.java) { validateVersionCode(0) }
-        assertThrows(GradleException::class.java) { validateVersionCode(-1) }
-        assertThrows(GradleException::class.java) { validateVersionCode(Int.MAX_VALUE) }
+        assertThrows(KiteConfigException::class.java) { validateVersionCode(0) }
+        assertThrows(KiteConfigException::class.java) { validateVersionCode(-1) }
+        assertThrows(KiteConfigException::class.java) { validateVersionCode(Int.MAX_VALUE) }
     }
 
     @Test
     fun `published baseline is labeled and must precede the next code`() {
         assertEquals(101, validatePublishedVersionCode(101, "100"))
-        assertThrows(GradleException::class.java) { validatePublishedVersionCode(null, "100") }
-        assertThrows(GradleException::class.java) { validatePublishedVersionCode(100, "100") }
+        assertThrows(KiteConfigException::class.java) { validatePublishedVersionCode(null, "100") }
+        assertThrows(KiteConfigException::class.java) { validatePublishedVersionCode(100, "100") }
 
-        val invalidBaseline = assertThrows(GradleException::class.java) {
+        val invalidBaseline = assertThrows(KiteConfigException::class.java) {
             validatePublishedVersionCode(101, "0")
         }
         assertTrue(
@@ -163,7 +167,7 @@ class VersionCodeTest {
             invalidBaseline.message.orEmpty(),
         )
 
-        val notANumber = assertThrows(GradleException::class.java) {
+        val notANumber = assertThrows(KiteConfigException::class.java) {
             validatePublishedVersionCode(101, "1.0.0")
         }
         assertTrue(notANumber.message.orEmpty().contains("one whole number"), notANumber.message.orEmpty())

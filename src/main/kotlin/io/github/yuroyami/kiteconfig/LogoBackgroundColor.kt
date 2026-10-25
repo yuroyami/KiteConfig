@@ -1,5 +1,6 @@
 package io.github.yuroyami.kiteconfig
 
+import io.github.yuroyami.kiteconfig.core.diagnosticSafeText
 import java.awt.Color
 import java.awt.image.BufferedImage
 

@@ -1,5 +1,6 @@
 package io.github.yuroyami.kiteconfig
 
+import io.github.yuroyami.kiteconfig.core.diagnosticSafeText
 import org.gradle.api.logging.Logger
 import java.io.ByteArrayOutputStream
 import java.io.File
