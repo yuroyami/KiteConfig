@@ -175,6 +175,11 @@
   .tile .name { font-size: 52px; line-height: 1.1; font-weight: 700; letter-spacing: -0.02em; }
   .tile .version { font-size: 38px; color: var(--ink-2); }
 
+  /* The platform marks at the right end of each tile, one colour like the glyphs in the logo. */
+  .tile .os { margin-left: auto; display: flex; align-items: center; gap: 12px; color: var(--ink-2); }
+  .tile .os svg { width: 62px; height: 62px; fill: currentColor; }
+  .tile .os.many svg { width: 40px; height: 40px; }
+
   /* The app icon, in the shape each platform gives it. */
   .icon { flex: none; width: 100px; height: 100px; display: grid; place-items: center; }
   .icon .plate { display: grid; place-items: center; background: var(--app-plate); }
@@ -211,6 +216,22 @@
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
   <defs>
+    <!-- Platform marks. -->
+    <symbol id="p-android" viewBox="1.5 6.4 21 13.2">
+      <path fill-rule="evenodd" d="M2 19A10 9.2 0 0 1 22 19ZM6.2 15a1.3 1.3 0 1 0 2.6 0a1.3 1.3 0 1 0-2.6 0ZM15.2 15a1.3 1.3 0 1 0 2.6 0a1.3 1.3 0 1 0-2.6 0Z"/>
+      <path d="M7.4 11.3 5.3 7.6M16.6 11.3 18.7 7.6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="p-apple" viewBox="0 0 24 24">
+      <path d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701"/>
+    </symbol>
+    <symbol id="p-windows" viewBox="0 0 24 24">
+      <path d="M3 3h8.5v8.5H3zM12.5 3H21v8.5h-8.5zM3 12.5h8.5V21H3zM12.5 12.5H21V21h-8.5z"/>
+    </symbol>
+    <symbol id="p-linux" viewBox="4.2 1.8 15.6 21.6">
+      <path fill-rule="evenodd" d="M12 2.2a4.3 4.3 0 1 1 0 8.6a4.3 4.3 0 1 1 0-8.6ZM9.5 5.8a.9.9 0 1 0 1.8 0a.9.9 0 1 0-1.8 0ZM12.7 5.8a.9.9 0 1 0 1.8 0a.9.9 0 1 0-1.8 0ZM10.6 7.7h2.8L12 9.3Z"/>
+      <path fill-rule="evenodd" d="M12 7a6.2 7.5 0 1 1 0 15a6.2 7.5 0 1 1 0-15ZM12 10.3a3.8 5.2 0 1 0 0 10.4a3.8 5.2 0 1 0 0-10.4Z"/>
+      <path d="M5.6 21.6a3 1.4 0 1 0 6 0a3 1.4 0 1 0-6 0ZM12.4 21.6a3 1.4 0 1 0 6 0a3 1.4 0 1 0-6 0Z"/>
+    </symbol>
     <!-- The sample app's mark: a paper plane. -->
     <symbol id="jet" viewBox="0 0 24 24">
       <path d="M2.4 11.3 21.6 3.1 15.1 20.9 11.2 12.9Z" fill="#FFFFFF"/>
@@ -245,14 +266,17 @@
       <div class="tile">
         <span class="icon android"><span class="plate"><svg><use href="#jet"/></svg></span></span>
         <div><div class="platform">Android</div><div class="app"><span class="name">Jetzy</span><span class="version mono">1.4.0</span></div></div>
+        <span class="os"><svg><use href="#p-android"/></svg></span>
       </div>
       <div class="tile">
         <span class="icon ios"><span class="plate"><svg><use href="#jet"/></svg></span></span>
         <div><div class="platform">iOS</div><div class="app"><span class="name">Jetzy</span><span class="version mono">1.4.0</span></div></div>
+        <span class="os"><svg><use href="#p-apple"/></svg></span>
       </div>
       <div class="tile">
         <span class="icon desktop"><span class="plate"><svg><use href="#jet"/></svg></span></span>
         <div><div class="platform">Desktop</div><div class="app"><span class="name">Jetzy</span><span class="version mono">1.4.0</span></div></div>
+        <span class="os many"><svg><use href="#p-apple"/></svg><svg><use href="#p-windows"/></svg><svg><use href="#p-linux"/></svg></span>
       </div>
     </div>
 
