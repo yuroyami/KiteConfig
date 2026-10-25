@@ -4,15 +4,32 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions track the
 Gradle Plugin Portal releases.
 
-## Unreleased
+## 3.0.0
 
 ### Added
 
 - A plugin for the Kotlin Toolchain (`./kotlin`, `project.yaml` and
   `module.yaml`) in `toolchain/kiteconfig/`. It generates `KiteBuildConfig`,
   writes the Xcode project with `./kotlin do kiteSyncIos`, and adds the
-  `kiteIos` and `kiteAndroid` checks to `./kotlin check`. See
+  `kiteIos` and `kiteAndroid` checks to `./kotlin check`. It gives the same
+  build numbers as the Gradle plugin. See
   [toolchain/README.md](toolchain/README.md).
+
+### Changed
+
+- The rules that do not need Gradle (validation, version codes, the source
+  generators, file safety, image rendering, and the Xcode project, plist and
+  Swift rewrites) moved into `kiteconfig-core`. The core ships inside the
+  plugin jar, so the plugin still declares no dependencies. Its classes are in
+  `io.github.yuroyami.kiteconfig.core` and are marked `@InternalKiteCoreApi`.
+  Do not use them from build logic.
+- A failure from one of these rules now throws `KiteConfigException` (a
+  `RuntimeException`) instead of `GradleException`. The build fails with the
+  same message. If your build logic catches `GradleException` around a
+  KiteConfig value, catch `RuntimeException` instead.
+- The plugin is built with Kotlin 2.4.21.
+
+The public Gradle API did not change.
 
 ## 2.1.0
 

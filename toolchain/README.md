@@ -24,7 +24,7 @@ So a version gives the same build number in both.
 
 ## Add the plugin to a project
 
-This needs a KiteConfig release newer than 2.1.0.
+This needs KiteConfig 3.0.0 or newer.
 
 1. Copy the `kiteconfig/` folder of this directory into the root of your project.
 2. Open `kiteconfig/module.yaml`.
@@ -36,7 +36,7 @@ This needs a KiteConfig release newer than 2.1.0.
        url: https://plugins.gradle.org/m2
 
    dependencies:
-     - io.github.yuroyami:kiteconfig:<version>
+     - io.github.yuroyami:kiteconfig:3.0.0
    ```
 
 4. Add the module to `project.yaml`, under both `modules` and `plugins`:
