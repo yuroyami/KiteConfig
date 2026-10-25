@@ -43,7 +43,7 @@ private fun pbxQuoted(value: String): String {
 }
 
 /** The characters Xcode's own parser accepts in a value written without quotes. */
-private val PBX_UNQUOTED = Regex("[A-Za-z0-9_$/:.-]+")
+internal val PBX_UNQUOTED = Regex("[A-Za-z0-9_$/:.-]+")
 
 /**
  * The value [literal] stands for, with its quotes and escapes removed.

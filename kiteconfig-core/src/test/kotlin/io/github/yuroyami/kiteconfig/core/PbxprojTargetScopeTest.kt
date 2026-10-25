@@ -221,8 +221,8 @@ class PbxprojTargetScopeTest {
 
     @Test
     fun `non-hex 24-character object ids parse and resolve`() {
-        // Xcode only requires object ids to be unique 24-character tokens; external
-        // generators and hand edits produce non-hex ids (real case: Peerora's JZWA…).
+        // Xcode generates 24 hex digits; external generators and hand edits
+        // produce non-hex ids (real case: Peerora's JZWA…).
         val text = """
             {
                 objects = {
@@ -250,6 +250,48 @@ class PbxprojTargetScopeTest {
 
         assertTrue(result.errors.isEmpty(), result.errors.toString())
         assertEquals(1, result.spans.size)
+    }
+
+    @Test
+    fun `short hand-made object ids parse and resolve`() {
+        // Xcode reads any unquoted string as an object id. Hand-made projects use short ones.
+        val text = """
+            {
+                objects = {
+                    T1 = {
+                        isa = PBXNativeTarget;
+                        name = App;
+                        buildConfigurationList = L1;
+                        productType = "com.apple.product-type.application";
+                    };
+                    L1 = {
+                        isa = XCConfigurationList;
+                        buildConfigurations = ( C1, );
+                    };
+                    C1 = {
+                        isa = XCBuildConfiguration;
+                        buildSettings = { PRODUCT_NAME = App; };
+                    };
+                    P1 = { isa = PBXProject; };
+                };
+                rootObject = P1;
+            }
+        """.trimIndent()
+
+        val result = resolveApplicationBuildConfigSpans(text)
+
+        assertTrue(result.errors.isEmpty(), result.errors.toString())
+        assertTrue(text.substring(result.spans.single()).startsWith("C1 = {"))
+    }
+
+    @Test
+    fun `an object id with a character that xcode reads only in quotes fails closed`() {
+        val text = strictProject().replace("AA00000000000000000000A2", "AA+2")
+
+        val result = resolveApplicationBuildConfigSpans(text)
+
+        assertTrue(result.spans.isEmpty())
+        assertTrue(result.errors.any { it.contains("malformed entry") }, result.errors.toString())
     }
 
     @Test

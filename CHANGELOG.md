@@ -4,13 +4,26 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions track the
 Gradle Plugin Portal releases.
 
-## Unreleased
+## 3.0.1
 
 ### Added
 
 - `toolchain/install-kiteconfig.sh` installs or updates the Kotlin Toolchain
   plugin module in a project with one command. See
   [toolchain/README.md](toolchain/README.md).
+
+### Fixed
+
+- The Kotlin Toolchain plugin module set no Kotlin version, so Kotlin Toolchain
+  0.13.0 compiled it with its default, Kotlin 2.4.20. The module now sets
+  Kotlin 2.4.21, the version that KiteConfig is built with.
+- An Xcode project with object IDs shorter than 24 characters failed the
+  `kiteIos` check with a parse error, such as
+  `pbxproj objects dictionary contains malformed entry`. Hand-made projects can
+  have such IDs. KiteConfig now reads any object ID that Xcode reads without
+  quotes. The Gradle plugin shares this code and gets the same fix.
+
+To update a Kotlin Toolchain project, run the install script again.
 
 ## 3.0.0
 

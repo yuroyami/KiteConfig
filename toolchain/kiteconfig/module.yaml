@@ -14,6 +14,7 @@ dependencies:
 
 settings:
   kotlin:
+    version: 2.4.21
     optIns: [ io.github.yuroyami.kiteconfig.core.InternalKiteCoreApi ]
 
 pluginInfo:
