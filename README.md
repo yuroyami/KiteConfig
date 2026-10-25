@@ -1,15 +1,19 @@
-# KiteConfig
-
 <p align="center">
-  <img src="art/kiteconfig-platform-gear-concept.png" width="180" alt="KiteConfig logo">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="art/kiteconfig-feature-graphic.png">
+    <img src="art/kiteconfig-feature-graphic-light.png" width="100%" alt="KiteConfig: one block, every platform. A kiteConfig block in build.gradle.kts sets the app name, app id, version and logo of an app called Jetzy. The same name, version and icon then appear on Android, iOS and the desktop.">
+  </picture>
 </p>
 
-A Gradle plugin for Kotlin Multiplatform projects. You write your app's values
-once, in one block, in the root build file: app name, app id, version, build
-number, locales, app icon, launch screen, generated build config, SDK levels,
-JVM level. KiteConfig applies them to Android, iOS, and Compose Desktop for you.
-Without it, each platform keeps its own copy of these values, and the copies
-slowly stop matching.
+KiteConfig is a Gradle plugin for Kotlin Multiplatform apps. You write your
+app's values once, in one `kiteConfig { }` block in the root build file: app
+name, app id, version, build number, locales, app icon, launch screen,
+generated build config, SDK levels and JVM level. KiteConfig applies them to
+Android, iOS and Compose Desktop. Without it, each platform keeps its own copy
+of these values, and the copies slowly stop matching.
+
+A second plugin does part of the same work for projects that build with the
+Kotlin Toolchain (`./kotlin`). See [Kotlin Toolchain projects](#kotlin-toolchain-projects).
 
 <sub>AI tools wrote much of the code, tests and documentation in this project, under the
 direction and review of its author.</sub>
@@ -31,8 +35,8 @@ plugins {
 }
 ```
 
-Four lines are a complete setup. Locales come from your Compose resources, and
-the shared module and app modules are found for you:
+Four lines are a complete setup. KiteConfig reads the locales from your Compose
+resources, and it finds the shared module and the app modules by itself:
 
 ```kotlin
 kiteConfig {
@@ -47,11 +51,11 @@ kiteConfig {
 everything KiteConfig needs to change, including the files you commit. Leave it
 off and nothing touches your own files until you run `./gradlew kiteApply`.
 
-With iOS automatic application enabled, Android Studio and IntelliJ Gradle sync
-also applies the iOS plan through Kotlin's IDE import task. Sync after changing
-KiteConfig so Xcode reads the new version, build number and assets before its
-next build. Opening Xcode alone does not run Gradle. For changes made outside
-the Gradle IDE, run `./gradlew kiteApplyIos` before archiving.
+A Gradle sync in Android Studio or IntelliJ IDEA counts as a build here. With
+`autoApply` on, the sync applies the iOS changes through the IDE import task of
+the Kotlin plugin. Sync after you change the block, and Xcode reads the new
+version, build number and assets in its next build. Opening Xcode does not run Gradle. If you change the
+block outside the IDE, run `./gradlew kiteApplyIos` before you archive.
 
 ## Four rules
 
@@ -278,8 +282,7 @@ kiteConfig {
 on its own: the platform's `debug { }` first, then the root `debug { }`, then
 that platform's release value. Each value is on once you set it, and only on
 platforms where the matching release value is applied. An empty block does
-nothing. Desktop has no
-debug build, so `desktop { }` has no `debug { }`.
+nothing. Desktop has no debug build, so `desktop { }` has no `debug { }`.
 
 | You write | Android gets | iOS gets |
 | --- | --- | --- |
@@ -349,8 +352,13 @@ android {
 | Group | Values |
 | --- | --- |
 | Version | `version`, `versionCode`, `iosBuildNumber`, `iosMarketingVersion`, `desktopBuildNumber` |
-| Identity | `appName`, `appNameFor(platform)`, `appId`, `appIdFor(platform)`, `androidApplicationId`, `iosBundleId`, `desktopBundleId` |
+| Identity | `appName`, `appNameFor(platform)`, `appId`, `appIdFor(platform)`, `debugAppNameFor(platform)`, `debugAppIdFor(platform)`, `androidApplicationId`, `iosBundleId`, `desktopBundleId` |
 | Build | `canonicalLocales`, `jvmTarget`, `jvmToolchain`, `resolvedSharedProjectPath`, `minSdk`, `targetSdk`, `compileSdk`, `ndk` |
+
+`platform` is a `KitePlatform`: `ANDROID`, `IOS` or `DESKTOP`. The two `debug`
+lookups give the value of the debug build, which is the release value wherever
+`debug { }` sets nothing. Desktop has no debug build, so it always gets the
+release value.
 
 Every one is a lazy `Provider`, so wiring one into another task's property costs
 nothing at configuration time:
@@ -463,7 +471,7 @@ copies:
 .kiteconfig/recovery/
 ```
 
-## iOS, honestly
+## When iOS changes take effect
 
 Android and desktop use new values in the same build, because Gradle sets them
 before compilation. iOS is different. Xcode reads `project.pbxproj`,
@@ -496,17 +504,28 @@ See [toolchain/README.md](toolchain/README.md).
 - **What does dryRun cover?** The source changes. Files generated into `build/`
   ignore it, because your build needs them and they are safe to delete.
 - **I set an iOS value and nothing changed.** Either `autoApply` is off, so run
-  `./gradlew kiteApply`, or Xcode had already read the files. See above.
+  `./gradlew kiteApply`, or Xcode had already read the files. See
+  [When iOS changes take effect](#when-ios-changes-take-effect).
 - **Why did my desktop app get icons I never asked for?** You set
   `logo { foreground }` and a desktop app exists. Write
   `desktop { logo { enabled = false } }` to stop that.
 - **My debug build replaced the app I installed from the store.** Give it its
-  own id: `debug { appId { suffix = ".debug" } }`. See "Debug builds" above.
+  own id: `debug { appId { suffix = ".debug" } }`. See [Debug builds](#debug-builds).
 - **My AGP or Kotlin version is unsupported.** The features that need deep
   access turn off and say why. `ignoreVersionGuards = true`, with its `@OptIn`
   line, keeps them on at your own risk.
 
-## Upgrading from 1.0.0
+## Upgrading
+
+### From 2.x to 3.0.0
+
+The DSL and the values you read back did not change. Only the exception type
+did: a failure from a KiteConfig rule now throws `KiteConfigException`, which
+is a `RuntimeException`, instead of `GradleException`. The build fails with the
+same message. If your build logic catches `GradleException` around a
+KiteConfig value, catch `RuntimeException` instead.
+
+### From 1.0.0 to 2.0.0
 
 2.0.0 renames a lot. Old names do not compile, so nothing changes behaviour
 silently.
@@ -572,5 +591,7 @@ This plugin has had three names. It shipped as `kmp-ssot` at 0.1.0, became
 KiteSSOT, and is now KiteConfig. The `KTCNFG` diagnostic prefix replaced an
 older `KMPS` prefix left over from the first name.
 
-1.0.0 was the first release under the KiteConfig name. 2.0.0 is the DSL reshape
-described above.
+KiteSSOT published its last release as 4.2.0, under the plugin id
+`io.github.yuroyami.kitessot`. KiteConfig started again at 1.0.0, so a 4.x
+version is older than every KiteConfig release. 2.0.0 is the DSL reshape
+described above, and 3.0.0 adds the plugin for the Kotlin Toolchain.
