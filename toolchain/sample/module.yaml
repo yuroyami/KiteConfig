@@ -19,3 +19,6 @@ plugins:
     buildConfig:
       fields:
         API_URL: https://example.com/api
+    ios:
+      xcodeProject: iosApp/iosApp.xcodeproj
+      targets: [ Fixture App ]

@@ -145,6 +145,7 @@ public fun applyTextRewritePlan(
     backup: Boolean,
     dryRun: Boolean,
     logger: KiteLog,
+    lockDirectoryPath: String = ".gradle/kiteconfig",
     beforeMutation: (index: Int, target: Path) -> Unit = { _, _ -> },
 ): RewriteApplyResult {
     if (changes.isEmpty()) return RewriteApplyResult(0, 0, dryRun)
@@ -162,11 +163,11 @@ public fun applyTextRewritePlan(
         return RewriteApplyResult(normalized.size, 0, true)
     }
 
-    // Keep coordination state in Gradle's ignored project metadata rather than
-    // leaving an untracked lock file beside user source. The file remains stable
-    // across invocations, which avoids the split-lock race caused by deleting a
+    // Keep coordination state in the host's ignored metadata ([lockDirectoryPath])
+    // rather than leaving an untracked lock file beside user source. The file remains
+    // stable across invocations, which avoids the split-lock race caused by deleting a
     // lock inode while another process is waiting on it.
-    val lockDirectory = safeRoot.toPath().resolve(".gradle/kiteconfig")
+    val lockDirectory = safeRoot.toPath().resolve(lockDirectoryPath)
     requireContainedPath(safeRoot, lockDirectory.toFile(), mustExist = false, requireRegularFile = false)
     Files.createDirectories(lockDirectory)
     requireContainedPath(safeRoot, lockDirectory.toFile(), mustExist = true, requireRegularFile = false)

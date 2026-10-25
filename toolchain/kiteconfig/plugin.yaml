@@ -12,7 +12,39 @@ tasks:
       buildConfig: ${pluginSettings.buildConfig}
       outputDir: ${taskOutputDir}
 
+  syncIos:
+    action: !io.github.yuroyami.kiteconfig.toolchain.syncXcodeProject
+      version: ${pluginSettings.version}
+      rebuild: ${pluginSettings.rebuild}
+      buildNumber: ${pluginSettings.buildNumber}
+      appId: ${pluginSettings.appId}
+      iosBundleId: ${pluginSettings.iosBundleId}
+      locales: ${pluginSettings.locales}
+      xcodeProject: ${pluginSettings.ios.xcodeProject}
+      targets: ${pluginSettings.ios.targets}
+      projectRootDir: ${module.rootDir}
+
+  checkIos:
+    action: !io.github.yuroyami.kiteconfig.toolchain.checkXcodeProject
+      version: ${pluginSettings.version}
+      rebuild: ${pluginSettings.rebuild}
+      buildNumber: ${pluginSettings.buildNumber}
+      appId: ${pluginSettings.appId}
+      iosBundleId: ${pluginSettings.iosBundleId}
+      locales: ${pluginSettings.locales}
+      xcodeProject: ${pluginSettings.ios.xcodeProject}
+      targets: ${pluginSettings.ios.targets}
+      projectRootDir: ${module.rootDir}
+
 generated:
   sources:
     - language: kotlin
       directory: ${tasks.buildConfig.action.outputDir}
+
+commands:
+  - name: kiteSyncIos
+    performedBy: syncIos
+
+checks:
+  - name: kiteIos
+    performedBy: checkIos
