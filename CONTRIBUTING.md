@@ -15,6 +15,16 @@ migration before anyone writes code.
 - A public API change needs accurate KDoc, updates to README, FEATURES and
   CHANGELOG, and a deliberate change to the checked-in Kotlin ABI baseline. The
   ABI is the binary shape of the public API.
+- Code that needs no Gradle type lives in `kiteconfig-core`, in the package
+  `io.github.yuroyami.kiteconfig.core`. It holds the platform rules and file
+  formats: validation, images and icons, the Xcode project, plist and Swift
+  rewrites, file safety and the source generators. The plugin jar includes the
+  core classes, so the core has no published artifact of its own.
+- Keep the core free of Gradle types. Its build has no Gradle API on the
+  classpath, so a Gradle import fails to compile.
+- Run one test class with its project path: `./gradlew :test --tests "<class>"`
+  for the plugin, `./gradlew :kiteconfig-core:test --tests "<class>"` for the
+  core.
 
 Run focused tests while you iterate, then run the full local check that CI runs:
 
