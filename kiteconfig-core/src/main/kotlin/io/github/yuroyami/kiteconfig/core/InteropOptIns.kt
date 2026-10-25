@@ -1,4 +1,4 @@
-package io.github.yuroyami.kiteconfig
+package io.github.yuroyami.kiteconfig.core
 
 /**
  * Opt-in compiler markers propagated to every Kotlin/Native compilation when
@@ -22,5 +22,6 @@ internal val DEFAULT_INTEROP_OPT_INS: List<String> = listOf(
  * [extra] the user added via `optIns { add("...") }`, de-duplicated and
  * order-stable (built-ins first, then extras in declared order).
  */
-internal fun interopOptIns(extra: List<String>, includeBuiltIns: Boolean = true): List<String> =
+@InternalKiteCoreApi
+public fun interopOptIns(extra: List<String>, includeBuiltIns: Boolean = true): List<String> =
     ((if (includeBuiltIns) DEFAULT_INTEROP_OPT_INS else emptyList()) + extra).distinct()

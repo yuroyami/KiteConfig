@@ -1,5 +1,7 @@
 package io.github.yuroyami.kiteconfig
 
+import io.github.yuroyami.kiteconfig.core.BuildConfigField
+import io.github.yuroyami.kiteconfig.core.isValidKotlinIdentifier
 import org.gradle.api.GradleException
 import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.Property

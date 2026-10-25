@@ -1,4 +1,4 @@
-package io.github.yuroyami.kiteconfig
+package io.github.yuroyami.kiteconfig.core
 
 /** Dot-separated Kotlin identifiers. */
 private val PACKAGE_NAME_RE = Regex("""[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*""")
@@ -17,7 +17,8 @@ internal val KOTLIN_HARD_KEYWORDS = setOf(
  * the generated `KiteConfigIoWorker.kt` fail to compile with a confusing error far from
  * its cause. Returned as a sentence fragment the caller prefixes with the DSL path.
  */
-internal fun invalidWorkerPackageReason(pkg: String): String? {
+@InternalKiteCoreApi
+public fun invalidWorkerPackageReason(pkg: String): String? {
     if (pkg.length > MAX_KOTLIN_PACKAGE_CHARS) {
         return "exceeds the $MAX_KOTLIN_PACKAGE_CHARS-character generated-package limit."
     }

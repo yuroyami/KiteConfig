@@ -6,6 +6,9 @@ import io.github.yuroyami.kiteconfig.core.buildNumberProperty
 import io.github.yuroyami.kiteconfig.core.deriveLinuxPackageName
 import io.github.yuroyami.kiteconfig.core.deriveUpgradeUuid
 import io.github.yuroyami.kiteconfig.core.detectComposeResourceLocales
+import io.github.yuroyami.kiteconfig.core.interopOptIns
+import io.github.yuroyami.kiteconfig.core.invalidWorkerPackageReason
+import io.github.yuroyami.kiteconfig.core.isValidKotlinIdentifier
 import io.github.yuroyami.kiteconfig.core.validateAndroidApplicationId
 import io.github.yuroyami.kiteconfig.core.validateAppName
 import io.github.yuroyami.kiteconfig.core.validateAppleBuildNumber

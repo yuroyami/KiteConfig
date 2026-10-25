@@ -1,4 +1,4 @@
-package io.github.yuroyami.kiteconfig
+package io.github.yuroyami.kiteconfig.core
 
 /** Names emitted when identity metadata is enabled. */
 private val IDENTITY_FIELD_NAMES = setOf(
@@ -16,16 +16,17 @@ private const val MAX_BUILD_CONFIG_STRING_CHARS = 10_000
 
 /**
  * A validated build-config value. The public DSL transports its canonical rendering
- * through a [org.gradle.api.provider.ListProperty] for Gradle compatibility, but values
+ * through a `org.gradle.api.provider.ListProperty` for Gradle compatibility, but values
  * stay typed while they are created and are parsed back into this model before source is
  * generated. This keeps arbitrary source fragments out of the generated object.
  */
-internal sealed interface BuildConfigField {
-    val name: String
-    val typeName: String
-    fun literal(): String
+@InternalKiteCoreApi
+public sealed interface BuildConfigField {
+    public val name: String
+    public val typeName: String
+    public fun literal(): String
 
-    data class StringValue(override val name: String, val value: String) : BuildConfigField {
+    public data class StringValue(override val name: String, public val value: String) : BuildConfigField {
         init {
             require(value.length <= MAX_BUILD_CONFIG_STRING_CHARS) {
                 "kiteConfig { buildConfig } String field \"$name\" exceeds " +
@@ -37,22 +38,22 @@ internal sealed interface BuildConfigField {
         override fun literal(): String = kotlinStringLiteral(value)
     }
 
-    data class IntValue(override val name: String, val value: Int) : BuildConfigField {
+    public data class IntValue(override val name: String, public val value: Int) : BuildConfigField {
         override val typeName: String = "Int"
         override fun literal(): String = if (value == Int.MIN_VALUE) "Int.MIN_VALUE" else value.toString()
     }
 
-    data class LongValue(override val name: String, val value: Long) : BuildConfigField {
+    public data class LongValue(override val name: String, public val value: Long) : BuildConfigField {
         override val typeName: String = "Long"
         override fun literal(): String = if (value == Long.MIN_VALUE) "Long.MIN_VALUE" else "${value}L"
     }
 
-    data class BooleanValue(override val name: String, val value: Boolean) : BuildConfigField {
+    public data class BooleanValue(override val name: String, public val value: Boolean) : BuildConfigField {
         override val typeName: String = "Boolean"
         override fun literal(): String = value.toString()
     }
 
-    data class DoubleValue(override val name: String, val value: Double) : BuildConfigField {
+    public data class DoubleValue(override val name: String, public val value: Double) : BuildConfigField {
         init {
             require(value.isFinite()) {
                 "kiteConfig { buildConfig } Double field \"$name\" must be finite; got $value."
@@ -63,16 +64,17 @@ internal sealed interface BuildConfigField {
         override fun literal(): String = value.toString()
     }
 
-    fun renderBody(): String = "$name: $typeName = ${literal()}"
+    public fun renderBody(): String = "$name: $typeName = ${literal()}"
 }
 
 /**
  * Pure generator for the runtime constants object emitted into the shared module's
- * `commonMain` by [GenerateBuildConfigTask]. Inputs are validated again here so direct
+ * `commonMain` by `GenerateBuildConfigTask`. Inputs are validated again here so direct
  * mutation of the legacy `fields` collection cannot emit arbitrary or uncompilable
  * Kotlin source.
  */
-internal fun generateBuildConfigSource(
+@InternalKiteCoreApi
+public fun generateBuildConfigSource(
     packageName: String,
     className: String,
     includeIdentity: Boolean,
@@ -154,7 +156,8 @@ internal fun generateBuildConfigSource(
 private val IDENTIFIER_RE = Regex("""[A-Za-z_][A-Za-z0-9_]*""")
 
 /** A safe, dotless Kotlin identifier for an emitted declaration. */
-internal fun isValidKotlinIdentifier(s: String): Boolean =
+@InternalKiteCoreApi
+public fun isValidKotlinIdentifier(s: String): Boolean =
     IDENTIFIER_RE.matches(s) && s != "_" && s !in KOTLIN_HARD_KEYWORDS
 
 /**

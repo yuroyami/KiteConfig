@@ -1,3 +1,99 @@
+public abstract interface class io/github/yuroyami/kiteconfig/core/BuildConfigField {
+	public abstract fun getName ()Ljava/lang/String;
+	public abstract fun getTypeName ()Ljava/lang/String;
+	public abstract fun literal ()Ljava/lang/String;
+	public fun renderBody ()Ljava/lang/String;
+}
+
+public final class io/github/yuroyami/kiteconfig/core/BuildConfigField$BooleanValue : io/github/yuroyami/kiteconfig/core/BuildConfigField {
+	public fun <init> (Ljava/lang/String;Z)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Z
+	public final fun copy (Ljava/lang/String;Z)Lio/github/yuroyami/kiteconfig/core/BuildConfigField$BooleanValue;
+	public static synthetic fun copy$default (Lio/github/yuroyami/kiteconfig/core/BuildConfigField$BooleanValue;Ljava/lang/String;ZILjava/lang/Object;)Lio/github/yuroyami/kiteconfig/core/BuildConfigField$BooleanValue;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getName ()Ljava/lang/String;
+	public fun getTypeName ()Ljava/lang/String;
+	public final fun getValue ()Z
+	public fun hashCode ()I
+	public fun literal ()Ljava/lang/String;
+	public fun renderBody ()Ljava/lang/String;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/yuroyami/kiteconfig/core/BuildConfigField$DefaultImpls {
+	public static fun renderBody (Lio/github/yuroyami/kiteconfig/core/BuildConfigField;)Ljava/lang/String;
+}
+
+public final class io/github/yuroyami/kiteconfig/core/BuildConfigField$DoubleValue : io/github/yuroyami/kiteconfig/core/BuildConfigField {
+	public fun <init> (Ljava/lang/String;D)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()D
+	public final fun copy (Ljava/lang/String;D)Lio/github/yuroyami/kiteconfig/core/BuildConfigField$DoubleValue;
+	public static synthetic fun copy$default (Lio/github/yuroyami/kiteconfig/core/BuildConfigField$DoubleValue;Ljava/lang/String;DILjava/lang/Object;)Lio/github/yuroyami/kiteconfig/core/BuildConfigField$DoubleValue;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getName ()Ljava/lang/String;
+	public fun getTypeName ()Ljava/lang/String;
+	public final fun getValue ()D
+	public fun hashCode ()I
+	public fun literal ()Ljava/lang/String;
+	public fun renderBody ()Ljava/lang/String;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/yuroyami/kiteconfig/core/BuildConfigField$IntValue : io/github/yuroyami/kiteconfig/core/BuildConfigField {
+	public fun <init> (Ljava/lang/String;I)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()I
+	public final fun copy (Ljava/lang/String;I)Lio/github/yuroyami/kiteconfig/core/BuildConfigField$IntValue;
+	public static synthetic fun copy$default (Lio/github/yuroyami/kiteconfig/core/BuildConfigField$IntValue;Ljava/lang/String;IILjava/lang/Object;)Lio/github/yuroyami/kiteconfig/core/BuildConfigField$IntValue;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getName ()Ljava/lang/String;
+	public fun getTypeName ()Ljava/lang/String;
+	public final fun getValue ()I
+	public fun hashCode ()I
+	public fun literal ()Ljava/lang/String;
+	public fun renderBody ()Ljava/lang/String;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/yuroyami/kiteconfig/core/BuildConfigField$LongValue : io/github/yuroyami/kiteconfig/core/BuildConfigField {
+	public fun <init> (Ljava/lang/String;J)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()J
+	public final fun copy (Ljava/lang/String;J)Lio/github/yuroyami/kiteconfig/core/BuildConfigField$LongValue;
+	public static synthetic fun copy$default (Lio/github/yuroyami/kiteconfig/core/BuildConfigField$LongValue;Ljava/lang/String;JILjava/lang/Object;)Lio/github/yuroyami/kiteconfig/core/BuildConfigField$LongValue;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getName ()Ljava/lang/String;
+	public fun getTypeName ()Ljava/lang/String;
+	public final fun getValue ()J
+	public fun hashCode ()I
+	public fun literal ()Ljava/lang/String;
+	public fun renderBody ()Ljava/lang/String;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/yuroyami/kiteconfig/core/BuildConfigField$StringValue : io/github/yuroyami/kiteconfig/core/BuildConfigField {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;)Lio/github/yuroyami/kiteconfig/core/BuildConfigField$StringValue;
+	public static synthetic fun copy$default (Lio/github/yuroyami/kiteconfig/core/BuildConfigField$StringValue;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lio/github/yuroyami/kiteconfig/core/BuildConfigField$StringValue;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getName ()Ljava/lang/String;
+	public fun getTypeName ()Ljava/lang/String;
+	public final fun getValue ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun literal ()Ljava/lang/String;
+	public fun renderBody ()Ljava/lang/String;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/yuroyami/kiteconfig/core/BuildConfigGenKt {
+	public static final fun generateBuildConfigSource (Ljava/lang/String;Ljava/lang/String;ZLjava/lang/String;Ljava/lang/String;ILjava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/util/List;)Ljava/lang/String;
+	public static final fun isValidKotlinIdentifier (Ljava/lang/String;)Z
+}
+
 public final class io/github/yuroyami/kiteconfig/core/ConfigValidationKt {
 	public static final fun isValidAppleBuildNumber (Ljava/lang/String;)Z
 	public static final fun validateAndroidApplicationId (Ljava/lang/String;)Ljava/lang/String;
@@ -30,6 +126,15 @@ public final class io/github/yuroyami/kiteconfig/core/DiagnosticTextKt {
 public abstract interface annotation class io/github/yuroyami/kiteconfig/core/InternalKiteCoreApi : java/lang/annotation/Annotation {
 }
 
+public final class io/github/yuroyami/kiteconfig/core/InteropOptInsKt {
+	public static final fun interopOptIns (Ljava/util/List;Z)Ljava/util/List;
+	public static synthetic fun interopOptIns$default (Ljava/util/List;ZILjava/lang/Object;)Ljava/util/List;
+}
+
+public final class io/github/yuroyami/kiteconfig/core/IoWorkerGenKt {
+	public static final fun generateIoWorkerSource (Ljava/lang/String;)Ljava/lang/String;
+}
+
 public final class io/github/yuroyami/kiteconfig/core/KiteConfigException : java/lang/RuntimeException {
 	public fun <init> (Ljava/lang/String;Ljava/lang/Throwable;)V
 	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/Throwable;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
@@ -51,5 +156,9 @@ public final class io/github/yuroyami/kiteconfig/core/VersionCodeKt {
 	public static final fun validatePublishedVersionCode (Ljava/lang/Integer;Ljava/lang/String;)I
 	public static final fun validateVersionCode (ILjava/lang/String;)I
 	public static synthetic fun validateVersionCode$default (ILjava/lang/String;ILjava/lang/Object;)I
+}
+
+public final class io/github/yuroyami/kiteconfig/core/WorkerPackageKt {
+	public static final fun invalidWorkerPackageReason (Ljava/lang/String;)Ljava/lang/String;
 }
 
