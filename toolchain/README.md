@@ -34,7 +34,7 @@ This needs KiteConfig 3.0.0 or newer.
    ```
 
    The script installs the plugin module of the latest release in `./kiteconfig`.
-   To install one release, end the command with `bash -s 3.0.0` instead of `bash`.
+   To install one release, end the command with `bash -s 3.0.1` instead of `bash`.
 
 3. Add the module to `project.yaml`, under both `modules` and `plugins`.
    The script prints these lines when they are missing:

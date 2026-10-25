@@ -31,7 +31,7 @@ Apply the plugin to the **root** project only:
 
 ```kotlin
 plugins {
-    id("io.github.yuroyami.kiteconfig") version "3.0.0"
+    id("io.github.yuroyami.kiteconfig") version "3.0.1"
 }
 ```
 
