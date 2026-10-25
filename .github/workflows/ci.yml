@@ -170,6 +170,22 @@ jobs:
           ./kotlin build
           ./kotlin check
 
+      # Users install the plugin with install-kiteconfig.sh. Run it the same way in a new
+      # project outside the checkout, against the latest release and the published jar.
+      # Then run it on this checkout's plugin module, which the next release ships.
+      - name: Install the plugin with the install script and test it
+        env:
+          KOTLIN_CLI_NO_WELCOME_BANNER: '1'
+        run: |
+          install="$GITHUB_WORKSPACE/toolchain/install-kiteconfig.sh"
+          cp -R toolchain/install-test "$RUNNER_TEMP/install-test"
+          cp toolchain/kotlin "$RUNNER_TEMP/install-test/"
+          (cd "$RUNNER_TEMP/install-test" && "$install" && ./kotlin test)
+          mkdir "$RUNNER_TEMP/install-probe"
+          cd "$RUNNER_TEMP/install-probe"
+          touch project.yaml
+          KITECONFIG_PLUGIN_DIR="$GITHUB_WORKSPACE/toolchain/kiteconfig" "$install" 0.0.1
+
       - name: The Toolchain build must not mutate tracked source
         shell: bash
         run: |

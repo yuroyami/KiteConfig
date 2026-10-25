@@ -4,6 +4,14 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions track the
 Gradle Plugin Portal releases.
 
+## Unreleased
+
+### Added
+
+- `toolchain/install-kiteconfig.sh` installs or updates the Kotlin Toolchain
+  plugin module in a project with one command. See
+  [toolchain/README.md](toolchain/README.md).
+
 ## 3.0.0
 
 ### Added

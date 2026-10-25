@@ -3,9 +3,9 @@ product: jvm/amper-plugin
 description: Generates KiteBuildConfig, syncs the Xcode project, and checks the Android settings of a Kotlin Toolchain project.
 
 # The KiteConfig plugin jar carries the shared KiteConfig code and declares no dependencies.
-# In your own project, use the released version and the Gradle Plugin Portal instead:
-#   repositories: [ { id: gradlePluginPortal, url: https://plugins.gradle.org/m2 } ]
-#   dependencies: [ io.github.yuroyami:kiteconfig:<released version> ]
+# This copy uses the jar that ../stage-local-jar.sh installs into ~/.m2. When
+# ../install-kiteconfig.sh copies this module into a project, it replaces the mavenLocal
+# and 0.0.0-dev lines with the Gradle Plugin Portal and the released version.
 repositories:
   - mavenLocal
 

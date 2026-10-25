@@ -1,0 +1,8 @@
+# A new project for the install-kiteconfig.sh check in CI. CI copies this folder out of
+# the checkout, runs the script in it, and runs ./kotlin test.
+modules:
+  - app
+  - kiteconfig
+
+plugins:
+  - ./kiteconfig

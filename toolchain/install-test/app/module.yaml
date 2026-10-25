@@ -1,0 +1,14 @@
+product:
+  type: lib
+  platforms: [ jvm ]
+
+settings:
+  kotlin:
+    version: 2.4.21
+
+plugins:
+  kiteconfig:
+    enabled: true
+    appName: Install Test
+    version: 1.2.3
+    appId: io.github.yuroyami.kiteconfig.installtest

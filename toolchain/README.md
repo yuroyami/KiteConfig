@@ -16,9 +16,9 @@ So a version gives the same build number in both.
 - **It cannot set the Android settings.**
   A Toolchain plugin cannot change module settings.
   You write `applicationId`, `versionCode` and `versionName` yourself, and the `kiteAndroid` check compares them with the block.
-- **It cannot be published.**
-  The Toolchain loads plugins only from local modules.
-  You copy the plugin module into your project.
+- **It cannot be loaded from a repository.**
+  The Toolchain loads plugins only from modules inside the project.
+  So the plugin module lives in your project, and `install-kiteconfig.sh` copies it there and keeps it up to date.
 - **It has no icons, launch screens, `Info.plist` changes, desktop packaging or `kiteDoctor`.**
   Use the Gradle plugin for these jobs.
 
@@ -26,20 +26,18 @@ So a version gives the same build number in both.
 
 This needs KiteConfig 3.0.0 or newer.
 
-1. Copy the `kiteconfig/` folder of this directory into the root of your project.
-2. Open `kiteconfig/module.yaml`.
-3. Replace the `repositories` and `dependencies` entries with these lines:
+1. Open a terminal in the folder that holds `project.yaml`.
+2. Run the install script:
 
-   ```yaml
-   repositories:
-     - id: gradlePluginPortal
-       url: https://plugins.gradle.org/m2
-
-   dependencies:
-     - io.github.yuroyami:kiteconfig:3.0.0
+   ```bash
+   curl -fsSL https://raw.githubusercontent.com/yuroyami/KiteConfig/main/toolchain/install-kiteconfig.sh | bash
    ```
 
-4. Add the module to `project.yaml`, under both `modules` and `plugins`:
+   The script installs the plugin module of the latest release in `./kiteconfig`.
+   To install one release, end the command with `bash -s 3.0.0` instead of `bash`.
+
+3. Add the module to `project.yaml`, under both `modules` and `plugins`.
+   The script prints these lines when they are missing:
 
    ```yaml
    modules:
@@ -50,7 +48,30 @@ This needs KiteConfig 3.0.0 or newer.
      - ./kiteconfig
    ```
 
-5. Enable the plugin in each module that needs it, as shown in the next section.
+4. Enable the plugin in each module that needs it, as shown in the next section.
+5. Commit the `kiteconfig/` folder with your project.
+
+### Update the plugin
+
+Run the install script again.
+It replaces `./kiteconfig` with the plugin module of the new release.
+Do not edit the files in `./kiteconfig`, because the next update replaces them.
+
+### What the script does
+
+- It downloads the source archive of the release from GitHub.
+- It copies the plugin module (`toolchain/kiteconfig/`, without its tests) into `./kiteconfig`.
+- It points `kiteconfig/module.yaml` at the released KiteConfig jar on the Gradle Plugin Portal.
+- It replaces `./kiteconfig` only when that folder holds the KiteConfig plugin module.
+
+The script needs `bash`, `curl` and `tar`. On Windows, run it in Git Bash.
+To read the script before you run it, download it first:
+
+```bash
+curl -fsSLO https://raw.githubusercontent.com/yuroyami/KiteConfig/main/toolchain/install-kiteconfig.sh
+```
+
+Then run `bash install-kiteconfig.sh`.
 
 ## The settings block
 
@@ -156,3 +177,13 @@ This directory is a Toolchain project with the plugin and two sample modules.
 3. Run `./kotlin check`.
 
 Run `./stage-local-jar.sh` again after each change to `kiteconfig-core`.
+
+### The install script
+
+Keep two lines of `kiteconfig/module.yaml` exactly as they are, with their two-space indent: the `- mavenLocal` repository and the `- io.github.yuroyami:kiteconfig:0.0.0-dev` dependency.
+The install script replaces exactly these two lines, and it refuses a `module.yaml` without them.
+
+`install-test/` is a new project for the install script.
+CI copies it out of the checkout, runs `install-kiteconfig.sh` in it, and runs its tests against the latest release.
+CI also runs the script on the plugin module of the checkout.
+So a `module.yaml` change that the script does not know fails CI before the next release.

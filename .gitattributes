@@ -1,3 +1,5 @@
-# Windows cmd needs CRLF line endings in batch files. Shells need LF in the kotlin script.
+# Windows cmd needs CRLF line endings in batch files. Shells need LF in the kotlin script
+# and in the .sh scripts.
 toolchain/kotlin.bat text eol=crlf
 toolchain/kotlin text eol=lf
+*.sh text eol=lf
