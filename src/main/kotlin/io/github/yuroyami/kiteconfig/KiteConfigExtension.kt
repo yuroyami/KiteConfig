@@ -657,8 +657,8 @@ public abstract class KiteConfigExtension : KiteFlowScope(), KiteConfigValues {
     /**
      * Desktop bundle id: the effective [appId] for desktop.
      *
-     * @throws org.gradle.api.GradleException when read, if the result is not a
-     *   valid reverse-DNS identifier.
+     * Reading it fails the build when the result is not a valid reverse-DNS
+     * identifier.
      */
     override val desktopBundleId: Provider<String>
         get() = effectiveAppIdFor(KitePlatform.DESKTOP).map(::validateAppleBundleId)

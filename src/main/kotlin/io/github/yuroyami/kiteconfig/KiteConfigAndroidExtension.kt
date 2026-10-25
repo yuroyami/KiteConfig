@@ -148,8 +148,8 @@ public abstract class KiteConfigAndroidExtension : KitePlatformExtension() {
      * Default: unset. The KMP-native Android library DSL has no such setting, so
      * those modules ignore it.
      *
-     * @throws org.gradle.api.GradleException during configuration when the value
-     *   is not in Android's `major.minor.build` form.
+     * The build fails during configuration when the value is not in Android's
+     * `major.minor.build` form.
      */
     public abstract val ndk: Property<String>
 

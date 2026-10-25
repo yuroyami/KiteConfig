@@ -97,8 +97,8 @@ public abstract class KiteConfigDesktopExtension : KitePlatformExtension() {
      * rejects replaced by a hyphen. Set it yourself when that slug is not the
      * name you publish under.
      *
-     * @throws org.gradle.api.GradleException during configuration when no slug
-     *   can be derived from `appName` and no value is set here.
+     * The build fails during configuration when no slug can be derived from
+     * `appName` and no value is set here.
      */
     public abstract val linuxPackageName: Property<String>
 

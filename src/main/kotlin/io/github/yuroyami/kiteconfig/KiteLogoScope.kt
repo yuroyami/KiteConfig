@@ -66,8 +66,7 @@ public abstract class KiteLogoScope {
     /**
      * What sits behind [foreground]: `color("#102A43")` or `image(file("bg.png"))`.
      *
-     * @throws org.gradle.api.GradleException at task time when a color is not
-     *   `#RRGGBB` or `#AARRGGBB`.
+     * The task fails when a color is not `#RRGGBB` or `#AARRGGBB`.
      */
     public abstract val background: Property<LogoBackground>
 
@@ -82,7 +81,7 @@ public abstract class KiteLogoScope {
      * Unset, every renderer keeps the ratio it has always used, so existing
      * icons do not move.
      *
-     * @throws org.gradle.api.GradleException at task time when not in `0.0 < s <= 1.0`.
+     * The task fails when the value is not in `0.0 < s <= 1.0`.
      */
     public abstract val foregroundScale: Property<Double>
 
