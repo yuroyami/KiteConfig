@@ -95,8 +95,10 @@ public final class io/github/yuroyami/kiteconfig/core/BuildConfigField$StringVal
 }
 
 public final class io/github/yuroyami/kiteconfig/core/BuildConfigGenKt {
-	public static final fun generateBuildConfigSource (Ljava/lang/String;Ljava/lang/String;ZLjava/lang/String;Ljava/lang/String;ILjava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/util/List;)Ljava/lang/String;
+	public static final fun generateBuildConfigSource (Ljava/lang/String;Ljava/lang/String;ZLjava/lang/String;Ljava/lang/String;ILjava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/util/List;Ljava/lang/String;)Ljava/lang/String;
+	public static synthetic fun generateBuildConfigSource$default (Ljava/lang/String;Ljava/lang/String;ZLjava/lang/String;Ljava/lang/String;ILjava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/util/List;Ljava/lang/String;ILjava/lang/Object;)Ljava/lang/String;
 	public static final fun isValidKotlinIdentifier (Ljava/lang/String;)Z
+	public static final fun kotlinStringLiteral (Ljava/lang/String;)Ljava/lang/String;
 }
 
 public final class io/github/yuroyami/kiteconfig/core/ConfigValidationKt {
@@ -450,6 +452,7 @@ public final class io/github/yuroyami/kiteconfig/core/Utf8FileSnapshot {
 
 public final class io/github/yuroyami/kiteconfig/core/VersionCodeKt {
 	public static final fun buildNumberProperty (Ljava/lang/String;)Ljava/lang/String;
+	public static final fun defaultBuildNumber (IIII)Ljava/lang/String;
 	public static final fun validatePublishedVersionCode (Ljava/lang/Integer;Ljava/lang/String;)I
 	public static final fun validateVersionCode (ILjava/lang/String;)I
 	public static synthetic fun validateVersionCode$default (ILjava/lang/String;ILjava/lang/Object;)I

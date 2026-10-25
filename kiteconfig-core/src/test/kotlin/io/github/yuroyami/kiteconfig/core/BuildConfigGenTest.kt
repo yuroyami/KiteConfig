@@ -142,11 +142,22 @@ class BuildConfigGenTest {
         }
     }
 
+    @Test
+    fun `the generated header names the task that regenerates it`() {
+        val toolchain = source(regeneratedBy = "buildConfig@kiteconfig")
+        assertTrue(toolchain.contains("by `buildConfig@kiteconfig`."), toolchain)
+        val gradle = source()
+        assertTrue(gradle.contains("by `kiteInternalBuildConfig`."), gradle)
+        assertThrows(IllegalArgumentException::class.java) { source(regeneratedBy = "a */ b") }
+        assertThrows(IllegalArgumentException::class.java) { source(regeneratedBy = "a\nb") }
+    }
+
     private fun source(
         packageName: String = "com.acme.gen",
         className: String = "BuildConfig",
         includeIdentity: Boolean = true,
         customFields: List<String> = emptyList(),
+        regeneratedBy: String = "kiteInternalBuildConfig",
     ): String = generateBuildConfigSource(
         packageName = packageName,
         className = className,
@@ -158,5 +169,6 @@ class BuildConfigGenTest {
         iosBundleId = "com.acme",
         locales = listOf("en"),
         customFields = customFields,
+        regeneratedBy = regeneratedBy,
     )
 }

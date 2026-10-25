@@ -1,5 +1,6 @@
 package io.github.yuroyami.kiteconfig
 
+import io.github.yuroyami.kiteconfig.core.defaultBuildNumber
 import org.gradle.api.GradleException
 
 private const val DEFAULT_MAX_MAJOR = 999
@@ -127,11 +128,7 @@ public object VersionSchemes {
      */
     public val DEFAULT: VersionCodeScheme = VersionCodeScheme { version ->
         validateSchemeInput(version)
-        "1" +
-            version.major.padTo(3) +
-            version.minor.padTo(3) +
-            version.patch.padTo(2) +
-            version.rebuild.padTo(1)
+        defaultBuildNumber(version.major, version.minor, version.patch, version.rebuild)
     }
 }
 
@@ -164,4 +161,3 @@ private fun segmentAdvice(property: String): String = when (property) {
     else -> ""
 }
 
-private fun Int.padTo(width: Int): String = toString().padStart(width, '0')

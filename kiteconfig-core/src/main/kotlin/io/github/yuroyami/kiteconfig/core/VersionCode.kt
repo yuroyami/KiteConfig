@@ -53,3 +53,13 @@ public fun validatePublishedVersionCode(next: Int?, published: String): Int {
     }
     return candidate
 }
+
+/**
+ * The default build-number layout, `1 | major(3) | minor(3) | patch(2) | rebuild(1)`.
+ *
+ * Each host checks the segment limits first, with its own wording.
+ */
+@InternalKiteCoreApi
+public fun defaultBuildNumber(major: Int, minor: Int, patch: Int, rebuild: Int): String =
+    "1" + major.toString().padStart(3, '0') + minor.toString().padStart(3, '0') +
+        patch.toString().padStart(2, '0') + rebuild.toString().padStart(1, '0')
