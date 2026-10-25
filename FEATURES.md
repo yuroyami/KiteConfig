@@ -878,6 +878,21 @@ Every migration or installer follows these rules:
 - Only build-owned generators use normal Gradle output and build-cache
   semantics.
 
+## Kotlin Toolchain plugin
+
+The `toolchain/kiteconfig/` module is a plugin for the Kotlin Toolchain (`./kotlin`, `project.yaml` and `module.yaml`).
+It uses the same code as the Gradle plugin, so a version gives the same build number in both.
+It provides:
+
+- the generated `KiteBuildConfig` object, with `String` fields only;
+- `./kotlin do kiteSyncIos`, which writes the version, the build number, the bundle id and the locales into `project.pbxproj`;
+- the `kiteIos` check, which fails when `project.pbxproj` does not match;
+- the opt-in `kiteAndroid` check, which compares `settings: android:` with the plugin block.
+
+A Toolchain plugin cannot change module settings, so the plugin cannot set the Android `applicationId`, `versionCode` or `versionName`.
+It has no icons, launch screens, `Info.plist` changes, desktop packaging or diagnostics.
+See [toolchain/README.md](toolchain/README.md) for the setup.
+
 ## Current limitations
 
 KiteConfig does not currently provide:

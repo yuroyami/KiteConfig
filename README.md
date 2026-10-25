@@ -480,6 +480,13 @@ So:
 Run `./gradlew kiteApply` once after changing an iOS value if you drive builds
 from Xcode.
 
+## Kotlin Toolchain projects
+
+A project that builds with the Kotlin Toolchain (`./kotlin`, `project.yaml` and `module.yaml`) can use a KiteConfig plugin module instead of the Gradle plugin.
+It generates `KiteBuildConfig`, writes the Xcode project and checks the Android settings.
+It does not install icons or launch screens yet.
+See [toolchain/README.md](toolchain/README.md).
+
 ## Common questions
 
 - **When is a value applied?** Every build, to every platform in your project,

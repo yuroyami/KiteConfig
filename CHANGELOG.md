@@ -4,6 +4,16 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions track the
 Gradle Plugin Portal releases.
 
+## Unreleased
+
+### Added
+
+- A plugin for the Kotlin Toolchain (`./kotlin`, `project.yaml` and
+  `module.yaml`) in `toolchain/kiteconfig/`. It generates `KiteBuildConfig`,
+  writes the Xcode project with `./kotlin do kiteSyncIos`, and adds the
+  `kiteIos` and `kiteAndroid` checks to `./kotlin check`. See
+  [toolchain/README.md](toolchain/README.md).
+
 ## 2.1.0
 
 ### Added
