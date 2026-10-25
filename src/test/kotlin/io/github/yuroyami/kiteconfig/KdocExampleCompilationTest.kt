@@ -28,11 +28,16 @@ class KdocExampleCompilationTest {
      * misleading as a wrong one in the KDoc, and nothing type-checks prose.
      */
     private fun documentedExamples(): List<Example> {
-        val root = File("src/main/kotlin")
-        assertTrue(root.isDirectory, "expected the project root, got ${File(".").absolutePath}")
+        val roots = listOf(File("src/main/kotlin"), File("kiteconfig-core/src/main/kotlin"))
+        roots.forEach { assertTrue(it.isDirectory, "expected the project root, got ${File(".").absolutePath}") }
         val found = mutableListOf<Example>()
-        val sources = root.walkTopDown().filter { it.isFile && it.extension == "kt" }.sortedBy { it.name } +
-            sequenceOf(File("README.md")).filter(File::isFile)
+        val kotlinSources = roots.asSequence()
+            .flatMap { it.walkTopDown() }
+            .filter { it.isFile && it.extension == "kt" }
+            .sortedBy { it.name }
+            .toList()
+        assertTrue(kotlinSources.any { it.path.startsWith("kiteconfig-core") }, "the core sources were not scanned")
+        val sources = kotlinSources.asSequence() + sequenceOf(File("README.md")).filter(File::isFile)
         sources
             .forEach { file ->
                 var inside = false

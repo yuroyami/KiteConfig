@@ -16,12 +16,14 @@ class DiagnosticIdUniquenessTest {
 
     @Test
     fun `no two provider resolutions share a diagnostic id`() {
-        val root = File("src/main/kotlin")
-        assertTrue(root.isDirectory, "expected to run from the project root, got ${File(".").absolutePath}")
+        val roots = listOf(File("src/main/kotlin"), File("kiteconfig-core/src/main/kotlin"))
+        roots.forEach { assertTrue(it.isDirectory, "expected to run from the project root, got ${File(".").absolutePath}") }
+
+        val sources = roots.flatMap { root -> root.walkTopDown().filter { it.isFile && it.extension == "kt" } }
+        assertTrue(sources.any { it.path.startsWith("kiteconfig-core") }, "the core sources were not scanned")
 
         val seen = mutableMapOf<String, MutableList<String>>()
-        root.walkTopDown()
-            .filter { it.isFile && it.extension == "kt" }
+        sources
             .forEach { file ->
                 file.readLines().forEachIndexed { index, line ->
                     resolveId.findAll(line).forEach { match ->

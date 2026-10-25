@@ -70,6 +70,7 @@ jobs:
           grep -F 'Configuration cache entry reused.' build/reports/release-configuration-cache-reuse.log
           test -z "$(git status --porcelain --untracked-files=all)"
           unzip -l "build/libs/kiteconfig-$KITE_CONFIG_VERSION.jar" | grep 'META-INF/LICENSE'
+          unzip -l "build/libs/kiteconfig-$KITE_CONFIG_VERSION.jar" | grep -F 'io/github/yuroyami/kiteconfig/core/KiteConfigException.class'
           unzip -l "build/libs/kiteconfig-$KITE_CONFIG_VERSION-javadoc.jar" | grep -E '\.html$'
           test -s build/reports/cyclonedx/bom.json
           test -s build/reports/cyclonedx/bom.xml
@@ -90,6 +91,12 @@ jobs:
           MAIN_POM="build/unsigned-release-candidate/io/github/yuroyami/kiteconfig/$KITE_CONFIG_VERSION/kiteconfig-$KITE_CONFIG_VERSION.pom"
           grep -F '<name>The Apache License, Version 2.0</name>' "$MAIN_POM" >/dev/null
           grep -F "<tag>v$KITE_CONFIG_VERSION</tag>" "$MAIN_POM" >/dev/null
+          # The core classes ship inside the plugin jar, so no published file may name the core.
+          MAIN_MODULE="${MAIN_POM%.pom}.module"
+          if grep -F 'kiteconfig-core' "$MAIN_POM" "$MAIN_MODULE"; then
+            echo 'The published metadata names kiteconfig-core.' >&2
+            exit 1
+          fi
           (cd build/unsigned-release-candidate && \
             find . -type f \( -name '*.jar' -o -name '*.pom' -o -name '*.module' \) -print0 \
               | sort -z \

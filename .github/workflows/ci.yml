@@ -86,10 +86,12 @@ jobs:
             "buildscript { dependencies { classpath files(System.getenv('KITE_CONFIG_PLUGIN_JAR')) } }" \
             "apply plugin: 'io.github.yuroyami.kiteconfig'" \
             "def kiteConfigApplied = extensions.findByName('kiteConfig') != null" \
+            "def kiteCoreClass = Class.forName('io.github.yuroyami.kiteconfig.core.KiteConfigException', true, buildscript.classLoader)" \
             "tasks.register('verifyPluginOnJdk17') {" \
             "  doLast {" \
             "    assert JavaVersion.current() == JavaVersion.VERSION_17" \
             "    assert kiteConfigApplied" \
+            "    assert kiteCoreClass.name == 'io.github.yuroyami.kiteconfig.core.KiteConfigException'" \
             "    println 'KiteConfig plugin applied under outer JDK 17'" \
             "  }" \
             "}" > "$CONSUMER_DIR/build.gradle"
@@ -118,5 +120,7 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: test-reports-${{ matrix.os }}-jdk${{ matrix.java }}-wrapper
-          path: build/reports/tests/
+          path: |
+            build/reports/tests/
+            kiteconfig-core/build/reports/tests/
           if-no-files-found: ignore

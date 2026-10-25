@@ -24,6 +24,7 @@ class RenameSweepTest {
             // migrated from. They are frozen the moment that version is tagged.
             ".github/release-notes/",
             "build/",
+            "kiteconfig-core/build/",
             ".git/",
             ".gradle/",
         )

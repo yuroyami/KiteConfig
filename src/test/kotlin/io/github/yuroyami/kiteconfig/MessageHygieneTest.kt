@@ -53,11 +53,13 @@ class MessageHygieneTest {
 
     @Test
     fun `no runtime string still names a retired 2x property`() {
-        val root = File("src/main/kotlin")
-        assertTrue(root.isDirectory, "expected to run from the project root, got ${File(".").absolutePath}")
+        val roots = listOf(File("src/main/kotlin"), File("kiteconfig-core/src/main/kotlin"))
+        roots.forEach { assertTrue(it.isDirectory, "expected to run from the project root, got ${File(".").absolutePath}") }
 
-        val offences = root.walkTopDown()
-            .filter { it.isFile && it.extension == "kt" }
+        val sources = roots.flatMap { root -> root.walkTopDown().filter { it.isFile && it.extension == "kt" } }
+        assertTrue(sources.any { it.path.startsWith("kiteconfig-core") }, "the core sources were not scanned")
+
+        val offences = sources
             .flatMap { file ->
                 val pardoned = allowed[file.name].orEmpty()
                 file.readLines().withIndex().flatMap { (index, line) ->

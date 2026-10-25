@@ -1,5 +1,6 @@
 package io.github.yuroyami.kiteconfig
 
+import io.github.yuroyami.kiteconfig.core.KiteConfigException
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -11,6 +12,11 @@ class KiteConfigDiagnosticsTest {
 
     @TempDir
     lateinit var tempDir: File
+
+    @Test
+    fun `a core failure keeps its own class name in the summary`() {
+        assertEquals("KiteConfigException: bad path", diagnosticExceptionSummary(KiteConfigException("bad path")))
+    }
 
     @Test
     fun `malformed pbxproj is a stable fail-closed finding`() {

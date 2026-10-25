@@ -1,0 +1,8 @@
+public abstract interface annotation class io/github/yuroyami/kiteconfig/core/InternalKiteCoreApi : java/lang/annotation/Annotation {
+}
+
+public final class io/github/yuroyami/kiteconfig/core/KiteConfigException : java/lang/RuntimeException {
+	public fun <init> (Ljava/lang/String;Ljava/lang/Throwable;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/Throwable;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+}
+

@@ -171,6 +171,10 @@ kotlin {
     abiValidation {
         enabled.set(true)
     }
+
+    compilerOptions {
+        optIn.add("io.github.yuroyami.kiteconfig.core.InternalKiteCoreApi")
+    }
 }
 
 // Both tasks address the checked-in api/ directory. Make their relationship
@@ -212,10 +216,25 @@ tasks.named<Test>("test") {
     inputs.dir(layout.projectDirectory.dir("src/main/kotlin"))
         .withPropertyName("kiteConfigDocumentedSources")
         .withPathSensitivity(PathSensitivity.RELATIVE)
+    inputs.dir(layout.projectDirectory.dir("kiteconfig-core/src/main/kotlin"))
+        .withPropertyName("kiteConfigCoreDocumentedSources")
+        .withPathSensitivity(PathSensitivity.RELATIVE)
 }
 
 dependencyLocking {
     lockAllConfigurations()
+}
+
+// kiteconfig-core ships inside the plugin jar, like the AGP 8 adapter. The plugin
+// depends on it compileOnly, so the POM, the module metadata and the SBOM stay empty.
+val bundledCore: Configuration by configurations.creating {
+    isCanBeConsumed = false
+    isTransitive = false
+    attributes {
+        attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage.JAVA_RUNTIME))
+        attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category.LIBRARY))
+        attribute(LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE, objects.named(LibraryElements.CLASSES))
+    }
 }
 
 dependencies {
@@ -228,7 +247,10 @@ dependencies {
     // Compose Desktop identity propagation needs the typed DSL classes at compile
     // time only. Consumers bring their own Compose Gradle plugin.
     compileOnly(libs.compose.gradle.plugin)
+    compileOnly(project(":kiteconfig-core"))
+    bundledCore(project(":kiteconfig-core"))
 
+    testImplementation(project(":kiteconfig-core"))
     testImplementation(libs.junit.jupiter)
     testImplementation(gradleTestKit())
     testRuntimeOnly(libs.junit.platform.launcher)
@@ -291,10 +313,12 @@ tasks.withType<Jar>().configureEach {
 
 tasks.named<Jar>("jar") {
     from(agp8AdapterSourceSet.output)
+    from(bundledCore)
 }
 
 tasks.named<Jar>("sourcesJar") {
     from(agp8AdapterSourceSet.allSource)
+    from(layout.projectDirectory.dir("kiteconfig-core/src/main/kotlin"))
 }
 
 // The published plugin has no bundled/runtime Maven dependencies: AGP and KGP
@@ -413,6 +437,7 @@ dependencies {
 }
 tasks.named<org.gradle.plugin.devel.tasks.PluginUnderTestMetadata>("pluginUnderTestMetadata") {
     pluginClasspath.from(testKitPluginClasspath)
+    pluginClasspath.from(bundledCore)
 }
 
 gradlePlugin {
