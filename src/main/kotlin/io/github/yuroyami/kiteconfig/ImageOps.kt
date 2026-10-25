@@ -1,5 +1,6 @@
 package io.github.yuroyami.kiteconfig
 
+import io.github.yuroyami.kiteconfig.core.OwnedOutputSafety
 import io.github.yuroyami.kiteconfig.core.validateLogoSafeZoneRatio
 import org.gradle.api.GradleException
 import java.awt.AlphaComposite

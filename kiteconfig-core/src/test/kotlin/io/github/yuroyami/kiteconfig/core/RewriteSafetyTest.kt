@@ -1,6 +1,5 @@
-package io.github.yuroyami.kiteconfig
+package io.github.yuroyami.kiteconfig.core
 
-import org.gradle.api.logging.Logging
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -14,7 +13,7 @@ import java.nio.file.StandardOpenOption
 
 class RewriteSafetyTest {
 
-    private val log = Logging.getLogger("test")
+    private val log = RecordingLog()
 
     // --- F4: backup is write-once. The earliest pristine copy survives later
     // (possibly already-modified) writes. -------------------------------------

@@ -1,6 +1,5 @@
-package io.github.yuroyami.kiteconfig
+package io.github.yuroyami.kiteconfig.core
 
-import org.gradle.api.GradleException
 import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -22,7 +21,7 @@ class OwnedOutputSafetyTest {
         val project = directory.resolve("project").apply { mkdirs() }
         val outside = directory.resolve("outside/res")
 
-        val error = assertThrows(GradleException::class.java) {
+        val error = assertThrows(KiteConfigException::class.java) {
             OwnedOutputSafety.requireInstallerInsideProject(outside, project, "Android logo output")
         }
 
@@ -52,7 +51,7 @@ class OwnedOutputSafetyTest {
         OwnedOutputSafety.replaceGeneratedTree(output, allowed, "test", mapOf(relative to "generated".toByteArray()))
         output.resolve(relative).writeText("hand edit")
 
-        val error = assertThrows(GradleException::class.java) {
+        val error = assertThrows(KiteConfigException::class.java) {
             OwnedOutputSafety.replaceGeneratedTree(output, allowed, "test", mapOf(relative to "next".toByteArray()))
         }
 
@@ -73,7 +72,7 @@ class OwnedOutputSafetyTest {
         )
         val oldManifest = manifest.readBytes()
 
-        val failure = assertThrows(GradleException::class.java) {
+        val failure = assertThrows(KiteConfigException::class.java) {
             OwnedOutputSafety.replaceGeneratedTree(
                 output,
                 allowed,
@@ -100,7 +99,7 @@ class OwnedOutputSafetyTest {
         val target = output.resolve(relative)
         OwnedOutputSafety.replaceGeneratedTree(output, allowed, "test", mapOf(relative to "old".toByteArray()))
 
-        assertThrows(GradleException::class.java) {
+        assertThrows(KiteConfigException::class.java) {
             OwnedOutputSafety.replaceGeneratedTree(
                 output,
                 allowed,
@@ -142,7 +141,7 @@ class OwnedOutputSafetyTest {
             assumeTrue(false, "symbolic links are not permitted")
         }
 
-        val failure = assertThrows(GradleException::class.java) {
+        val failure = assertThrows(KiteConfigException::class.java) {
             OwnedOutputSafety.replaceGeneratedTree(
                 output,
                 allowed,
@@ -181,7 +180,7 @@ class OwnedOutputSafetyTest {
             mapOf("generated/A.kt" to "old-a".toByteArray(), "generated/B.kt" to "old-b".toByteArray()),
         )
 
-        assertThrows(GradleException::class.java) {
+        assertThrows(KiteConfigException::class.java) {
             OwnedOutputSafety.replaceGeneratedTree(
                 output,
                 allowed,
@@ -209,7 +208,7 @@ class OwnedOutputSafetyTest {
             mapOf("generated/A.kt" to "old-a".toByteArray(), "generated/B.kt" to "old-b".toByteArray()),
         )
 
-        val failure = assertThrows(GradleException::class.java) {
+        val failure = assertThrows(KiteConfigException::class.java) {
             OwnedOutputSafety.replaceGeneratedTree(
                 output,
                 allowed,
@@ -235,7 +234,7 @@ class OwnedOutputSafetyTest {
         OwnedOutputSafety.replaceGeneratedTree(output, allowed, "test", mapOf("old/App.kt" to "old".toByteArray()))
         val unowned = output.resolve("new/App.kt")
 
-        assertThrows(GradleException::class.java) {
+        assertThrows(KiteConfigException::class.java) {
             OwnedOutputSafety.replaceGeneratedTree(
                 output,
                 allowed,
@@ -261,7 +260,7 @@ class OwnedOutputSafetyTest {
         val original = byteArrayOf(7, 6, 5, 4)
         target.writeBytes(original)
 
-        assertThrows(GradleException::class.java) {
+        assertThrows(KiteConfigException::class.java) {
             OwnedOutputSafety.replaceInstalledFilesWithBackup(
                 installationRoot = resources,
                 manifestFile = resources.resolve(".kiteconfig-icons"),
@@ -284,7 +283,7 @@ class OwnedOutputSafetyTest {
         val external = byteArrayOf(9, 8, 7, 6)
         target.writeBytes(original)
 
-        val failure = assertThrows(GradleException::class.java) {
+        val failure = assertThrows(KiteConfigException::class.java) {
             OwnedOutputSafety.replaceInstalledFilesWithBackup(
                 installationRoot = resources,
                 manifestFile = resources.resolve(".kiteconfig-icons"),
@@ -314,7 +313,7 @@ class OwnedOutputSafetyTest {
         unowned.parentFile.mkdirs()
         unowned.writeText("mine")
 
-        assertThrows(GradleException::class.java) {
+        assertThrows(KiteConfigException::class.java) {
             OwnedOutputSafety.replaceGeneratedTree(
                 output,
                 allowed,
@@ -341,7 +340,7 @@ class OwnedOutputSafetyTest {
             assumeTrue(false, "symbolic links are not permitted")
         }
 
-        assertThrows(GradleException::class.java) {
+        assertThrows(KiteConfigException::class.java) {
             OwnedOutputSafety.replaceGeneratedTree(
                 output.toFile(),
                 allowed,
@@ -366,7 +365,7 @@ class OwnedOutputSafetyTest {
             assumeTrue(false, "symbolic links are not permitted")
         }
 
-        assertThrows(GradleException::class.java) {
+        assertThrows(KiteConfigException::class.java) {
             OwnedOutputSafety.replaceGeneratedTree(
                 selectedOutput,
                 allowed,
@@ -382,12 +381,12 @@ class OwnedOutputSafetyTest {
         val root = directory.resolve("generated").apply { mkdirs() }
         root.resolve("a/b/file.kt").apply { parentFile.mkdirs(); writeText("x") }
 
-        val depthFailure = assertThrows(GradleException::class.java) {
+        val depthFailure = assertThrows(KiteConfigException::class.java) {
             OwnedOutputSafety.walkRegularFilesNoFollow(root.toPath(), maximumDepth = 1, maximumEntries = 100)
         }
         assertTrue(depthFailure.message.orEmpty().contains("deeper than 1"), depthFailure.message)
 
-        val entryFailure = assertThrows(GradleException::class.java) {
+        val entryFailure = assertThrows(KiteConfigException::class.java) {
             OwnedOutputSafety.walkRegularFilesNoFollow(root.toPath(), maximumDepth = 10, maximumEntries = 3)
         }
         assertTrue(entryFailure.message.orEmpty().contains("more than 3"), entryFailure.message)
@@ -399,7 +398,7 @@ class OwnedOutputSafetyTest {
         val output = allowed.resolve("commonMain/kotlin")
         val oversized = ByteArray(64 * 1024 * 1024 + 1)
 
-        val failure = assertThrows(GradleException::class.java) {
+        val failure = assertThrows(KiteConfigException::class.java) {
             OwnedOutputSafety.replaceGeneratedTree(
                 output,
                 allowed,
@@ -427,7 +426,7 @@ class OwnedOutputSafetyTest {
             assumeTrue(false, "symbolic links are not permitted")
         }
 
-        assertThrows(GradleException::class.java) {
+        assertThrows(KiteConfigException::class.java) {
             OwnedOutputSafety.replaceInstalledFiles(
                 installationRoot = resources,
                 manifestFile = metadata.resolve("owned-files-v1"),
@@ -458,7 +457,7 @@ class OwnedOutputSafetyTest {
             assumeTrue(false, "symbolic links are not permitted")
         }
 
-        assertThrows(GradleException::class.java) {
+        assertThrows(KiteConfigException::class.java) {
             OwnedOutputSafety.backupThenRemove(resources, backup, project, listOf(candidate), dryRun = false)
         }
         assertArrayEquals(byteArrayOf(1, 2, 3), candidate.readBytes())
@@ -483,7 +482,7 @@ class OwnedOutputSafetyTest {
         }
         val backup = project.resolve("build/recovery")
 
-        assertThrows(GradleException::class.java) {
+        assertThrows(KiteConfigException::class.java) {
             OwnedOutputSafety.backupThenRemove(
                 installationRoot = resources,
                 backupRoot = backup,
@@ -496,19 +495,6 @@ class OwnedOutputSafetyTest {
         assertTrue(Files.isSymbolicLink(selected.toPath()))
         assertArrayEquals(byteArrayOf(1, 2, 3), real.readBytes())
         assertFalse(backup.exists())
-    }
-
-    @Test
-    fun `same-named iOS catalogs receive distinct ownership namespaces`() {
-        val project = directory.resolve("project").apply { mkdirs() }
-        val first = project.resolve("ios/App/Assets.xcassets/AppIcon.appiconset")
-        val second = project.resolve("ios/Widget/Assets.xcassets/AppIcon.appiconset")
-
-        val firstIdentity = SyncIosLogoTask.catalogIdentity(project, first)
-        val secondIdentity = SyncIosLogoTask.catalogIdentity(project, second)
-
-        assertTrue(firstIdentity != secondIdentity)
-        assertTrue(firstIdentity.startsWith("ios-appicon-") && secondIdentity.startsWith("ios-appicon-"))
     }
 
     @Test
@@ -545,7 +531,7 @@ class OwnedOutputSafetyTest {
         candidate.writeBytes(planned)
         val backups = directory.resolve("build/kiteconfig/backups")
 
-        assertThrows(GradleException::class.java) {
+        assertThrows(KiteConfigException::class.java) {
             OwnedOutputSafety.backupThenRemove(
                 installationRoot = resources,
                 backupRoot = backups,
@@ -587,7 +573,7 @@ class OwnedOutputSafetyTest {
                 .joinToString("") { "%02x".format(it.toInt() and 0xFF) }
         }
 
-        val error = assertThrows(GradleException::class.java) {
+        val error = assertThrows(KiteConfigException::class.java) {
             OwnedOutputSafety.deleteWithRollback(sources, backups, hashes) { index, _ ->
                 if (index == 1) throw java.io.IOException("injected second-delete failure")
             }

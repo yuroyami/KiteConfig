@@ -1,5 +1,9 @@
 package io.github.yuroyami.kiteconfig
 
+import io.github.yuroyami.kiteconfig.core.applyTextRewritePlan
+import io.github.yuroyami.kiteconfig.core.planTextChange
+import io.github.yuroyami.kiteconfig.core.readUtf8SnapshotStrict
+import io.github.yuroyami.kiteconfig.core.requireContainedPath
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
 import org.gradle.api.file.DirectoryProperty
@@ -142,7 +146,7 @@ internal abstract class SanitizeIosProjectTask : DefaultTask() {
         }
 
         val plan = planTextChange(root, file, newText, "Info.plist", snapshot) ?: return
-        val applied = applyTextRewritePlan(root, listOf(plan), backup.get(), dryRun.get(), logger)
+        val applied = applyTextRewritePlan(root, listOf(plan), backup.get(), dryRun.get(), logger.asKiteLog())
         if (applied.written > 0) {
             val parts = buildList {
                 if (result.inserted.isNotEmpty()) add("inserted ${result.inserted.joinToString(", ")}")

@@ -1,6 +1,7 @@
 package io.github.yuroyami.kiteconfig
 
 import io.github.yuroyami.kiteconfig.core.KiteConfigException
+import io.github.yuroyami.kiteconfig.core.OwnedOutputSafety
 import io.github.yuroyami.kiteconfig.core.deriveUpgradeUuid
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse

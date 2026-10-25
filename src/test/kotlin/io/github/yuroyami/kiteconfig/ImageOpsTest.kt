@@ -1,6 +1,6 @@
 package io.github.yuroyami.kiteconfig
 
-import org.gradle.api.GradleException
+import io.github.yuroyami.kiteconfig.core.KiteConfigException
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertThrows
@@ -104,7 +104,7 @@ class ImageOpsTest {
             assumeTrue(false, "symbolic links are not permitted")
         }
 
-        val error = assertThrows(GradleException::class.java) {
+        val error = assertThrows(KiteConfigException::class.java) {
             readBoundedLogoPng(link.toFile(), "foreground")
         }
 

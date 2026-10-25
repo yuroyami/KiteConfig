@@ -1,6 +1,5 @@
-package io.github.yuroyami.kiteconfig
+package io.github.yuroyami.kiteconfig.core
 
-import org.gradle.api.GradleException
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.nio.charset.StandardCharsets
@@ -24,7 +23,8 @@ import java.security.MessageDigest
  * target is constrained to its declared root. This intentionally fails closed rather
  * than guessing that a familiar filename is generated.
  */
-internal object OwnedOutputSafety {
+@InternalKiteCoreApi
+public object OwnedOutputSafety {
     internal const val OWNERSHIP_MANIFEST_NAME = ".kiteconfig-owned-files-v1"
     private const val OWNERSHIP_HEADER = "kiteconfig-owned-files-v1"
     private const val REMOVAL_HEADER = "kiteconfig-removal-provenance-v1"
@@ -53,7 +53,7 @@ internal object OwnedOutputSafety {
     )
 
     /** Read-only verification used by diagnostics; never repairs or claims files. */
-    internal fun inspectInstalledFiles(
+    public fun inspectInstalledFiles(
         installationRoot: File,
         manifestFile: File,
         projectRoot: File,
@@ -108,7 +108,7 @@ internal object OwnedOutputSafety {
      * Atomically replaces an exclusive generated tree below [allowedRoot]. Unknown
      * content is never deleted: its presence aborts generation with recovery advice.
      */
-    fun replaceGeneratedTree(
+    public fun replaceGeneratedTree(
         outputRoot: File,
         allowedRoot: File,
         owner: String,
@@ -125,7 +125,7 @@ internal object OwnedOutputSafety {
         val root = lexicalRoot.absoluteNormalized()
         val boundary = lexicalBoundary.absoluteNormalized()
         if (root == boundary || !root.startsWith(boundary)) {
-            throw GradleException(
+            throw KiteConfigException(
                 "[kiteConfig] Refusing generated output outside the plugin-owned directory: " +
                     "$root (required descendant of $boundary).",
             )
@@ -144,7 +144,7 @@ internal object OwnedOutputSafety {
      * Replaces only manifest-owned files in a larger user-owned tree. Unrelated files
      * are ignored; an unowned file at a requested output path is never overwritten.
      */
-    fun replaceInstalledFiles(
+    public fun replaceInstalledFiles(
         installationRoot: File,
         manifestFile: File,
         projectRoot: File,
@@ -182,7 +182,7 @@ internal object OwnedOutputSafety {
      *
      * Returns the paths that were removed, relative to [installationRoot].
      */
-    fun removeInstalledFiles(
+    public fun removeInstalledFiles(
         installationRoot: File,
         manifestFile: File,
         projectRoot: File,
@@ -201,10 +201,10 @@ internal object OwnedOutputSafety {
                 if (!Files.exists(target, NOFOLLOW_LINKS)) return@forEach
                 val attrs = safeAttributes(target, "owned output")
                 if (!attrs.isRegularFile) {
-                    throw GradleException("[kiteConfig] Owned output is no longer a regular file: $target")
+                    throw KiteConfigException("[kiteConfig] Owned output is no longer a regular file: $target")
                 }
                 if (sha256Bounded(target, MAX_MIGRATION_FILE_BYTES, "owned output") != entry.sha256) {
-                    throw GradleException(
+                    throw KiteConfigException(
                         "[kiteConfig] Refusing to remove modified generated output: $target. " +
                             "Move your changes, or delete the file yourself.",
                     )
@@ -222,7 +222,7 @@ internal object OwnedOutputSafety {
      * outputs are moved to a checksummed recovery area before this plugin claims
      * them; later runs use the ownership manifest and reject manual modifications.
      */
-    fun replaceInstalledFilesWithBackup(
+    public fun replaceInstalledFilesWithBackup(
         installationRoot: File,
         manifestFile: File,
         backupRoot: File,
@@ -282,7 +282,7 @@ internal object OwnedOutputSafety {
                                 "installer recovery backup",
                             )
                             if (sha256(bytes) != expectedHash) {
-                                throw GradleException("[kiteConfig] Installer recovery backup changed: $backup")
+                                throw KiteConfigException("[kiteConfig] Installer recovery backup changed: $backup")
                             }
                             if (currentStateEquals(
                                     source,
@@ -325,7 +325,7 @@ internal object OwnedOutputSafety {
                                     "restored installer takeover file",
                                 ) != expectedHash
                             ) {
-                                throw GradleException("[kiteConfig] Restored installer takeover file failed verification: $source")
+                                throw KiteConfigException("[kiteConfig] Restored installer takeover file failed verification: $source")
                             }
                         } catch (restoreFailure: Exception) {
                             // A writer can recreate an absent takeover path between
@@ -346,21 +346,21 @@ internal object OwnedOutputSafety {
                             " Rollback preserved newer external changes at: " +
                                 preservedExternalChanges.joinToString()
                         }
-                        throw GradleException(
+                        throw KiteConfigException(
                             "[kiteConfig] Installer takeover failed and recovery of the original files was incomplete." +
                                 preservedDetail,
                             failure,
                         ).also { combined -> restoreFailures.forEach(combined::addSuppressed) }
                     }
                     if (preservedExternalChanges.isNotEmpty()) {
-                        throw GradleException(
+                        throw KiteConfigException(
                             "[kiteConfig] Installer takeover failed; rollback preserved newer external changes at: " +
                                 preservedExternalChanges.joinToString() +
                                 ". Verified recovery copies remain under ${backupRoot.path}.",
                             failure,
                         )
                     }
-                    throw GradleException(
+                    throw KiteConfigException(
                         "[kiteConfig] Installer takeover failed; original files were restored from the verified plan.",
                         failure,
                     )
@@ -381,7 +381,7 @@ internal object OwnedOutputSafety {
     }
 
     /** Coordinate a migration with every installer that owns [manifestFile]. */
-    fun <T> withInstallationLock(manifestFile: File, projectRoot: File, action: () -> T): T {
+    public fun <T> withInstallationLock(manifestFile: File, projectRoot: File, action: () -> T): T {
         requireProjectContainedPath(manifestFile, projectRoot, "ownership manifest")
         val manifest = manifestFile.toPath().absoluteNormalized()
         requireSafeExistingComponents(manifest)
@@ -393,7 +393,7 @@ internal object OwnedOutputSafety {
      * only then removes the originals. The returned files are the originals removed
      * (or that would be removed when [dryRun] is true).
      */
-    fun backupThenRemove(
+    public fun backupThenRemove(
         installationRoot: File,
         backupRoot: File,
         projectRoot: File,
@@ -429,7 +429,7 @@ internal object OwnedOutputSafety {
         val backups = backupRoot.toPath().absoluteNormalized()
         requireSafeExistingComponents(root)
         if (backups.startsWith(root) || root.startsWith(backups)) {
-            throw GradleException(
+            throw KiteConfigException(
                 "[kiteConfig] Logo migration backup directory must be separate from the Android resources: $backups",
             )
         }
@@ -445,18 +445,18 @@ internal object OwnedOutputSafety {
             if (!Files.exists(path, NOFOLLOW_LINKS)) return@mapNotNull null
             val attrs = safeAttributes(path, "logo migration target")
             if (!attrs.isRegularFile) {
-                throw GradleException("[kiteConfig] Refusing to remove non-regular logo artifact: $path")
+                throw KiteConfigException("[kiteConfig] Refusing to remove non-regular logo artifact: $path")
             }
             val size = attrs.size()
             if (size > MAX_MIGRATION_FILE_BYTES) {
-                throw GradleException(
+                throw KiteConfigException(
                     "[kiteConfig] Refusing to migrate unexpectedly large logo artifact ($size bytes): $path",
                 )
             }
             val bytes = readRegularFileBounded(path, MAX_MIGRATION_FILE_BYTES, "logo migration target")
             snapshotBytes += bytes.size
             if (snapshotBytes > MAX_TRANSACTION_SNAPSHOT_BYTES) {
-                throw GradleException(
+                throw KiteConfigException(
                     "[kiteConfig] Refusing a migration with more than " +
                         "$MAX_TRANSACTION_SNAPSHOT_BYTES bytes of recovery state.",
                 )
@@ -511,12 +511,12 @@ internal object OwnedOutputSafety {
                     !attrs.isRegularFile ||
                     sha256Bounded(destination, MAX_MIGRATION_FILE_BYTES, "logo migration backup") != hash
                 ) {
-                    throw GradleException("[kiteConfig] Existing logo backup is invalid: $destination")
+                    throw KiteConfigException("[kiteConfig] Existing logo backup is invalid: $destination")
                 }
             } else {
                 writeNewNoReplace(destination, originalBytes)
                 if (sha256Bounded(destination, MAX_MIGRATION_FILE_BYTES, "logo migration backup") != hash) {
-                    throw GradleException("[kiteConfig] Logo backup verification failed: $destination")
+                    throw KiteConfigException("[kiteConfig] Logo backup verification failed: $destination")
                 }
             }
             verifiedBackups[source] = destination
@@ -566,7 +566,7 @@ internal object OwnedOutputSafety {
             if (sha256Bounded(backup, MAX_MIGRATION_FILE_BYTES, "verified migration backup") !=
                 safeHashes.getValue(source)
             ) {
-                throw GradleException("[kiteConfig] Verified migration backup changed: $backup")
+                throw KiteConfigException("[kiteConfig] Verified migration backup changed: $backup")
             }
         }
 
@@ -584,7 +584,7 @@ internal object OwnedOutputSafety {
             }
             val recreated = parked.keys.filter { Files.exists(it, NOFOLLOW_LINKS) }
             if (recreated.isNotEmpty()) {
-                throw GradleException(
+                throw KiteConfigException(
                     "[kiteConfig] Logo artifacts were recreated during migration and were preserved: " +
                         recreated.joinToString(),
                 )
@@ -606,7 +606,7 @@ internal object OwnedOutputSafety {
                         if (sha256Bounded(displaced, MAX_MIGRATION_FILE_BYTES, "parked logo artifact") !=
                             safeHashes.getValue(source)
                         ) {
-                            throw GradleException("Parked logo artifact changed before rollback: $displaced")
+                            throw KiteConfigException("Parked logo artifact changed before rollback: $displaced")
                         }
                         if (!moveNewWithoutReplacing(displaced, source)) {
                             preservedExternalChanges.add(source)
@@ -624,7 +624,7 @@ internal object OwnedOutputSafety {
                         sha256Bounded(source, MAX_MIGRATION_FILE_BYTES, "restored logo artifact") !=
                         safeHashes.getValue(source)
                     ) {
-                        throw GradleException("Restored logo artifact failed checksum verification: $source")
+                        throw KiteConfigException("Restored logo artifact failed checksum verification: $source")
                     }
                 } catch (restoreFailure: Exception) {
                     restoreFailures.add(restoreFailure)
@@ -633,24 +633,24 @@ internal object OwnedOutputSafety {
             parked.keys.filter { source ->
                 source !in preservedExternalChanges && !Files.exists(source, NOFOLLOW_LINKS)
             }.forEach { missing ->
-                restoreFailures.add(GradleException("Restored logo artifact is still missing: $missing"))
+                restoreFailures.add(KiteConfigException("Restored logo artifact is still missing: $missing"))
             }
             if (restoreFailures.isNotEmpty()) {
-                throw GradleException(
+                throw KiteConfigException(
                     "[kiteConfig] Logo migration failed and automatic rollback was incomplete. " +
                         "Use the checksummed provenance backups to restore files manually.",
                     failure,
                 ).also { combined -> restoreFailures.forEach(combined::addSuppressed) }
             }
             if (preservedExternalChanges.isNotEmpty()) {
-                throw GradleException(
+                throw KiteConfigException(
                     "[kiteConfig] Logo migration failed; rollback preserved newer external changes at: " +
                         preservedExternalChanges.joinToString() +
                         ". Verified recovery copies remain available.",
                     failure,
                 )
             }
-            throw GradleException(
+            throw KiteConfigException(
                 "[kiteConfig] Logo migration failed; all removed source artifacts were restored.",
                 failure,
             )
@@ -658,23 +658,23 @@ internal object OwnedOutputSafety {
     }
 
     /** Rejects a configured input located inside a directory this task installs into. */
-    fun requireInputOutsideOutput(input: File, outputRoot: File, label: String) {
+    public fun requireInputOutsideOutput(input: File, outputRoot: File, label: String) {
         val source = input.toPath().absoluteNormalized()
         val output = outputRoot.toPath().absoluteNormalized()
         requireSafeExistingComponents(source)
         requireSafeExistingComponents(output)
         if (source.startsWith(output)) {
-            throw GradleException(
+            throw KiteConfigException(
                 "[kiteConfig] $label must be outside the generated output directory $output; got $source.",
             )
         }
     }
 
     /** Requires an installer destination to be a strict, no-follow descendant of the project root. */
-    fun requireInstallerInsideProject(directory: File, projectRoot: File, label: String) {
+    public fun requireInstallerInsideProject(directory: File, projectRoot: File, label: String) {
         val (root, destination) = requireProjectContainedPath(directory, projectRoot, label)
         if (destination == root || !destination.startsWith(root)) {
-            throw GradleException(
+            throw KiteConfigException(
                 "[kiteConfig] Refusing $label outside the root project directory $root: $destination",
             )
         }
@@ -684,14 +684,14 @@ internal object OwnedOutputSafety {
         val lexicalRoot = projectRoot.toPath().toAbsolutePath().normalize()
         val lexicalCandidate = candidate.toPath().toAbsolutePath().normalize()
         if (Files.isSymbolicLink(lexicalRoot) || Files.isSymbolicLink(lexicalCandidate)) {
-            throw GradleException("[kiteConfig] Refusing symlinked $label path: $lexicalCandidate")
+            throw KiteConfigException("[kiteConfig] Refusing symlinked $label path: $lexicalCandidate")
         }
         if (lexicalCandidate.startsWith(lexicalRoot)) {
             var cursor = lexicalRoot
             lexicalRoot.relativize(lexicalCandidate).forEach { component ->
                 cursor = cursor.resolve(component)
                 if (Files.exists(cursor, NOFOLLOW_LINKS) && Files.isSymbolicLink(cursor)) {
-                    throw GradleException("[kiteConfig] Refusing $label through symlink: $cursor")
+                    throw KiteConfigException("[kiteConfig] Refusing $label through symlink: $cursor")
                 }
             }
         }
@@ -700,34 +700,34 @@ internal object OwnedOutputSafety {
         requireSafeExistingComponents(root)
         requireSafeExistingComponents(resolved)
         if (resolved != root && !resolved.startsWith(root)) {
-            throw GradleException("[kiteConfig] Refusing $label outside the root project directory $root: $resolved")
+            throw KiteConfigException("[kiteConfig] Refusing $label outside the root project directory $root: $resolved")
         }
         return root to resolved
     }
 
     /** Throws when any existing component is a symlink, junction, or special file. */
-    fun requireSafePath(file: File, label: String) {
+    public fun requireSafePath(file: File, label: String) {
         try {
             val original = file.toPath().toAbsolutePath().normalize()
             // Platform aliases such as macOS /var may appear above the selected
             // path, but the selected entry itself must never be a symlink.
             if (Files.isSymbolicLink(original)) {
-                throw GradleException("path is a symbolic link: $original")
+                throw KiteConfigException("path is a symbolic link: $original")
             }
             requireSafeExistingComponents(file.toPath().absoluteNormalized())
-        } catch (e: GradleException) {
-            throw GradleException("[kiteConfig] Unsafe $label path: ${e.message}", e)
+        } catch (e: KiteConfigException) {
+            throw KiteConfigException("[kiteConfig] Unsafe $label path: ${e.message}", e)
         }
     }
 
     /** Read-only no-follow containment check shared by diagnostics and installers. */
-    fun projectPathExists(file: File, projectRoot: File, label: String): Boolean {
+    public fun projectPathExists(file: File, projectRoot: File, label: String): Boolean {
         requireProjectContainedPath(file, projectRoot, label)
         return Files.exists(file.toPath().toAbsolutePath().normalize(), NOFOLLOW_LINKS)
     }
 
     /** Reads one stable regular-file snapshot without ever exceeding [maximumBytes]. */
-    fun readProjectFileBounded(
+    public fun readProjectFileBounded(
         file: File,
         projectRoot: File,
         maximumBytes: Long,
@@ -779,22 +779,22 @@ internal object OwnedOutputSafety {
         require(inputFingerprint == null || inputFingerprint.matches(Regex("[0-9a-f]{64}"))) {
             "Invalid ownership input fingerprint."
         }
-        if (files.isEmpty()) throw GradleException("[kiteConfig] Refusing to install an empty owned output set.")
+        if (files.isEmpty()) throw KiteConfigException("[kiteConfig] Refusing to install an empty owned output set.")
         if (files.size > MAX_OWNED_OUTPUT_ENTRIES) {
-            throw GradleException(
+            throw KiteConfigException(
                 "[kiteConfig] Refusing to install more than $MAX_OWNED_OUTPUT_ENTRIES owned output files.",
             )
         }
         var desiredBytes = 0L
         files.forEach { (relative, bytes) ->
             if (bytes.size.toLong() > MAX_MIGRATION_FILE_BYTES) {
-                throw GradleException(
+                throw KiteConfigException(
                     "[kiteConfig] Refusing owned output larger than $MAX_MIGRATION_FILE_BYTES bytes: $relative",
                 )
             }
             desiredBytes += bytes.size
             if (desiredBytes > MAX_TRANSACTION_SNAPSHOT_BYTES) {
-                throw GradleException(
+                throw KiteConfigException(
                     "[kiteConfig] Refusing owned outputs totaling more than " +
                         "$MAX_TRANSACTION_SNAPSHOT_BYTES bytes.",
                 )
@@ -810,7 +810,7 @@ internal object OwnedOutputSafety {
             OwnedEntry(portable, sha256(bytes)) to bytes
         }.toMap()
         if (desired.size != files.size) {
-            throw GradleException("[kiteConfig] Duplicate normalized generated output paths are not allowed.")
+            throw KiteConfigException("[kiteConfig] Duplicate normalized generated output paths are not allowed.")
         }
 
         val ownershipSnapshot = readOwnershipManifest(manifest, owner)
@@ -823,11 +823,11 @@ internal object OwnedOutputSafety {
             if (Files.exists(target, NOFOLLOW_LINKS)) {
                 val attrs = safeAttributes(target, "owned output")
                 if (!attrs.isRegularFile) {
-                    throw GradleException("[kiteConfig] Owned output is no longer a regular file: $target")
+                    throw KiteConfigException("[kiteConfig] Owned output is no longer a regular file: $target")
                 }
                 val actual = sha256Bounded(target, MAX_MIGRATION_FILE_BYTES, "owned output")
                 if (actual != entry.sha256) {
-                    throw GradleException(
+                    throw KiteConfigException(
                         "[kiteConfig] Refusing to replace modified generated output: $target. " +
                             "Move your changes to source control or delete the generated directory deliberately.",
                     )
@@ -838,7 +838,7 @@ internal object OwnedOutputSafety {
         desired.keys.forEach { entry ->
             val target = installationRoot.resolve(entry.relativePath).normalize()
             if (entry.relativePath !in previousByPath && Files.exists(target, NOFOLLOW_LINKS)) {
-                throw GradleException(
+                throw KiteConfigException(
                     "[kiteConfig] Refusing to overwrite unowned file at generated path: $target. " +
                         "Move or back up that file, then retry.",
                 )
@@ -860,7 +860,7 @@ internal object OwnedOutputSafety {
             walkRegularFilesNoFollow(installationRoot).forEach { path ->
                 val relative = installationRoot.relativize(path).portablePath()
                 if (relative != manifestInRoot && relative != lockInRoot && relative !in known) {
-                    throw GradleException(
+                    throw KiteConfigException(
                         "[kiteConfig] Refusing to clean generated directory containing unowned file: $path. " +
                             "Move it out or remove the generated directory deliberately.",
                     )
@@ -884,7 +884,7 @@ internal object OwnedOutputSafety {
         }
         val manifestBytes = manifestText.toByteArray(StandardCharsets.UTF_8)
         if (manifestBytes.size.toLong() > MAX_MANIFEST_BYTES) {
-            throw GradleException(
+            throw KiteConfigException(
                 "[kiteConfig] Refusing an ownership manifest larger than $MAX_MANIFEST_BYTES bytes.",
             )
         }
@@ -927,7 +927,7 @@ internal object OwnedOutputSafety {
             val bytes = if (Files.exists(path, NOFOLLOW_LINKS)) {
                 val attrs = safeAttributes(path, "owned output transaction")
                 if (!attrs.isRegularFile || attrs.size() > MAX_MIGRATION_FILE_BYTES) {
-                    throw GradleException("[kiteConfig] Output is too large or unsafe to transact: $path")
+                    throw KiteConfigException("[kiteConfig] Output is too large or unsafe to transact: $path")
                 }
                 readRegularFileBounded(path, MAX_MIGRATION_FILE_BYTES, "owned output transaction")
             } else {
@@ -935,19 +935,19 @@ internal object OwnedOutputSafety {
             }
             val owned = previousByPath[path]
             when {
-                owned == null && bytes != null -> throw GradleException(
+                owned == null && bytes != null -> throw KiteConfigException(
                     "[kiteConfig] Refusing to overwrite unowned file at generated path: $path. " +
                         "Move or back up that file, then retry.",
                 )
 
-                owned != null && bytes != null && sha256(bytes) != owned.sha256 -> throw GradleException(
+                owned != null && bytes != null && sha256(bytes) != owned.sha256 -> throw KiteConfigException(
                     "[kiteConfig] Refusing to replace modified generated output: $path. " +
                         "Move your changes to source control or delete the generated directory deliberately.",
                 )
             }
             snapshotBytes += bytes?.size ?: 0
             if (snapshotBytes > MAX_TRANSACTION_SNAPSHOT_BYTES) {
-                throw GradleException(
+                throw KiteConfigException(
                     "[kiteConfig] Refusing an output transaction with more than " +
                         "$MAX_TRANSACTION_SNAPSHOT_BYTES bytes of recovery state.",
                 )
@@ -1048,19 +1048,19 @@ internal object OwnedOutputSafety {
                 }.exceptionOrNull()?.let(rollbackFailures::add)
             }
             if (rollbackFailures.isNotEmpty()) {
-                throw GradleException(
+                throw KiteConfigException(
                     "[kiteConfig] Owned-output installation failed and automatic rollback was incomplete.",
                     failure,
                 ).also { combined -> rollbackFailures.forEach(combined::addSuppressed) }
             }
             if (preservedExternalChanges.isNotEmpty()) {
-                throw GradleException(
+                throw KiteConfigException(
                     "[kiteConfig] Owned-output installation failed; rollback preserved newer external changes at: " +
                         preservedExternalChanges.joinToString(),
                     failure,
                 )
             }
-            throw GradleException(
+            throw KiteConfigException(
                 "[kiteConfig] Owned-output installation failed; the previous output set was restored.",
                 failure,
             )
@@ -1083,7 +1083,7 @@ internal object OwnedOutputSafety {
             else -> current.contentEquals(expected)
         }
         if (!unchanged) {
-            throw GradleException("[kiteConfig] $label changed after its transaction snapshot: $path")
+            throw KiteConfigException("[kiteConfig] $label changed after its transaction snapshot: $path")
         }
     }
 
@@ -1118,28 +1118,28 @@ internal object OwnedOutputSafety {
         try {
             if (snapshotBytes == null) {
                 if (!moveNewWithoutReplacing(stagedReplacement, path)) {
-                    throw GradleException("[kiteConfig] $label appeared before installation and was not overwritten: $path")
+                    throw KiteConfigException("[kiteConfig] $label appeared before installation and was not overwritten: $path")
                 }
                 return
             }
 
-            val parked = moveCurrentPathAside(path) ?: throw GradleException(
+            val parked = moveCurrentPathAside(path) ?: throw KiteConfigException(
                 "[kiteConfig] $label disappeared before installation and was not recreated: $path",
             )
             parkedCurrent = parked
             if (!currentStateEquals(parked, snapshotBytes, maximumBytes, label)) {
                 if (!moveNewWithoutReplacing(parked, path)) {
                     preserveParkedCurrent = true
-                    throw GradleException(
+                    throw KiteConfigException(
                         "[kiteConfig] $label changed during installation; newer entries were preserved at " +
                             "$path and $parked",
                     )
                 }
-                throw GradleException("[kiteConfig] $label changed during installation and was not overwritten: $path")
+                throw KiteConfigException("[kiteConfig] $label changed during installation and was not overwritten: $path")
             }
             if (!moveNewWithoutReplacing(stagedReplacement, path)) {
                 preserveParkedCurrent = true
-                throw GradleException(
+                throw KiteConfigException(
                     "[kiteConfig] $label was recreated during installation; the newer entry was preserved at " +
                         "$path and the prior snapshot at $parked",
                 )
@@ -1159,12 +1159,12 @@ internal object OwnedOutputSafety {
     ) {
         if (snapshotBytes == null) {
             if (Files.exists(path, NOFOLLOW_LINKS)) {
-                throw GradleException("[kiteConfig] $label appeared before deletion and was preserved: $path")
+                throw KiteConfigException("[kiteConfig] $label appeared before deletion and was preserved: $path")
             }
             return
         }
 
-        val parkedCurrent = moveCurrentPathAside(path) ?: throw GradleException(
+        val parkedCurrent = moveCurrentPathAside(path) ?: throw KiteConfigException(
             "[kiteConfig] $label disappeared before deletion: $path",
         )
         var preserveParkedCurrent = false
@@ -1172,16 +1172,16 @@ internal object OwnedOutputSafety {
             if (!currentStateEquals(parkedCurrent, snapshotBytes, maximumBytes, label)) {
                 if (!moveNewWithoutReplacing(parkedCurrent, path)) {
                     preserveParkedCurrent = true
-                    throw GradleException(
+                    throw KiteConfigException(
                         "[kiteConfig] $label changed during deletion; newer entries were preserved at " +
                             "$path and $parkedCurrent",
                     )
                 }
-                throw GradleException("[kiteConfig] $label changed during deletion and was preserved: $path")
+                throw KiteConfigException("[kiteConfig] $label changed during deletion and was preserved: $path")
             }
             Files.delete(parkedCurrent)
             if (Files.exists(path, NOFOLLOW_LINKS)) {
-                throw GradleException("[kiteConfig] $label was recreated during deletion and was preserved: $path")
+                throw KiteConfigException("[kiteConfig] $label was recreated during deletion and was preserved: $path")
             }
         } finally {
             if (!preserveParkedCurrent) Files.deleteIfExists(parkedCurrent)
@@ -1195,7 +1195,7 @@ internal object OwnedOutputSafety {
         maximumBytes: Long,
         label: String,
     ): Path {
-        val parkedCurrent = moveCurrentPathAside(path) ?: throw GradleException(
+        val parkedCurrent = moveCurrentPathAside(path) ?: throw KiteConfigException(
             "[kiteConfig] $label disappeared before deletion: $path",
         )
         var preserveParkedCurrent = false
@@ -1208,7 +1208,7 @@ internal object OwnedOutputSafety {
                 if (!moveNewWithoutReplacing(parkedCurrent, path)) {
                     preserveParkedCurrent = true
                     verificationFailure.addSuppressed(
-                        GradleException(
+                        KiteConfigException(
                             "[kiteConfig] Could not restore unverifiable displaced content at $parkedCurrent; " +
                                 "another entry exists at $path",
                         ),
@@ -1219,16 +1219,16 @@ internal object OwnedOutputSafety {
             if (!unchanged) {
                 if (!moveNewWithoutReplacing(parkedCurrent, path)) {
                     preserveParkedCurrent = true
-                    throw GradleException(
+                    throw KiteConfigException(
                         "[kiteConfig] $label changed during deletion; newer entries were preserved at " +
                             "$path and $parkedCurrent",
                     )
                 }
-                throw GradleException("[kiteConfig] $label changed during deletion and was preserved: $path")
+                throw KiteConfigException("[kiteConfig] $label changed during deletion and was preserved: $path")
             }
             if (Files.exists(path, NOFOLLOW_LINKS)) {
                 preserveParkedCurrent = true
-                throw GradleException("[kiteConfig] $label was recreated during deletion and was preserved: $path")
+                throw KiteConfigException("[kiteConfig] $label was recreated during deletion and was preserved: $path")
             }
             preserveParkedCurrent = true
             return parkedCurrent
@@ -1244,7 +1244,7 @@ internal object OwnedOutputSafety {
         maximumBytes: Long,
         label: String,
     ): Boolean {
-        val parent = path.parent ?: throw GradleException("[kiteConfig] Rollback target has no parent: $path")
+        val parent = path.parent ?: throw KiteConfigException("[kiteConfig] Rollback target has no parent: $path")
         requireSafeExistingComponents(parent)
         Files.createDirectories(parent)
         requireSafeExistingComponents(parent)
@@ -1260,7 +1260,7 @@ internal object OwnedOutputSafety {
                 if (Files.exists(path, NOFOLLOW_LINKS)) return false
                 if (!moveNewWithoutReplacing(stagedSnapshot!!, path)) {
                     preserveStagedSnapshot = true
-                    throw GradleException(
+                    throw KiteConfigException(
                         "[kiteConfig] $label preserved a newer entry at $path; " +
                             "the prior snapshot is available at $stagedSnapshot",
                     )
@@ -1283,7 +1283,7 @@ internal object OwnedOutputSafety {
                 if (!moveNewWithoutReplacing(parked, path)) {
                     preserveParkedCurrent = true
                     preserveStagedSnapshot = stagedSnapshot != null
-                    throw GradleException(
+                    throw KiteConfigException(
                         "[kiteConfig] $label found newer displaced content at $parked and " +
                             "another newer entry at $path" +
                             (stagedSnapshot?.let { "; the prior snapshot is available at $it" }.orEmpty()),
@@ -1297,7 +1297,7 @@ internal object OwnedOutputSafety {
             if (stagedSnapshot == null) return !Files.exists(path, NOFOLLOW_LINKS)
             if (!moveNewWithoutReplacing(stagedSnapshot, path)) {
                 preserveStagedSnapshot = true
-                throw GradleException(
+                throw KiteConfigException(
                     "[kiteConfig] $label preserved a newer entry at $path; " +
                         "the prior snapshot is available at $stagedSnapshot",
                 )
@@ -1310,7 +1310,7 @@ internal object OwnedOutputSafety {
     }
 
     private fun stageRollbackSnapshot(path: Path, bytes: ByteArray): Path {
-        val parent = path.parent ?: throw GradleException("[kiteConfig] Output has no parent: $path")
+        val parent = path.parent ?: throw KiteConfigException("[kiteConfig] Output has no parent: $path")
         requireSafeExistingComponents(parent)
         Files.createDirectories(parent)
         requireSafeExistingComponents(parent)
@@ -1331,7 +1331,7 @@ internal object OwnedOutputSafety {
     }
 
     private fun moveCurrentPathAside(path: Path): Path? {
-        val parent = path.parent ?: throw GradleException("[kiteConfig] Transaction target has no parent: $path")
+        val parent = path.parent ?: throw KiteConfigException("[kiteConfig] Transaction target has no parent: $path")
         requireSafeExistingComponents(parent)
         if (!Files.exists(path, NOFOLLOW_LINKS)) return null
         val parked = Files.createTempFile(parent, ".${path.fileName}.rollback-current-", ".tmp")
@@ -1354,7 +1354,7 @@ internal object OwnedOutputSafety {
                 NOFOLLOW_LINKS,
             )
             if (!movedAttributes.isRegularFile || movedAttributes.isSymbolicLink || movedAttributes.isOther) {
-                throw GradleException(
+                throw KiteConfigException(
                     "[kiteConfig] Transaction target changed to a symlink or non-regular entry and was not read: $path",
                 )
             }
@@ -1373,7 +1373,7 @@ internal object OwnedOutputSafety {
             try {
                 if (!moveNewWithoutReplacing(parked, path)) {
                     failure.addSuppressed(
-                        GradleException(
+                        KiteConfigException(
                             "[kiteConfig] The displaced entry was preserved at $parked because another entry exists at $path.",
                         ),
                     )
@@ -1411,20 +1411,20 @@ internal object OwnedOutputSafety {
         val bytes = readRegularFileBounded(manifest, MAX_MANIFEST_BYTES, "ownership manifest")
         val text = String(bytes, StandardCharsets.UTF_8)
         if (!text.toByteArray(StandardCharsets.UTF_8).contentEquals(bytes)) {
-            throw GradleException("[kiteConfig] Ownership manifest is not valid UTF-8: $manifest")
+            throw KiteConfigException("[kiteConfig] Ownership manifest is not valid UTF-8: $manifest")
         }
         val lines = text.lineSequence().toList()
         if (lines.size < 2 || lines.first() != OWNERSHIP_HEADER) {
-            throw GradleException("[kiteConfig] Unknown ownership manifest format: $manifest")
+            throw KiteConfigException("[kiteConfig] Unknown ownership manifest format: $manifest")
         }
         val ownerParts = lines[1].split('\t')
         if (ownerParts.size != 2 || ownerParts[0] != "owner" || ownerParts[1] != expectedOwner) {
-            throw GradleException("[kiteConfig] Ownership manifest belongs to another generator: $manifest")
+            throw KiteConfigException("[kiteConfig] Ownership manifest belongs to another generator: $manifest")
         }
         val fingerprintParts = lines.getOrNull(2)?.split('\t')
         val inputFingerprint = if (fingerprintParts?.firstOrNull() == "input-fingerprint") {
             if (fingerprintParts.size != 2 || !fingerprintParts[1].matches(Regex("[0-9a-f]{64}"))) {
-                throw GradleException("[kiteConfig] Malformed ownership input fingerprint: $manifest")
+                throw KiteConfigException("[kiteConfig] Malformed ownership input fingerprint: $manifest")
             }
             fingerprintParts[1]
         } else {
@@ -1435,11 +1435,11 @@ internal object OwnedOutputSafety {
         val entries = lines.drop(entryStart).filter(String::isNotBlank).map { line ->
             val parts = line.split('\t')
             if (parts.size != 2 || !parts[0].matches(Regex("[0-9a-f]{64}"))) {
-                throw GradleException("[kiteConfig] Malformed ownership manifest entry: $manifest")
+                throw KiteConfigException("[kiteConfig] Malformed ownership manifest entry: $manifest")
             }
             val relative = validateRelativePath(parts[1])
             if (!seen.add(relative)) {
-                throw GradleException("[kiteConfig] Duplicate ownership manifest entry for $relative")
+                throw KiteConfigException("[kiteConfig] Duplicate ownership manifest entry for $relative")
             }
             OwnedEntry(relative, parts[0])
         }
@@ -1451,16 +1451,16 @@ internal object OwnedOutputSafety {
         val bytes = readRegularFileBounded(manifest, MAX_MANIFEST_BYTES, "removal provenance manifest")
         val text = String(bytes, StandardCharsets.UTF_8)
         if (!text.toByteArray(StandardCharsets.UTF_8).contentEquals(bytes)) {
-            throw GradleException("[kiteConfig] Removal provenance manifest is not valid UTF-8: $manifest")
+            throw KiteConfigException("[kiteConfig] Removal provenance manifest is not valid UTF-8: $manifest")
         }
         val lines = text.lineSequence().toList()
         if (lines.isEmpty() || lines.first() != REMOVAL_HEADER) {
-            throw GradleException("[kiteConfig] Unknown removal provenance format: $manifest")
+            throw KiteConfigException("[kiteConfig] Unknown removal provenance format: $manifest")
         }
         val records = lines.drop(1).filter(String::isNotBlank).onEach { line ->
             val parts = line.split('\t')
             if (parts.size != 3 || !parts[0].matches(Regex("[0-9a-f]{64}"))) {
-                throw GradleException("[kiteConfig] Malformed removal provenance entry: $manifest")
+                throw KiteConfigException("[kiteConfig] Malformed removal provenance entry: $manifest")
             }
             validateRelativePath(parts[1])
             validateRelativePath(parts[2])
@@ -1482,7 +1482,7 @@ internal object OwnedOutputSafety {
         fun record(path: Path) {
             entries++
             if (entries > maximumEntries) {
-                throw GradleException(
+                throw KiteConfigException(
                     "[kiteConfig] Refusing to traverse more than $maximumEntries generated output entries: $path",
                 )
             }
@@ -1496,12 +1496,12 @@ internal object OwnedOutputSafety {
                 override fun preVisitDirectory(dir: Path, attrs: BasicFileAttributes): FileVisitResult {
                     record(dir)
                     if (root.relativize(dir).nameCount > maximumDepth) {
-                        throw GradleException(
+                        throw KiteConfigException(
                             "[kiteConfig] Refusing generated output deeper than $maximumDepth components: $dir",
                         )
                     }
                     if (attrs.isSymbolicLink || attrs.isOther) {
-                        throw GradleException("[kiteConfig] Refusing to traverse unsafe generated directory: $dir")
+                        throw KiteConfigException("[kiteConfig] Refusing to traverse unsafe generated directory: $dir")
                     }
                     return FileVisitResult.CONTINUE
                 }
@@ -1509,12 +1509,12 @@ internal object OwnedOutputSafety {
                 override fun visitFile(file: Path, attrs: BasicFileAttributes): FileVisitResult {
                     record(file)
                     if (attrs.isDirectory && root.relativize(file).nameCount > maximumDepth) {
-                        throw GradleException(
+                        throw KiteConfigException(
                             "[kiteConfig] Refusing generated output deeper than $maximumDepth components: $file",
                         )
                     }
                     if (!attrs.isRegularFile) {
-                        throw GradleException("[kiteConfig] Refusing special/symlink output entry: $file")
+                        throw KiteConfigException("[kiteConfig] Refusing special/symlink output entry: $file")
                     }
                     files.add(file)
                     return FileVisitResult.CONTINUE
@@ -1522,7 +1522,7 @@ internal object OwnedOutputSafety {
 
                 override fun visitFileFailed(file: Path, exc: java.io.IOException): FileVisitResult {
                     record(file)
-                    throw GradleException("[kiteConfig] Could not inspect generated output entry: $file", exc)
+                    throw KiteConfigException("[kiteConfig] Could not inspect generated output entry: $file", exc)
                 }
             },
         )
@@ -1531,11 +1531,11 @@ internal object OwnedOutputSafety {
 
     private fun validateRelativePath(value: String): String {
         if (value.isBlank() || '\\' in value || '\t' in value || '\n' in value || '\r' in value) {
-            throw GradleException("[kiteConfig] Invalid portable relative output path: $value")
+            throw KiteConfigException("[kiteConfig] Invalid portable relative output path: $value")
         }
         val segments = value.split('/')
         if (segments.any { it.isBlank() || it == "." || it == ".." || ':' in it }) {
-            throw GradleException("[kiteConfig] Invalid portable relative output path: $value")
+            throw KiteConfigException("[kiteConfig] Invalid portable relative output path: $value")
         }
         return segments.joinToString("/")
     }
@@ -1548,34 +1548,34 @@ internal object OwnedOutputSafety {
         val root = boundary.toAbsolutePath().normalize()
         val path = candidate.toAbsolutePath().normalize()
         if (path != root && !path.startsWith(root)) {
-            throw GradleException("[kiteConfig] Refusing $label outside $root: $path")
+            throw KiteConfigException("[kiteConfig] Refusing $label outside $root: $path")
         }
         if (Files.isSymbolicLink(root)) {
-            throw GradleException("[kiteConfig] Refusing symlinked $label boundary: $root")
+            throw KiteConfigException("[kiteConfig] Refusing symlinked $label boundary: $root")
         }
         var cursor = root
         root.relativize(path).forEach { component ->
             cursor = cursor.resolve(component)
             if (Files.exists(cursor, NOFOLLOW_LINKS) && Files.isSymbolicLink(cursor)) {
-                throw GradleException("[kiteConfig] Refusing $label through symlink: $cursor")
+                throw KiteConfigException("[kiteConfig] Refusing $label through symlink: $cursor")
             }
         }
     }
 
     private fun requireContained(root: Path, path: Path, label: String) {
         if (path == root || !path.startsWith(root)) {
-            throw GradleException("[kiteConfig] Refusing $label outside $root: $path")
+            throw KiteConfigException("[kiteConfig] Refusing $label outside $root: $path")
         }
     }
 
     private fun requireSafeExistingComponents(path: Path) {
-        var current = path.root ?: throw GradleException("Path must be absolute: $path")
+        var current = path.root ?: throw KiteConfigException("Path must be absolute: $path")
         path.forEach { component ->
             current = current.resolve(component)
             if (Files.exists(current, NOFOLLOW_LINKS)) {
                 val attrs = Files.readAttributes(current, BasicFileAttributes::class.java, NOFOLLOW_LINKS)
                 if (attrs.isSymbolicLink || attrs.isOther) {
-                    throw GradleException("path contains a symlink, junction, or special entry: $current")
+                    throw KiteConfigException("path contains a symlink, junction, or special entry: $current")
                 }
             }
         }
@@ -1586,13 +1586,13 @@ internal object OwnedOutputSafety {
         return try {
             Files.readAttributes(path, BasicFileAttributes::class.java, NOFOLLOW_LINKS).also {
                 if (it.isSymbolicLink || it.isOther) {
-                    throw GradleException("[kiteConfig] Refusing unsafe $label: $path")
+                    throw KiteConfigException("[kiteConfig] Refusing unsafe $label: $path")
                 }
             }
-        } catch (e: GradleException) {
+        } catch (e: KiteConfigException) {
             throw e
         } catch (e: Exception) {
-            throw GradleException("[kiteConfig] Could not inspect $label: $path", e)
+            throw KiteConfigException("[kiteConfig] Could not inspect $label: $path", e)
         }
     }
 
@@ -1637,13 +1637,13 @@ internal object OwnedOutputSafety {
     }
 
     private inline fun <T> withExclusiveLock(lock: Path, block: () -> T): T {
-        val parent = lock.parent ?: throw GradleException("[kiteConfig] Lock has no parent: $lock")
+        val parent = lock.parent ?: throw KiteConfigException("[kiteConfig] Lock has no parent: $lock")
         requireSafeExistingComponents(parent)
         Files.createDirectories(parent)
         requireSafeExistingComponents(parent)
         if (Files.exists(lock, NOFOLLOW_LINKS)) {
             val attrs = safeAttributes(lock, "ownership lock")
-            if (!attrs.isRegularFile) throw GradleException("[kiteConfig] Invalid ownership lock: $lock")
+            if (!attrs.isRegularFile) throw KiteConfigException("[kiteConfig] Invalid ownership lock: $lock")
         }
         // NOFOLLOW_LINKS is passed to the open itself, not just the check above.
         // Checking and then opening leaves a window in which the lock path can be
@@ -1677,9 +1677,9 @@ internal object OwnedOutputSafety {
     private fun Path.normalizedSelectedEntry(label: String): Path {
         val lexical = toAbsolutePath().normalize()
         if (Files.isSymbolicLink(lexical)) {
-            throw GradleException("[kiteConfig] Refusing symlinked $label: $lexical")
+            throw KiteConfigException("[kiteConfig] Refusing symlinked $label: $lexical")
         }
-        val parent = lexical.parent ?: throw GradleException("[kiteConfig] $label has no parent: $lexical")
+        val parent = lexical.parent ?: throw KiteConfigException("[kiteConfig] $label has no parent: $lexical")
         val normalized = parent.absoluteNormalized().resolve(lexical.fileName).normalize()
         requireSafeExistingComponents(normalized)
         return normalized
@@ -1710,7 +1710,7 @@ internal object OwnedOutputSafety {
         require(maximumBytes >= 0) { "maximumBytes must not be negative" }
         val before = safeAttributes(path, label)
         if (!before.isRegularFile || before.size() > maximumBytes) {
-            throw GradleException("[kiteConfig] $label is too large or unsafe: $path")
+            throw KiteConfigException("[kiteConfig] $label is too large or unsafe: $path")
         }
         var total = 0L
         Files.newByteChannel(path, setOf(READ, NOFOLLOW_LINKS)).use { channel ->
@@ -1722,7 +1722,7 @@ internal object OwnedOutputSafety {
                 if (count < 0) break
                 if (count == 0) continue
                 if (count.toLong() > maximumBytes - total) {
-                    throw GradleException("[kiteConfig] $label grew beyond $maximumBytes bytes while being read: $path")
+                    throw KiteConfigException("[kiteConfig] $label grew beyond $maximumBytes bytes while being read: $path")
                 }
                 consume(buffer, 0, count)
                 total += count
@@ -1735,7 +1735,7 @@ internal object OwnedOutputSafety {
             after.fileKey() != before.fileKey() ||
             after.lastModifiedTime() != before.lastModifiedTime()
         ) {
-            throw GradleException("[kiteConfig] $label changed while being read: $path")
+            throw KiteConfigException("[kiteConfig] $label changed while being read: $path")
         }
     }
 

@@ -1,5 +1,7 @@
 package io.github.yuroyami.kiteconfig
 
+import io.github.yuroyami.kiteconfig.core.PlannedTextChange
+import io.github.yuroyami.kiteconfig.core.Utf8FileSnapshot
 import org.gradle.api.GradleException
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows

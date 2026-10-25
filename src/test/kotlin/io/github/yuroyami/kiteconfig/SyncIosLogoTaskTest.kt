@@ -104,4 +104,17 @@ class SyncIosLogoTaskTest {
         assertTrue(failure.message.orEmpty().contains("debug { logo { foreground } }"), failure.message)
         assertFalse(debugCatalog().exists())
     }
+
+    @Test
+    fun `same-named iOS catalogs receive distinct ownership namespaces`() {
+        val project = projectDir.resolve("project").apply { mkdirs() }
+        val first = project.resolve("ios/App/Assets.xcassets/AppIcon.appiconset")
+        val second = project.resolve("ios/Widget/Assets.xcassets/AppIcon.appiconset")
+
+        val firstIdentity = SyncIosLogoTask.catalogIdentity(project, first)
+        val secondIdentity = SyncIosLogoTask.catalogIdentity(project, second)
+
+        assertTrue(firstIdentity != secondIdentity)
+        assertTrue(firstIdentity.startsWith("ios-appicon-") && secondIdentity.startsWith("ios-appicon-"))
+    }
 }

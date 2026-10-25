@@ -1,5 +1,6 @@
 package io.github.yuroyami.kiteconfig
 
+import io.github.yuroyami.kiteconfig.core.OwnedOutputSafety
 import io.github.yuroyami.kiteconfig.core.canonicalizeLocales
 import io.github.yuroyami.kiteconfig.core.deriveLinuxPackageName
 import io.github.yuroyami.kiteconfig.core.deriveUpgradeUuid

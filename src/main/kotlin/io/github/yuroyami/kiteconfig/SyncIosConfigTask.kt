@@ -1,5 +1,12 @@
 package io.github.yuroyami.kiteconfig
 
+import io.github.yuroyami.kiteconfig.core.OwnedOutputSafety
+import io.github.yuroyami.kiteconfig.core.PlannedTextChange
+import io.github.yuroyami.kiteconfig.core.Utf8FileSnapshot
+import io.github.yuroyami.kiteconfig.core.applyTextRewritePlan
+import io.github.yuroyami.kiteconfig.core.planTextChange
+import io.github.yuroyami.kiteconfig.core.readUtf8SnapshotStrict
+import io.github.yuroyami.kiteconfig.core.requireContainedPath
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
 import org.gradle.api.file.DirectoryProperty
@@ -280,7 +287,7 @@ internal abstract class SyncIosConfigTask : DefaultTask() {
             logger.info("[kiteConfig] iOS migration plan is empty; no source files need changes.")
         } else {
             budget.verifyBeforeCommit(plan)
-            val applied = applyTextRewritePlan(root, plan, backup.get(), dryRun.get(), logger)
+            val applied = applyTextRewritePlan(root, plan, backup.get(), dryRun.get(), logger.asKiteLog())
             if (applied.dryRun) {
                 logger.lifecycle("[kiteConfig] iOS migration plan: ${applied.planned} file(s); dry-run left all files untouched.")
             } else {

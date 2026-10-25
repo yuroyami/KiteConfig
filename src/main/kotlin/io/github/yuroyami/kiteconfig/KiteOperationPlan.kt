@@ -1,5 +1,6 @@
 package io.github.yuroyami.kiteconfig
 
+import io.github.yuroyami.kiteconfig.core.BACKUP_SUFFIX
 import org.gradle.api.Project
 import org.gradle.api.provider.Provider
 import java.io.File

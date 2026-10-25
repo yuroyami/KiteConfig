@@ -1,5 +1,6 @@
 package io.github.yuroyami.kiteconfig
 
+import io.github.yuroyami.kiteconfig.core.BACKUP_SUFFIX
 import io.github.yuroyami.kiteconfig.core.deriveLinuxPackageName
 import io.github.yuroyami.kiteconfig.core.deriveUpgradeUuid
 import org.gradle.testkit.runner.GradleRunner

@@ -1,7 +1,5 @@
-package io.github.yuroyami.kiteconfig
+package io.github.yuroyami.kiteconfig.core
 
-import io.github.yuroyami.kiteconfig.core.diagnosticSafeText
-import org.gradle.api.logging.Logger
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.nio.ByteBuffer
@@ -18,13 +16,15 @@ import java.nio.file.attribute.BasicFileAttributes
 import java.nio.file.attribute.PosixFileAttributeView
 
 /** Suffix appended to a user-owned file before kiteConfig rewrites it. */
-internal const val BACKUP_SUFFIX = ".kiteconfig.bak"
+@InternalKiteCoreApi
+public const val BACKUP_SUFFIX: String = ".kiteconfig.bak"
 internal const val MAX_REWRITE_TEXT_BYTES = 64L * 1024L * 1024L
 private const val MAX_DIFF_CHANGED_LINES_PER_SIDE = 40
 private const val MAX_DIFF_LINE_CHARS = 512
 private const val MAX_DIFF_PATH_CHARS = 1_024
 
-internal data class PlannedTextChange(
+@InternalKiteCoreApi
+public data class PlannedTextChange(
     val file: File,
     val originalBytes: ByteArray?,
     val originalText: String?,
@@ -33,16 +33,19 @@ internal data class PlannedTextChange(
 )
 
 /** One strict UTF-8 read used both to derive and later validate a rewrite. */
-internal data class Utf8FileSnapshot(
+@InternalKiteCoreApi
+public data class Utf8FileSnapshot(
     val file: File,
     val bytes: ByteArray,
     val text: String,
 )
 
-internal data class RewriteApplyResult(val planned: Int, val written: Int, val dryRun: Boolean)
+@InternalKiteCoreApi
+public data class RewriteApplyResult(public val planned: Int, public val written: Int, public val dryRun: Boolean)
 
 /** Decode UTF-8 without silently replacing malformed bytes or accepting a BOM. */
-internal fun readUtf8SnapshotStrict(file: File): Utf8FileSnapshot {
+@InternalKiteCoreApi
+public fun readUtf8SnapshotStrict(file: File): Utf8FileSnapshot {
     val bytes = readRegularFileBoundedStable(
         file.toPath(),
         MAX_REWRITE_TEXT_BYTES,
@@ -68,7 +71,8 @@ internal fun readUtf8Strict(file: File): String = readUtf8SnapshotStrict(file).t
  * Resolve [candidate] inside [root], rejecting `..` escapes and every symlink in
  * the existing path. The returned file is normalized but not symlink-resolved.
  */
-internal fun requireContainedPath(
+@InternalKiteCoreApi
+public fun requireContainedPath(
     root: File,
     candidate: File,
     mustExist: Boolean = true,
@@ -102,7 +106,8 @@ internal fun requireContainedPath(
     return path.toFile()
 }
 
-internal fun planTextChange(
+@InternalKiteCoreApi
+public fun planTextChange(
     root: File,
     file: File,
     content: String,
@@ -133,12 +138,13 @@ internal fun planTextChange(
  * so a non-cooperating writer that retains an already-open file handle remains
  * outside this process-lock transaction.
  */
-internal fun applyTextRewritePlan(
+@InternalKiteCoreApi
+public fun applyTextRewritePlan(
     root: File,
     changes: List<PlannedTextChange>,
     backup: Boolean,
     dryRun: Boolean,
-    logger: Logger,
+    logger: KiteLog,
     beforeMutation: (index: Int, target: Path) -> Unit = { _, _ -> },
 ): RewriteApplyResult {
     if (changes.isEmpty()) return RewriteApplyResult(0, 0, dryRun)
@@ -441,7 +447,7 @@ internal fun writeTextSafely(
     content: String,
     backup: Boolean,
     dryRun: Boolean,
-    logger: Logger,
+    logger: KiteLog,
     label: String,
 ): Boolean {
     if (Files.isSymbolicLink(file.toPath())) error("refusing to read or replace symlink: ${file.path}")
@@ -467,7 +473,7 @@ internal fun writeBytesSafely(
     file: File,
     bytes: ByteArray,
     dryRun: Boolean,
-    logger: Logger,
+    logger: KiteLog,
     label: String,
 ): Boolean {
     if (Files.isSymbolicLink(file.toPath())) error("refusing to read or replace symlink: ${file.path}")

@@ -1,6 +1,5 @@
-package io.github.yuroyami.kiteconfig
+package io.github.yuroyami.kiteconfig.core
 
-import org.gradle.api.GradleException
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertThrows
@@ -34,7 +33,7 @@ class OwnedOutputFaultTest {
             owner = "fault-test",
             files = files,
             beforeMutation = { index, _ ->
-                if (index == failAt) throw GradleException("injected failure at step $index")
+                if (index == failAt) throw KiteConfigException("injected failure at step $index")
             },
         )
     }
@@ -47,7 +46,7 @@ class OwnedOutputFaultTest {
 
     @Test
     fun `a first-write failure leaves nothing behind`() {
-        assertThrows(GradleException::class.java) { install(two, failAt = 0) }
+        assertThrows(KiteConfigException::class.java) { install(two, failAt = 0) }
 
         assertFalse(installed("one.txt").exists())
         assertFalse(installed("two.txt").exists())
@@ -56,7 +55,7 @@ class OwnedOutputFaultTest {
 
     @Test
     fun `a later failure rolls the earlier writes back`() {
-        assertThrows(GradleException::class.java) { install(two, failAt = 1) }
+        assertThrows(KiteConfigException::class.java) { install(two, failAt = 1) }
 
         assertFalse(installed("one.txt").exists(), "the first write survived a failed batch")
         assertFalse(installed("two.txt").exists())
@@ -69,7 +68,7 @@ class OwnedOutputFaultTest {
         assertEquals("first", installed("one.txt").readText())
 
         val changed = linkedMapOf("one.txt" to bytes("CHANGED"), "two.txt" to bytes("ALSO CHANGED"))
-        assertThrows(GradleException::class.java) { install(changed, failAt = 1) }
+        assertThrows(KiteConfigException::class.java) { install(changed, failAt = 1) }
 
         assertEquals("first", installed("one.txt").readText(), "a rolled-back file kept the new content")
         assertEquals("second", installed("two.txt").readText())
@@ -81,7 +80,7 @@ class OwnedOutputFaultTest {
         install(two)
 
         val fewer = linkedMapOf("one.txt" to bytes("CHANGED"))
-        assertThrows(GradleException::class.java) { install(fewer, failAt = 0) }
+        assertThrows(KiteConfigException::class.java) { install(fewer, failAt = 0) }
 
         assertEquals("first", installed("one.txt").readText())
         assertEquals("second", installed("two.txt").readText(), "the dropped file was not restored")

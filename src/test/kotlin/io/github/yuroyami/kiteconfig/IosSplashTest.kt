@@ -1,5 +1,7 @@
 package io.github.yuroyami.kiteconfig
 
+import io.github.yuroyami.kiteconfig.core.KiteConfigException
+import io.github.yuroyami.kiteconfig.core.OwnedOutputSafety
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
@@ -8,7 +10,6 @@ import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
-import org.gradle.api.GradleException
 import org.gradle.testfixtures.ProjectBuilder
 import java.awt.Color
 import java.awt.image.BufferedImage
@@ -327,7 +328,7 @@ class IosSplashTest {
         val mine = byteArrayOf(1, 2, 3, 4)
         val handWritten = handWrittenSplashImage(assets, mine)
 
-        val failure = assertThrows(GradleException::class.java) {
+        val failure = assertThrows(KiteConfigException::class.java) {
             install(assets, darkImage = null, backup = false)
         }
 
@@ -419,7 +420,7 @@ class IosSplashTest {
         val edited = assets.resolve("$IOS_SPLASH_COLORSET.colorset/Contents.json")
         edited.writeText("{ \"mine\": true }")
 
-        val failure = assertThrows(GradleException::class.java) {
+        val failure = assertThrows(KiteConfigException::class.java) {
             OwnedOutputSafety.removeInstalledFiles(
                 installationRoot = assets,
                 manifestFile = iosSplashManifestFile(assets, identity),

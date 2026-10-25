@@ -140,15 +140,101 @@ public final class io/github/yuroyami/kiteconfig/core/KiteConfigException : java
 	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/Throwable;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 }
 
+public abstract interface class io/github/yuroyami/kiteconfig/core/KiteLog {
+	public abstract fun info (Ljava/lang/String;)V
+	public abstract fun lifecycle (Ljava/lang/String;)V
+}
+
 public final class io/github/yuroyami/kiteconfig/core/LocaleTagsKt {
 	public static final fun bcp47ToAndroidQualifier (Ljava/lang/String;)Ljava/lang/String;
 	public static final fun canonicalizeLocales (Ljava/lang/Iterable;)Ljava/util/List;
 	public static final fun looksLikeUnambiguousLocaleQualifier (Ljava/lang/String;)Z
 }
 
+public final class io/github/yuroyami/kiteconfig/core/OwnedOutputSafety {
+	public static final field INSTANCE Lio/github/yuroyami/kiteconfig/core/OwnedOutputSafety;
+	public final fun backupThenRemove (Ljava/io/File;Ljava/io/File;Ljava/io/File;Ljava/util/Collection;ZLkotlin/jvm/functions/Function2;)Ljava/util/List;
+	public static synthetic fun backupThenRemove$default (Lio/github/yuroyami/kiteconfig/core/OwnedOutputSafety;Ljava/io/File;Ljava/io/File;Ljava/io/File;Ljava/util/Collection;ZLkotlin/jvm/functions/Function2;ILjava/lang/Object;)Ljava/util/List;
+	public final fun inspectInstalledFiles (Ljava/io/File;Ljava/io/File;Ljava/io/File;Ljava/lang/String;Ljava/util/Collection;Ljava/lang/String;)Ljava/util/List;
+	public static synthetic fun inspectInstalledFiles$default (Lio/github/yuroyami/kiteconfig/core/OwnedOutputSafety;Ljava/io/File;Ljava/io/File;Ljava/io/File;Ljava/lang/String;Ljava/util/Collection;Ljava/lang/String;ILjava/lang/Object;)Ljava/util/List;
+	public final fun projectPathExists (Ljava/io/File;Ljava/io/File;Ljava/lang/String;)Z
+	public final fun readProjectFileBounded (Ljava/io/File;Ljava/io/File;JLjava/lang/String;)[B
+	public final fun removeInstalledFiles (Ljava/io/File;Ljava/io/File;Ljava/io/File;Ljava/lang/String;)Ljava/util/List;
+	public final fun replaceGeneratedTree (Ljava/io/File;Ljava/io/File;Ljava/lang/String;Ljava/util/Map;Lkotlin/jvm/functions/Function2;)V
+	public static synthetic fun replaceGeneratedTree$default (Lio/github/yuroyami/kiteconfig/core/OwnedOutputSafety;Ljava/io/File;Ljava/io/File;Ljava/lang/String;Ljava/util/Map;Lkotlin/jvm/functions/Function2;ILjava/lang/Object;)V
+	public final fun replaceInstalledFiles (Ljava/io/File;Ljava/io/File;Ljava/io/File;Ljava/lang/String;Ljava/util/Map;Ljava/lang/String;Lkotlin/jvm/functions/Function2;)V
+	public static synthetic fun replaceInstalledFiles$default (Lio/github/yuroyami/kiteconfig/core/OwnedOutputSafety;Ljava/io/File;Ljava/io/File;Ljava/io/File;Ljava/lang/String;Ljava/util/Map;Ljava/lang/String;Lkotlin/jvm/functions/Function2;ILjava/lang/Object;)V
+	public final fun replaceInstalledFilesWithBackup (Ljava/io/File;Ljava/io/File;Ljava/io/File;Ljava/io/File;Ljava/lang/String;Ljava/util/Map;Ljava/lang/String;Ljava/util/Collection;Lkotlin/jvm/functions/Function1;)V
+	public static synthetic fun replaceInstalledFilesWithBackup$default (Lio/github/yuroyami/kiteconfig/core/OwnedOutputSafety;Ljava/io/File;Ljava/io/File;Ljava/io/File;Ljava/io/File;Ljava/lang/String;Ljava/util/Map;Ljava/lang/String;Ljava/util/Collection;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
+	public final fun requireInputOutsideOutput (Ljava/io/File;Ljava/io/File;Ljava/lang/String;)V
+	public final fun requireInstallerInsideProject (Ljava/io/File;Ljava/io/File;Ljava/lang/String;)V
+	public final fun requireSafePath (Ljava/io/File;Ljava/lang/String;)V
+	public final fun withInstallationLock (Ljava/io/File;Ljava/io/File;Lkotlin/jvm/functions/Function0;)Ljava/lang/Object;
+}
+
+public final class io/github/yuroyami/kiteconfig/core/PlannedTextChange {
+	public fun <init> (Ljava/io/File;[BLjava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
+	public final fun component1 ()Ljava/io/File;
+	public final fun component2 ()[B
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun component5 ()Ljava/lang/String;
+	public final fun copy (Ljava/io/File;[BLjava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lio/github/yuroyami/kiteconfig/core/PlannedTextChange;
+	public static synthetic fun copy$default (Lio/github/yuroyami/kiteconfig/core/PlannedTextChange;Ljava/io/File;[BLjava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lio/github/yuroyami/kiteconfig/core/PlannedTextChange;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getFile ()Ljava/io/File;
+	public final fun getLabel ()Ljava/lang/String;
+	public final fun getNewText ()Ljava/lang/String;
+	public final fun getOriginalBytes ()[B
+	public final fun getOriginalText ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
 public final class io/github/yuroyami/kiteconfig/core/ResourceLocaleDetectionKt {
 	public static final fun detectComposeResourceLocales (Ljava/io/File;I)Ljava/util/List;
 	public static synthetic fun detectComposeResourceLocales$default (Ljava/io/File;IILjava/lang/Object;)Ljava/util/List;
+}
+
+public final class io/github/yuroyami/kiteconfig/core/RewriteApplyResult {
+	public fun <init> (IIZ)V
+	public final fun component1 ()I
+	public final fun component2 ()I
+	public final fun component3 ()Z
+	public final fun copy (IIZ)Lio/github/yuroyami/kiteconfig/core/RewriteApplyResult;
+	public static synthetic fun copy$default (Lio/github/yuroyami/kiteconfig/core/RewriteApplyResult;IIZILjava/lang/Object;)Lio/github/yuroyami/kiteconfig/core/RewriteApplyResult;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getDryRun ()Z
+	public final fun getPlanned ()I
+	public final fun getWritten ()I
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/yuroyami/kiteconfig/core/RewriteSafetyKt {
+	public static final field BACKUP_SUFFIX Ljava/lang/String;
+	public static final fun applyTextRewritePlan (Ljava/io/File;Ljava/util/List;ZZLio/github/yuroyami/kiteconfig/core/KiteLog;Lkotlin/jvm/functions/Function2;)Lio/github/yuroyami/kiteconfig/core/RewriteApplyResult;
+	public static synthetic fun applyTextRewritePlan$default (Ljava/io/File;Ljava/util/List;ZZLio/github/yuroyami/kiteconfig/core/KiteLog;Lkotlin/jvm/functions/Function2;ILjava/lang/Object;)Lio/github/yuroyami/kiteconfig/core/RewriteApplyResult;
+	public static final fun planTextChange (Ljava/io/File;Ljava/io/File;Ljava/lang/String;Ljava/lang/String;Lio/github/yuroyami/kiteconfig/core/Utf8FileSnapshot;)Lio/github/yuroyami/kiteconfig/core/PlannedTextChange;
+	public static synthetic fun planTextChange$default (Ljava/io/File;Ljava/io/File;Ljava/lang/String;Ljava/lang/String;Lio/github/yuroyami/kiteconfig/core/Utf8FileSnapshot;ILjava/lang/Object;)Lio/github/yuroyami/kiteconfig/core/PlannedTextChange;
+	public static final fun readUtf8SnapshotStrict (Ljava/io/File;)Lio/github/yuroyami/kiteconfig/core/Utf8FileSnapshot;
+	public static final fun requireContainedPath (Ljava/io/File;Ljava/io/File;ZZ)Ljava/io/File;
+	public static synthetic fun requireContainedPath$default (Ljava/io/File;Ljava/io/File;ZZILjava/lang/Object;)Ljava/io/File;
+}
+
+public final class io/github/yuroyami/kiteconfig/core/Utf8FileSnapshot {
+	public fun <init> (Ljava/io/File;[BLjava/lang/String;)V
+	public final fun component1 ()Ljava/io/File;
+	public final fun component2 ()[B
+	public final fun component3 ()Ljava/lang/String;
+	public final fun copy (Ljava/io/File;[BLjava/lang/String;)Lio/github/yuroyami/kiteconfig/core/Utf8FileSnapshot;
+	public static synthetic fun copy$default (Lio/github/yuroyami/kiteconfig/core/Utf8FileSnapshot;Ljava/io/File;[BLjava/lang/String;ILjava/lang/Object;)Lio/github/yuroyami/kiteconfig/core/Utf8FileSnapshot;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getBytes ()[B
+	public final fun getFile ()Ljava/io/File;
+	public final fun getText ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
 }
 
 public final class io/github/yuroyami/kiteconfig/core/VersionCodeKt {

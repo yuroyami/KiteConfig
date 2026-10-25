@@ -1,5 +1,6 @@
 package io.github.yuroyami.kiteconfig
 
+import io.github.yuroyami.kiteconfig.core.OwnedOutputSafety
 import io.github.yuroyami.kiteconfig.core.diagnosticSafeText
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
