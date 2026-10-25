@@ -36,6 +36,18 @@ tasks:
       targets: ${pluginSettings.ios.targets}
       projectRootDir: ${module.rootDir}
 
+  checkAndroid:
+    action: !io.github.yuroyami.kiteconfig.toolchain.checkAndroidSettings
+      checkSettings: ${pluginSettings.android.checkSettings}
+      version: ${pluginSettings.version}
+      rebuild: ${pluginSettings.rebuild}
+      buildNumber: ${pluginSettings.buildNumber}
+      appId: ${pluginSettings.appId}
+      androidApplicationId: ${pluginSettings.androidApplicationId}
+      applicationId: ${module.settings.android.applicationId}
+      versionCode: ${module.settings.android.versionCode}
+      versionName: ${module.settings.android.versionName}
+
 generated:
   sources:
     - language: kotlin
@@ -48,3 +60,5 @@ commands:
 checks:
   - name: kiteIos
     performedBy: checkIos
+  - name: kiteAndroid
+    performedBy: checkAndroid

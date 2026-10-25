@@ -34,6 +34,9 @@ interface KiteConfigSettings {
 
     /** The Xcode project that `./kotlin do kiteSyncIos` keeps in line. */
     val ios: IosSettings
+
+    /** The Android settings check. */
+    val android: AndroidSettings
 }
 
 /** The `plugins: kiteconfig: buildConfig:` block. */
@@ -55,9 +58,19 @@ interface BuildConfigSettings {
 /** The `plugins: kiteconfig: ios:` block. */
 @Configurable
 interface IosSettings {
-    /** The `.xcodeproj` folder, relative to the project root. Unset, the iOS command and check do nothing. */
+    /** The `.xcodeproj` folder, relative to the module folder. Unset, the iOS command and check do nothing. */
     val xcodeProject: String?
 
     /** The application targets to update. Empty means every application target. */
     val targets: List<String> get() = emptyList()
+}
+
+/** The `plugins: kiteconfig: android:` block. */
+@Configurable
+interface AndroidSettings {
+    /**
+     * Whether `./kotlin check` compares `settings: android:` with this block.
+     * Off by default: a plugin cannot tell an Android app from a library.
+     */
+    val checkSettings: Boolean get() = false
 }

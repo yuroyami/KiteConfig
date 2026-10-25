@@ -1,6 +1,7 @@
 modules:
   - kiteconfig
   - sample
+  - sample-android
 
 plugins:
   - ./kiteconfig
