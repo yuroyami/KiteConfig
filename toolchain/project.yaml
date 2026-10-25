@@ -1,0 +1,6 @@
+modules:
+  - kiteconfig
+  - sample
+
+plugins:
+  - ./kiteconfig

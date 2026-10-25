@@ -25,6 +25,7 @@ class RenameSweepTest {
             ".github/release-notes/",
             "build/",
             "kiteconfig-core/build/",
+            "toolchain/build/",
             ".git/",
             ".gradle/",
         )

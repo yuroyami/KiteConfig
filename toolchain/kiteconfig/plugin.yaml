@@ -1,0 +1,18 @@
+tasks:
+  buildConfig:
+    action: !io.github.yuroyami.kiteconfig.toolchain.generateBuildConfig
+      appName: ${pluginSettings.appName}
+      version: ${pluginSettings.version}
+      rebuild: ${pluginSettings.rebuild}
+      buildNumber: ${pluginSettings.buildNumber}
+      appId: ${pluginSettings.appId}
+      androidApplicationId: ${pluginSettings.androidApplicationId}
+      iosBundleId: ${pluginSettings.iosBundleId}
+      locales: ${pluginSettings.locales}
+      buildConfig: ${pluginSettings.buildConfig}
+      outputDir: ${taskOutputDir}
+
+generated:
+  sources:
+    - language: kotlin
+      directory: ${tasks.buildConfig.action.outputDir}

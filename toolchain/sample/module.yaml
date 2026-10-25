@@ -1,0 +1,21 @@
+product:
+  type: kmp/lib
+  platforms: [ jvm, android, iosSimulatorArm64 ]
+
+settings:
+  kotlin:
+    version: 2.4.21
+  android:
+    namespace: io.github.yuroyami.kiteconfig.sample
+
+plugins:
+  kiteconfig:
+    enabled: true
+    appName: Kite Sample
+    version: 4.1.1
+    rebuild: 1
+    appId: io.github.yuroyami.kiteconfig.sample
+    locales: [ en, pt-BR ]
+    buildConfig:
+      fields:
+        API_URL: https://example.com/api
