@@ -256,7 +256,6 @@ public final class io/github/yuroyami/kiteconfig/core/PbxConfigurationOverride {
 }
 
 public final class io/github/yuroyami/kiteconfig/core/PbxprojAnalysis {
-	public synthetic fun <init> (Lio/github/yuroyami/kiteconfig/core/ObjectGraph;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
 }
 
 public final class io/github/yuroyami/kiteconfig/core/PbxprojResult {

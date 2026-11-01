@@ -31,7 +31,7 @@ internal fun parseToolVersion(value: String): ToolVersion? {
 internal fun isSupportedAgpVersion(value: String): Boolean {
     if (!STABLE_TOOL_VERSION.matches(value.trim())) return false
     val version = parseToolVersion(value) ?: return false
-    return version >= ToolVersion(8, 5, 2) && version < ToolVersion(9, 4, 0)
+    return version >= ToolVersion(8, 5, 2) && version < ToolVersion(9, 6, 0)
 }
 
 /** KGP adapters are intentionally narrow until the CI matrix proves another line. */
@@ -53,5 +53,5 @@ internal fun isSupportedKgpVersion(value: String): Boolean {
 internal fun isSupportedComposeVersion(value: String): Boolean {
     if (!COMPOSE_RUNTIME_VERSION.matches(value.trim())) return false
     val version = parseToolVersion(value) ?: return false
-    return version >= ToolVersion(1, 11, 0) && version < ToolVersion(1, 13, 0)
+    return version >= ToolVersion(1, 11, 0) && version < ToolVersion(1, 14, 0)
 }

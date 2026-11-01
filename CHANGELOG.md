@@ -4,6 +4,25 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions track the
 Gradle Plugin Portal releases.
 
+## Unreleased
+
+### Changed
+
+- KiteConfig supports AGP 8.5.2 through 9.5.x. The upper limit was 9.3.x, so
+  the build stopped with `KITECONFIG-COMPAT-002` on AGP 9.4 and 9.5.
+- KiteConfig supports Compose 1.11.0 through 1.13.x. The upper limit was
+  1.12.x, so `kiteDoctor` reported Compose 1.13 as unsupported.
+- The plugin compiles against AGP 9.5.0 and Compose 1.13.0-beta01. The real
+  consumer fixtures use AGP 9.5.0 on Gradle 9.9.0-rc-1. The AGP 8.5.2 floor
+  fixtures did not change.
+- The build uses Gradle 9.9.0-rc-1, JUnit 6.1.3, plugin-publish 2.2.1,
+  Dokka 2.3.0-Beta and CycloneDX 3.5.1.
+
+### Fixed
+
+- The README said that an unsupported AGP or Kotlin version turns features off.
+  The build stops instead, and the README now says so.
+
 ## 3.0.1
 
 ### Added

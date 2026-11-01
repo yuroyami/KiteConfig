@@ -37,9 +37,9 @@ plugins {
     `java-gradle-plugin`
     `maven-publish`
     signing
-    id("com.gradle.plugin-publish") version "1.3.1"
-    id("org.jetbrains.dokka") version "2.0.0"
-    id("org.cyclonedx.bom") version "3.2.4"
+    id("com.gradle.plugin-publish") version "2.2.1"
+    id("org.jetbrains.dokka") version "2.3.0-Beta"
+    id("org.cyclonedx.bom") version "3.5.1"
 }
 
 @DisableCachingByDefault(because = "Release metadata verification has no outputs")
@@ -168,9 +168,7 @@ kotlin {
     explicitApi()
 
     @OptIn(org.jetbrains.kotlin.gradle.dsl.abi.ExperimentalAbiValidation::class)
-    abiValidation {
-        enabled.set(true)
-    }
+    abiValidation()
 
     compilerOptions {
         optIn.add("io.github.yuroyami.kiteconfig.core.InternalKiteCoreApi")
@@ -189,6 +187,9 @@ tasks.named("checkKotlinAbi") {
 tasks.withType<JavaCompile>().configureEach { options.release.set(17) }
 tasks.withType<KotlinCompile>().configureEach {
     compilerOptions.jvmTarget.set(JvmTarget.JVM_17)
+    // `kotlin-dsl` passes `-jvm-default=enable`, which also emits public `DefaultImpls`
+    // classes. The ABI has interface default methods only, so this later argument wins.
+    compilerOptions.freeCompilerArgs.add("-jvm-default=no-compatibility")
 }
 
 repositories {
@@ -230,7 +231,7 @@ dependencyLocking {
 
 // kiteconfig-core ships inside the plugin jar, like the AGP 8 adapter. The plugin
 // depends on it compileOnly, so the POM, the module metadata and the SBOM stay empty.
-val bundledCore: Configuration by configurations.creating {
+val bundledCore: Configuration = configurations.create("bundledCore") {
     isCanBeConsumed = false
     isTransitive = false
     attributes {
@@ -431,7 +432,7 @@ tasks.named<Jar>("javadocJar") {
 // kotlin("multiplatform") in fixtures need it added explicitly. This also puts
 // KGP in the SAME classloader as the plugin under test, matching the documented
 // consumer setup (kotlin declared in the root plugins block).
-val testKitPluginClasspath: Configuration by configurations.creating
+val testKitPluginClasspath: Configuration = configurations.create("testKitPluginClasspath")
 dependencies {
     testKitPluginClasspath(libs.kotlin.gradle.plugin)
     testKitPluginClasspath(libs.compose.gradle.plugin)

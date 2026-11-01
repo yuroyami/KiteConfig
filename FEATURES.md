@@ -44,7 +44,7 @@ Gradle build logic" below.
 |---|---|
 | Gradle | Gradle 8.5 or newer is supported. A published-plugin fixture verifies the 8.5 floor. |
 | Kotlin Gradle plugin | Stable 2.4.x releases are supported. A real fixture applies KGP 2.4.0, generates a fields-only BuildConfig in `commonMain`, and compiles code that reads it. Stable numeric `-release-N` runtime metadata is accepted. RC, Beta, dev, and arbitrary suffixes are rejected. |
-| Android Gradle plugin | AGP 8.5.2 through 9.3.x is supported. Real fixtures cover the AGP 8.5.2 classic adapters and the AGP 9.3.1 classic and KMP-native adapters. |
+| Android Gradle plugin | AGP 8.5.2 through 9.5.x is supported. Real fixtures cover the AGP 8.5.2 classic adapters and the AGP 9.5.0 classic and KMP-native adapters. |
 | Configuration cache | Reuse is verified for the KGP integration on the current Gradle wrapper. |
 
 Declare KGP and AGP versions in the root `plugins` block with `apply false` when
@@ -559,7 +559,7 @@ periods, in at least two dot-separated segments.
 plugin, `org.jetbrains.kotlin.plugin.compose`, on the same classpath, so both
 belong in the root `plugins { }` block with `apply false`, for the same
 classloader reason Kotlin and AGP already are. Supported Compose Gradle
-plugin releases are `1.11.0` through `1.12.x`. `kiteDoctor` reports the
+plugin releases are `1.11.0` through `1.13.x`. `kiteDoctor` reports the
 active version's compatibility.
 
 ## Kotlin/Native compiler opt-ins

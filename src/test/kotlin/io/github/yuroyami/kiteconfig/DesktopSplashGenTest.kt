@@ -21,7 +21,7 @@ class DesktopSplashGenTest {
 
     private fun task(): GenerateDesktopSplashTask {
         val project = ProjectBuilder.builder().withProjectDir(directory).build()
-        return project.tasks.create("kiteInternalDesktopSplash", GenerateDesktopSplashTask::class.java).apply {
+        return project.tasks.register("kiteInternalDesktopSplash", GenerateDesktopSplashTask::class.java).get().apply {
             outputDir.set(project.layout.buildDirectory.dir("generated/kiteconfig/desktop-splash"))
         }
     }

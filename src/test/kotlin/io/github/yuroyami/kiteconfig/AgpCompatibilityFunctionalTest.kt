@@ -98,8 +98,8 @@ class AgpCompatibilityFunctionalTest {
     fun `KGP 2_4_0 fields-only BuildConfig reuses cache on the current Gradle line`() {
         writeKgpBuildConfigFixture()
 
-        val first = runKgpBuildConfigFixture("9.5.1")
-        val second = runKgpBuildConfigFixture("9.5.1")
+        val first = runKgpBuildConfigFixture("9.9.0-rc-1")
+        val second = runKgpBuildConfigFixture("9.9.0-rc-1")
 
         assertTrue(first.output.contains("BUILD SUCCESSFUL"), first.output)
         assertTrue(first.output.contains("Configuration cache entry stored."), first.output)
@@ -128,10 +128,10 @@ class AgpCompatibilityFunctionalTest {
     }
 
     @Test
-    fun `AGP 9_3_1 current uses modern application and library adapters`() {
+    fun `AGP 9_5_0 current uses modern application and library adapters`() {
         val result = runMatrixFixture(
-            agpVersion = "9.3.1",
-            gradleVersion = "9.5.1",
+            agpVersion = "9.5.0",
+            gradleVersion = "9.9.0-rc-1",
             localeSeed = "androidResources.localeFilters.add('fr')",
             localeAssertion = """
                 assert androidExt.androidResources.localeFilters.contains('en') : androidExt.androidResources.localeFilters
@@ -140,12 +140,12 @@ class AgpCompatibilityFunctionalTest {
             """.trimIndent(),
         )
 
-        assertTrue(result.output.contains("AGP_MATRIX_OK 9.3.1"), result.output)
+        assertTrue(result.output.contains("AGP_MATRIX_OK 9.5.0"), result.output)
         assertDriftWarnings(result)
     }
 
     @Test
-    fun `AGP 9_3_1 and KGP 2_4_0 configure a KMP-native Android library with cache reuse`() {
+    fun `AGP 9_5_0 and KGP 2_4_0 configure a KMP-native Android library with cache reuse`() {
         publishPluginFixture()
         write(
             "settings.gradle",
@@ -173,7 +173,7 @@ class AgpCompatibilityFunctionalTest {
             """
             plugins {
                 id 'org.jetbrains.kotlin.multiplatform' version '2.4.0' apply false
-                id 'com.android.kotlin.multiplatform.library' version '9.3.1' apply false
+                id 'com.android.kotlin.multiplatform.library' version '9.5.0' apply false
                 id 'io.github.yuroyami.kiteconfig' version 'test-fixture'
             }
 
@@ -211,7 +211,7 @@ class AgpCompatibilityFunctionalTest {
                 void verifyValues() {
                     assert compileSdk.get() == 35 : compileSdk.get()
                     assert minSdk.get() == 24 : minSdk.get()
-                    println 'KMP_NATIVE_ANDROID_OK AGP 9.3.1 KGP 2.4.0'
+                    println 'KMP_NATIVE_ANDROID_OK AGP 9.5.0 KGP 2.4.0'
                 }
             }
 
@@ -252,16 +252,16 @@ class AgpCompatibilityFunctionalTest {
         )
         val first = GradleRunner.create()
             .withProjectDir(projectDir)
-            .withGradleVersion("9.5.1")
+            .withGradleVersion("9.9.0-rc-1")
             .withArguments(arguments)
             .build()
         val second = GradleRunner.create()
             .withProjectDir(projectDir)
-            .withGradleVersion("9.5.1")
+            .withGradleVersion("9.9.0-rc-1")
             .withArguments(arguments)
             .build()
 
-        assertTrue(first.output.contains("KMP_NATIVE_ANDROID_OK AGP 9.3.1 KGP 2.4.0"), first.output)
+        assertTrue(first.output.contains("KMP_NATIVE_ANDROID_OK AGP 9.5.0 KGP 2.4.0"), first.output)
         assertTrue(first.output.contains("Configuration cache entry stored."), first.output)
         assertTrue(
             first.output.contains(
@@ -270,7 +270,7 @@ class AgpCompatibilityFunctionalTest {
             ),
             first.output,
         )
-        assertTrue(second.output.contains("KMP_NATIVE_ANDROID_OK AGP 9.3.1 KGP 2.4.0"), second.output)
+        assertTrue(second.output.contains("KMP_NATIVE_ANDROID_OK AGP 9.5.0 KGP 2.4.0"), second.output)
         assertTrue(second.output.contains("Reusing configuration cache."), second.output)
     }
 
@@ -314,7 +314,7 @@ class AgpCompatibilityFunctionalTest {
             "build.gradle",
             """
             plugins {
-                id 'com.android.application' version '9.3.1' apply false
+                id 'com.android.application' version '9.5.0' apply false
                 id 'io.github.yuroyami.kiteconfig' version 'test-fixture'
             }
 
@@ -368,7 +368,7 @@ class AgpCompatibilityFunctionalTest {
 
         val result = GradleRunner.create()
             .withProjectDir(projectDir)
-            .withGradleVersion("9.5.1")
+            .withGradleVersion("9.9.0-rc-1")
             .withArguments("--stacktrace", ":app:printMergedManifest")
             .build()
 
@@ -899,7 +899,7 @@ class AgpCompatibilityFunctionalTest {
     }
 
     @Test
-    fun `AGP 9_3_1 receives SDK levels from the KiteConfig alone and still runs the diagnostic tasks`() {
+    fun `AGP 9_5_0 receives SDK levels from the KiteConfig alone and still runs the diagnostic tasks`() {
         writeConfigOnlySdkLevelsFixture()
 
         // A regular task: the wiring supplies compileSdk/minSdk/targetSdk from nothing.
@@ -931,7 +931,7 @@ class AgpCompatibilityFunctionalTest {
 
     private fun runConfigOnlyFixture(task: String): BuildResult = GradleRunner.create()
         .withProjectDir(projectDir)
-        .withGradleVersion("9.5.1")
+        .withGradleVersion("9.9.0-rc-1")
         .withArguments("--stacktrace", task)
         .build()
 
@@ -963,7 +963,7 @@ class AgpCompatibilityFunctionalTest {
             "build.gradle",
             """
             plugins {
-                id 'com.android.application' version '9.3.1' apply false
+                id 'com.android.application' version '9.5.0' apply false
                 id 'io.github.yuroyami.kiteconfig' version 'test-fixture'
             }
 
@@ -1049,11 +1049,11 @@ class AgpCompatibilityFunctionalTest {
     fun `the debug build type gets its own identifier and label`() {
         val sdk = androidSdkDirectory()
         assumeTrue(sdk != null, "no Android SDK on this host")
-        writeDebugIdentityFixture(agpVersion = "9.3.1", sdk = sdk!!)
+        writeDebugIdentityFixture(agpVersion = "9.5.0", sdk = sdk!!)
 
         val result = GradleRunner.create()
             .withProjectDir(projectDir)
-            .withGradleVersion("9.5.1")
+            .withGradleVersion("9.9.0-rc-1")
             .withArguments("--stacktrace", ":app:printMergedManifests")
             .build()
 
@@ -1090,11 +1090,11 @@ class AgpCompatibilityFunctionalTest {
     fun `a debug build type the module does not declare stops the build`() {
         val sdk = androidSdkDirectory()
         assumeTrue(sdk != null, "no Android SDK on this host")
-        writeDebugIdentityFixture(agpVersion = "9.3.1", sdk = sdk!!, debugSection = MISNAMED_DEBUG_BUILD_TYPE)
+        writeDebugIdentityFixture(agpVersion = "9.5.0", sdk = sdk!!, debugSection = MISNAMED_DEBUG_BUILD_TYPE)
 
         val failure = GradleRunner.create()
             .withProjectDir(projectDir)
-            .withGradleVersion("9.5.1")
+            .withGradleVersion("9.9.0-rc-1")
             .withArguments("--stacktrace", ":app:help")
             .buildAndFail()
 
@@ -1233,7 +1233,7 @@ class AgpCompatibilityFunctionalTest {
             "build.gradle",
             """
             plugins {
-                id 'com.android.application' version '9.3.1' apply false
+                id 'com.android.application' version '9.5.0' apply false
                 id 'io.github.yuroyami.kiteconfig' version 'test-fixture'
             }
 
@@ -1280,7 +1280,7 @@ class AgpCompatibilityFunctionalTest {
 
         GradleRunner.create()
             .withProjectDir(projectDir)
-            .withGradleVersion("9.5.1")
+            .withGradleVersion("9.9.0-rc-1")
             .withArguments("--stacktrace", ":app:assembleDebug", ":app:assembleRelease")
             .build()
 

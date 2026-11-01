@@ -658,12 +658,12 @@ public class KiteConfigPlugin : Plugin<Project> {
                 val agpVersion = activeAgpVersion
                     ?: throw GradleException(
                         "[KITECONFIG-COMPAT-001] Could not determine the active Android Gradle plugin version. " +
-                            "Supported AGP range is 8.5.2 through 9.3.x."
+                            "Supported AGP range is 8.5.2 through 9.5.x."
                     )
                 if (!isSupportedAgpVersion(agpVersion) && !ext.effectiveIgnoreVersionGuards.get()) {
                     throw GradleException(
                         "[KITECONFIG-COMPAT-002] Unsupported Android Gradle plugin $agpVersion; " +
-                            "this kiteconfig build supports AGP 8.5.2 through 9.3.x. " +
+                            "this kiteconfig build supports AGP 8.5.2 through 9.5.x. " +
                             "Set kiteConfig { ignoreVersionGuards = true } to proceed anyway."
                     )
                 }

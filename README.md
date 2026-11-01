@@ -511,9 +511,12 @@ See [toolchain/README.md](toolchain/README.md).
   `desktop { logo { enabled = false } }` to stop that.
 - **My debug build replaced the app I installed from the store.** Give it its
   own id: `debug { appId { suffix = ".debug" } }`. See [Debug builds](#debug-builds).
-- **My AGP or Kotlin version is unsupported.** The features that need deep
-  access turn off and say why. `ignoreVersionGuards = true`, with its `@OptIn`
-  line, keeps them on at your own risk.
+- **My AGP or Kotlin version is unsupported.** When KiteConfig has values to
+  set in that plugin, the build stops with `KITECONFIG-COMPAT-002` (AGP) or
+  `KITECONFIG-COMPAT-004` (Kotlin). Move to a
+  [supported version](docs/index.md#compatibility). Or set
+  `ignoreVersionGuards = true`, with its `@OptIn` line, to continue at your own
+  risk.
 
 ## Upgrading
 

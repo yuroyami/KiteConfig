@@ -389,8 +389,8 @@ internal object KiteConfigDiagnosticEngine {
                     KiteConfigDiagnosticSeverity.ERROR,
                     "Compose Gradle plugin compatibility",
                     "Could not determine the active Compose Gradle plugin version.",
-                    "Use a Compose release in the supported range 1.11.0 through 1.12.x.",
-                    expected = "1.11.0..1.12.x",
+                    "Use a Compose release in the supported range 1.11.0 through 1.13.x.",
+                    expected = "1.11.0..1.13.x",
                 ),
             )
             !isSupportedComposeVersion(context.activeComposeVersion) -> add(
@@ -400,8 +400,8 @@ internal object KiteConfigDiagnosticEngine {
                     "Compose Gradle plugin compatibility",
                     "Active Compose Gradle plugin ${context.activeComposeVersion} is unsupported." +
                         if (context.versionGuardsIgnored) " ignoreVersionGuards keeps it active." else "",
-                    "Use a Compose release in the supported range 1.11.0 through 1.12.x.",
-                    expected = "1.11.0..1.12.x",
+                    "Use a Compose release in the supported range 1.11.0 through 1.13.x.",
+                    expected = "1.11.0..1.13.x",
                     actual = context.activeComposeVersion,
                 ),
             )
@@ -1580,8 +1580,8 @@ private fun MutableList<KiteConfigDiagnostic>.diagnoseAndroidIcons(context: Kite
                     KiteConfigDiagnosticSeverity.ERROR,
                     "Android Gradle plugin compatibility",
                     "Could not determine the active Android Gradle plugin version.",
-                    "Use an AGP release in the supported range 8.5.2 through 9.3.x.",
-                    expected = "8.5.2..9.3.x",
+                    "Use an AGP release in the supported range 8.5.2 through 9.5.x.",
+                    expected = "8.5.2..9.5.x",
                 ),
             )
 
@@ -1592,8 +1592,8 @@ private fun MutableList<KiteConfigDiagnostic>.diagnoseAndroidIcons(context: Kite
                     "Android Gradle plugin compatibility",
                     "Active Android Gradle plugin ${context.activeAgpVersion} is unsupported." +
                         if (context.versionGuardsIgnored) " ignoreVersionGuards keeps it active." else "",
-                    "Use an AGP release in the supported range 8.5.2 through 9.3.x.",
-                    expected = "8.5.2..9.3.x",
+                    "Use an AGP release in the supported range 8.5.2 through 9.5.x.",
+                    expected = "8.5.2..9.5.x",
                     actual = context.activeAgpVersion,
                 ),
             )

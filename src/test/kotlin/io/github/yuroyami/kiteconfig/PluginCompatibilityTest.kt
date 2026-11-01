@@ -18,7 +18,11 @@ class PluginCompatibilityTest {
         assertTrue(isSupportedAgpVersion("9.3.0"))
         assertTrue(isSupportedAgpVersion("9.3.1"))
         assertFalse(isSupportedAgpVersion("9.3.1-alpha01"))
-        assertFalse(isSupportedAgpVersion("9.4.0"))
+        assertTrue(isSupportedAgpVersion("9.4.0"))
+        assertTrue(isSupportedAgpVersion("9.4.1"))
+        assertTrue(isSupportedAgpVersion("9.5.0"))
+        assertFalse(isSupportedAgpVersion("9.5.0-rc02"))
+        assertFalse(isSupportedAgpVersion("9.6.0"))
         assertFalse(isSupportedAgpVersion("unknown"))
     }
 
@@ -44,12 +48,14 @@ class PluginCompatibilityTest {
         assertTrue(isSupportedComposeVersion("1.12.0"))
         assertTrue(isSupportedComposeVersion("1.12.0-rc01"), "Compose ships long rc lines people build on")
         assertTrue(isSupportedComposeVersion("1.12.0-beta03"))
+        assertTrue(isSupportedComposeVersion("1.13.0"))
+        assertTrue(isSupportedComposeVersion("1.13.0-beta01"))
     }
 
     @Test
     fun `the compose range rejects versions outside it`() {
         assertFalse(isSupportedComposeVersion("1.10.9"))
-        assertFalse(isSupportedComposeVersion("1.13.0"))
+        assertFalse(isSupportedComposeVersion("1.14.0"))
         assertFalse(isSupportedComposeVersion("not-a-version"))
     }
 }

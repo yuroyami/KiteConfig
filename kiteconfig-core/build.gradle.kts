@@ -23,9 +23,7 @@ kotlin {
     explicitApi()
 
     @OptIn(org.jetbrains.kotlin.gradle.dsl.abi.ExperimentalAbiValidation::class)
-    abiValidation {
-        enabled.set(true)
-    }
+    abiValidation()
 
     compilerOptions {
         // These classes ship inside the plugin jar, so they follow its rules:

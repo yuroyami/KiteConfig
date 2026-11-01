@@ -31,8 +31,8 @@ In the **root** `build.gradle.kts`:
 
 ```kotlin
 plugins {
-    kotlin("multiplatform") version "2.4.10" apply false
-    id("com.android.application") version "9.3.1" apply false
+    kotlin("multiplatform") version "2.4.21" apply false
+    id("com.android.application") version "9.5.0" apply false
     id("io.github.yuroyami.kiteconfig") version "3.0.1"
 }
 
@@ -189,11 +189,11 @@ someTask.localeList.set(kiteConfig.canonicalLocales)
 
 ## Compatibility
 
-Gradle 8.5 and newer, AGP 8.5.2 through 9.3.x, KGP 2.4.x, Compose 1.11 through
-1.12.x, on a JDK 17 or 21 daemon.
+Gradle 8.5 and newer, AGP 8.5.2 through 9.5.x, KGP 2.4.x, Compose 1.11 through
+1.13.x, on a JDK 17 or 21 daemon.
 
 A dedicated `agpCompatibilityTest` builds real consumer projects on Gradle 8.5,
-8.9 and 9.5.1, against AGP 8.5.2 and 9.3.1. CI runs on Linux with JDK 17 and 21,
-on macOS with JDK 21, and on Windows with JDK 21. Each build runs twice. CI then
-checks that the second run reuses the configuration cache entry, and that no
-tracked file changed.
+8.9 and 9.9.0-rc-1, against AGP 8.5.2 and 9.5.0. CI runs on Linux with JDK 17
+and 21, on macOS with JDK 21, and on Windows with JDK 21. Each build runs twice.
+CI then checks that the second run reuses the configuration cache entry, and
+that no tracked file changed.

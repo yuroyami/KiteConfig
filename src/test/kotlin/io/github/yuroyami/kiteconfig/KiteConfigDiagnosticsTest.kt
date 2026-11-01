@@ -530,7 +530,7 @@ class KiteConfigDiagnosticsTest {
             quietContext().copy(
                 agpRequired = true,
                 agpOnClasspath = true,
-                activeAgpVersion = "9.4.0",
+                activeAgpVersion = "9.6.0",
                 kgpRequired = true,
                 kgpOnClasspath = true,
                 activeKgpVersion = "2.5.0",
@@ -539,7 +539,7 @@ class KiteConfigDiagnosticsTest {
 
         val agp = relevant.single { it.id == "KTCNFG061" }
         assertEquals(KiteConfigDiagnosticSeverity.ERROR, agp.severity)
-        assertEquals("9.4.0", agp.actual)
+        assertEquals("9.6.0", agp.actual)
         val kgp = relevant.single { it.id == "KTCNFG062" }
         assertEquals(KiteConfigDiagnosticSeverity.ERROR, kgp.severity)
         assertEquals("2.5.0", kgp.actual)
@@ -547,7 +547,7 @@ class KiteConfigDiagnosticsTest {
         val irrelevant = KiteConfigDiagnosticEngine.evaluate(
             quietContext().copy(
                 agpOnClasspath = true,
-                activeAgpVersion = "9.4.0",
+                activeAgpVersion = "9.6.0",
                 kgpOnClasspath = true,
                 activeKgpVersion = "2.5.0",
             ),
@@ -617,10 +617,10 @@ class KiteConfigDiagnosticsTest {
     @Test
     fun `compose compatibility rejects an unsupported active version`() {
         val finding = KiteConfigDiagnosticEngine.evaluate(
-            quietContext().copy(composeRequired = true, composeOnClasspath = true, activeComposeVersion = "1.13.0"),
+            quietContext().copy(composeRequired = true, composeOnClasspath = true, activeComposeVersion = "1.14.0"),
         ).single { it.id == "KTCNFG082" }
         assertEquals(KiteConfigDiagnosticSeverity.ERROR, finding.severity, finding.toString())
-        assertEquals("1.13.0", finding.actual)
+        assertEquals("1.14.0", finding.actual)
     }
 
     @Test
