@@ -33,7 +33,7 @@ In the **root** `build.gradle.kts`:
 plugins {
     kotlin("multiplatform") version "2.4.21" apply false
     id("com.android.application") version "9.5.0" apply false
-    id("io.github.yuroyami.kiteconfig") version "3.0.1"
+    id("io.github.yuroyami.kiteconfig") version "3.1.0"
 }
 
 kiteConfig {
